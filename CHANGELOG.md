@@ -1,5 +1,30 @@
 # Changelog
 
+## 1.3.8
+
+- Restored the complete Flight Commander welcome-page lockup by adding a
+  light-surface wordmark variant with visible aircraft, compass, and `FLIGHT`
+  details.
+- Increased welcome-tagline contrast so the complete banner remains readable
+  over the light map background.
+- Fixed USB MAVLink radio startup on Windows by defaulting the explicit Ground
+  Control protocol to 460800 baud, forcing DTR low, and transmitting the GCS
+  heartbeat as soon as the serial transport opens.
+- Ground Control now opens immediately in a clear waiting-for-heartbeat state;
+  telemetry, mission reads, and vehicle commands remain disabled until a valid
+  autopilot heartbeat arrives.
+- Preserved serial bytes received during the COM-open handoff, separated baud
+  preferences by protocol, and replaced misleading MSP-only transport status
+  messages.
+- Scoped serial IPC, MAVLink decoding, command waits, mission operations, and
+  firmware serial traffic to one connection generation so delayed events from
+  a disconnected radio cannot affect its replacement.
+- Added bounded serial open, control-line, and cleanup failures; a stalled
+  Windows driver now returns a specific error instead of leaving the interface
+  on Connecting indefinitely.
+- Added source and packaged-renderer checks for the welcome-specific artwork
+  and text contrast, plus regression coverage for the MAVLink USB lifecycle.
+
 ## 1.3.7
 
 - Restored the Flight Commander wordmark in the application header, landing

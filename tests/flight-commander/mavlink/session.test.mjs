@@ -16,6 +16,8 @@ class FakeBridge {
   constructor() {
     this.encoded = [];
     this.resetCount = 0;
+    this.resetGenerations = [];
+    this.feeds = [];
     this.unsubscribed = false;
   }
 
@@ -27,12 +29,17 @@ class FakeBridge {
     };
   }
 
-  mavlinkReset() {
+  mavlinkReset(generation) {
     this.resetCount += 1;
+    this.resetGenerations.push(generation);
   }
 
-  mavlinkFeed(bytes) {
+  mavlinkFeed(bytes, generation) {
     this.fed = Array.from(bytes);
+    this.feeds.push({
+      bytes: Array.from(bytes),
+      generation,
+    });
   }
 
   async mavlinkEncode(messageName, payload, options) {
@@ -53,6 +60,12 @@ class FakeConnection {
 
   removeOnReceiveCallback(listener) {
     this.listeners.delete(listener);
+  }
+
+  receive(bytes) {
+    for (const listener of [...this.listeners]) {
+      listener({ data: bytes });
+    }
   }
 
   send(bytes, callback) {
@@ -233,6 +246,62 @@ describe("MAVLink state normalization and firmware detection", () => {
     assert.equal(session.state.firmwareFamilySource, "heartbeat");
   });
 
+  test("publishes the validated connection before firmware state updates", () => {
+    const { session } = createAttachedSession();
+    const events = [];
+    session.on("connected", () => events.push("connected"));
+    session.on("state", (state) => {
+      if (state.connected) events.push("state");
+    });
+
+    session.handleMessage(heartbeat({ autopilot: 0 }));
+
+    assert.equal(events[0], "connected");
+    assert.equal(events.filter((event) => event === "connected").length, 1);
+    assert.equal(events.includes("state"), true);
+  });
+
+  test("does not unlock the vehicle session for malformed or non-vehicle heartbeats", () => {
+    const { session } = createAttachedSession();
+    let connectedEvents = 0;
+    session.on("connected", () => {
+      connectedEvents += 1;
+    });
+
+    const missingType = heartbeat();
+    delete missingType.data.type;
+    const missingAutopilot = heartbeat();
+    delete missingAutopilot.data.autopilot;
+    const missingComponent = heartbeat();
+    delete missingComponent.header.compid;
+
+    const rejected = [
+      heartbeat({ sysid: 0 }),
+      heartbeat({ compid: 0 }),
+      heartbeat({ type: 6 }),
+      heartbeat({ autopilot: 8 }),
+      heartbeat({ type: 256 }),
+      heartbeat({ autopilot: 3.5 }),
+      missingType,
+      missingAutopilot,
+      missingComponent,
+    ];
+    for (const frame of rejected) {
+      assert.equal(session.handleMessage(frame), false);
+      assert.equal(session.state.connected, false);
+      assert.equal(session.state.systemId, null);
+    }
+    assert.equal(connectedEvents, 0);
+
+    assert.equal(
+      session.handleMessage(heartbeat({ type: 0, autopilot: 0 })),
+      true,
+    );
+    assert.equal(session.state.connected, true);
+    assert.equal(session.state.systemId, 1);
+    assert.equal(connectedEvents, 1);
+  });
+
   test("uses parameter stream fingerprint to distinguish INAV from ArduPilot", () => {
     const inav = createAttachedSession().session;
     inav.handleMessage(heartbeat({ autopilot: 3, sysid: 11 }));
@@ -272,6 +341,108 @@ describe("MAVLink state normalization and firmware detection", () => {
 });
 
 describe("commands, acknowledgements and cleanup", () => {
+  test("drops queued bytes and decoded frames from an earlier attachment", () => {
+    const {
+      session,
+      bridge,
+      connection: firstConnection,
+    } = createAttachedSession();
+    const firstGeneration = session.attachmentGeneration;
+    const queuedFirstRead = [...firstConnection.listeners][0];
+    const secondConnection = new FakeConnection();
+
+    session.attach(secondConnection);
+    const secondGeneration = session.attachmentGeneration;
+    assert.notEqual(secondGeneration, firstGeneration);
+
+    queuedFirstRead({ data: Uint8Array.of(0xfd, 0x01) });
+    assert.deepEqual(bridge.feeds, []);
+
+    secondConnection.receive(Uint8Array.of(0xfd, 0x02));
+    assert.deepEqual(bridge.feeds, [
+      {
+        bytes: [0xfd, 0x02],
+        generation: secondGeneration,
+      },
+    ]);
+
+    bridge.listener({
+      ...heartbeat(),
+      generation: firstGeneration,
+    });
+    bridge.listener(heartbeat());
+    assert.equal(session.state.connected, false);
+
+    bridge.listener({
+      ...heartbeat(),
+      generation: secondGeneration,
+    });
+    assert.equal(session.state.connected, true);
+  });
+
+  test("does not send an asynchronously encoded command on a replacement attachment", async () => {
+    const { session, bridge } = createAttachedSession();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    let releaseCommand;
+    const normalEncode = bridge.mavlinkEncode.bind(bridge);
+    bridge.mavlinkEncode = (messageName, payload, options) => {
+      if (messageName !== "CommandLong") {
+        return normalEncode(messageName, payload, options);
+      }
+      bridge.encoded.push({ messageName, payload, options });
+      return new Promise((resolve) => {
+        releaseCommand = () => resolve(Uint8Array.of(0xfd, 0x7f));
+      });
+    };
+
+    const pending = session.send("CommandLong", {
+      targetSystem: 1,
+      targetComponent: 1,
+      command: 400,
+    });
+    await Promise.resolve();
+    assert.equal(typeof releaseCommand, "function");
+
+    const replacement = new FakeConnection();
+    session.attach(replacement);
+    releaseCommand();
+
+    await assert.rejects(
+      pending,
+      (error) => error.code === "MAVLINK_SESSION_DETACHED",
+    );
+    assert.equal(
+      replacement.sent.some((bytes) => bytes.length === 2 && bytes[1] === 0x7f),
+      false,
+    );
+  });
+
+  test("starts and stops the GCS discovery heartbeat with the transport", async () => {
+    const { session, bridge, connection } = createAttachedSession();
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    assert.equal(
+      bridge.encoded.some(
+        ({ messageName, payload }) =>
+          messageName === "Heartbeat" &&
+          payload.type === 6 &&
+          payload.autopilot === 8,
+      ),
+      true,
+    );
+    assert.equal(connection.sent.length > 0, true);
+    assert.ok(session.gcsHeartbeat != null);
+    assert.equal(session.state.connected, false);
+
+    session.detach();
+    assert.equal(session.gcsHeartbeat, null);
+    assert.equal(connection.listeners.size, 0);
+  });
+
   test("confirms mode and arm commands from subsequent heartbeat state", async () => {
     const { session, bridge } = createAttachedSession({
       firmwareFamilyOverride: FIRMWARE_FAMILY_ARDUPILOT,
@@ -299,6 +470,64 @@ describe("commands, acknowledgements and cleanup", () => {
       }),
     );
     assert.equal((await armPromise).armed, true);
+  });
+
+  test("detaching rejects state, ACK, firmware, mission, and mode waits", async () => {
+    const { session } = createAttachedSession();
+    session.handleMessage(heartbeat({ customMode: 0 }));
+    session.state.missionTotal = 3;
+    session.state.missionId = 91;
+    session.state.timeBootMs = 5000;
+
+    const missionContext = {
+      sequence: 1,
+      expectedMissionTotal: 3,
+      expectedMissionId: 91,
+      expectedTimeBootMs: 5000,
+      expectedBootGeneration: 0,
+      checkpoint: {
+        sequence: 1,
+        missionTotal: 3,
+        missionId: 91,
+        timeBootMs: 5000,
+        bootGeneration: 0,
+      },
+    };
+    const missionWaiter = session.createMissionCurrentWaiter(missionContext, {
+      timeoutMs: 1000,
+    });
+    const operations = [
+      [
+        "state",
+        session.waitForState((state) => state.armed, 1000, "armed state"),
+      ],
+      ["ACK", session.waitForCommandAck(300, { timeoutMs: 1000 })],
+      ["firmware", session.waitForFirmwareFamily({ timeoutMs: 1000 })],
+      ["mission message", session.waitFor("MissionCount", () => true, 1000)],
+      ["mission current", missionWaiter.promise],
+      ["mode", session.setMode("GUIDED", { timeoutMs: 1000 })],
+    ];
+    const results = operations.map(([name, operation]) =>
+      operation.then(
+        () => ({ name, resolved: true }),
+        (error) => ({ name, error }),
+      ),
+    );
+
+    await Promise.resolve();
+    await Promise.resolve();
+    await new Promise((resolve) => setImmediate(resolve));
+    session.attach(new FakeConnection());
+
+    for (const result of await Promise.all(results)) {
+      assert.equal(result.resolved, undefined);
+      assert.equal(result.error?.code, "MAVLINK_SESSION_DETACHED", result.name);
+    }
+    assert.equal(session.listeners.get("message")?.size ?? 0, 0);
+    assert.equal(session.listeners.get("detached")?.size ?? 0, 0);
+
+    session.handleMessage(heartbeat({ customMode: 4 }));
+    assert.equal(session.state.modeName, "GUIDED");
   });
 
   test("accepts progress ACK, rejects negative ACK, and times out cleanly", async () => {

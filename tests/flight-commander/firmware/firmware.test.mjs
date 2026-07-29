@@ -246,19 +246,38 @@ test("Electron serial byte transport buffers events and rejects partial writes",
       removed.push(handler);
     },
     async serialConnect() {
-      return { connectionId: 1 };
+      listeners.data({
+        connectionId: 999,
+        data: Uint8Array.from([99]),
+      });
+      listeners.data({
+        connectionId: 1,
+        data: Uint8Array.from([1]),
+      });
+      return { id: 1 };
     },
-    async serialSend(value) {
+    async serialSend(value, connectionId) {
+      assert.equal(connectionId, 1);
       return { bytesWritten: value.byteLength };
     },
-    async serialClose() {},
+    async serialClose(connectionId) {
+      assert.equal(connectionId, 1);
+    },
   };
 
   const transport = new ElectronSerialByteTransport(api);
   await transport.open("COM9");
   const pending = transport.readExactly(3);
-  listeners.data(Uint8Array.from([1]));
-  listeners.data(Uint8Array.from([2, 3, 4]));
+  listeners.data({
+    connectionId: 999,
+    data: Uint8Array.from([88]),
+  });
+  listeners.close({ connectionId: 999 });
+  listeners.error({ connectionId: 999, error: "stale error" });
+  listeners.data({
+    connectionId: 1,
+    data: Uint8Array.from([2, 3, 4]),
+  });
   assert.deepEqual([...(await pending)], [1, 2, 3]);
   assert.deepEqual([...(await transport.readExactly(1))], [4]);
 
@@ -301,6 +320,7 @@ test("Electron serial byte transport removes event handlers when opening fails",
 test("ArduPilot bootloader entry sends command 246 with bootloader selector and closes serial", async () => {
   let mavlinkMessage;
   let encodedRequest;
+  const fed = [];
   let closed = 0;
   const api = {
     mavlinkReset() {},
@@ -309,13 +329,8 @@ test("ArduPilot bootloader entry sends command 246 with bootloader selector and 
       return callback;
     },
     offSerialData() {},
-    mavlinkFeed() {},
-    onMavlinkMessage(callback) {
-      mavlinkMessage = callback;
-      return callback;
-    },
-    offMavlinkMessage() {},
-    async serialConnect() {
+    mavlinkFeed(data) {
+      fed.push([...data]);
       queueMicrotask(() =>
         mavlinkMessage({
           messageName: "HEARTBEAT",
@@ -324,16 +339,33 @@ test("ArduPilot bootloader entry sends command 246 with bootloader selector and 
           data: { type: 2, autopilot: 3 },
         }),
       );
-      return { connectionId: 1 };
+    },
+    onMavlinkMessage(callback) {
+      mavlinkMessage = callback;
+      return callback;
+    },
+    offMavlinkMessage() {},
+    async serialConnect() {
+      this.serialData({
+        connectionId: 999,
+        data: Uint8Array.from([99]),
+      });
+      this.serialData({
+        connectionId: 1,
+        data: Uint8Array.from([1, 2]),
+      });
+      return { id: 1 };
     },
     async mavlinkEncode(name, data, options) {
       encodedRequest = { name, data, options };
       return Uint8Array.from([1, 2, 3]);
     },
-    async serialSend(value) {
+    async serialSend(value, connectionId) {
+      assert.equal(connectionId, 1);
       return { bytesWritten: value.byteLength };
     },
-    async serialClose() {
+    async serialClose(connectionId) {
+      assert.equal(connectionId, 1);
       closed += 1;
     },
   };
@@ -348,6 +380,7 @@ test("ArduPilot bootloader entry sends command 246 with bootloader selector and 
   assert.equal(encodedRequest.data.command, 246);
   assert.equal(encodedRequest.data.param1, 3);
   assert.equal(encodedRequest.data.targetSystem, 42);
+  assert.deepEqual(fed, [[1, 2]]);
   assert.equal(closed, 1);
 });
 
@@ -375,7 +408,7 @@ test("ArduPilot bootloader entry preserves a MAVLink v1 heartbeat protocol", asy
           data: { type: 2, autopilot: 3 },
         }),
       );
-      return { connectionId: 1 };
+      return { id: 1 };
     },
     async mavlinkEncode(name, data, options) {
       encodedOptions = options;
@@ -408,7 +441,7 @@ test("ArduPilot bootloader entry honors cancellation before opening serial", asy
     offMavlinkMessage() {},
     async serialConnect() {
       opened = true;
-      return { connectionId: 1 };
+      return { id: 1 };
     },
   };
 

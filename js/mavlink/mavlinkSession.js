@@ -84,6 +84,13 @@ function numeric(value) {
   return Number.isFinite(number) ? number : null;
 }
 
+function mavlinkUint8(value, { allowZero = true } = {}) {
+  const minimum = allowZero ? 0 : 1;
+  return Number.isInteger(value) && value >= minimum && value <= 255
+    ? value
+    : null;
+}
+
 export function normalizeUnsignedInteger(value, maximum) {
   const number = Number(value);
   return Number.isFinite(number) &&
@@ -233,6 +240,16 @@ export function createMissionResumeError(code, message, options = {}) {
   return error;
 }
 
+export function createMavlinkAttachmentError(
+  description = "the MAVLink operation",
+) {
+  const error = new Error(
+    `The MAVLink transport detached before ${description} completed.`,
+  );
+  error.code = "MAVLINK_SESSION_DETACHED";
+  return error;
+}
+
 function timerUnref(timer) {
   timer?.unref?.();
   return timer;
@@ -241,6 +258,7 @@ function timerUnref(timer) {
 export class MavlinkSession {
   constructor(options = {}) {
     this.connection = null;
+    this.attachmentGeneration = 0;
     this.listeners = new Map();
     this.state = createInitialMavlinkState();
     this.initialized = false;
@@ -258,7 +276,7 @@ export class MavlinkSession {
     this.clearTimeoutFn = options.clearTimeoutFn ?? clearTimeout;
     this.setIntervalFn = options.setIntervalFn ?? setInterval;
     this.clearIntervalFn = options.clearIntervalFn ?? clearInterval;
-    this.readHandler = (event) => this.read(event);
+    this.readHandler = null;
 
     if (this.firmwareFamilyOverride != null) {
       this.validateFirmwareFamily(this.firmwareFamilyOverride);
@@ -272,7 +290,7 @@ export class MavlinkSession {
     this.initialized = true;
     if (typeof this.bridge?.onMavlinkMessage === "function") {
       this.ipcHandler = this.bridge.onMavlinkMessage((envelope) =>
-        this.handleMessage(envelope),
+        this.handleMessage(envelope, { requireGeneration: true }),
       );
     }
     this.watchdog = timerUnref(
@@ -296,8 +314,15 @@ export class MavlinkSession {
     this.connection = connection;
     this.state = createInitialMavlinkState();
     this.applyFirmwareFamilyOverride();
-    this.bridge?.mavlinkReset?.();
+    const attachment = this.activeAttachment("receiving MAVLink data");
+    this.readHandler = (event) => this.read(event, attachment);
     connection.addOnReceiveListener(this.readHandler);
+    // A number of MAVLink radio transports (including ExpressLRS standalone
+    // mode) wait for traffic from the GCS before they start forwarding the
+    // vehicle link.  Start the discovery heartbeat as soon as the transport is
+    // attached instead of waiting for a vehicle heartbeat that may never be
+    // forwarded until we transmit first.
+    this.startGcsHeartbeat();
     this.emit("state", this.snapshot());
   }
 
@@ -306,12 +331,16 @@ export class MavlinkSession {
     this.stopFirmwareDetection();
     if (this.connection) {
       this.emit("detached", this.snapshot());
-      this.connection.removeOnReceiveCallback(this.readHandler);
+      if (this.readHandler) {
+        this.connection.removeOnReceiveCallback(this.readHandler);
+      }
     }
+    this.readHandler = null;
     this.connection = null;
+    this.attachmentGeneration += 1;
     this.state = createInitialMavlinkState();
     this.applyFirmwareFamilyOverride();
-    this.bridge?.mavlinkReset?.();
+    this.bridge?.mavlinkReset?.(this.attachmentGeneration);
   }
 
   destroy() {
@@ -334,8 +363,18 @@ export class MavlinkSession {
     this.initialized = false;
   }
 
-  read(event) {
-    if (event?.data != null) this.bridge?.mavlinkFeed?.(event.data);
+  read(event, attachment = null) {
+    const activeAttachment =
+      attachment ??
+      (this.connection
+        ? {
+            connection: this.connection,
+            generation: this.attachmentGeneration,
+          }
+        : null);
+    if (event?.data != null && this.attachmentIsCurrent(activeAttachment)) {
+      this.bridge?.mavlinkFeed?.(event.data, activeAttachment.generation);
+    }
   }
 
   on(eventName, listener) {
@@ -369,6 +408,25 @@ export class MavlinkSession {
     };
   }
 
+  activeAttachment(description = "the MAVLink operation") {
+    if (!this.connection) {
+      throw createMavlinkAttachmentError(description);
+    }
+    return {
+      connection: this.connection,
+      generation: this.attachmentGeneration,
+      description,
+    };
+  }
+
+  attachmentIsCurrent(attachment) {
+    return Boolean(
+      attachment &&
+      this.connection === attachment.connection &&
+      this.attachmentGeneration === attachment.generation,
+    );
+  }
+
   trackTimeBootMs(value) {
     const timeBootMs = normalizeUnsignedInteger(value, 0xffffffff);
     if (timeBootMs == null) return;
@@ -395,12 +453,23 @@ export class MavlinkSession {
     this.emit("missionCheckpointInvalid", event);
   }
 
-  handleMessage(frame) {
+  handleMessage(frame, { requireGeneration = false } = {}) {
+    if (!this.connection) return false;
+    if (
+      (requireGeneration || frame?.generation != null) &&
+      frame?.generation !== this.attachmentGeneration
+    ) {
+      return false;
+    }
     const envelope = normalizeMavlinkEnvelope(frame);
     const { messageName, data, header } = envelope;
 
-    if (messageName === "Heartbeat")
-      this.handleHeartbeat(data, header, envelope.protocol);
+    if (
+      messageName === "Heartbeat" &&
+      !this.handleHeartbeat(data, header, envelope.protocol)
+    ) {
+      return false;
+    }
     if (
       this.state.systemId != null &&
       header.sysid != null &&
@@ -576,17 +645,29 @@ export class MavlinkSession {
     this.emit(`message:${messageName}`, envelope);
     this.emit("message", envelope);
     this.emit("state", this.snapshot());
+    return true;
   }
 
   handleHeartbeat(data, header, protocol) {
-    const type = numeric(field(data, "type"));
-    const autopilot = numeric(field(data, "autopilot"));
-    if (type === MAV_TYPE_GCS || autopilot === MAV_AUTOPILOT_INVALID) return;
+    const systemId = mavlinkUint8(header.sysid, { allowZero: false });
+    const componentId = mavlinkUint8(header.compid, { allowZero: false });
+    const type = mavlinkUint8(field(data, "type"));
+    const autopilot = mavlinkUint8(field(data, "autopilot"));
+    if (
+      systemId == null ||
+      componentId == null ||
+      type == null ||
+      autopilot == null ||
+      type === MAV_TYPE_GCS ||
+      autopilot === MAV_AUTOPILOT_INVALID
+    ) {
+      return false;
+    }
 
     const firstConnection = !this.state.connected;
     if (firstConnection) {
-      this.state.systemId = header.sysid;
-      this.state.componentId = header.compid;
+      this.state.systemId = systemId;
+      this.state.componentId = componentId;
       this.state.protocolVersion = protocol === "MAV_V1" ? 1 : 2;
       this.state.autopilot = autopilot;
       this.state.autopilotName =
@@ -594,7 +675,7 @@ export class MavlinkSession {
       this.state.vehicleType = type;
       this.state.vehicleTypeName = VEHICLE_TYPES[type] ?? `Vehicle ${type}`;
     }
-    if (header.sysid !== this.state.systemId) return;
+    if (systemId !== this.state.systemId) return true;
 
     const baseMode = numeric(field(data, "baseMode", "base_mode")) ?? 0;
     const customMode = numeric(field(data, "customMode", "custom_mode")) ?? 0;
@@ -609,16 +690,20 @@ export class MavlinkSession {
       numeric(field(data, "systemStatus", "system_status")) ?? 0;
 
     if (firstConnection) {
+      // Publish the validated vehicle attachment before firmware detection can
+      // synchronously emit state. The serial backend uses this event to mark
+      // the transport valid, so Ground Control's first connected-state render
+      // can safely begin its mission read exactly once.
+      this.emit("connected", this.snapshot());
       this.startFirmwareDetection();
-      this.startGcsHeartbeat();
       this.requestDataStreams(5).catch(() => {});
       if (this.state.autopilot === MAV_AUTOPILOT_ARDUPILOTMEGA) {
         this.requestAutopilotVersion().catch(() => {});
       }
       this.requestMessageInterval(242, 1).catch(() => {});
-      this.emit("connected", this.snapshot());
     }
     this.emit("heartbeat", this.snapshot());
+    return true;
   }
 
   validateFirmwareFamily(family) {
@@ -671,9 +756,11 @@ export class MavlinkSession {
     }
     this.setFirmwareFamily(FIRMWARE_FAMILY_UNKNOWN, "probing");
     this.send("ParamRequestList", this.target()).catch(() => {});
+    const attachment = this.activeAttachment("firmware detection");
     this.firmwareDetectionTimer = timerUnref(
       this.setTimeoutFn(() => {
         this.firmwareDetectionTimer = null;
+        if (!this.attachmentIsCurrent(attachment)) return;
         this.setFirmwareFamily(FIRMWARE_FAMILY_ARDUPILOT, "probe-timeout");
       }, this.firmwareDetectionTimeoutMs),
     );
@@ -839,8 +926,7 @@ export class MavlinkSession {
   }
 
   async send(messageName, payload, options = {}) {
-    if (!this.connection)
-      throw new Error("MAVLink transport is not connected.");
+    const attachment = this.activeAttachment(`sending MAVLink ${messageName}`);
     if (typeof this.bridge?.mavlinkEncode !== "function") {
       throw new Error("MAVLink encoder bridge is unavailable.");
     }
@@ -849,24 +935,45 @@ export class MavlinkSession {
       systemId: options.systemId ?? 255,
       componentId: options.componentId ?? 190,
     });
+    if (!this.attachmentIsCurrent(attachment)) {
+      throw createMavlinkAttachmentError(attachment.description);
+    }
     const bytes =
       encoded instanceof Uint8Array ? encoded : new Uint8Array(encoded);
 
     return new Promise((resolve, reject) => {
       let settled = false;
-      const finish = (result) => {
+      let unsubscribeDetached = () => {};
+      const cleanup = () => {
+        unsubscribeDetached();
+      };
+      const fail = (error) => {
         if (settled) return;
         settled = true;
+        cleanup();
+        reject(error);
+      };
+      const finish = (result) => {
+        if (settled) return;
+        if (!this.attachmentIsCurrent(attachment)) {
+          fail(createMavlinkAttachmentError(attachment.description));
+          return;
+        }
+        settled = true;
+        cleanup();
         if (!result || result.resultCode !== 0) {
           reject(new Error("MAVLink transport write failed."));
         } else {
           resolve(result.bytesSent);
         }
       };
+      unsubscribeDetached = this.on("detached", () => {
+        fail(createMavlinkAttachmentError(attachment.description));
+      });
       try {
-        const returned = this.connection.send(bytes, finish);
-        if (returned?.then) returned.then(finish, reject);
-        else if (this.connection.send.length < 2 && returned != null) {
+        const returned = attachment.connection.send(bytes, finish);
+        if (returned?.then) returned.then(finish, fail);
+        else if (attachment.connection.send.length < 2 && returned != null) {
           finish(
             typeof returned === "number"
               ? { resultCode: 0, bytesSent: returned }
@@ -874,8 +981,7 @@ export class MavlinkSession {
           );
         }
       } catch (error) {
-        settled = true;
-        reject(error);
+        fail(error);
       }
     });
   }
@@ -919,20 +1025,46 @@ export class MavlinkSession {
     timeoutMs = 6000,
     description = "vehicle state change",
   ) {
+    let attachment;
+    try {
+      attachment = this.activeAttachment(description);
+    } catch (error) {
+      return Promise.reject(error);
+    }
     const current = this.snapshot();
     if (predicate(current)) return Promise.resolve(current);
     return new Promise((resolve, reject) => {
       let timer = null;
-      const unsubscribe = this.on("state", (state) => {
-        if (!predicate(state)) return;
+      let settled = false;
+      let unsubscribeState = () => {};
+      let unsubscribeDetached = () => {};
+      const cleanup = () => {
         this.clearTimeoutFn(timer);
-        unsubscribe();
+        unsubscribeState();
+        unsubscribeDetached();
+      };
+      const fail = (error) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        reject(error);
+      };
+      unsubscribeState = this.on("state", (state) => {
+        if (!this.attachmentIsCurrent(attachment)) {
+          fail(createMavlinkAttachmentError(description));
+          return;
+        }
+        if (!predicate(state)) return;
+        settled = true;
+        cleanup();
         resolve(state);
+      });
+      unsubscribeDetached = this.on("detached", () => {
+        fail(createMavlinkAttachmentError(description));
       });
       timer = timerUnref(
         this.setTimeoutFn(() => {
-          unsubscribe();
-          reject(new Error(`Timed out waiting for ${description}.`));
+          fail(new Error(`Timed out waiting for ${description}.`));
         }, timeoutMs),
       );
     });
@@ -982,16 +1114,21 @@ export class MavlinkSession {
   createCommandAckWaiter(command, options = {}) {
     const timeoutMs = options.timeoutMs ?? 6000;
     const systemId = options.systemId ?? this.state.systemId;
+    const attachment = this.activeAttachment(
+      `waiting for COMMAND_ACK for command ${command}`,
+    );
     let timer = null;
     let settled = false;
-    let unsubscribe = () => {};
+    let unsubscribeMessage = () => {};
+    let unsubscribeDetached = () => {};
     let rejectPromise = () => {};
 
     const promise = new Promise((resolve, reject) => {
       rejectPromise = reject;
       const cleanup = () => {
         this.clearTimeoutFn(timer);
-        unsubscribe();
+        unsubscribeMessage();
+        unsubscribeDetached();
       };
       const fail = (error) => {
         if (settled) return;
@@ -1012,7 +1149,11 @@ export class MavlinkSession {
         );
       };
 
-      unsubscribe = this.on("message", (envelope) => {
+      unsubscribeMessage = this.on("message", (envelope) => {
+        if (!this.attachmentIsCurrent(attachment)) {
+          fail(createMavlinkAttachmentError(attachment.description));
+          return;
+        }
         if (
           !COMMAND_ACK_NAMES.has(envelope.messageName) ||
           Number(field(envelope.data, "command")) !== Number(command) ||
@@ -1041,8 +1182,12 @@ export class MavlinkSession {
         cleanup();
         resolve(envelope.data);
       });
+      unsubscribeDetached = this.on("detached", () => {
+        fail(createMavlinkAttachmentError(attachment.description));
+      });
       resetTimeout();
     });
+    promise.catch(() => {});
 
     return {
       promise,
@@ -1050,7 +1195,8 @@ export class MavlinkSession {
         if (settled) return;
         settled = true;
         this.clearTimeoutFn(timer);
-        unsubscribe();
+        unsubscribeMessage();
+        unsubscribeDetached();
         if (reason) rejectPromise(reason);
       },
     };
@@ -1301,16 +1447,21 @@ export class MavlinkSession {
     const timeoutMs = options.timeoutMs ?? 6000;
     const systemId = this.state.systemId;
     const watchCommandAck = options.watchCommandAck !== false;
+    const attachment = this.activeAttachment(
+      `confirming mission sequence ${context.sequence}`,
+    );
     let timer = null;
     let settled = false;
-    let unsubscribe = () => {};
+    let unsubscribeMessage = () => {};
+    let unsubscribeDetached = () => {};
     let rejectPromise = () => {};
 
     const promise = new Promise((resolve, reject) => {
       rejectPromise = reject;
       const cleanup = () => {
         this.clearTimeoutFn(timer);
-        unsubscribe();
+        unsubscribeMessage();
+        unsubscribeDetached();
       };
       const fail = (error) => {
         if (settled) return;
@@ -1331,7 +1482,11 @@ export class MavlinkSession {
           }, timeoutMs),
         );
       };
-      unsubscribe = this.on("message", (envelope) => {
+      unsubscribeMessage = this.on("message", (envelope) => {
+        if (!this.attachmentIsCurrent(attachment)) {
+          fail(createMavlinkAttachmentError(attachment.description));
+          return;
+        }
         if (
           systemId != null &&
           envelope.header?.sysid != null &&
@@ -1383,6 +1538,9 @@ export class MavlinkSession {
         error.legacyFallbackAllowed = result === 3;
         fail(error);
       });
+      unsubscribeDetached = this.on("detached", () => {
+        fail(createMavlinkAttachmentError(attachment.description));
+      });
       resetTimeout();
     });
     promise.catch(() => {});
@@ -1393,7 +1551,8 @@ export class MavlinkSession {
         if (settled) return;
         settled = true;
         this.clearTimeoutFn(timer);
-        unsubscribe();
+        unsubscribeMessage();
+        unsubscribeDetached();
         if (reason) rejectPromise(reason);
       },
     };
@@ -1610,20 +1769,46 @@ export class MavlinkSession {
     const names = new Set(
       Array.isArray(messageNames) ? messageNames : [messageNames],
     );
+    let attachment;
+    try {
+      attachment = this.activeAttachment(
+        `waiting for ${[...names].join(" or ")}`,
+      );
+    } catch (error) {
+      return Promise.reject(error);
+    }
     return new Promise((resolve, reject) => {
       let timer = null;
-      const unsubscribe = this.on("message", (envelope) => {
-        if (!names.has(envelope.messageName) || !predicate(envelope)) return;
+      let settled = false;
+      let unsubscribeMessage = () => {};
+      let unsubscribeDetached = () => {};
+      const cleanup = () => {
         this.clearTimeoutFn(timer);
-        unsubscribe();
+        unsubscribeMessage();
+        unsubscribeDetached();
+      };
+      const fail = (error) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        reject(error);
+      };
+      unsubscribeMessage = this.on("message", (envelope) => {
+        if (!this.attachmentIsCurrent(attachment)) {
+          fail(createMavlinkAttachmentError(attachment.description));
+          return;
+        }
+        if (!names.has(envelope.messageName) || !predicate(envelope)) return;
+        settled = true;
+        cleanup();
         resolve(envelope);
+      });
+      unsubscribeDetached = this.on("detached", () => {
+        fail(createMavlinkAttachmentError(attachment.description));
       });
       timer = timerUnref(
         this.setTimeoutFn(() => {
-          unsubscribe();
-          reject(
-            new Error(`Timed out waiting for ${[...names].join(" or ")}.`),
-          );
+          fail(new Error(`Timed out waiting for ${[...names].join(" or ")}.`));
         }, timeoutMs),
       );
     });

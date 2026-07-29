@@ -33,6 +33,10 @@ const landingCss = readFileSync(
   resolve(projectRoot, "src/css/tabs/landing.css"),
   "utf8",
 );
+const welcomeWordmark = readFileSync(
+  resolve(projectRoot, "images/flight-commander-wordmark-on-light.svg"),
+  "utf8",
+);
 const cliCss = readFileSync(
   resolve(projectRoot, "src/css/tabs/cli.css"),
   "utf8",
@@ -51,6 +55,22 @@ const linuxDesktop = readFileSync(
 
 function fileSha256(path) {
   return createHash("sha256").update(readFileSync(path)).digest("hex");
+}
+
+function relativeLuminance(hexColor) {
+  const channels = [1, 3, 5].map((index) =>
+    Number.parseInt(hexColor.slice(index, index + 2), 16) / 255,
+  );
+  const linear = channels.map((channel) =>
+    channel <= 0.04045
+      ? channel / 12.92
+      : ((channel + 0.055) / 1.055) ** 2.4,
+  );
+  return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
+}
+
+function contrastAgainstWhite(hexColor) {
+  return 1.05 / (relativeLuminance(hexColor) + 0.05);
 }
 
 test("packaging starts from clean Vite output roots", () => {
@@ -75,10 +95,16 @@ test("Windows verification follows the active renderer graph and rejects leftove
   assert.match(packageVerifier, /Flight Commander wordmark/);
   assert.match(packageVerifier, /embedded executable icon/);
   assert.match(packageVerifier, /exactly one group-icon resource/);
+  assert.match(packageVerifier, /Windows MAVLink DTR-low setup/);
+  assert.match(packageVerifier, /connectionBaudPreferencesByProtocol/);
+  assert.match(packageVerifier, /Waiting for vehicle heartbeat/);
+  assert.match(packageVerifier, /Serial port open timed out/);
+  assert.match(packageVerifier, /MAVLINK_SESSION_DETACHED/);
+  assert.match(packageVerifier, /Auto protocol \(selected baud\)/);
 });
 
 test("landing page reports the current Flight Commander release", () => {
-  assert.match(landingHtml, />Flight Commander 1\.3\.7</);
+  assert.match(landingHtml, />Flight Commander 1\.3\.8</);
 });
 
 test("canonical Flight Commander visual assets match the verified 1.3.5 identity", () => {
@@ -114,7 +140,10 @@ test("every active product identity path selects Flight Commander artwork", () =
   assert.match(mainCss, /flight-commander-wordmark\.svg/);
   assert.match(landingCss, /\.flightCommanderLogo/);
   assert.match(landingCss, /\.flightCommanderTagline/);
-  assert.match(landingCss, /flight-commander-wordmark\.svg/);
+  assert.match(
+    landingCss,
+    /flight-commander-wordmark-on-light\.svg/,
+  );
   assert.doesNotMatch(landingCss, /\.inavLogo/);
   assert.match(cliCss, /flight-commander-wordmark\.svg/);
   assert.match(pidTuningCss, /flight-commander-wordmark\.svg/);
@@ -127,4 +156,34 @@ test("every active product identity path selects Flight Commander artwork", () =
   assert.match(linuxDesktop, /^Exec=flight-commander %U$/m);
   assert.match(linuxDesktop, /^Icon=flight-commander$/m);
   assert.doesNotMatch(linuxDesktop, /INAV Configurator|\/opt\/|\/usr\/lib\//);
+});
+
+test("welcome branding remains complete and readable on its light map surface", () => {
+  assert.match(welcomeWordmark, /data-wordmark-surface="light"/);
+  assert.match(
+    welcomeWordmark,
+    /<text[^>]+fill="#104156"[^>]*>FLIGHT<\/text>/,
+  );
+  assert.match(
+    welcomeWordmark,
+    /<text[^>]+fill="#2186b5"[^>]*>COMMANDER<\/text>/,
+  );
+  assert.match(
+    welcomeWordmark,
+    /<path[^>]+fill="#104156"[^>]+stroke="#104156"/,
+  );
+  assert.match(
+    welcomeWordmark,
+    /<circle[^>]+stroke="#104156"/,
+  );
+  assert.doesNotMatch(
+    welcomeWordmark,
+    /(?:fill|stroke)="#(?:fff|ffffff)"/i,
+  );
+  assert.match(
+    landingCss,
+    /\.flightCommanderTagline\s*\{[^}]*color:\s*#104156;/s,
+  );
+  assert.ok(contrastAgainstWhite("#2186b5") >= 4);
+  assert.ok(contrastAgainstWhite("#104156") >= 7);
 });

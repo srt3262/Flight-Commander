@@ -18,7 +18,7 @@ export class MissionOperationCoordinator {
     return this.activeOperation != null;
   }
 
-  acquire(label) {
+  acquire(label, options = {}) {
     if (this.activeOperation) return null;
     const token = Symbol(String(label || "mission operation"));
     const operation = {
@@ -28,14 +28,26 @@ export class MissionOperationCoordinator {
     };
     this.activeOperation = operation;
     let released = false;
+    const signal = options?.signal;
+    let abortListener = null;
+    const release = () => {
+      if (released || this.activeOperation?.token !== token) return false;
+      released = true;
+      if (abortListener) {
+        signal?.removeEventListener("abort", abortListener);
+        abortListener = null;
+      }
+      this.activeOperation = null;
+      return true;
+    };
+    if (signal) {
+      abortListener = () => release();
+      signal.addEventListener("abort", abortListener, { once: true });
+      if (signal.aborted) abortListener();
+    }
     return {
       label: operation.label,
-      release: () => {
-        if (released || this.activeOperation?.token !== token) return false;
-        released = true;
-        this.activeOperation = null;
-        return true;
-      },
+      release,
     };
   }
 

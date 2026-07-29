@@ -32,6 +32,12 @@ import {
 } from './gcs/mavlinkCommandRouterInstance';
 import cliTab from '../tabs/cli';
 import javascriptProgrammingTab from '../tabs/javascript_programming';
+import {
+    CONNECTION_BAUD_PREFERENCES_KEY,
+    persistProtocolBaudPreference,
+    resolveConnectionBaud,
+    serialOptionsForProtocol,
+} from './connection/connectionPreferences';
 
 var SerialBackend = (function () {
 
@@ -58,9 +64,31 @@ var SerialBackend = (function () {
         publicScope.$portOverride = $('#port-override'),
         mspHelper.setSensorStatusEx(privateScope.sensor_status_ex);
 
-        privateScope.$protocol.val(store.get('connectionProtocolPreference', 'auto'));
+        const storedProtocol = store.get('connectionProtocolPreference', 'auto');
+        const initialProtocol = ['auto', 'msp', 'mavlink'].includes(storedProtocol)
+            ? storedProtocol
+            : 'auto';
+        privateScope.$protocol.val(initialProtocol);
+        privateScope.$baud.val(resolveConnectionBaud({
+            protocol: initialProtocol,
+            preferences: store.get(CONNECTION_BAUD_PREFERENCES_KEY, {}),
+            legacyBaud: store.get('last_used_bps', null),
+        }));
         privateScope.$protocol.on('change', function () {
-            store.set('connectionProtocolPreference', privateScope.$protocol.val());
+            const protocol = privateScope.$protocol.val() || 'auto';
+            store.set('connectionProtocolPreference', protocol);
+            privateScope.$baud.val(resolveConnectionBaud({
+                protocol,
+                preferences: store.get(CONNECTION_BAUD_PREFERENCES_KEY, {}),
+                legacyBaud: store.get('last_used_bps', null),
+            }));
+        });
+        privateScope.$baud.on('change', function () {
+            persistProtocolBaudPreference(
+                store,
+                privateScope.$protocol.val() || 'auto',
+                privateScope.$baud.val(),
+            );
         });
         
         $('#wireless-mode').on('change', function () {
@@ -182,6 +210,7 @@ var SerialBackend = (function () {
                 // async aborts could desync.
                 const isIdle = (GUI.connected_to === false) && (GUI.connecting_to === false);
                 var selected_baud = parseInt(privateScope.$baud.val());
+                const requestedProtocol = privateScope.$protocol.val() || 'auto';
                 var selected_port = privateScope.$port.find('option:selected').data().isManual ?
                     publicScope.$portOverride.val() :
                         String(privateScope.$port.val());
@@ -221,7 +250,11 @@ var SerialBackend = (function () {
                                 CONFIGURATOR.connection.connect("127.0.0.1:5760", {}, privateScope.onOpen);
                             }, 1000);
                         } else {
-                            CONFIGURATOR.connection.connect(selected_port, {bitrate: selected_baud}, privateScope.onOpen);
+                            CONFIGURATOR.connection.connect(
+                                selected_port,
+                                serialOptionsForProtocol(requestedProtocol, selected_baud),
+                                privateScope.onOpen,
+                            );
                         }
                     } else {
                         // Check for unsaved changes in JavaScript Programming tab
@@ -315,6 +348,7 @@ var SerialBackend = (function () {
     if (!privateScope.selectProtocol('msp')) {
         return;
     }
+    privateScope.rememberValidatedBaud();
     MSP.send_message(MSPCodes.MSP_BUILD_INFO, false, false, function () {
 
         GUI.log(i18n.getMessage('buildInfoReceived', [FC.CONFIG.buildInfo]));
@@ -386,13 +420,18 @@ var SerialBackend = (function () {
         }
 
         if (openInfo) {
+            const requestedProtocol = privateScope.$protocol.val() || 'auto';
+
             // update connected_to
             GUI.connected_to = GUI.connecting_to;
 
             // reset connecting_to
             GUI.connecting_to = false;
 
-            GUI.log(i18n.getMessage('serialPortOpened', [openInfo.connectionId]));
+            GUI.log(
+                `Serial transport opened with ID ${openInfo.connectionId}` +
+                ` (${GUI.connected_to} @ ${openInfo.bitrate} baud).`,
+            );
 
             // save selected port if the port differs
             var last_used_port = store.get('last_used_port', false);
@@ -407,7 +446,6 @@ var SerialBackend = (function () {
             }
         
 
-            store.set('last_used_bps', CONFIGURATOR.connection.bitrate);
             store.set('wireless_mode_enabled', $('#wireless-mode').is(":checked"));
 
             privateScope.activeProtocol = null;
@@ -416,7 +454,6 @@ var SerialBackend = (function () {
             FC.resetState();
             MSP.disconnect_cleanup();
 
-            const requestedProtocol = privateScope.$protocol.val() || 'auto';
             const allowInavProtocols = requestedProtocol !== 'mavlink';
             const allowMavlink = requestedProtocol !== 'msp';
 
@@ -425,10 +462,13 @@ var SerialBackend = (function () {
                 CONFIGURATOR.connection.addOnReceiveListener(ltmDecoder.read);
             }
             if (allowMavlink) {
-                mavlinkSession.attach(CONFIGURATOR.connection);
                 privateScope.mavlinkConnectedUnsubscribe = mavlinkSession.on('connected', function (state) {
                     privateScope.onMavlinkConnected(state);
                 });
+                mavlinkSession.attach(CONFIGURATOR.connection);
+                if (requestedProtocol === 'mavlink') {
+                    privateScope.onMavlinkTransportOpen();
+                }
             }
 
             // disconnect after 10 seconds with error if we don't get IDENT data
@@ -439,6 +479,18 @@ var SerialBackend = (function () {
                     !ltmDecoder.isReceiving() &&
                     !mavlinkSession.state.connected
                 ) {
+                    if (requestedProtocol === 'mavlink') {
+                        const message =
+                            'The MAVLink serial transport is open, but no vehicle heartbeat was received. ' +
+                            'Flight Commander will keep listening; verify the aircraft/radio link and use ' +
+                            '460800 baud for ExpressLRS USB MAVLink.';
+                        GUI.log(`<span style="color: #d98f00">${message}</span>`);
+                        $('#logo .firmware_version').text('MAVLink / Waiting for vehicle heartbeat');
+                        $('#flightDataActionStatus')
+                            .text(message)
+                            .addClass('fc-action-status--error');
+                        return;
+                    }
                     GUI.log(i18n.getMessage('noConfigurationReceived'));
 
                         mspQueue.flush();
@@ -505,7 +557,12 @@ var SerialBackend = (function () {
             }
         } else {
             console.log('Failed to open serial port');
-            GUI.log(i18n.getMessage('serialPortOpenFail'));
+            const openError = CONFIGURATOR.connection?.lastOpenError;
+            const safeOpenError = openError ? $('<div>').text(openError).html() : '';
+            GUI.log(
+                i18n.getMessage('serialPortOpenFail')
+                + (safeOpenError ? `: ${safeOpenError}` : ''),
+            );
 
             // Clear connecting state so the button reflects "disconnected".
             GUI.connecting_to = false;
@@ -562,6 +619,7 @@ var SerialBackend = (function () {
         if (!privateScope.selectProtocol('mavlink')) {
             return;
         }
+        privateScope.rememberValidatedBaud();
         CONFIGURATOR.connectionValid = true;
         GUI.allowedTabs = GUI.defaultAllowedTabsWhenMavlinkConnected.slice();
         timeout.remove('connecting');
@@ -569,10 +627,37 @@ var SerialBackend = (function () {
         privateScope.onMavlinkConnect(state);
     };
 
+    privateScope.onMavlinkTransportOpen = function () {
+        if (!privateScope.selectProtocol('mavlink')) {
+            return;
+        }
+        CONFIGURATOR.connectionValid = false;
+        GUI.allowedTabs = ['flight_data', 'landing', 'help'];
+
+        $('#connectbutton a.connect_state')
+            .text(i18n.getMessage('disconnect'))
+            .addClass('active');
+        $('#connectbutton a.connect').addClass('active');
+        $('.mode-disconnected, .mode-connected, .mode-telemetry').hide();
+        $('.mode-mavlink').show();
+        $('#sensor-status, #dataflash_wrapper_global, #profiles_wrapper_global').hide();
+        $('#portsinput').hide();
+        $('#quad-status_wrapper').show();
+        $('body').removeClass('fc-controller-ardupilot fc-controller-inav-mavlink');
+        $('#logo .firmware_version').text('MAVLink / Waiting for vehicle heartbeat');
+
+        GUI.log(
+            `MAVLink transport ready on ${GUI.connected_to} at ` +
+            `${CONFIGURATOR.connection.bitrate} baud; waiting for a vehicle heartbeat.`,
+        );
+        $('#tabs ul.mode-mavlink .tab_flight_data a').trigger('click');
+    };
+
     privateScope.onLtmConnected = function () {
         if (!privateScope.selectProtocol('ltm')) {
             return;
         }
+        privateScope.rememberValidatedBaud();
         CONFIGURATOR.connectionValid = true;
         GUI.allowedTabs = GUI.defaultAllowedTabsWhenTelemetryConnected.slice();
         timeout.remove('connecting');
@@ -652,7 +737,18 @@ var SerialBackend = (function () {
 
         privateScope.mavlinkStateUnsubscribe = mavlinkSession.on('state', renderState);
         renderState(state);
-        $('#tabs ul.mode-mavlink .tab_flight_data a').trigger('click');
+        if (!$('#tabs ul.mode-mavlink .tab_flight_data').hasClass('active')) {
+            $('#tabs ul.mode-mavlink .tab_flight_data a').trigger('click');
+        }
+    };
+
+    privateScope.rememberValidatedBaud = function () {
+        const requestedProtocol = privateScope.$protocol.val() || 'auto';
+        persistProtocolBaudPreference(
+            store,
+            requestedProtocol,
+            CONFIGURATOR.connection.bitrate,
+        );
     };
 
     privateScope.clearProtocolSession = function () {
@@ -664,6 +760,7 @@ var SerialBackend = (function () {
         mavlinkSession.detach();
         ltmDecoder.reset();
         privateScope.activeProtocol = null;
+        CONFIGURATOR.connectionProtocol = null;
     };
 
     privateScope.onConnect = function () {

@@ -5,6 +5,7 @@ import {
   MAV_CMD_NAV_RETURN_TO_LAUNCH,
   MavlinkMissionManager,
   MavlinkParameterManager,
+  withAbortSignal,
 } from "../../../js/mavlink/services.js";
 
 function referencedSetTimeout(callback, delay) {
@@ -80,7 +81,8 @@ class FakeSession {
     });
   }
 
-  listenerCount() {
+  listenerCount(name) {
+    if (name) return this.listeners.get(name)?.size ?? 0;
     return [...this.listeners.values()].reduce(
       (count, listeners) => count + listeners.size,
       0,
@@ -208,6 +210,99 @@ describe("MavlinkMissionManager", () => {
     );
     assert.equal(silentSession.listenerCount(), 0);
   });
+
+  test("detach intrinsically cancels a mission read and reconnect installs one fresh listener", async () => {
+    const session = new FakeSession();
+    const manager = new MavlinkMissionManager(session, referencedTimerOptions);
+    const download = manager.download({
+      timeoutMs: 1000,
+      retries: 0,
+    });
+
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(session.listenerCount("message"), 1);
+    assert.equal(session.listenerCount("detached"), 1);
+
+    session.emit("detached", {});
+    await assert.rejects(download, { name: "AbortError" });
+    assert.equal(session.listenerCount(), 0);
+
+    session.message("MissionCount", { count: 0, missionType: 0 });
+    assert.equal(
+      session.sent.some(({ messageName }) => messageName === "MissionAck"),
+      false,
+    );
+
+    const reconnectedDownload = manager.download({
+      timeoutMs: 1000,
+      retries: 0,
+    });
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(session.listenerCount("message"), 1);
+    assert.equal(session.listenerCount("detached"), 1);
+    session.message("MissionCount", { count: 0, missionType: 0 });
+    assert.deepEqual(await reconnectedDownload, []);
+    assert.equal(session.listenerCount(), 0);
+  });
+
+  test("detach intrinsically cancels mission upload and clear verification delay", async () => {
+    const uploadSession = new FakeSession();
+    const uploadManager = new MavlinkMissionManager(
+      uploadSession,
+      referencedTimerOptions,
+    );
+    const upload = uploadManager.upload(
+      [{ command: 16, latitude: 35, longitude: -78, altitude: 50 }],
+      { timeoutMs: 1000, initialRetries: 0 },
+    );
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(uploadSession.listenerCount("message"), 1);
+    assert.equal(uploadSession.listenerCount("detached"), 1);
+    uploadSession.emit("detached", {});
+    await assert.rejects(upload, { name: "AbortError" });
+    assert.equal(uploadSession.listenerCount(), 0);
+
+    const clearSession = new FakeSession((messageName, payload, source) => {
+      if (messageName === "MissionClearAll") {
+        source.message("MissionAck", { type: 0, missionType: 0 });
+      }
+    });
+    const clearManager = new MavlinkMissionManager(
+      clearSession,
+      referencedTimerOptions,
+    );
+    const clear = clearManager.clear({
+      timeoutMs: 1000,
+      retries: 0,
+      verifyDelayMs: 1000,
+    });
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(clearSession.listenerCount("message"), 0);
+    assert.equal(clearSession.listenerCount("detached"), 1);
+    clearSession.emit("detached", {});
+    await assert.rejects(clear, { name: "AbortError" });
+    assert.equal(clearSession.listenerCount(), 0);
+    assert.equal(
+      clearSession.sent.some(
+        ({ messageName }) => messageName === "MissionRequestList",
+      ),
+      false,
+    );
+  });
+});
+
+test("withAbortSignal prevents a detached firmware-identification result from escaping", async () => {
+  let resolveIdentification;
+  const identification = new Promise((resolve) => {
+    resolveIdentification = resolve;
+  });
+  const controller = new AbortController();
+  const guarded = withAbortSignal(identification, controller.signal);
+
+  controller.abort();
+  resolveIdentification({ firmwareFamily: "ardupilot" });
+
+  await assert.rejects(guarded, { name: "AbortError" });
 });
 
 describe("MavlinkParameterManager", () => {
@@ -239,6 +334,23 @@ describe("MavlinkParameterManager", () => {
       ["A", "B"],
     );
     assert.equal(manager.parameters.get("B").value, 2);
+    assert.equal(session.listenerCount(), 0);
+  });
+
+  test("detach cancels a parameter list load and removes its timers and listeners", async () => {
+    const session = new FakeSession();
+    const manager = new MavlinkParameterManager(session);
+    const load = manager.loadAll({
+      timeoutMs: 1000,
+      retryAfterMs: 100,
+    });
+
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(session.listenerCount("message"), 1);
+    assert.equal(session.listenerCount("detached"), 1);
+    session.emit("detached", {});
+
+    await assert.rejects(load, { name: "AbortError" });
     assert.equal(session.listenerCount(), 0);
   });
 

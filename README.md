@@ -55,6 +55,27 @@ Firmware flashing is a separate serial-bootloader operation, not an airborne
 MAVLink Ground Control command. Always verify the detected board ID and selected
 firmware before writing.
 
+### USB MAVLink radios
+
+For an external ExpressLRS transmitter module exposed as a Windows COM port,
+select **Ground Control / MAVLink**. Flight Commander defaults that protocol to
+the ExpressLRS USB MAVLink rate of **460800 baud**, forces DTR low on Windows,
+and starts transmitting the GCS heartbeat as soon as the serial transport
+opens. These behaviors follow the
+[ExpressLRS MAVLink guidance](https://www.expresslrs.org/software/mavlink/).
+**Auto protocol (selected baud)** detects the protocol at the baud shown in the
+toolbar; it does not scan serial rates, so it should not be used as a substitute
+for the explicit ExpressLRS selection.
+
+ExpressLRS does not support a GCS USB connection through a handset's internal
+ELRS module. Internal modules must use TX Backpack Wi-Fi/UDP; connect the USB
+cable directly to the external TX module when using the serial method.
+
+Ground Control opens immediately after the COM port is ready and reports that
+it is waiting for a vehicle heartbeat. This means the serial transport is open,
+not that the aircraft link has been validated. Telemetry, mission reads, and
+vehicle commands stay disabled until a non-GCS autopilot heartbeat is received.
+
 ## Install
 
 The validated publication target for the reconstructed release is **Windows

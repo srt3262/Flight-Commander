@@ -146,8 +146,17 @@ $(function() {
 
                 var tab = tabClass.substring(4);
                 var tabName = $(self).text();
+                var mavlinkTransportGroundControl = (
+                    tab === 'flight_data'
+                    && CONFIGURATOR.connectionProtocol === 'mavlink'
+                    && Boolean(GUI.connected_to)
+                );
 
-                if (tabRequiresConnection && !CONFIGURATOR.connectionValid) {
+                if (
+                    tabRequiresConnection
+                    && !CONFIGURATOR.connectionValid
+                    && !mavlinkTransportGroundControl
+                ) {
                     GUI.log(i18n.getMessage('tabSwitchConnectionRequired'));
                     return;
                 }

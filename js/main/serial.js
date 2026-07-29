@@ -2,11 +2,18 @@
 import { SerialPort } from 'serialport';
 import { SerialPortStream } from '@serialport/stream';
 import { autoDetect } from '@serialport/bindings-cpp';
+import {
+    disposeSerialPort,
+    prepareSerialPort,
+    quarantineOpeningSerialPort,
+} from './serialControlLines';
 
 const binding = autoDetect();
+const SERIAL_OPEN_TIMEOUT_MS = 10000;
 
 const serial = {
     _serialport: null,
+    _connectionId: null,
     _id: 1,
 
     connect: async function(path, options, window) {
@@ -15,13 +22,12 @@ const serial = {
             try {
                 const oldPort = this._serialport;
                 this._serialport = null;
-                oldPort.removeAllListeners();
-                if (oldPort.isOpen) {
-                    await new Promise(resolveClose => {
-                        oldPort.close(() => resolveClose());
-                    });
+                this._connectionId = null;
+                if (oldPort.opening && !oldPort.isOpen) {
+                    quarantineOpeningSerialPort(oldPort);
+                } else {
+                    await disposeSerialPort(oldPort);
                 }
-                oldPort.destroy();
                 // Small delay to ensure OS releases the file handle
                 await new Promise(r => setTimeout(r, 100));
             } catch (e) {
@@ -30,83 +36,153 @@ const serial = {
         }
 
         return new Promise(resolve => {
+            let openPortResolved = false;
+            let openTimeout = null;
+            const connectionId = this._id++;
+            const finishOpen = result => {
+                if (openPortResolved) return false;
+                openPortResolved = true;
+                clearTimeout(openTimeout);
+                resolve(result);
+                return true;
+            };
             try {
-                var openPortResolved = false;
-                this._serialport = new SerialPortStream({binding, path: path, baudRate: options.bitrate, autoOpen: true});
-                this._serialport.on('error', error => {
+                const port = new SerialPortStream({binding, path: path, baudRate: options.bitrate, autoOpen: true});
+                this._serialport = port;
+                const openTimeoutMs = (
+                    Number.isFinite(Number(options.openTimeoutMs))
+                    && Number(options.openTimeoutMs) > 0
+                    && Number(options.openTimeoutMs) <= 60000
+                )
+                    ? Number(options.openTimeoutMs)
+                    : SERIAL_OPEN_TIMEOUT_MS;
+                openTimeout = setTimeout(async () => {
+                    if (openPortResolved) return;
+                    openPortResolved = true;
+                    if (this._serialport === port) {
+                        this._serialport = null;
+                    }
+                    if (this._connectionId === connectionId) {
+                        this._connectionId = null;
+                    }
+                    if (port.opening && !port.isOpen) {
+                        quarantineOpeningSerialPort(port);
+                    } else {
+                        await disposeSerialPort(port);
+                    }
+                    resolve({
+                        error: true,
+                        msg: `Serial port open timed out after ${openTimeoutMs} ms`,
+                    });
+                }, openTimeoutMs);
+                port.on('error', error => {
                     console.log('Serial port error:', error.message);
                     if (!window.isDestroyed()) {
-                        window.webContents.send('serialError', error);
+                        window.webContents.send('serialError', {
+                            connectionId,
+                            error: error.message || String(error),
+                        });
                     }
 
                     // Clean up the serial port to prevent handle leaks
                     // This prevents "Resource temporarily unavailable Cannot lock port" errors
-                    if (this._serialport) {
-                        const failedPort = this._serialport;
+                    if (this._serialport === port) {
                         this._serialport = null;
-                        failedPort.removeAllListeners();
-                        failedPort.destroy();
                     }
+                    if (this._connectionId === connectionId) {
+                        this._connectionId = null;
+                    }
+                    port.removeAllListeners();
+                    port.destroy();
 
-                    if(!openPortResolved) {
-                        openPortResolved = true;
-                        // Fixed: Report error correctly so connection handling works properly
-                        resolve({error: true, msg: error.message || 'Serial port error'});
-                    }
+                    // Fixed: Report error correctly so connection handling works properly
+                    finishOpen({error: true, msg: error.message || 'Serial port error'});
                 });
 
-                this._serialport.on('close', () => {
+                port.on('close', () => {
                     if (!window.isDestroyed()) {
-                        window.webContents.send('serialClose');
+                        window.webContents.send('serialClose', {
+                            connectionId,
+                        });
                     }
+                    if (this._serialport === port) {
+                        this._serialport = null;
+                    }
+                    if (this._connectionId === connectionId) {
+                        this._connectionId = null;
+                    }
+                    finishOpen({
+                        error: true,
+                        msg: 'Serial port closed before setup completed',
+                    });
                 });
 
-                this._serialport.on('data', buffer => {
+                port.on('data', buffer => {
                     if (!window.isDestroyed()) {
-                        window.webContents.send('serialData', buffer);
+                        window.webContents.send('serialData', {
+                            connectionId,
+                            data: buffer,
+                        });
                     }
                 });
 
-                this._serialport.on('open', () => {
-                    openPortResolved = true;
-                    resolve({error: false, id: this._id++});
+                port.on('open', async () => {
+                    clearTimeout(openTimeout);
+                    try {
+                        await prepareSerialPort(port, options);
+                    } catch (error) {
+                        if (this._serialport === port) {
+                            this._serialport = null;
+                        }
+                        finishOpen({
+                            error: true,
+                            msg: `Unable to configure serial control lines: ${error.message || error}`,
+                        });
+                        return;
+                    }
+
+                    if (openPortResolved) return;
+                    this._connectionId = connectionId;
+                    finishOpen({error: false, id: connectionId});
                 });
 
             } catch (err) {
-                resolve ({error: true, errorMsg: err});
+                finishOpen({error: true, msg: err.message || String(err)});
             }
         });
     },
-    close: function() {
+    close: async function(connectionId = this._connectionId) {
+        if (
+            this._serialport
+            && connectionId !== this._connectionId
+        ) {
+            return {
+                error: true,
+                msg: 'Stale serial connection close was rejected',
+            };
+        }
+        const port = this._serialport;
+        this._serialport = null;
+        this._connectionId = null;
+        if (!port) {
+            return {error: false};
+        }
+        try {
+            await disposeSerialPort(port);
+            return {error: false};
+        } catch (error) {
+            return {error: true, msg: error.message || String(error)};
+        }
+    },
+    send: function(data, connectionId) {
         return new Promise(resolve => {
-            if (this._serialport && this._serialport.isOpen) {
+            if (
+                this._serialport
+                && this._serialport.isOpen
+                && connectionId === this._connectionId
+            ) {
                 const port = this._serialport;
-                this._serialport = null;
-                port.close(error => {
-                    if (error) {
-                        resolve({error: true, msg: error})
-                    } else {
-                        resolve({error: false})
-                    }
-                });
-            } else if (this._serialport) {
-                // Port exists but isn't open - destroy it to clean up
-                try {
-                    this._serialport.destroy();
-                } catch (e) {
-                    // Ignore cleanup errors
-                }
-                this._serialport = null;
-                resolve({error: false});
-            } else {
-                resolve({error: false})
-            }
-        });
-    },
-    send: function(data) {
-        return new Promise(resolve => {
-            if (this._serialport && this._serialport.isOpen) {
-                this._serialport.write(Buffer.from(data), error => {
+                port.write(Buffer.from(data), error => {
                     if (error) {
                         resolve({error: true, msg: `Serial write error: ${error}`});
                     } else {
@@ -114,7 +190,10 @@ const serial = {
                     }
                 });
             } else {
-                resolve({error: true, msg: "Invalid serial port or port closed"});
+                resolve({
+                    error: true,
+                    msg: "Invalid, stale, or closed serial connection",
+                });
             }
         });
     },

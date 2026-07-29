@@ -78,14 +78,14 @@
     width: min(760px, 90vw);
     height: 110px;
     margin: 0 auto;
-    background-image: url('./../../../images/flight-commander-wordmark.svg');
+    background-image: url('./../../../images/flight-commander-wordmark-on-light.svg');
     background-position: center;
     background-repeat: no-repeat;
     background-size: contain;
 }
 
 .tab-landing .flightCommanderTagline {
-    color: #c2efff;
+    color: #104156;
     font-family: 'open_sanslight', Arial,serif;
     font-size: 15px;
     letter-spacing: .08em;

@@ -3,6 +3,10 @@
 import GUI from './../js/gui';
 import ConnectionSerial from './connection/connectionSerial';
 import store from './store';
+import {
+    CONNECTION_BAUD_PREFERENCES_KEY,
+    resolveConnectionBaud,
+} from './connection/connectionPreferences';
 
 var usbDevices =  [
     { 'vendorId': 1155, 'productId': 57105}, 
@@ -95,10 +99,12 @@ PortHandler.check = function () {
                     console.log('Last used port wasn\'t saved "yet", auto-select disabled.');
                 }
                 
-                var last_used_bps = store.get('last_used_bps', false);
-                if (last_used_bps) {
-                    $('#baud').val(last_used_bps);
-                }
+                const selectedProtocol = $('#protocol').val() || 'auto';
+                $('#baud').val(resolveConnectionBaud({
+                    protocol: selectedProtocol,
+                    preferences: store.get(CONNECTION_BAUD_PREFERENCES_KEY, {}),
+                    legacyBaud: store.get('last_used_bps', null),
+                }));
 
                 if (store.get('wireless_mode_enabled', false)) {
                     $('#wireless-mode').prop('checked', true).trigger('change');

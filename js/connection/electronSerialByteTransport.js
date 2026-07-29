@@ -13,6 +13,9 @@ export class ElectronSerialByteTransport {
     this.dataHandler = null;
     this.errorHandler = null;
     this.closeHandler = null;
+    this.connectionId = null;
+    this.pendingIpcEvents = [];
+    this.pendingOpenError = null;
   }
 
   async open(path, bitrate = 115200) {
@@ -21,6 +24,9 @@ export class ElectronSerialByteTransport {
     }
     this.path = path;
     this.buffer = new Uint8Array(0);
+    this.connectionId = null;
+    this.pendingIpcEvents = [];
+    this.pendingOpenError = null;
     this.bindEvents();
 
     try {
@@ -28,40 +34,76 @@ export class ElectronSerialByteTransport {
       if (response?.error) {
         throw new Error(response.msg || `Unable to open ${path}.`);
       }
+      this.connectionId = response.id;
+      const pending = this.pendingIpcEvents;
+      this.pendingIpcEvents = [];
+      pending.forEach(({ type, envelope }) =>
+        this.dispatchIpcEvent(type, envelope),
+      );
+      if (this.pendingOpenError) {
+        throw this.pendingOpenError;
+      }
       this.opened = true;
       return response;
     } catch (error) {
       this.unbindEvents();
       this.path = null;
+      this.connectionId = null;
+      this.pendingIpcEvents = [];
+      this.pendingOpenError = null;
       this.buffer = new Uint8Array(0);
       throw error;
     }
   }
 
   bindEvents() {
-    this.dataHandler = this.api.onSerialData((value) => {
+    this.dataHandler = this.api.onSerialData((envelope) => {
+      this.receiveIpcEvent("data", envelope);
+    });
+    this.errorHandler = this.api.onSerialError((envelope) => {
+      this.receiveIpcEvent("error", envelope);
+    });
+    this.closeHandler = this.api.onSerialClose((envelope) => {
+      this.receiveIpcEvent("close", envelope);
+    });
+  }
+
+  receiveIpcEvent(type, envelope) {
+    if (this.connectionId == null) {
+      if (this.pendingIpcEvents.length >= 256) {
+        this.pendingIpcEvents.shift();
+      }
+      this.pendingIpcEvents.push({ type, envelope });
+      return;
+    }
+    this.dispatchIpcEvent(type, envelope);
+  }
+
+  dispatchIpcEvent(type, envelope) {
+    if (envelope?.connectionId !== this.connectionId) return;
+    if (type === "data") {
+      const value = envelope.data;
       const data =
         value instanceof Uint8Array ? value : Uint8Array.from(value ?? []);
-      if (!data.length) {
-        return;
-      }
+      if (!data.length) return;
       const combined = new Uint8Array(this.buffer.length + data.length);
       combined.set(this.buffer, 0);
       combined.set(data, this.buffer.length);
       this.buffer = combined;
       this.serviceWaiters();
-    });
-    this.errorHandler = this.api.onSerialError((error) => {
-      this.failWaiters(
-        new Error(error?.message || String(error || "Serial transport error.")),
-      );
-    });
-    this.closeHandler = this.api.onSerialClose(() => {
-      if (this.opened) {
-        this.opened = false;
-        this.failWaiters(new Error(`Serial port ${this.path ?? ""} closed.`));
-      }
-    });
+      return;
+    }
+
+    const error =
+      type === "error"
+        ? new Error(envelope.error || "Serial transport error.")
+        : new Error(`Serial port ${this.path ?? ""} closed.`);
+    if (!this.opened) {
+      this.pendingOpenError = error;
+      return;
+    }
+    this.opened = false;
+    this.failWaiters(error);
   }
 
   unbindEvents() {
@@ -111,7 +153,7 @@ export class ElectronSerialByteTransport {
     }
     const data =
       value instanceof Uint8Array ? value : Uint8Array.from(value ?? []);
-    const response = await this.api.serialSend(data);
+    const response = await this.api.serialSend(data, this.connectionId);
     if (response?.error) {
       throw new Error(response.msg || "Serial write failed.");
     }
@@ -196,11 +238,14 @@ export class ElectronSerialByteTransport {
     this.buffer = new Uint8Array(0);
     try {
       if (wasOpened) {
-        await this.api.serialClose();
+        await this.api.serialClose(this.connectionId);
       }
     } finally {
       this.unbindEvents();
       this.path = null;
+      this.connectionId = null;
+      this.pendingIpcEvents = [];
+      this.pendingOpenError = null;
     }
   }
 }

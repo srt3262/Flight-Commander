@@ -128,6 +128,20 @@ test("INAV progress estimate advances monotonically and recognizes final RTL", (
   assert.equal(final.distanceToWaypoint, null);
 });
 
+test("mission coordinator releases an attachment-scoped lease on abort", () => {
+  const coordinator = new MissionOperationCoordinator();
+  const controller = new AbortController();
+  const operation = coordinator.acquire("Ground Control mission download", {
+    signal: controller.signal,
+  });
+
+  assert.equal(coordinator.isBusy(), true);
+  controller.abort();
+  assert.equal(coordinator.isBusy(), false);
+  assert.equal(operation.release(), false);
+  assert.ok(coordinator.acquire("new attachment mission download"));
+});
+
 test("mission fingerprint is stable across metadata-only changes", () => {
   const left = [waypoint(0, { metadata: { source: "one" } })];
   const right = [waypoint(0, { metadata: { source: "two" } })];

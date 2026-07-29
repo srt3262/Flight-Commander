@@ -122,12 +122,20 @@ export class MavlinkIpcCodec {
     this.onMessage = options.onMessage ?? (() => {});
     this.onError = options.onError ?? (() => {});
     this.sequence = 0;
+    this.generation = 0;
     this.splitter = null;
     this.parser = null;
-    this.reset();
+    this.reset(options.generation ?? 0);
   }
 
-  reset() {
+  reset(generation = this.generation) {
+    if (!Number.isSafeInteger(generation) || generation < 0) {
+      throw new RangeError(
+        "MAVLink transport generation must be a non-negative safe integer.",
+      );
+    }
+    this.generation = generation;
+
     if (this.splitter) {
       this.splitter.unpipe();
       this.splitter.destroy();
@@ -138,10 +146,14 @@ export class MavlinkIpcCodec {
 
     this.splitter = new MavLinkPacketSplitter();
     this.parser = new MavLinkPacketParser();
+    const parserGeneration = generation;
     this.splitter.pipe(this.parser);
-    this.parser.on("data", (packet) => this.handlePacket(packet));
+    this.parser.on("data", (packet) =>
+      this.handlePacket(packet, parserGeneration),
+    );
     this.parser.on("error", (error) => this.onError(error));
     this.splitter.on("error", (error) => this.onError(error));
+    return true;
   }
 
   destroy() {
@@ -156,9 +168,12 @@ export class MavlinkIpcCodec {
     }
   }
 
-  feed(value) {
+  feed(value, generation = this.generation) {
+    if (generation !== this.generation) {
+      return false;
+    }
     if (value == null) {
-      return;
+      return true;
     }
     const data = byteBuffer(value);
     if (data.byteLength > MAX_FEED_BYTES) {
@@ -169,23 +184,30 @@ export class MavlinkIpcCodec {
     if (data.byteLength && this.splitter) {
       this.splitter.write(data);
     }
+    return true;
   }
 
-  handlePacket(packet) {
+  handlePacket(packet, generation = this.generation) {
+    if (generation !== this.generation) {
+      return false;
+    }
     try {
       const Message = MESSAGE_REGISTRY.byId[packet.header.msgid];
       if (!Message) {
-        return;
+        return false;
       }
       const decoded = packet.protocol.data(packet.payload, Message);
       this.onMessage({
+        generation,
         protocol: packet.protocol.name,
         header: serializableValue(packet.header),
         messageName: Message.MSG_NAME || Message.name,
         data: serializableValue(decoded),
       });
+      return true;
     } catch (error) {
       this.onError(error);
+      return false;
     }
   }
 
@@ -253,10 +275,16 @@ export function registerMavlinkIpc(ipc, getWindow, options = {}) {
     },
   });
 
-  const resetHandler = () => codec.reset();
-  const feedHandler = (_event, data) => {
+  const resetHandler = (_event, generation) => {
     try {
-      codec.feed(data);
+      codec.reset(generation);
+    } catch (error) {
+      onError(error);
+    }
+  };
+  const feedHandler = (_event, data, generation) => {
+    try {
+      codec.feed(data, generation);
     } catch (error) {
       onError(error);
     }

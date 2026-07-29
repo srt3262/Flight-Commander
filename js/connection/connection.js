@@ -20,6 +20,8 @@ class Connection {
         this._bytesSent      = 0;
         this._transmitting   = false;
         this._outputBuffer   = [];
+        this._outputGeneration = 0;
+        this._lifecycleGeneration = 0;
         this._onReceiveListeners      = [];
         this._onReceiveErrorListeners = [];
         this._type = null;
@@ -70,6 +72,11 @@ class Connection {
     }
 
     connect(path, options, callback) {
+        // Starting a new connection invalidates any asynchronous completion
+        // which belongs to an older disconnect.  Without this guard, a slow
+        // Windows close can clear the new connection ID and replay stale UI
+        // cleanup after a rapid reconnect.
+        this._lifecycleGeneration += 1;
         this._openRequested = true;
         this._openCanceled = false;
         this._failed = 0;
@@ -130,6 +137,10 @@ class Connection {
 
     disconnect(callback) {
         if (this._connectionId) {
+            const lifecycleGeneration = ++this._lifecycleGeneration;
+            const closingConnectionId = this._connectionId;
+            const bytesSent = this._bytesSent;
+            const bytesReceived = this._bytesReceived;
             this.emptyOutputBuffer();
             this.removeAllListeners();
 
@@ -141,9 +152,17 @@ class Connection {
             this.disconnectImplementation(result => {
 
                 if (result) {
-                    console.log('Connection with ID: ' + this._connectionId + ' closed, Sent: ' + this._bytesSent + ' bytes, Received: ' + this._bytesReceived + ' bytes');
+                    console.log('Connection with ID: ' + closingConnectionId + ' closed, Sent: ' + bytesSent + ' bytes, Received: ' + bytesReceived + ' bytes');
                 } else {
-                    console.log('Failed to close connection with ID: ' + this._connectionId + ' closed, Sent: ' + this._bytesSent + ' bytes, Received: ' + this._bytesReceived + ' bytes');
+                    console.log('Failed to close connection with ID: ' + closingConnectionId + ' closed, Sent: ' + bytesSent + ' bytes, Received: ' + bytesReceived + ' bytes');
+                }
+
+                if (
+                    lifecycleGeneration !== this._lifecycleGeneration
+                    || this._connectionId !== closingConnectionId
+                ) {
+                    console.log('Ignored stale disconnect completion for connection ID: ' + closingConnectionId);
+                    return;
                 }
 
                 this._connectionId = false;
@@ -152,6 +171,7 @@ class Connection {
                 }
             });
         } else {
+            this._lifecycleGeneration += 1;
             this._openCanceled = true;
         }
     }
@@ -161,48 +181,60 @@ class Connection {
     }
 
     send(data, callback) {
-        this._outputBuffer.push({'data': data, 'callback': callback});
+        if (this._outputBuffer.length >= 100) {
+            console.log('Send buffer full, rejected one entry');
+            if (callback) {
+                callback({bytesSent: 0, resultCode: 1});
+            }
+            return;
+        }
+        const entry = {
+            data,
+            callback,
+            generation: this._outputGeneration,
+        };
+        this._outputBuffer.push(entry);
 
-        var send = () => {
-            // store inside separate variables in case array gets destroyed
-            var data = this._outputBuffer[0].data,
-                callback = this._outputBuffer[0].callback;
+        const send = currentEntry => {
+            if (
+                currentEntry !== this._outputBuffer[0]
+                || currentEntry.generation !== this._outputGeneration
+            ) {
+                return;
+            }
 
-                this.sendImplementation(data, sendInfo => {
-                    // track sent bytes for statistics
-                    this._bytesSent += sendInfo.bytesSent;
+            this.sendImplementation(currentEntry.data, sendInfo => {
+                // Always settle the callback which belongs to the attempted
+                // write, but never let a delayed callback from a detached
+                // connection mutate the new connection's queue.
+                if (currentEntry.callback) {
+                    currentEntry.callback(sendInfo);
+                }
+                if (
+                    currentEntry.generation !== this._outputGeneration
+                    || this._outputBuffer[0] !== currentEntry
+                ) {
+                    return;
+                }
 
-                    // fire callback
-                    if (callback) {
-                         callback(sendInfo);
-                    }
+                // track sent bytes for statistics
+                this._bytesSent += sendInfo.bytesSent;
 
-                    // remove data for current transmission form the buffer
-                    this._outputBuffer.shift();
+                // remove data for current transmission from the buffer
+                this._outputBuffer.shift();
 
-                    // if there is any data in the queue fire send immediately, otherwise stop trasmitting
-                    if (this._outputBuffer.length) {
-                        // keep the buffer withing reasonable limits
-                        if (this._outputBuffer.length > 100) {
-                            var counter = 0;
-
-                            while (this._outputBuffer.length > 100) {
-                                this._outputBuffer.pop();
-                                counter++;
-                            }
-
-                            console.log('Send buffer overflowing, dropped: ' + counter + ' entries');
-                        }
-                        send();
-                    } else {
-                        this._transmitting = false;
-                    }
-                });
+                // if there is any data in the queue fire send immediately, otherwise stop transmitting
+                if (this._outputBuffer.length) {
+                    send(this._outputBuffer[0]);
+                } else {
+                    this._transmitting = false;
+                }
+            });
         }
 
         if (!this._transmitting) {
             this._transmitting = true;
-            send();
+            send(entry);
         }
     }
     
@@ -249,6 +281,7 @@ class Connection {
     }
 
     emptyOutputBuffer() {
+        this._outputGeneration += 1;
         this._outputBuffer = [];
         this._transmitting = false;
     }

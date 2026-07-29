@@ -169,6 +169,20 @@ function hasFlightCommanderWordmark(declaration) {
   );
 }
 
+function hasCompleteWelcomeWordmark(declaration) {
+  return decodedSvgDataUrls(declaration).some(
+    (svg) =>
+      /data-wordmark-surface=["']light["']/.test(svg) &&
+      /<text[^>]+fill=["']#104156["'][^>]*>FLIGHT<\/text>/.test(svg) &&
+      /<text[^>]+fill=["']#2186b5["'][^>]*>COMMANDER<\/text>/.test(svg) &&
+      /<path[^>]+fill=["']#104156["'][^>]+stroke=["']#104156["']/.test(
+        svg,
+      ) &&
+      /<circle[^>]+stroke=["']#104156["']/.test(svg) &&
+      !/(?:fill|stroke)=["']#(?:fff|ffffff)["']/i.test(svg),
+  );
+}
+
 function sha256(bytes) {
   return createHash("sha256").update(bytes).digest("hex");
 }
@@ -470,6 +484,23 @@ if (!compiledMain.includes(runtimeIcon.toString("base64"))) {
     "the compiled main process does not embed the Flight Commander runtime icon",
   );
 }
+if (
+  !compiledMain.includes("Unable to configure serial control lines") ||
+  !compiledMain.includes("Serial control-line setup timed out") ||
+  !compiledMain.includes("dtr")
+) {
+  fail(
+    "the compiled main process does not contain the Windows MAVLink DTR-low setup",
+  );
+}
+if (
+  !compiledMain.includes("Serial port open timed out") ||
+  !compiledMain.includes("Stale serial connection close was rejected")
+) {
+  fail(
+    "the compiled main process does not contain bounded, connection-scoped serial lifecycle handling",
+  );
+}
 
 const rendererDirectory = join(
   appDirectory,
@@ -477,6 +508,18 @@ const rendererDirectory = join(
   "renderer",
   "main_window",
 );
+const rendererEntryHtml = readFileSync(
+  join(rendererDirectory, "index.html"),
+  "utf8",
+);
+for (const label of [
+  "Auto protocol (selected baud)",
+  "Ground Control / MAVLink",
+]) {
+  if (!rendererEntryHtml.includes(label)) {
+    fail(`the active renderer entry does not contain ${label}`);
+  }
+}
 const rendererFiles = activeRendererFiles(rendererDirectory);
 if (rendererFiles.length === 0) {
   fail("the compiled main-window renderer is missing");
@@ -488,7 +531,6 @@ const rendererCss = rendererStylesheets
   .join("\n");
 for (const selector of [
   "#logo",
-  ".tab-landing .flightCommanderLogo",
   ".tab-cli .backdrop",
   "#content-watermark",
 ]) {
@@ -499,6 +541,36 @@ for (const selector of [
   if (!declarations.some(hasFlightCommanderWordmark)) {
     fail(`${selector} does not render the Flight Commander wordmark`);
   }
+}
+const welcomeLogoDeclarations = ruleDeclarations(
+  rendererCss,
+  ".tab-landing .flightCommanderLogo",
+);
+if (welcomeLogoDeclarations.length === 0) {
+  fail(
+    "the active renderer CSS does not contain the welcome Flight Commander logo",
+  );
+}
+if (!welcomeLogoDeclarations.some(hasCompleteWelcomeWordmark)) {
+  fail(
+    "the welcome surface does not render the complete light-background Flight Commander wordmark",
+  );
+}
+const welcomeTaglineDeclarations = ruleDeclarations(
+  rendererCss,
+  ".tab-landing .flightCommanderTagline",
+);
+if (
+  welcomeTaglineDeclarations.length === 0 ||
+  !welcomeTaglineDeclarations.some((declaration) =>
+    /(?:^|;)color:#104156(?:;|$)/i.test(
+      declaration.replace(/\s+/g, ""),
+    ),
+  )
+) {
+  fail(
+    "the welcome tagline does not use the verified light-surface contrast color",
+  );
 }
 if (rendererCss.includes(".inavLogo{")) {
   fail("the active renderer CSS still contains the retired INAV logo selector");
@@ -513,6 +585,12 @@ for (const marker of [
   "plannerCameraCommandMode",
   "plannerInavMissionRestart",
   "plannerArduPilotMissionRestart",
+  "connectionBaudPreferencesByProtocol",
+  "forceDtrLow",
+  "Waiting for vehicle heartbeat",
+  "MAVLink serial transport is open",
+  "MAVLINK_SESSION_DETACHED",
+  "supported controls unlock after identification and safety checks",
 ]) {
   if (!rendererText.includes(marker)) {
     fail(`the active renderer does not contain ${marker}`);

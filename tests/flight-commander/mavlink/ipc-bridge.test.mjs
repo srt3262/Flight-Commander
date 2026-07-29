@@ -76,6 +76,7 @@ test("MAVLink IPC codec round-trips packets and rejects unsafe encode requests",
   assert.equal(errors.length, 0);
   assert.equal(messages.length, 1);
   assert.equal(messages[0].protocol, "MAV_V2");
+  assert.equal(messages[0].generation, 0);
   assert.equal(messages[0].messageName, "COMMAND_LONG");
   assert.equal(messages[0].header.sysid, 255);
   assert.equal(messages[0].data.command, 246);
@@ -94,6 +95,41 @@ test("MAVLink IPC codec round-trips packets and rejects unsafe encode requests",
     /version must be 1 or 2/,
   );
   assert.throws(() => codec.feed({ unsafe: true }), /feed data must be/);
+  codec.destroy();
+});
+
+test("MAVLink IPC codec drops stale feeds and tags decoded packets with the active generation", async () => {
+  const messages = [];
+  const codec = new MavlinkIpcCodec({
+    onMessage: (message) => messages.push(message),
+  });
+  const encoded = codec.encode(
+    "Heartbeat",
+    {
+      type: 6,
+      autopilot: 8,
+      baseMode: 0,
+      customMode: 0,
+      systemStatus: 4,
+      mavlinkVersion: 3,
+    },
+    { version: 2, systemId: 255, componentId: 190 },
+  );
+
+  codec.reset(41);
+  assert.equal(codec.feed(encoded, 40), false);
+  await nextTurn();
+  assert.deepEqual(messages, []);
+
+  assert.equal(codec.feed(encoded, 41), true);
+  await nextTurn();
+  assert.equal(messages.length, 1);
+  assert.equal(messages[0].generation, 41);
+
+  assert.throws(
+    () => codec.reset(-1),
+    /generation must be a non-negative safe integer/,
+  );
   codec.destroy();
 });
 
@@ -120,11 +156,17 @@ test("MAVLink IPC registration delivers packets and removes every handler on dis
     },
     { version: 1, systemId: 255, componentId: 190 },
   );
-  ipc.listeners.get("mavlinkFeed")({}, encoded);
+  ipc.listeners.get("mavlinkReset")({}, 73);
+  ipc.listeners.get("mavlinkFeed")({}, encoded, 72);
+  await nextTurn();
+  assert.equal(delivered.length, 0);
+
+  ipc.listeners.get("mavlinkFeed")({}, encoded, 73);
   await nextTurn();
   assert.equal(delivered.length, 1);
   assert.equal(delivered[0].channel, "mavlinkMessage");
   assert.equal(delivered[0].envelope.protocol, "MAV_V1");
+  assert.equal(delivered[0].envelope.generation, 73);
 
   bridge.dispose();
   assert.deepEqual(ipc.removedListeners.map(({ channel }) => channel).sort(), [

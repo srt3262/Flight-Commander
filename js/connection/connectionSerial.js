@@ -15,6 +15,7 @@ const serialDevices = [
     { vendorId: 11836, productId: 22336 }, // AT32 VCP
     { vendorId: 12619, productId: 22336 }, // APM32 VCP
 ];
+const MAX_PENDING_IPC_EVENTS = 256;
 
 class ConnectionSerial extends Connection {
     constructor() {
@@ -28,6 +29,65 @@ class ConnectionSerial extends Connection {
         this._ipcDataHandler = null;
         this._ipcCloseHandler = null;
         this._ipcErrorHandler = null;
+        this._pendingIpcEvents = [];
+        this._receiveReady = false;
+        this._lastOpenError = '';
+    }
+
+    get lastOpenError() {
+        return this._lastOpenError;
+    }
+
+    dispatchReceived(buffer) {
+        this._onReceiveListeners.forEach(listener => {
+            listener({
+                connectionId: this._connectionId,
+                data: buffer
+            });
+        });
+    }
+
+    queuePendingIpcEvent(type, envelope) {
+        if (this._pendingIpcEvents.length >= MAX_PENDING_IPC_EVENTS) {
+            this._pendingIpcEvents.shift();
+        }
+        this._pendingIpcEvents.push({type, envelope});
+    }
+
+    isCurrentIpcEnvelope(envelope) {
+        return (
+            Number.isInteger(envelope?.connectionId)
+            && envelope.connectionId === this._connectionId
+        );
+    }
+
+    handleSerialClose(envelope) {
+        if (!this.isCurrentIpcEnvelope(envelope)) return;
+        console.log("Serial connection closed");
+        this.abort();
+    }
+
+    handleSerialError(envelope) {
+        if (!this.isCurrentIpcEnvelope(envelope)) return;
+        const error = envelope.error || 'Serial transport error';
+        GUI.log($('<div>').text(error).html());
+        console.log(error);
+        this.abort();
+
+        this._onReceiveErrorListeners.forEach(listener => {
+            listener(error);
+        });
+    }
+
+    dispatchIpcEvent(type, envelope) {
+        if (!this.isCurrentIpcEnvelope(envelope)) return;
+        if (type === 'data') {
+            this.dispatchReceived(envelope.data);
+        } else if (type === 'close') {
+            this.handleSerialClose(envelope);
+        } else if (type === 'error') {
+            this.handleSerialError(envelope);
+        }
     }
 
     registerIpcListeners() {
@@ -35,28 +95,34 @@ class ConnectionSerial extends Connection {
             return; // Already registered
         }
 
-        this._ipcDataHandler = window.electronAPI.onSerialData(buffer => {
-            this._onReceiveListeners.forEach(listener => {
-                listener({
-                    connectionId: this._connectionId,
-                    data: buffer
-                });
-            });
+        this._ipcDataHandler = window.electronAPI.onSerialData(envelope => {
+            // Windows can deliver bytes immediately after the COM handle opens,
+            // before serialConnect resolves back to the renderer.  Preserve
+            // those bytes until the protocol listeners have been installed by
+            // the connection callback. Each event carries the main-process
+            // connection ID so delayed IPC from an older COM attempt can never
+            // be delivered to the new transport.
+            if (!this._receiveReady) {
+                this.queuePendingIpcEvent('data', envelope);
+                return;
+            }
+            this.dispatchIpcEvent('data', envelope);
         });
 
-        this._ipcCloseHandler = window.electronAPI.onSerialClose(() => {
-            console.log("Serial connection closed");
-            this.abort();
+        this._ipcCloseHandler = window.electronAPI.onSerialClose(envelope => {
+            if (!this._receiveReady) {
+                this.queuePendingIpcEvent('close', envelope);
+                return;
+            }
+            this.dispatchIpcEvent('close', envelope);
         });
 
-        this._ipcErrorHandler = window.electronAPI.onSerialError(error => {
-            GUI.log(error);
-            console.log(error);
-            this.abort();
-
-            this._onReceiveErrorListeners.forEach(listener => {
-                listener(error);
-            });
+        this._ipcErrorHandler = window.electronAPI.onSerialError(envelope => {
+            if (!this._receiveReady) {
+                this.queuePendingIpcEvent('error', envelope);
+                return;
+            }
+            this.dispatchIpcEvent('error', envelope);
         });
     }
 
@@ -76,19 +142,33 @@ class ConnectionSerial extends Connection {
     }
 
     connectImplementation(path, options, callback) {
+        this._receiveReady = false;
+        this._pendingIpcEvents = [];
+        this._lastOpenError = '';
         this.registerIpcListeners();
 
         window.electronAPI.serialConnect(path, options).then(response => {
             if (!response.error) {
                 GUI.log(i18n.getMessage('connectionConnected', [`${path} @ ${options.bitrate} baud`]));
                 this._connectionId = response.id;
-                if (callback) {
-                    callback({
-                        bitrate: options.bitrate,
-                        connectionId: this._connectionId
+                try {
+                    if (callback) {
+                        callback({
+                            bitrate: options.bitrate,
+                            connectionId: this._connectionId
+                        });
+                    }
+                } finally {
+                    this._receiveReady = true;
+                    const pending = this._pendingIpcEvents;
+                    this._pendingIpcEvents = [];
+                    pending.forEach(({type, envelope}) => {
+                        this.dispatchIpcEvent(type, envelope);
                     });
                 } 
             } else {
+                this._pendingIpcEvents = [];
+                this._lastOpenError = String(response.msg || 'Unknown serial error');
                 console.log("Serial connection error: " + response.msg);
                 if (callback) {
                     callback(false);
@@ -98,8 +178,10 @@ class ConnectionSerial extends Connection {
     }
 
     disconnectImplementation(callback) {   
+        this._receiveReady = false;
+        this._pendingIpcEvents = [];
         if (this._connectionId) {
-            window.electronAPI.serialClose().then(response => {
+            window.electronAPI.serialClose(this._connectionId).then(response => {
                 var ok = true;
                 if (response.error) {
                     console.log("Unable to close serial: " + response.msg);
@@ -114,7 +196,7 @@ class ConnectionSerial extends Connection {
 
     sendImplementation(data, callback) {        
         if (this._connectionId) {
-            window.electronAPI.serialSend(data).then(response => {
+            window.electronAPI.serialSend(data, this._connectionId).then(response => {
                 var result = 0;
                 var sent = response.bytesWritten;
                 if (response.error) {

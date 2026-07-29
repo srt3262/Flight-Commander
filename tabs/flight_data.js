@@ -27,7 +27,10 @@ import {
   normalizeMapStyle,
   setBaseMapStyle,
 } from './../js/maps/baseMapLayers';
-import { mavlinkMissionManager } from './../js/mavlink/services';
+import {
+  mavlinkMissionManager,
+  withAbortSignal,
+} from './../js/mavlink/services';
 import mavlinkSession from './../js/mavlink/mavlinkSession';
 import { inavMissionAdapter } from './../js/mission/inavMissionAdapter';
 import { missionOperationCoordinator } from './../js/mission/missionOperationCoordinator';
@@ -99,6 +102,7 @@ const flightData = {
   missionMarkerSource: null,
   unsubscribeState: null,
   unsubscribeText: null,
+  unsubscribeDetached: null,
   unsubscribeResume: null,
   hasCentered: false,
   mission: [],
@@ -111,6 +115,9 @@ const flightData = {
   hudLoadToken: 0,
   globalLogWasOpen: false,
   globalLogGuard: null,
+  mavlinkWasConnected: false,
+  mavlinkAttachmentGeneration: 0,
+  mavlinkMissionAbortController: null,
 };
 
 flightData.suspendGlobalLog = function () {
@@ -268,6 +275,16 @@ flightData.buildMap = function () {
 };
 
 flightData.configureProtocol = function () {
+  this.unsubscribeState?.();
+  this.unsubscribeState = null;
+  this.unsubscribeText?.();
+  this.unsubscribeText = null;
+  this.unsubscribeDetached?.();
+  this.unsubscribeDetached = null;
+  this.unsubscribeResume?.();
+  this.unsubscribeResume = null;
+  this.invalidateMavlinkAttachment();
+
   this.unsubscribeResume = missionResumeManager.subscribe((snapshot, context) => {
     this.renderResumeCheckpoint(snapshot);
     if (context.reason === 'checkpoint-captured') {
@@ -276,14 +293,40 @@ flightData.configureProtocol = function () {
   });
 
   if (this.protocol === 'mavlink') {
-    this.populateModes(mavlinkSession.snapshot());
-    this.unsubscribeState = mavlinkSession.on('state', (state) => this.render(state));
+    const initialState = mavlinkSession.snapshot();
+    this.mavlinkWasConnected = Boolean(initialState.connected);
+    this.unsubscribeDetached = mavlinkSession.on('detached', () => {
+      this.mavlinkWasConnected = false;
+      this.invalidateMavlinkAttachment();
+    });
+    this.populateModes(initialState);
+    this.unsubscribeState = mavlinkSession.on('state', (state) => {
+      const vehicleJustConnected = !this.mavlinkWasConnected && state.connected;
+      this.mavlinkWasConnected = Boolean(state.connected);
+      this.render(state);
+      if (vehicleJustConnected) {
+        this.appendLocalMessage(
+          'MAVLink vehicle heartbeat received; live telemetry is active; '
+          + 'supported controls unlock after identification and safety checks.',
+        );
+        this.loadVehicleMission();
+      }
+    });
     this.unsubscribeText = mavlinkSession.on('statusText', (entry) => this.appendStatus(entry));
-    this.render(mavlinkSession.snapshot());
+    this.render(initialState);
     for (const entry of mavlinkSession.state.statusText.slice(-25)) {
       this.appendStatus(entry);
     }
-    mavlinkSession.requestDataStreams(5).catch((error) => this.setActionStatus(error.message, true));
+    if (initialState.connected) {
+      mavlinkSession.requestDataStreams(5).catch((error) => this.setActionStatus(error.message, true));
+    } else {
+      this.appendLocalMessage(
+        'MAVLink serial transport is open; waiting for the first vehicle heartbeat.',
+      );
+      this.setActionStatus(
+        'Waiting for a MAVLink vehicle heartbeat. Telemetry and commands remain disabled until the aircraft link is live.',
+      );
+    }
     return;
   }
 
@@ -307,6 +350,13 @@ flightData.configureProtocol = function () {
   this.appendLocalMessage('INAV/MSP wired setup link connected; airborne commands require MAVLink.');
   interval.add('flight-data-msp-refresh', () => this.pollInavTelemetry(), 400, true);
   this.render(this.currentState());
+};
+
+flightData.invalidateMavlinkAttachment = function () {
+  this.mavlinkAttachmentGeneration += 1;
+  const controller = this.mavlinkMissionAbortController;
+  this.mavlinkMissionAbortController = null;
+  if (controller && !controller.signal.aborted) controller.abort();
 };
 
 flightData.populateModes = function (state = mavlinkSession.snapshot()) {
@@ -772,8 +822,12 @@ flightData.loadVehicleMission = async function () {
   ) {
     return;
   }
+  const isMavlink = this.protocol === 'mavlink';
+  const attachmentGeneration = this.mavlinkAttachmentGeneration;
+  const abortController = isMavlink ? new AbortController() : null;
   const missionOperation = missionOperationCoordinator.acquire(
     'Ground Control mission download',
+    { signal: abortController?.signal },
   );
   if (!missionOperation) {
     this.setActionStatus(
@@ -782,25 +836,45 @@ flightData.loadVehicleMission = async function () {
     );
     return;
   }
+  if (isMavlink) this.mavlinkMissionAbortController = abortController;
+  const attachmentIsCurrent = () => (
+    !isMavlink
+    || (
+      this.protocol === 'mavlink'
+      && this.mavlinkAttachmentGeneration === attachmentGeneration
+      && this.mavlinkMissionAbortController === abortController
+      && !abortController.signal.aborted
+    )
+  );
   // Reflect the coordinator lease immediately; otherwise a resume button that
   // was already enabled can look available until the download finishes.
   this.renderResumeCheckpoint();
   try {
     this.setActionStatus('Reading the mission from the flight controller…');
-    if (this.protocol === 'mavlink') {
+    let mission;
+    if (isMavlink) {
       const state = mavlinkSession.state.firmwareFamily === 'unknown'
-        ? await mavlinkSession.waitForFirmwareFamily()
+        ? await withAbortSignal(
+          mavlinkSession.waitForFirmwareFamily(),
+          abortController.signal,
+        )
         : mavlinkSession.snapshot();
-      this.mission = await mavlinkMissionManager.download(
-        state.firmwareFamily === 'inav' ? { legacyOnly: true } : {},
+      if (!attachmentIsCurrent()) return;
+      mission = await mavlinkMissionManager.download(
+        {
+          ...(state.firmwareFamily === 'inav' ? { legacyOnly: true } : {}),
+          signal: abortController.signal,
+        },
       );
     } else {
-      this.mission = await inavMissionAdapter.download();
+      mission = await inavMissionAdapter.download();
     }
-    if (this.protocol === 'mavlink') {
+    if (!attachmentIsCurrent()) return;
+    this.mission = mission;
+    if (isMavlink) {
       mavlinkSession.state.missionTotal = this.mission.length;
     }
-    if (this.protocol === 'mavlink') {
+    if (isMavlink) {
       if (this.mission.length) {
         missionResumeManager.registerMission(this.mission, {
           source: 'ground-control-readback',
@@ -817,10 +891,17 @@ flightData.loadVehicleMission = async function () {
     this.updateActionAvailability(state);
     this.setActionStatus(`${this.mission.length} mission items loaded from the flight controller.`);
   } catch (error) {
+    if (isMavlink && (error.name === 'AbortError' || !attachmentIsCurrent())) {
+      return;
+    }
     this.setActionStatus(`Live telemetry is active; mission route could not be read: ${error.message}`, true);
   } finally {
+    const shouldRenderResume = attachmentIsCurrent();
     missionOperation.release();
-    this.renderResumeCheckpoint();
+    if (this.mavlinkMissionAbortController === abortController) {
+      this.mavlinkMissionAbortController = null;
+    }
+    if (shouldRenderResume) this.renderResumeCheckpoint();
   }
 };
 
@@ -879,8 +960,11 @@ flightData.cleanup = function (callback) {
   this.unsubscribeState = null;
   this.unsubscribeText?.();
   this.unsubscribeText = null;
+  this.unsubscribeDetached?.();
+  this.unsubscribeDetached = null;
   this.unsubscribeResume?.();
   this.unsubscribeResume = null;
+  this.invalidateMavlinkAttachment();
   this.hud?.destroy();
   this.hud = null;
   this.hudLoadToken += 1;
@@ -900,6 +984,7 @@ flightData.cleanup = function (callback) {
   this.mspPollCount = 0;
   this.modeSignature = '';
   this.estimatedMissionCurrent = null;
+  this.mavlinkWasConnected = false;
   this.restoreGlobalLog();
   if (callback) callback();
 };

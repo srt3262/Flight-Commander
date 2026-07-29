@@ -151,14 +151,36 @@ export function isInavMission(options, session) {
   );
 }
 
-export function abortError() {
-  const error = new Error("Mission transaction was cancelled.");
+export function abortError(message = "Mission transaction was cancelled.") {
+  const error = new Error(message);
   error.name = "AbortError";
   return error;
 }
 
 function throwIfAborted(signal) {
   if (signal?.aborted) throw abortError();
+}
+
+export function withAbortSignal(promise, signal) {
+  if (!signal) return Promise.resolve(promise);
+  if (signal.aborted) return Promise.reject(abortError());
+
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const settle = (callback, value) => {
+      if (settled) return;
+      settled = true;
+      signal.removeEventListener("abort", onAbort);
+      callback(value);
+    };
+    const onAbort = () => settle(reject, abortError());
+
+    signal.addEventListener("abort", onAbort, { once: true });
+    Promise.resolve(promise).then(
+      (value) => settle(resolve, value),
+      (error) => settle(reject, error),
+    );
+  });
 }
 
 export class MavlinkMissionManager {
@@ -198,10 +220,33 @@ export class MavlinkMissionManager {
   }
 
   runTransaction(operation, signal) {
-    const transaction = this.transactionTail.then(async () => {
-      throwIfAborted(signal);
-      return operation();
-    });
+    // Subscribe when the operation is queued, not when it reaches the front of
+    // the transaction chain. A queued operation from attachment A must not
+    // silently start against attachment B after a reconnect.
+    const controller = new AbortController();
+    const abort = () => {
+      if (!controller.signal.aborted) controller.abort();
+    };
+    const unsubscribeDetached = this.session.on("detached", abort);
+    let callerAbortListener = null;
+    if (signal) {
+      callerAbortListener = abort;
+      signal.addEventListener("abort", callerAbortListener, { once: true });
+      if (signal.aborted) abort();
+    }
+    const cleanup = () => {
+      unsubscribeDetached();
+      if (callerAbortListener) {
+        signal.removeEventListener("abort", callerAbortListener);
+        callerAbortListener = null;
+      }
+    };
+    const transaction = this.transactionTail
+      .then(async () => {
+        throwIfAborted(controller.signal);
+        return operation(controller.signal);
+      })
+      .finally(cleanup);
     this.transactionTail = transaction.catch(() => {});
     return transaction;
   }
@@ -276,18 +321,22 @@ export class MavlinkMissionManager {
       signal,
     );
     try {
-      await this.session.send(requestName, payload);
+      await withAbortSignal(
+        this.session.send(requestName, payload),
+        signal,
+      );
     } catch (error) {
-      waiter.cancel(error);
+      const transactionError = signal?.aborted ? abortError() : error;
+      waiter.cancel(transactionError);
       await waiter.promise.catch(() => {});
-      throw error;
+      throw transactionError;
     }
     return waiter.promise;
   }
 
   download(options = {}) {
     return this.runTransaction(
-      () => this.downloadUnlocked(options),
+      (signal) => this.downloadUnlocked({ ...options, signal }),
       options.signal,
     );
   }
@@ -380,17 +429,22 @@ export class MavlinkMissionManager {
       }
     }
 
-    await this.session.send("MissionAck", {
-      ...target,
-      type: MAV_MISSION_ACCEPTED,
-      missionType,
-    });
+    throwIfAborted(signal);
+    await withAbortSignal(
+      this.session.send("MissionAck", {
+        ...target,
+        type: MAV_MISSION_ACCEPTED,
+        missionType,
+      }),
+      signal,
+    );
+    throwIfAborted(signal);
     return items;
   }
 
   upload(items, options = {}) {
     return this.runTransaction(
-      () => this.uploadUnlocked(items, options),
+      (signal) => this.uploadUnlocked(items, { ...options, signal }),
       options.signal,
     );
   }
@@ -563,7 +617,7 @@ export class MavlinkMissionManager {
 
   clear(options = {}) {
     return this.runTransaction(
-      () => this.clearUnlocked(options),
+      (signal) => this.clearUnlocked({ ...options, signal }),
       options.signal,
     );
   }
@@ -749,6 +803,7 @@ export class MavlinkParameterManager {
       let retryInterval = null;
       let timeout = null;
       let settled = false;
+      let unsubscribeDetached = () => {};
       const unsubscribe = this.session.on("message", (envelope) => {
         if (
           !PARAM_VALUE_NAMES.has(envelope.messageName) ||
@@ -772,6 +827,7 @@ export class MavlinkParameterManager {
         this.clearIntervalFn(retryInterval);
         this.clearTimeoutFn(timeout);
         unsubscribe();
+        unsubscribeDetached();
       };
       const finish = (callback, value) => {
         if (settled) return;
@@ -828,6 +884,14 @@ export class MavlinkParameterManager {
           );
         }, timeoutMs),
       );
+      unsubscribeDetached = this.session.on("detached", () => {
+        finish(
+          reject,
+          abortError(
+            "Parameter download was cancelled when the MAVLink transport detached.",
+          ),
+        );
+      });
       this.session
         .send("ParamRequestList", target)
         .catch((error) => finish(reject, error));

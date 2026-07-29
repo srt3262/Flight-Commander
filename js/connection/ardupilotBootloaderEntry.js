@@ -69,6 +69,8 @@ export async function rebootArduPilotToBootloader(path, options = {}) {
   }
 
   let serialDataHandler = null;
+  let serialConnectionId = null;
+  const pendingSerialData = [];
   let opened = false;
   const controller = new AbortController();
   const abortFromCaller = () => {
@@ -89,7 +91,16 @@ export async function rebootArduPilotToBootloader(path, options = {}) {
       throw controller.signal.reason;
     }
     api.mavlinkReset();
-    serialDataHandler = api.onSerialData((data) => api.mavlinkFeed(data));
+    serialDataHandler = api.onSerialData((envelope) => {
+      if (serialConnectionId == null) {
+        if (pendingSerialData.length >= 256) pendingSerialData.shift();
+        pendingSerialData.push(envelope);
+        return;
+      }
+      if (envelope?.connectionId === serialConnectionId) {
+        api.mavlinkFeed(envelope.data);
+      }
+    });
     const heartbeatPromise = waitForHeartbeat(
       api,
       heartbeatTimeoutMs,
@@ -104,6 +115,12 @@ export async function rebootArduPilotToBootloader(path, options = {}) {
       controller.abort(error);
       await heartbeatPromise.catch(() => {});
       throw error;
+    }
+    serialConnectionId = connection.id;
+    for (const envelope of pendingSerialData.splice(0)) {
+      if (envelope?.connectionId === serialConnectionId) {
+        api.mavlinkFeed(envelope.data);
+      }
     }
     opened = true;
 
@@ -136,7 +153,7 @@ export async function rebootArduPilotToBootloader(path, options = {}) {
         "MAVLink encoder returned an empty bootloader reboot command.",
       );
     }
-    const sendResult = await api.serialSend(payload);
+    const sendResult = await api.serialSend(payload, serialConnectionId);
     if (sendResult?.error) {
       throw new Error(
         sendResult.msg || "Unable to send the bootloader reboot command.",
@@ -160,7 +177,7 @@ export async function rebootArduPilotToBootloader(path, options = {}) {
     }
     if (opened) {
       try {
-        await api.serialClose();
+        await api.serialClose(serialConnectionId);
       } catch {
         // Closing a port which has rebooted and disappeared is best effort.
       }

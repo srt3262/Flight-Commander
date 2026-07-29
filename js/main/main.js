@@ -376,12 +376,12 @@ app.whenReady().then(() => {
     return serial.connect(path, options, mainWindow);
   });
 
-  ipcMain.handle('serialSend', (_event, data) => {
-    return serial.send(data);
+  ipcMain.handle('serialSend', (_event, data, connectionId) => {
+    return serial.send(data, connectionId);
   });
 
-  ipcMain.handle('serialClose', (_event) => {
-    return serial.close();
+  ipcMain.handle('serialClose', (_event, connectionId) => {
+    return serial.close(connectionId);
   });
 
   ipcMain.handle('udpConnect', (_event, ip, port) => {

@@ -36,8 +36,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   offTcpEnd: (handler) => ipcRenderer.removeListener('tcpEnd', handler),
   serialConnect: (path, options) => ipcRenderer.invoke('serialConnect', path, options),
-  serialClose: () => ipcRenderer.invoke('serialClose'),
-  serialSend: (data) => ipcRenderer.invoke('serialSend', data),
+  serialClose: (connectionId) => ipcRenderer.invoke('serialClose', connectionId),
+  serialSend: (data, connectionId) => ipcRenderer.invoke('serialSend', data, connectionId),
   onSerialError: (callback) => {
     const handler = (_event, error) => callback(error);
     ipcRenderer.on('serialError', handler);
@@ -51,7 +51,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   offSerialData: (handler) => ipcRenderer.removeListener('serialData', handler),
   onSerialClose: (callback) => {
-    const handler = (_event) => callback();
+    const handler = (_event, envelope) => callback(envelope);
     ipcRenderer.on('serialClose', handler);
     return handler;
   },
@@ -71,8 +71,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return handler;
   },
   offUdpMessage: (handler) => ipcRenderer.removeListener('udpMessage', handler),
-  mavlinkReset: () => ipcRenderer.send('mavlinkReset'),
-  mavlinkFeed: (data) => ipcRenderer.send('mavlinkFeed', data),
+  mavlinkReset: (generation) => ipcRenderer.send('mavlinkReset', generation),
+  mavlinkFeed: (data, generation) => ipcRenderer.send('mavlinkFeed', data, generation),
   mavlinkEncode: (messageName, payload, options) => (
     ipcRenderer.invoke('mavlinkEncode', messageName, payload, options)
   ),

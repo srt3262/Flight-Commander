@@ -337,16 +337,16 @@
         "message": "ACRO"
     },
     "serialPortOpened": {
-        "message": "MSP connection <span style=\"color: #37a8db\">successfully</span> opened with ID: $1"
+        "message": "Serial transport <span style=\"color: #37a8db\">successfully</span> opened with ID: $1"
     },
     "serialPortOpenFail": {
-        "message": "<span style=\"color: red\">Failed</span> to open MSP connection"
+        "message": "<span style=\"color: red\">Failed</span> to open serial transport"
     },
     "serialPortClosedOk": {
-        "message": "MSP connection <span style=\"color: #37a8db\">successfully</span> closed"
+        "message": "Serial transport <span style=\"color: #37a8db\">successfully</span> closed"
     },
     "serialPortClosedFail": {
-        "message": "<span style=\"color: red\">Failed</span> to close MSP connection"
+        "message": "<span style=\"color: red\">Failed</span> to close serial transport"
     },
     "serialPortUnrecoverable": {
         "message": "Unrecoverable <span style=\"color: red\">failure</span> of serial connection, disconnecting...'"

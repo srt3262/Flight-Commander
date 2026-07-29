@@ -26,7 +26,7 @@ jobs:
         github.event_name == 'workflow_dispatch' ||
         (
           github.event_name == 'push' &&
-          github.event.head_commit.message == 'Publish Flight Commander 1.3.7 release'
+          github.event.head_commit.message == 'Publish Flight Commander 1.3.8 release'
         )
       )
     runs-on: windows-latest
@@ -382,16 +382,21 @@ jobs:
 
           $notesPath = Join-Path $env:RUNNER_TEMP 'flight-commander-release-notes.md'
           @"
-          Flight Commander $version restores the intended Flight Commander
-          wordmark and compass/aircraft application icon across the application,
-          Windows package, and cross-platform packaging definitions.
+          Flight Commander $version restores the complete welcome-page lockup
+          over its light map background. The aircraft/compass details, FLIGHT
+          line, COMMANDER line, and welcome tagline are all rendered with
+          explicit light-surface contrast.
 
-          This patch corrects the visual-brand regression in 1.3.6 and adds
-          source, active-renderer, runtime-icon, and Windows PE icon checks to
-          prevent inherited INAV artwork from being selected again. Application
-          functionality is unchanged. The archive passed the repository source
-          tests, packaged-application verifier, clean ZIP extraction, and
-          immutable artifact transfer in this workflow.
+          This patch also repairs Windows USB MAVLink radio startup. Ground
+          Control now defaults to 460800 baud, forces DTR low, sends a GCS
+          heartbeat immediately, preserves bytes received during serial open,
+          and displays a useful waiting screen before the vehicle heartbeat
+          arrives. Telemetry and commands remain gated until the aircraft link
+          is validated.
+
+          Source, active-renderer, serial-lifecycle, and welcome-artwork checks
+          passed, along with packaged-application verification, clean ZIP
+          extraction, and immutable artifact transfer in this workflow.
 
           This executable is not code-signed. Windows SmartScreen may therefore
           display an unknown-publisher warning.

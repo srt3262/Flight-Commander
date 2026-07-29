@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 180" role="img" aria-labelledby="title description" data-wordmark-surface="light">
+  <title id="title">Flight Commander</title>
+  <desc id="description">A compass and aircraft mark beside the complete Flight Commander wordmark, rendered for a light background.</desc>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="88" cy="90" r="63" stroke="#2186b5" stroke-width="8"/>
+    <circle cx="88" cy="90" r="45" stroke="#104156" stroke-opacity=".62" stroke-width="3"/>
+    <path d="M88 14v18M88 148v18M12 90h18M146 90h18" stroke="#104156" stroke-width="6"/>
+    <path d="M88 45l13 34 36 11-36 11-13 34-13-34-36-11 36-11z" fill="#104156" stroke="#104156" stroke-width="4"/>
+    <path d="M88 45v90" stroke="#2186b5" stroke-width="4"/>
+  </g>
+  <text x="180" y="88" fill="#104156" font-family="Arial, Helvetica, sans-serif" font-size="67" font-weight="700" letter-spacing="3">FLIGHT</text>
+  <text x="180" y="150" fill="#2186b5" font-family="Arial, Helvetica, sans-serif" font-size="67" font-weight="700" letter-spacing="3">COMMANDER</text>
+</svg>
