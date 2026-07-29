@@ -1,0 +1,292 @@
+<div class="tab-flight-planner">
+    <div class="content_wrapper">
+        <div class="tab_title">Flight Planner</div>
+        <div class="fc-toolbar fc-planner-toolbar">
+            <div class="fc-toolbar__controls">
+                <button id="plannerDrawPolygon" type="button">Draw polygon</button>
+                <button id="plannerClearPolygon" type="button">Clear polygon</button>
+                <button id="plannerAddWaypoint" type="button">Add waypoint</button>
+                <button id="plannerGenerate" type="button">Generate survey grid</button>
+            </div>
+            <div class="fc-toolbar__controls">
+                <button id="plannerOpen" type="button">Open plan file</button>
+                <button id="plannerSave" type="button">Save plan file</button>
+            </div>
+        </div>
+        <section class="fc-controller-mission" aria-label="Flight controller mission transfer">
+            <div class="fc-controller-mission__status">
+                <span class="fc-eyebrow">Flight controller mission</span>
+                <strong id="plannerVehicleStatus">Offline planning</strong>
+                <span id="plannerVehicleStatusDetail">Connect a flight controller to transfer this mission.</span>
+            </div>
+            <div class="fc-controller-mission__actions">
+                <button id="plannerDownload" type="button">Read mission from flight controller</button>
+                <button id="plannerUpload" class="fc-button--primary" type="button">Write &amp; save mission to flight controller</button>
+                <button id="plannerClearVehicle" type="button">Erase mission from flight controller</button>
+                <button id="plannerResumeMission" type="button" disabled>Resume mission from saved item</button>
+                <button id="plannerClearResume" type="button" disabled>Clear resume checkpoint</button>
+            </div>
+        </section>
+        <div class="fc-planner-layout">
+            <section class="fc-planner-map-panel">
+                <label class="fc-map-style-control" for="plannerMapStyle">
+                    <span>Map layer</span>
+                    <select id="plannerMapStyle">
+                        <option value="hybrid">Satellite + street names</option>
+                        <option value="street">Street map</option>
+                    </select>
+                </label>
+                <div id="flightPlannerMap" class="fc-map fc-planner-map"></div>
+                <div id="plannerMapAttribution" class="fc-map-attribution"></div>
+            </section>
+            <aside class="fc-planner-sidebar">
+                <section class="fc-panel">
+                    <h3>Survey grid</h3>
+                    <div class="fc-form-grid">
+                        <label>Angle (°)<input id="plannerAngle" type="number" value="0" step="1"></label>
+                        <label>Line spacing (m)<input id="plannerSpacing" type="number" value="25" min="0.1" step="0.1"></label>
+                        <label>Altitude (m)<input id="plannerAltitude" type="number" value="60" step="1"></label>
+                        <label>Overshoot (m)<input id="plannerOvershoot" type="number" value="5" min="0" step="1"></label>
+                        <label>Turnaround (m)<input id="plannerTurnaround" type="number" value="10" min="0" step="1"></label>
+                        <label>Photo spacing / trigger distance (m)<input id="plannerTriggerDistance" type="number" value="0" min="0" step="0.1"></label>
+                        <label>Photo command target
+                            <select id="plannerCameraCommandMode">
+                                <option value="auto" selected>Automatic — ArduPilot trigger / INAV navigation only</option>
+                                <option value="navigation-only">Navigation only — estimate photos, no trigger command</option>
+                                <option value="ardupilot-distance">ArduPilot — distance trigger (MAVLink command 206)</option>
+                            </select>
+                        </label>
+                    </div>
+                    <div id="plannerCameraCommandHelp" class="fc-provider-attribution">
+                        Automatic mode inserts command 206 only for an identified ArduPilot controller.
+                        INAV surveys remain navigation only because stock INAV missions cannot accept
+                        or represent that command.
+                    </div>
+                </section>
+                <section class="fc-panel">
+                    <h3>Mission behavior</h3>
+                    <div class="fc-form-grid">
+                        <label>Cruise speed (m/s) — all standard waypoint legs
+                            <input id="plannerCruiseSpeed" type="number" value="0" min="0" max="327.67" step="0.1">
+                        </label>
+                        <label>After final mission item
+                            <select id="plannerCompletionAction">
+                                <option value="none" selected>No added terminal action</option>
+                                <option value="hold">Hold / loiter at final point</option>
+                                <option value="rtl">Return to launch (RTL)</option>
+                                <option value="land">Land at final point</option>
+                            </select>
+                        </label>
+                    </div>
+                    <div id="plannerMissionBehaviorHelp" class="fc-provider-attribution"></div>
+                    <div id="plannerArduPilotMissionRestartPanel" class="fc-controller-setting" hidden>
+                        <h4>ArduPilot controller mission-interruption behavior</h4>
+                        <div class="fc-form-grid">
+                            <label for="plannerArduPilotMissionRestart">
+                                When AUTO is selected after an interruption
+                                <select id="plannerArduPilotMissionRestart" disabled>
+                                    <option value="0">RESUME — continue the interrupted mission</option>
+                                    <option value="1">RESTART — start from the first mission item</option>
+                                </select>
+                            </label>
+                        </div>
+                        <div class="fc-panel-actions">
+                            <button id="plannerReadArduPilotMissionRestart" type="button" disabled>
+                                Read policy from ArduPilot
+                            </button>
+                            <button id="plannerWriteArduPilotMissionRestart" class="fc-button--primary" type="button" disabled>
+                                Save policy to ArduPilot &amp; verify
+                            </button>
+                        </div>
+                        <div id="plannerArduPilotMissionRestartStatus" class="fc-provider-attribution">
+                            Connect to an ArduPilot controller over MAVLink to read this setting.
+                        </div>
+                        <p class="fc-provider-attribution">
+                            This is ArduPilot's persistent <code>MIS_RESTART</code> parameter.
+                            Flight Commander's exact resume command requires RESUME (0) and re-reads
+                            the controller value before selecting the saved mission item.
+                        </p>
+                    </div>
+                    <div id="plannerInavMissionRestartPanel" class="fc-controller-setting">
+                        <h4>INAV controller mission-interruption behavior</h4>
+                        <div class="fc-form-grid">
+                            <label for="plannerInavMissionRestart">
+                                When NAV WP is reselected after an interruption
+                                <select id="plannerInavMissionRestart" disabled>
+                                    <option value="0">START — restart from the first waypoint</option>
+                                    <option value="1">RESUME — continue from the last active waypoint</option>
+                                    <option value="2">SWITCH — alternate START and RESUME</option>
+                                </select>
+                            </label>
+                        </div>
+                        <div class="fc-panel-actions">
+                            <button id="plannerReadInavMissionRestart" type="button" disabled>
+                                Read policy from INAV
+                            </button>
+                            <button id="plannerWriteInavMissionRestart" class="fc-button--primary" type="button" disabled>
+                                Save policy to INAV &amp; verify
+                            </button>
+                        </div>
+                        <div id="plannerInavMissionRestartStatus" class="fc-provider-attribution">
+                            Connect through the wired INAV/MSP setup link to read this controller setting.
+                        </div>
+                        <p class="fc-provider-attribution">
+                            This is INAV's persistent <code>nav_wp_mission_restart</code> firmware setting.
+                            Native RESUME continues from the last active waypoint when NAV WP is reselected,
+                            but only while the flight controller remains powered and the aircraft remains armed;
+                            disarming resets INAV's native active waypoint to the mission start. SWITCH permits
+                            that native resume once, then restarts from the first waypoint on the next NAV WP
+                            selection. This is separate from Flight Commander's estimated in-memory MAVLink
+                            checkpoint, which can write a remaining active-RAM mission suffix after disarm during
+                            the same powered session without changing the persistent MSP mission.
+                        </p>
+                    </div>
+                    <div class="fc-provider-attribution">
+                        <strong>Flight Commander telemetry checkpoint:</strong>
+                        <span id="plannerResumeStatus">No mission checkpoint has been captured for this vehicle.</span>
+                    </div>
+                    <div class="fc-provider-attribution">
+                        A resume checkpoint records mission progress observed over MAVLink so a mission can continue
+                        after an RTH/RTL interruption and battery swap while the flight controller remains powered.
+                        This covers an RC-selected RTH even though MAVLink does not identify which source selected the mode.
+                        ArduPilot progress is exact; INAV progress is position-estimated and resumed by a verified
+                        active-RAM suffix. It does not configure radio, battery, or telemetry link-loss failsafes.
+                    </div>
+                </section>
+                <section class="fc-panel">
+                    <h3>Terrain following</h3>
+                    <div class="fc-form-grid">
+                        <label>Elevation source
+                            <select id="plannerElevationSource">
+                                <option value="opentopo" selected>Built-in online terrain — ASTER 30 m (no API key)</option>
+                                <option value="google">Google Elevation — API key required</option>
+                                <option value="gis">Local GIS points — offline source</option>
+                            </select>
+                        </label>
+                        <label id="plannerGoogleKeyRow">Google API key<input id="plannerGoogleKey" type="password" autocomplete="off"></label>
+                        <label>Clearance AGL (m)<input id="plannerClearance" type="number" value="60" step="1"></label>
+                        <label>Terrain sample spacing (m)<input id="plannerTerrainSpacing" type="number" value="30" min="1" step="1"></label>
+                        <label>Altitude reference
+                            <select id="plannerAltitudeReference">
+                                <option value="relative-home">Relative to home</option>
+                                <option value="absolute">AMSL / absolute</option>
+                            </select>
+                        </label>
+                    </div>
+                    <div id="plannerElevationSourceHelp" class="fc-provider-attribution"></div>
+                    <div class="fc-panel-actions">
+                        <button id="plannerLoadGis" type="button">Load GIS data</button>
+                        <button id="plannerApplyTerrain" type="button">Apply terrain following</button>
+                    </div>
+                    <div id="plannerElevationAttribution" class="fc-provider-attribution"></div>
+                </section>
+                <section class="fc-panel">
+                    <h3>Mission summary</h3>
+                    <dl class="fc-stats">
+                        <div><dt>Items</dt><dd id="plannerItemCount">0</dd></div>
+                        <div><dt>Flight lines</dt><dd id="plannerLineCount">0</dd></div>
+                        <div><dt>Route</dt><dd id="plannerRouteDistance">0 m</dd></div>
+                        <div><dt>Area</dt><dd id="plannerArea">0 m²</dd></div>
+                        <div><dt>Estimated photos</dt><dd id="plannerPhotoCount">0</dd></div>
+                    </dl>
+                </section>
+            </aside>
+        </div>
+        <section class="fc-panel fc-waypoint-panel">
+            <h3>Mission items</h3>
+            <div class="fc-waypoint-table-wrap">
+                <table class="fc-parameter-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Command</th>
+                            <th>Latitude</th>
+                            <th>Longitude</th>
+                            <th>Altitude</th>
+                            <th>Protocol details</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="plannerMissionRows"></tbody>
+                </table>
+            </div>
+        </section>
+        <section class="fc-panel fc-inav-planning-panel" aria-labelledby="plannerSafehomeHeading">
+            <div class="fc-inav-planning-heading">
+                <div>
+                    <h3 id="plannerSafehomeHeading">INAV safe homes &amp; fixed-wing landing approaches</h3>
+                    <p>
+                        These are INAV controller configuration records, not global failsafe settings.
+                        Connect through the wired INAV/MSP setup link to read or save them.
+                    </p>
+                </div>
+                <div class="fc-panel-actions">
+                    <button id="plannerReadInavPlanning" type="button">Read INAV planning data</button>
+                    <button id="plannerWriteSafehomes" class="fc-button--primary" type="button">
+                        Write &amp; save safe homes + approaches
+                    </button>
+                </div>
+            </div>
+            <div id="plannerInavPlanningAvailability" class="fc-provider-attribution"></div>
+            <div class="fc-panel-actions">
+                <button id="plannerAddSafehome" type="button">Add safe home at map center</button>
+                <span id="plannerSafehomeCapacity" class="fc-provider-attribution"></span>
+            </div>
+            <div id="plannerSafehomeList" class="fc-planning-card-list"></div>
+
+            <h4>Mission landing-approach slots</h4>
+            <p class="fc-provider-attribution">
+                INAV provides nine fixed-wing approach slots after the eight safe-home slots.
+                Heading 0 disables a runway direction; a negative heading marks that direction exclusive.
+            </p>
+            <div class="fc-waypoint-table-wrap">
+                <table class="fc-parameter-table fc-approach-table">
+                    <thead>
+                        <tr>
+                            <th>Mission</th>
+                            <th>Approach alt (cm)</th>
+                            <th>Land alt (cm)</th>
+                            <th>Direction</th>
+                            <th>Heading 1</th>
+                            <th>Exclusive</th>
+                            <th>Heading 2</th>
+                            <th>Exclusive</th>
+                            <th>AMSL</th>
+                        </tr>
+                    </thead>
+                    <tbody id="plannerMissionApproachRows"></tbody>
+                </table>
+            </div>
+            <div id="plannerSafehomeValidation" class="fc-action-status"></div>
+        </section>
+
+        <section class="fc-panel fc-inav-planning-panel" aria-labelledby="plannerGeozoneHeading">
+            <div class="fc-inav-planning-heading">
+                <div>
+                    <h3 id="plannerGeozoneHeading">INAV geozones</h3>
+                    <p>
+                        Define inclusive or exclusive circular and polygon fences. Polygon vertices must be
+                        counter-clockwise and may not cross.
+                    </p>
+                </div>
+                <div class="fc-panel-actions">
+                    <button id="plannerWriteGeozones" class="fc-button--primary" type="button">
+                        Write, save &amp; reboot for geozones
+                    </button>
+                </div>
+            </div>
+            <div class="fc-panel-actions">
+                <button id="plannerAddCircularGeozone" type="button">Add circular geozone</button>
+                <button id="plannerAddPolygonGeozone" type="button">Add polygon geozone</button>
+                <span id="plannerGeozoneCapacity" class="fc-provider-attribution"></span>
+            </div>
+            <div id="plannerGeozoneList" class="fc-planning-card-list"></div>
+            <div id="plannerGeozoneValidation" class="fc-action-status"></div>
+            <p class="fc-provider-attribution">
+                Safe-home usage mode, fence response distances, radio failsafe, battery failsafe, and
+                telemetry-loss behavior remain in their native INAV configurator settings.
+            </p>
+        </section>
+        <div id="plannerStatus" class="fc-action-status"></div>
+    </div>
+</div>

@@ -1,0 +1,116 @@
+<div class="tab-flight-data">
+    <div class="content_wrapper">
+        <div class="tab_title">Ground Control</div>
+        <div class="fc-toolbar">
+            <div class="fc-connection-summary">
+                <strong id="flightDataVehicle">Waiting for vehicle</strong>
+                <span id="flightDataProtocol" class="fc-pill">OFFLINE</span>
+                <span id="flightDataLink" class="fc-pill">LINK</span>
+                <span id="flightDataArmed" class="fc-pill">DISARMED</span>
+            </div>
+            <div class="fc-toolbar__controls">
+                <select id="flightDataMode" aria-label="Flight mode"></select>
+                <button id="flightDataSetMode" type="button">Set flight mode</button>
+                <button id="flightDataArm" type="button">Arm</button>
+            </div>
+        </div>
+        <div class="fc-command-deck">
+            <section class="fc-command-panel fc-command-panel--vehicle" aria-label="Vehicle command controls">
+                <div class="fc-command-panel__heading">
+                    <div>
+                        <span class="fc-eyebrow">Vehicle actions</span>
+                        <strong>Mission and recovery controls</strong>
+                    </div>
+                    <span id="flightDataCommandCapability">Waiting for a command-capable vehicle link.</span>
+                </div>
+                <div class="fc-command-panel__actions">
+                    <button id="flightDataStartMission" class="fc-button--primary" type="button">Start mission</button>
+                    <label class="fc-inline-field" for="flightDataTakeoffAltitude">
+                        <span>Takeoff altitude</span>
+                        <input id="flightDataTakeoffAltitude" type="number" value="10" min="1" step="1">
+                        <span>m</span>
+                    </label>
+                    <button id="flightDataTakeoff" type="button">Takeoff / launch</button>
+                    <button id="flightDataRtl" type="button">Return to launch (RTL)</button>
+                    <button id="flightDataLand" type="button">Land</button>
+                </div>
+            </section>
+            <section class="fc-command-panel fc-command-panel--resume" aria-label="Interrupted mission resume">
+                <div class="fc-command-panel__heading">
+                    <div>
+                        <span class="fc-eyebrow">Interrupted mission</span>
+                        <strong>Same-session resume checkpoint</strong>
+                    </div>
+                    <span id="flightDataResumeStatus">No interrupted mission checkpoint has been captured.</span>
+                    <span id="flightDataResumeDetail">
+                        Flight Commander captures the active mission item when an RTH/RTL transition interrupts AUTO.
+                        The flight controller must remain powered during the battery swap.
+                    </span>
+                </div>
+                <div class="fc-command-panel__actions">
+                    <button id="flightDataResumeMission" class="fc-button--primary" type="button" disabled>
+                        Resume mission from saved item
+                    </button>
+                    <button id="flightDataClearResume" type="button" disabled>Clear resume checkpoint</button>
+                </div>
+            </section>
+        </div>
+        <div class="fc-flight-layout">
+            <section class="fc-telemetry-grid" aria-label="Vehicle telemetry">
+                <div class="fc-card"><span>Mode</span><strong id="flightDataModeValue">--</strong></div>
+                <div class="fc-card"><span>Relative altitude</span><strong id="flightDataAltitude">--</strong></div>
+                <div class="fc-card"><span>Ground speed</span><strong id="flightDataGroundSpeed">--</strong></div>
+                <div class="fc-card"><span>Air speed</span><strong id="flightDataAirSpeed">--</strong></div>
+                <div class="fc-card"><span>Heading</span><strong id="flightDataHeading">--</strong></div>
+                <div class="fc-card"><span>Climb</span><strong id="flightDataClimb">--</strong></div>
+                <div class="fc-card"><span>GPS</span><strong id="flightDataGps">--</strong></div>
+                <div class="fc-card"><span>Battery</span><strong id="flightDataBattery">--</strong></div>
+                <div class="fc-card"><span>Roll</span><strong id="flightDataRoll">--</strong></div>
+                <div class="fc-card"><span>Pitch</span><strong id="flightDataPitch">--</strong></div>
+                <div class="fc-card"><span>Latitude</span><strong id="flightDataLatitude">--</strong></div>
+                <div class="fc-card"><span>Longitude</span><strong id="flightDataLongitude">--</strong></div>
+                <div class="fc-card fc-card--mission"><span>Mission state</span><strong id="flightDataMissionState">--</strong></div>
+                <div class="fc-card fc-card--mission"><span>Mission progress</span><strong id="flightDataMissionProgress">--</strong></div>
+                <div class="fc-card fc-card--mission"><span>Next waypoint</span><strong id="flightDataWaypointDistance">--</strong></div>
+            </section>
+            <section class="fc-flight-map-panel">
+                <div class="fc-flight-view-toolbar" aria-label="Ground Control view controls">
+                    <label class="fc-map-style-control" for="flightDataMapStyle">
+                        <span>Map layer</span>
+                        <select id="flightDataMapStyle">
+                            <option value="hybrid">Satellite + street names</option>
+                            <option value="street">Street map</option>
+                        </select>
+                    </label>
+                    <button id="flightDataCenter" class="fc-map-center-control" type="button">Center vehicle</button>
+                    <button
+                        id="flightDataPrimaryView"
+                        class="fc-primary-view-control"
+                        type="button"
+                        aria-controls="flightDataVisuals"
+                        aria-pressed="false"
+                        title="Make the live HUD the primary view"
+                    >Expand HUD</button>
+                </div>
+                <div id="flightDataVisuals" class="fc-flight-visuals" data-primary="map">
+                    <div id="flightDataMapSurface" class="fc-map-surface" aria-label="Live vehicle map">
+                        <div id="flightDataMap" class="fc-map"></div>
+                        <div id="flightDataAttribution" class="fc-map-attribution"></div>
+                    </div>
+                    <section
+                        id="flightDataHud"
+                        class="fc-hud-surface"
+                        aria-label="Live flight HUD waiting for telemetry"
+                    >
+                        <canvas id="flightDataHudCanvas" aria-hidden="true"></canvas>
+                    </section>
+                </div>
+            </section>
+        </div>
+        <section class="fc-status-panel">
+            <h3>Autopilot messages</h3>
+            <div id="flightDataMessages" class="fc-message-log"></div>
+        </section>
+        <div id="flightDataActionStatus" class="fc-action-status"></div>
+    </div>
+</div>
