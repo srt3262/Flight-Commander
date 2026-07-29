@@ -1,0 +1,836 @@
+/* Flight Commander UI rules reconstructed from the verified 1.3.5 renderer.
+ * The exact HUD stylesheet is preserved separately in tabs/flight_hud-v1.3.5.css. */
+#tabs .fc-primary-navigation a {
+  color: #fff;
+  font-family: open_sanssemibold, Arial, serif;
+  background-color: #37a8db38;
+  border-left: 4px solid #37a8db;
+  padding-left: 29px;
+}
+#tabs .fc-primary-navigation a:hover {
+  background-color: #37a8db6b;
+}
+.fc-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px;
+  margin-bottom: 12px;
+  border: 1px solid #d6dde3;
+  border-radius: 6px;
+  background: #f6f8fa;
+}
+.fc-connection-summary,
+.fc-toolbar__controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.fc-toolbar button,
+.fc-toolbar select,
+.fc-button {
+  min-height: 34px;
+  padding: 6px 12px;
+}
+.fc-button--primary {
+  border-color: #176f96;
+  background: #167ca7;
+  color: #fff;
+  font-weight: 700;
+}
+.fc-button--primary:hover:not(:disabled) {
+  background: #12698f;
+}
+.fc-toolbar button:disabled,
+.fc-button:disabled,
+.fc-controller-mission button:disabled,
+.fc-command-panel button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.fc-pill {
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #25864b;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+.fc-pill--alert {
+  background: #c53c3c;
+}
+.fc-flight-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.85fr) minmax(420px, 1.6fr);
+  gap: 12px;
+}
+.fc-command-panel,
+.fc-controller-mission {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 12px;
+  margin-bottom: 12px;
+  border: 1px solid #bed7e3;
+  border-radius: 7px;
+  background: linear-gradient(135deg, #edf7fb, #f9fbfc);
+}
+.fc-command-panel__heading,
+.fc-controller-mission__status {
+  display: grid;
+  gap: 3px;
+  min-width: 230px;
+}
+.fc-command-panel__heading > span:last-child,
+.fc-controller-mission__status > span:last-child {
+  color: #5e6b75;
+  font-size: 11px;
+}
+.fc-command-panel__actions,
+.fc-controller-mission__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.fc-command-panel button,
+.fc-controller-mission button {
+  min-height: 36px;
+  padding: 7px 12px;
+}
+.fc-inline-field {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 34px;
+  padding: 0 8px;
+  border: 1px solid #c9d2d9;
+  border-radius: 4px;
+  background: #fff;
+  color: #53616b;
+  font-size: 11px;
+}
+.fc-inline-field input {
+  width: 54px;
+  border: 0;
+  background: transparent;
+  text-align: right;
+}
+.fc-telemetry-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(125px, 1fr));
+  gap: 8px;
+  align-content: start;
+}
+.fc-card {
+  min-height: 62px;
+  padding: 10px;
+  border: 1px solid #d6dde3;
+  border-radius: 6px;
+  background: #fff;
+}
+.fc-card span {
+  display: block;
+  color: #65717c;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+.fc-card strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 17px;
+}
+.fc-card--mission {
+  border-color: #bed7e3;
+  background: #f1f9fc;
+}
+.fc-flight-map-panel {
+  position: relative;
+  min-height: 420px;
+}
+.fc-map-style-control {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 8px;
+  border: 1px solid rgba(35, 53, 65, 0.35);
+  border-radius: 5px;
+  background: #fffffff0;
+  box-shadow: 0 1px 4px #0f202b33;
+  color: #34434d;
+  font-size: 11px;
+  font-weight: 600;
+}
+.fc-map-style-control select {
+  min-height: 29px;
+}
+.fc-map-center-control {
+  position: absolute;
+  top: 8px;
+  left: 48px;
+  z-index: 4;
+  min-height: 34px;
+  padding: 5px 10px;
+  border: 1px solid rgba(35, 53, 65, 0.35);
+  border-radius: 5px;
+  background: #fffffff0;
+  box-shadow: 0 1px 4px #0f202b33;
+}
+.fc-map {
+  width: 100%;
+  min-height: 420px;
+  height: 100%;
+  border: 1px solid #cdd5dc;
+  border-radius: 6px;
+}
+.fc-map-attribution {
+  position: absolute;
+  right: 8px;
+  bottom: 6px;
+  z-index: 2;
+  padding: 2px 5px;
+  border-radius: 3px;
+  background: #ffffffdb;
+  color: #3d4750;
+  font-size: 10px;
+}
+.fc-status-panel {
+  margin-top: 12px;
+  padding: 10px;
+  border: 1px solid #d6dde3;
+  border-radius: 6px;
+}
+.fc-status-panel h3 {
+  margin: 0 0 8px;
+}
+.fc-message-log {
+  max-height: 130px;
+  overflow: auto;
+  color: #303942;
+  font-family: monospace;
+  font-size: 11px;
+}
+.fc-message {
+  padding: 3px 0;
+  border-bottom: 1px solid #edf0f2;
+}
+.fc-message--severity-0,
+.fc-message--severity-1,
+.fc-message--severity-2,
+.fc-message--severity-3 {
+  color: #bb3030;
+}
+.fc-action-status {
+  min-height: 20px;
+  padding: 8px 0;
+  color: #287746;
+}
+.fc-action-status--error {
+  color: #b72d2d;
+}
+@media (max-width: 980px) {
+  .fc-flight-layout {
+    grid-template-columns: 1fr;
+  }
+  .fc-command-panel,
+  .fc-controller-mission {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .fc-command-panel__actions,
+  .fc-controller-mission__actions {
+    justify-content: flex-start;
+  }
+}
+.fc-parameter-identity {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.fc-parameter-identity > div {
+  min-height: 52px;
+  padding: 10px 12px;
+  border: 1px solid #cbd8df;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #edf7fb, #f9fbfc);
+}
+.fc-parameter-identity span,
+.fc-parameter-identity strong {
+  display: block;
+}
+.fc-parameter-identity span {
+  margin-bottom: 4px;
+  color: #60717c;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.fc-parameter-identity strong {
+  color: #24343e;
+  font-size: 13px;
+}
+.fc-parameter-notice {
+  max-width: 780px;
+  padding: 20px;
+  border: 1px solid #c8dbe4;
+  border-radius: 8px;
+  background: #f1f8fb;
+}
+.fc-parameter-notice h2 {
+  margin: 0 0 8px;
+}
+.fc-parameter-notice p {
+  margin: 0;
+  color: #52636e;
+  line-height: 1.5;
+}
+.fc-parameter-toolbar {
+  align-items: flex-end;
+}
+.fc-parameter-search {
+  display: grid;
+  min-width: min(320px, 40vw);
+  gap: 4px;
+  color: #53616b;
+  font-size: 11px;
+}
+.fc-parameter-search input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 34px;
+}
+.fc-parameter-summary {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 14px;
+  align-items: center;
+  padding: 6px 2px 10px;
+  color: #596773;
+}
+.fc-parameter-changed--active {
+  color: #8b5a00;
+}
+.fc-parameter-view-switch {
+  display: flex;
+  gap: 4px;
+  padding: 5px;
+  margin-bottom: 10px;
+  border: 1px solid #d2dbe1;
+  border-radius: 6px;
+  background: #edf1f4;
+}
+.fc-parameter-view-switch button {
+  min-height: 34px;
+  padding: 6px 14px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #43535e;
+}
+.fc-parameter-view-switch button.active {
+  background: #fff;
+  box-shadow: 0 1px 3px #192d3a2e;
+  color: #176f96;
+  font-weight: 700;
+}
+.fc-parameter-layout {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.28fr) minmax(520px, 1fr);
+  gap: 12px;
+  min-height: 420px;
+}
+.fc-parameter-layout[hidden],
+.fc-parameter-table-wrap[hidden] {
+  display: none;
+}
+.fc-parameter-categories {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  padding: 7px;
+  border: 1px solid #d6dde3;
+  border-radius: 6px;
+  background: #f4f7f9;
+}
+.fc-parameter-categories button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 37px;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #40515d;
+  text-align: left;
+}
+.fc-parameter-categories button:hover,
+.fc-parameter-categories button.active {
+  background: #dfeef5;
+  color: #12698f;
+}
+.fc-parameter-categories button.active {
+  box-shadow: inset 3px 0 #167ca7;
+  font-weight: 700;
+}
+.fc-parameter-categories strong {
+  min-width: 22px;
+  padding: 2px 5px;
+  border-radius: 999px;
+  background: #465f6e1f;
+  font-size: 10px;
+  text-align: center;
+}
+.fc-parameter-cards {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-width: 0;
+}
+.fc-parameter-category-heading,
+.fc-parameter-group > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.fc-parameter-category-heading {
+  min-height: 38px;
+}
+.fc-parameter-category-heading h2,
+.fc-parameter-group h3 {
+  margin: 0;
+}
+.fc-parameter-category-heading span,
+.fc-parameter-group > header span {
+  color: #6a7780;
+  font-size: 11px;
+}
+.fc-parameter-group {
+  overflow: hidden;
+  border: 1px solid #d4dce2;
+  border-radius: 7px;
+  background: #fff;
+}
+.fc-parameter-group > header {
+  padding: 10px 12px;
+  border-bottom: 1px solid #dce3e7;
+  background: #edf2f5;
+}
+.fc-parameter-group h3 {
+  font-size: 13px;
+}
+.fc-parameter-setting {
+  display: grid;
+  grid-template-columns: minmax(300px, 1fr) minmax(220px, 0.65fr);
+  gap: 18px;
+  align-items: center;
+  padding: 11px 12px;
+  border-top: 1px solid #e5eaed;
+}
+.fc-parameter-setting:first-child {
+  border-top: 0;
+}
+.fc-parameter-setting--changed {
+  box-shadow: inset 4px 0 #d89a20;
+  background: #fff9e9;
+}
+.fc-parameter-setting__details {
+  min-width: 0;
+}
+.fc-parameter-setting__title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.fc-parameter-setting__title > strong {
+  font-size: 13px;
+}
+.fc-parameter-setting__title code,
+.fc-parameter-name code {
+  color: #556773;
+  font-size: 11px;
+}
+.fc-parameter-setting__details p {
+  max-width: 760px;
+  margin: 5px 0;
+  color: #53636e;
+  font-size: 11px;
+  line-height: 1.42;
+}
+.fc-parameter-setting__details small {
+  color: #72808a;
+}
+.fc-parameter-badge {
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: #f3dba3;
+  color: #694b06;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.fc-parameter-badge--muted {
+  background: #e1e6e9;
+  color: #53616b;
+}
+.fc-parameter-setting__editor {
+  display: grid;
+  grid-template-columns: minmax(135px, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+.fc-parameter-setting__editor > select,
+.fc-parameter-setting__editor > input,
+.fc-parameter-number input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 34px;
+}
+.fc-parameter-setting__editor > button {
+  min-height: 34px;
+  white-space: nowrap;
+}
+.fc-parameter-number {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.fc-parameter-number span,
+.fc-parameter-unit {
+  color: #64727c;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.fc-parameter-toggle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 34px;
+}
+.fc-parameter-bitmask {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(110px, 1fr));
+  gap: 4px 10px;
+  max-height: 155px;
+  padding: 7px;
+  overflow: auto;
+  border: 1px solid #cbd4da;
+  border-radius: 4px;
+}
+.fc-parameter-bitmask label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+.fc-parameter-bitmask span {
+  overflow: hidden;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fc-parameter-empty {
+  padding: 32px;
+  border: 1px dashed #bdcbd3;
+  border-radius: 6px;
+  color: #61717c;
+  text-align: center;
+}
+.fc-parameter-table-wrap {
+  max-height: calc(100vh - 360px);
+  overflow: auto;
+  border: 1px solid #d6dde3;
+  border-radius: 5px;
+}
+.fc-parameter-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+}
+.fc-parameter-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 8px;
+  background: #e9eef2;
+  text-align: left;
+}
+.fc-parameter-table td {
+  padding: 6px 8px;
+  border-top: 1px solid #e6eaed;
+}
+.fc-parameter-table input {
+  width: 150px;
+}
+.fc-parameter-name {
+  font-family: monospace;
+  font-weight: 600;
+}
+.fc-parameter-name small {
+  display: block;
+  margin-top: 2px;
+  color: #687780;
+  font-family: sans-serif;
+  font-weight: 400;
+}
+.fc-parameter-row--changed {
+  background: #fff3ca;
+}
+@media (max-width: 1050px) {
+  .fc-parameter-identity {
+    grid-template-columns: repeat(2, minmax(160px, 1fr));
+  }
+  .fc-parameter-layout {
+    grid-template-columns: 180px minmax(430px, 1fr);
+  }
+  .fc-parameter-setting {
+    grid-template-columns: 1fr;
+    gap: 9px;
+  }
+}
+.fc-autotune-hero {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 24px;
+  align-items: center;
+  padding: 18px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #eaf6fb, #f6f9fb);
+  border: 1px solid #c9e1ec;
+}
+.fc-autotune-hero h2 {
+  margin: 3px 0 8px;
+}
+.fc-autotune-hero p {
+  max-width: 720px;
+  margin: 0;
+  color: #4d5962;
+}
+.fc-eyebrow {
+  color: #27789c;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.fc-autotune-state {
+  display: grid;
+  justify-items: end;
+  gap: 5px;
+}
+.fc-autotune-state strong {
+  font-size: 22px;
+}
+.fc-autotune-controls {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 18px 0;
+}
+.fc-autotune-controls label {
+  display: grid;
+  gap: 5px;
+}
+.fc-autotune-controls select,
+.fc-autotune-controls button {
+  min-width: 160px;
+  min-height: 36px;
+}
+.fc-planner-toolbar {
+  align-items: flex-start;
+}
+.fc-planner-layout {
+  display: grid;
+  grid-template-columns: minmax(500px, 1.7fr) minmax(300px, 0.8fr);
+  gap: 12px;
+}
+.fc-planner-map-panel {
+  position: relative;
+  min-height: 600px;
+}
+.fc-planner-map {
+  min-height: 600px;
+}
+.fc-planner-sidebar {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+}
+.fc-panel {
+  padding: 12px;
+  border: 1px solid #d6dde3;
+  border-radius: 6px;
+  background: #fff;
+}
+.fc-panel h3 {
+  margin: 0 0 10px;
+}
+.fc-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(120px, 1fr));
+  gap: 9px;
+}
+.fc-form-grid label {
+  display: grid;
+  gap: 4px;
+  color: #4b5760;
+  font-size: 11px;
+}
+.fc-form-grid input,
+.fc-form-grid select {
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 31px;
+}
+.fc-panel-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+.fc-panel-actions button {
+  min-height: 34px;
+}
+.fc-provider-attribution {
+  min-height: 16px;
+  margin-top: 8px;
+  color: #6b757d;
+  font-size: 10px;
+}
+.fc-stats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin: 0;
+}
+.fc-stats div {
+  padding: 7px;
+  border-radius: 4px;
+  background: #f2f5f7;
+}
+.fc-stats dt {
+  color: #66727b;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+.fc-stats dd {
+  margin: 3px 0 0;
+  font-weight: 700;
+}
+.fc-waypoint-panel {
+  margin-top: 12px;
+}
+.fc-waypoint-table-wrap {
+  max-height: 300px;
+  overflow: auto;
+}
+.fc-waypoint-table-wrap input {
+  width: 130px;
+}
+.fc-mission-protocol-details {
+  min-width: 245px;
+  color: #5b6973;
+  font-family: monospace;
+  font-size: 10px;
+  white-space: nowrap;
+}
+.fc-inav-planning-panel {
+  margin-top: 12px;
+}
+.fc-inav-planning-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+.fc-inav-planning-heading p {
+  max-width: 760px;
+  margin: 0;
+  color: #5e6b74;
+}
+.fc-inav-planning-heading .fc-panel-actions {
+  flex: 0 0 auto;
+  margin-top: 0;
+}
+.fc-planning-card-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+.fc-planning-card {
+  padding: 10px;
+  border: 1px solid #dce3e8;
+  border-radius: 5px;
+  background: #f8fafb;
+}
+.fc-planning-card__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 9px;
+}
+.fc-planning-card__heading h4 {
+  margin: 0;
+}
+.fc-planning-card .fc-form-grid {
+  grid-template-columns: repeat(3, minmax(110px, 1fr));
+}
+.fc-planning-card textarea {
+  width: 100%;
+  min-height: 90px;
+  box-sizing: border-box;
+  resize: vertical;
+  font-family: monospace;
+  font-size: 11px;
+}
+.fc-planning-card--invalid {
+  border-color: #c94747;
+  background: #fff5f5;
+}
+.fc-planning-card__error {
+  margin-top: 8px;
+  color: #a42c2c;
+  font-size: 11px;
+}
+.fc-approach-table input,
+.fc-approach-table select {
+  width: 105px;
+  min-width: 0;
+}
+.fc-approach-table input[type="checkbox"] {
+  width: auto;
+}
+@media (max-width: 1100px) {
+  .fc-planner-layout {
+    grid-template-columns: 1fr;
+  }
+  .fc-planner-map-panel,
+  .fc-planner-map {
+    min-height: 480px;
+  }
+  .fc-inav-planning-heading {
+    display: block;
+  }
+  .fc-inav-planning-heading .fc-panel-actions {
+    margin-top: 10px;
+  }
+  .fc-planning-card .fc-form-grid {
+    grid-template-columns: repeat(2, minmax(110px, 1fr));
+  }
+}

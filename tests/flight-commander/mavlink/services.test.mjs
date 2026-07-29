@@ -1,0 +1,277 @@
+import assert from "node:assert/strict";
+import { describe, test } from "node:test";
+
+import {
+  MAV_CMD_NAV_RETURN_TO_LAUNCH,
+  MavlinkMissionManager,
+  MavlinkParameterManager,
+} from "../../../js/mavlink/services.js";
+
+class FakeSession {
+  constructor(onSend = () => {}) {
+    this.state = {
+      systemId: 7,
+      componentId: 1,
+      firmwareFamily: "ardupilot",
+    };
+    this.listeners = new Map();
+    this.sent = [];
+    this.onSend = onSend;
+  }
+
+  target() {
+    return { targetSystem: 7, targetComponent: 1 };
+  }
+
+  on(name, listener) {
+    if (!this.listeners.has(name)) this.listeners.set(name, new Set());
+    this.listeners.get(name).add(listener);
+    return () => {
+      this.listeners.get(name)?.delete(listener);
+      if (this.listeners.get(name)?.size === 0) this.listeners.delete(name);
+    };
+  }
+
+  emit(name, envelope) {
+    for (const listener of [...(this.listeners.get(name) ?? [])])
+      listener(envelope);
+  }
+
+  message(messageName, data, { sysid = 7, compid = 1 } = {}) {
+    this.emit("message", {
+      messageName,
+      data,
+      header: { sysid, compid },
+    });
+  }
+
+  async send(messageName, payload) {
+    this.sent.push({ messageName, payload });
+    queueMicrotask(() => this.onSend(messageName, payload, this));
+    return 1;
+  }
+
+  waitFor(names, predicate, timeoutMs) {
+    const wanted = new Set(Array.isArray(names) ? names : [names]);
+    return new Promise((resolve, reject) => {
+      const unsubscribe = this.on("message", (envelope) => {
+        if (!wanted.has(envelope.messageName) || !predicate(envelope)) return;
+        clearTimeout(timer);
+        unsubscribe();
+        resolve(envelope);
+      });
+      const timer = setTimeout(() => {
+        unsubscribe();
+        reject(new Error("waitFor timeout"));
+      }, timeoutMs);
+    });
+  }
+
+  listenerCount() {
+    return [...this.listeners.values()].reduce(
+      (count, listeners) => count + listeners.size,
+      0,
+    );
+  }
+}
+
+describe("MavlinkMissionManager", () => {
+  test("downloads integer mission items in sequence and cleans waiters", async () => {
+    const session = new FakeSession((messageName, payload, source) => {
+      if (messageName === "MissionRequestList") {
+        source.message("MissionCount", { count: 2, missionType: 0 });
+      } else if (messageName === "MissionRequestInt") {
+        source.message("MissionItemInt", {
+          seq: payload.seq,
+          frame: 6,
+          command: payload.seq === 0 ? 16 : MAV_CMD_NAV_RETURN_TO_LAUNCH,
+          current: payload.seq === 0 ? 1 : 0,
+          autocontinue: 1,
+          param1: 0,
+          param2: 0,
+          param3: 0,
+          param4: Number.NaN,
+          x: payload.seq === 0 ? 351234567 : 0,
+          y: payload.seq === 0 ? -789123456 : 0,
+          z: payload.seq === 0 ? 60 : 0,
+          missionType: 0,
+        });
+      }
+    });
+    const manager = new MavlinkMissionManager(session);
+    const progress = [];
+
+    const items = await manager.download({
+      timeoutMs: 100,
+      retries: 0,
+      onProgress: (event) => progress.push(event.completed),
+    });
+
+    assert.equal(items.length, 2);
+    assert.equal(items[0].latitude, 35.1234567);
+    assert.equal(items[0].longitude, -78.9123456);
+    assert.equal(items[1].command, MAV_CMD_NAV_RETURN_TO_LAUNCH);
+    assert.deepEqual(progress, [1, 2]);
+    assert.equal(session.sent.at(-1).messageName, "MissionAck");
+    assert.equal(session.listenerCount(), 0);
+  });
+
+  test("uploads requested items, rejects invalid sequence, and blocks INAV command 206", async () => {
+    const session = new FakeSession((messageName, payload, source) => {
+      if (messageName === "MissionCount") {
+        source.message("MissionRequestInt", { seq: 0, missionType: 0 });
+      } else if (messageName === "MissionItemInt") {
+        source.message("MissionAck", { type: 0, missionType: 0 });
+      }
+    });
+    const manager = new MavlinkMissionManager(session);
+    const result = await manager.upload(
+      [
+        {
+          command: 16,
+          latitude: 35,
+          longitude: -78,
+          altitude: 50,
+        },
+      ],
+      {
+        timeoutMs: 100,
+        initialRetries: 0,
+      },
+    );
+
+    assert.equal(result.type, 0);
+    const item = session.sent.find(
+      ({ messageName }) => messageName === "MissionItemInt",
+    );
+    assert.equal(item.payload.x, 350000000);
+    assert.equal(item.payload.y, -780000000);
+    assert.equal(session.listenerCount(), 0);
+
+    const inav = new FakeSession();
+    inav.state.firmwareFamily = "inav";
+    const inavManager = new MavlinkMissionManager(inav);
+    await assert.rejects(
+      inavManager.upload([
+        {
+          command: 206,
+          latitude: 35,
+          longitude: -78,
+          altitude: 50,
+        },
+      ]),
+      /unsupported command 206/,
+    );
+    assert.equal(inav.sent.length, 0);
+  });
+
+  test("clear verifies a zero-item readback and timeout removes listeners", async () => {
+    const session = new FakeSession((messageName, payload, source) => {
+      if (messageName === "MissionClearAll") {
+        source.message("MissionAck", { type: 0, missionType: 0 });
+      } else if (messageName === "MissionRequestList") {
+        source.message("MissionCount", { count: 0, missionType: 0 });
+      }
+    });
+    const manager = new MavlinkMissionManager(session);
+    const result = await manager.clear({
+      timeoutMs: 100,
+      retries: 0,
+      verifyDelayMs: 0,
+    });
+    assert.equal(result.cleared, true);
+    assert.equal(result.verified, true);
+    assert.equal(result.persistent, true);
+    assert.equal(session.listenerCount(), 0);
+
+    const silentSession = new FakeSession();
+    const silentManager = new MavlinkMissionManager(silentSession);
+    await assert.rejects(
+      silentManager.download({ timeoutMs: 10, retries: 0 }),
+      /Mission list request failed/,
+    );
+    assert.equal(silentSession.listenerCount(), 0);
+  });
+});
+
+describe("MavlinkParameterManager", () => {
+  test("loads the complete indexed parameter list and sorts it", async () => {
+    const session = new FakeSession((messageName, _payload, source) => {
+      if (messageName !== "ParamRequestList") return;
+      source.message("ParamValue", {
+        paramId: "B\0\0",
+        paramValue: 2,
+        paramType: 9,
+        paramIndex: 1,
+        paramCount: 2,
+      });
+      source.message("ParamValue", {
+        paramId: "A",
+        paramValue: 1,
+        paramType: 9,
+        paramIndex: 0,
+        paramCount: 2,
+      });
+    });
+    const manager = new MavlinkParameterManager(session);
+    const parameters = await manager.loadAll({
+      timeoutMs: 100,
+      retryAfterMs: 20,
+    });
+    assert.deepEqual(
+      parameters.map(({ id }) => id),
+      ["A", "B"],
+    );
+    assert.equal(manager.parameters.get("B").value, 2);
+    assert.equal(session.listenerCount(), 0);
+  });
+
+  test("requests and writes parameters with controller readback validation", async () => {
+    const session = new FakeSession((messageName, payload, source) => {
+      if (messageName === "ParamRequestRead") {
+        source.message("ParamValue", {
+          paramId: payload.paramId,
+          paramValue: 0,
+          paramType: 9,
+          paramIndex: 4,
+          paramCount: 10,
+        });
+      } else if (messageName === "ParamSet") {
+        source.message("ParamValue", {
+          paramId: payload.paramId,
+          paramValue: payload.paramValue,
+          paramType: payload.paramType,
+          paramIndex: 4,
+          paramCount: 10,
+        });
+      }
+    });
+    const manager = new MavlinkParameterManager(session);
+    const requested = await manager.request("MIS_RESTART", 100);
+    assert.equal(requested.id, "MIS_RESTART");
+    const confirmed = await manager.set("MIS_RESTART", 1, { timeoutMs: 100 });
+    assert.equal(confirmed.value, 1);
+    assert.equal(manager.parameters.get("MIS_RESTART").value, 1);
+    assert.equal(session.listenerCount(), 0);
+  });
+
+  test("rejects a mismatched write readback", async () => {
+    const session = new FakeSession((messageName, payload, source) => {
+      if (messageName === "ParamSet") {
+        source.message("ParamValue", {
+          paramId: payload.paramId,
+          paramValue: 0,
+          paramType: payload.paramType,
+          paramIndex: 1,
+          paramCount: 2,
+        });
+      }
+    });
+    const manager = new MavlinkParameterManager(session);
+    await assert.rejects(
+      manager.set("MIS_RESTART", 1, { timeoutMs: 100 }),
+      /was not confirmed/,
+    );
+    assert.equal(session.listenerCount(), 0);
+  });
+});
