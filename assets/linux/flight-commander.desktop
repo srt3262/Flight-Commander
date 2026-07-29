@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Flight Commander
+Comment=Flight-controller configuration, mission planning, and ground control
+Exec=flight-commander %U
+Icon=flight-commander
+Terminal=false
+Type=Application
+Categories=Utility

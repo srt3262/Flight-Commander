@@ -74,13 +74,22 @@
     font-family: 'open_sanslight', Arial,serif;
 }
 
-.tab-landing .inavLogo {
-    width: 700px;
+.tab-landing .flightCommanderLogo {
+    width: min(760px, 90vw);
     height: 110px;
-    margin: 10px;
-    background-image: url('./../../../images/cf_logo_white.svg');
+    margin: 0 auto;
+    background-image: url('./../../../images/flight-commander-wordmark.svg');
     background-position: center;
     background-repeat: no-repeat;
+    background-size: contain;
+}
+
+.tab-landing .flightCommanderTagline {
+    color: #c2efff;
+    font-family: 'open_sanslight', Arial,serif;
+    font-size: 15px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
 }
 
 

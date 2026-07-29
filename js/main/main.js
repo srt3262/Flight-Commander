@@ -1,11 +1,12 @@
 import { chmod, rm, mkdirSync, existsSync } from 'node:fs';
-import { app, BrowserWindow, ipcMain, Menu, MenuItem, shell, dialog, session } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, MenuItem, shell, dialog, session, nativeImage } from 'electron';
 import windowStateKeeper from 'electron-window-state';
 import Store from "electron-store";
 import path from 'path';
 import { fileURLToPath } from 'node:url';
 import started from 'electron-squirrel-startup';
 import { writeFile, readFile, appendFile, readdir } from 'node:fs/promises';
+import flightCommanderIconDataUrl from '../../images/flight_commander_256.png';
 
 import tcp from './tcp';
 import udp from './udp';
@@ -14,6 +15,14 @@ import child_process from './child_process';
 import { registerMavlinkIpc } from './mavlink';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const flightCommanderIcon = nativeImage.createFromDataURL(
+  flightCommanderIconDataUrl,
+);
+
+app.setName('Flight Commander');
+if (process.platform === 'win32') {
+  app.setAppUserModelId('com.flightcommander.app');
+}
 
 /**
  * Returns the base path for SITL binaries.
@@ -67,6 +76,7 @@ function createDeviceChooser() {
     parent: mainWindow,
     width: 410,
     height: 600,
+    icon: flightCommanderIcon,
     webPreferences: {
       preload: path.join(__dirname, 'bt-device-chooser-preload.mjs'),
     }
@@ -129,7 +139,8 @@ function createWindow() {
     minWidth: 1024,
     minHeight: 720,
     autoHideMenuBar: true,
-    icon: "images/inav_icon_128.png",
+    title: 'Flight Commander',
+    icon: flightCommanderIcon,
     webPreferences: {
       preload: path.join(__dirname, 'preload.mjs'),
       nodeIntegration: true,
@@ -334,11 +345,18 @@ app.whenReady().then(() => {
   }),
 
   ipcMain.on('dialog.alert', (event, message) => {
-    event.returnValue = dialog.showMessageBoxSync({ message: message, icon: path.join(__dirname, 'inav_icon_128.png')});
+    event.returnValue = dialog.showMessageBoxSync({
+      message,
+      icon: flightCommanderIcon,
+    });
   });
 
   ipcMain.handle('dialog.confirm', async (_event, message) => {
-    const result = await dialog.showMessageBox({ message: message, icon: path.join(__dirname, 'inav_icon_128.png'), buttons: ["Yes", "No"] });
+    const result = await dialog.showMessageBox({
+      message,
+      icon: flightCommanderIcon,
+      buttons: ["Yes", "No"],
+    });
     return result.response === 0;
   });
 

@@ -138,3 +138,23 @@ license unless an individual file states a compatible license.
 
 Starting with 1.3.6, normal Git history should provide the provenance for every
 subsequent source change.
+
+## Visual identity recovery in 1.3.7
+
+Version 1.3.6 retained Flight Commander's textual product identity but
+accidentally selected inherited INAV artwork for the application header and
+packaged executable. Version 1.3.7 restores the visual assets from the verified
+1.3.5 runtime:
+
+- The Flight Commander wordmark was recovered from the active 1.3.5 renderer.
+- The six-size Windows icon was recovered from the 1.3.5 executable resources.
+- PNG and macOS icon variants were derived from that same recovered master.
+
+The recovered wordmark SVG has SHA-256
+`cc9d64ac8af17e25ce88a0209499e770ffd71df9932f8253ccf419cc2d5241d5`.
+The canonical six-frame Windows ICO has SHA-256
+`0cd605edccc41fd9054c73c8ef93ad10c402a9939059d8acb8b21a25f4c21d08`.
+
+The package verifier now reads active renderer CSS and Windows PE icon
+resources, so product metadata alone can no longer allow an inherited INAV
+visual identity to pass the release gate.

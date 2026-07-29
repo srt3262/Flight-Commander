@@ -1,9 +1,10 @@
 Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
-Upstream-Name: INAV Configurator
-Source: https://github.com/iNavFlight/inav-configurator
+Upstream-Name: Flight Commander
+Source: https://github.com/srt3262/Flight-Commander
 
 Files: *
-Copyright: Copyright 2022 The INAV open source project
+Copyright: Copyright 2026 Flight Commander contributors
+ Copyright 2022 The INAV open source project
 License: GPL-3
 
 License: GPL-3

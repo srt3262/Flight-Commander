@@ -8,7 +8,8 @@ export default {
   packagerConfig: {
     executableName: "flight-commander",
     asar: false,
-    icon: "images/inav",
+    icon: "images/flight-commander",
+    appCopyright: "Copyright © 2026 Flight Commander contributors",
     extraResource: ["resources/public/sitl", "assets/linux/45-inav.rules"],
   },
   rebuildConfig: {
@@ -205,7 +206,7 @@ export default {
         shortcutFolderName: "Flight Commander",
         manufacturer: "Flight Commander contributors",
         appUserModelId: "com.flightcommander.app",
-        icon: path.join(__dirname, "./assets/windows/inav_installer_icon.ico"),
+        icon: path.join(__dirname, "./images/flight-commander.ico"),
         upgradeCode: "d4772148-2334-4896-bc1a-ff9a9569d811",
         ui: {
           enabled: false,
@@ -239,7 +240,7 @@ export default {
         name: "Flight Commander",
         title: "Flight-Commander", // Volume name without spaces to avoid hdiutil detach issues
         background: "./assets/osx/dmg-background.png",
-        icon: "./images/inav.icns",
+        icon: "./images/flight-commander.icns",
       },
     },
     {
@@ -253,7 +254,7 @@ export default {
           name: "flight-commander",
           productName: "Flight Commander",
           categories: ["Utility"],
-          icon: "./assets/linux/icon/inav_icon_128.png",
+          icon: "./images/flight_commander_128.png",
           description:
             "Unified INAV configurator and MAVLink ground control station.",
           homepage: "https://github.com/srt3262/Flight-Commander",
@@ -272,7 +273,7 @@ export default {
           productName: "Flight Commander",
           license: "GPL-3.0",
           categories: ["Utility"],
-          icon: "./assets/linux/icon/inav_icon_128.png",
+          icon: "./images/flight_commander_128.png",
           description:
             "Unified INAV configurator and MAVLink ground control station.",
           homepage: "https://github.com/srt3262/Flight-Commander",

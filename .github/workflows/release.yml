@@ -26,7 +26,7 @@ jobs:
         github.event_name == 'workflow_dispatch' ||
         (
           github.event_name == 'push' &&
-          github.event.head_commit.message == 'Publish Flight Commander 1.3.6 release'
+          github.event.head_commit.message == 'Publish Flight Commander 1.3.7 release'
         )
       )
     runs-on: windows-latest
@@ -382,11 +382,15 @@ jobs:
 
           $notesPath = Join-Path $env:RUNNER_TEMP 'flight-commander-release-notes.md'
           @"
-          Flight Commander $version establishes the reconstructed, editable source baseline.
+          Flight Commander $version restores the intended Flight Commander
+          wordmark and compass/aircraft application icon across the application,
+          Windows package, and cross-platform packaging definitions.
 
-          The source provenance and reconstruction limits are documented in
-          docs/RECONSTRUCTION.md. This Windows x64 archive passed the repository
-          source tests, packaged-application verifier, clean ZIP extraction, and
+          This patch corrects the visual-brand regression in 1.3.6 and adds
+          source, active-renderer, runtime-icon, and Windows PE icon checks to
+          prevent inherited INAV artwork from being selected again. Application
+          functionality is unchanged. The archive passed the repository source
+          tests, packaged-application verifier, clean ZIP extraction, and
           immutable artifact transfer in this workflow.
 
           This executable is not code-signed. Windows SmartScreen may therefore

@@ -29,7 +29,7 @@ if (aggregateCss.length !== 1) {
 }
 
 const selectorPattern =
-  /(?:\.fc-|flight[_-](?:planner|data|hud)|mavlink|autotune|#protocol|mode-telemetry)/i;
+  /(?:\.fc-|flight[_-](?:planner|data|hud)|mavlink|autotune|#protocol|#logo|\.flightCommander(?:Logo|Tagline)|mode-telemetry)/i;
 const input = postcss.parse(
   fs.readFileSync(path.join(assetsRoot, aggregateCss[0]), "utf8"),
 );
