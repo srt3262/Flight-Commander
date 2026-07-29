@@ -86,12 +86,22 @@ function heartbeat({
 
 const sessions = new Set();
 
+function referencedSetTimeout(callback, delay) {
+  return { timer: setTimeout(callback, delay) };
+}
+
+function clearReferencedTimeout(handle) {
+  clearTimeout(handle?.timer ?? handle);
+}
+
 function createAttachedSession(options = {}) {
   const bridge = new FakeBridge();
   const connection = new FakeConnection();
   const session = new MavlinkSession({
     bridge,
     firmwareDetectionTimeoutMs: 25,
+    setTimeoutFn: referencedSetTimeout,
+    clearTimeoutFn: clearReferencedTimeout,
     ...options,
   });
   session.attach(connection);

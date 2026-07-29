@@ -7,6 +7,19 @@ import {
   MavlinkParameterManager,
 } from "../../../js/mavlink/services.js";
 
+function referencedSetTimeout(callback, delay) {
+  return { timer: setTimeout(callback, delay) };
+}
+
+function clearReferencedTimeout(handle) {
+  clearTimeout(handle?.timer ?? handle);
+}
+
+const referencedTimerOptions = {
+  setTimeoutFn: referencedSetTimeout,
+  clearTimeoutFn: clearReferencedTimeout,
+};
+
 class FakeSession {
   constructor(onSend = () => {}) {
     this.state = {
@@ -98,7 +111,7 @@ describe("MavlinkMissionManager", () => {
         });
       }
     });
-    const manager = new MavlinkMissionManager(session);
+    const manager = new MavlinkMissionManager(session, referencedTimerOptions);
     const progress = [];
 
     const items = await manager.download({
@@ -124,7 +137,7 @@ describe("MavlinkMissionManager", () => {
         source.message("MissionAck", { type: 0, missionType: 0 });
       }
     });
-    const manager = new MavlinkMissionManager(session);
+    const manager = new MavlinkMissionManager(session, referencedTimerOptions);
     const result = await manager.upload(
       [
         {
@@ -150,7 +163,7 @@ describe("MavlinkMissionManager", () => {
 
     const inav = new FakeSession();
     inav.state.firmwareFamily = "inav";
-    const inavManager = new MavlinkMissionManager(inav);
+    const inavManager = new MavlinkMissionManager(inav, referencedTimerOptions);
     await assert.rejects(
       inavManager.upload([
         {
@@ -173,7 +186,7 @@ describe("MavlinkMissionManager", () => {
         source.message("MissionCount", { count: 0, missionType: 0 });
       }
     });
-    const manager = new MavlinkMissionManager(session);
+    const manager = new MavlinkMissionManager(session, referencedTimerOptions);
     const result = await manager.clear({
       timeoutMs: 100,
       retries: 0,
@@ -185,7 +198,10 @@ describe("MavlinkMissionManager", () => {
     assert.equal(session.listenerCount(), 0);
 
     const silentSession = new FakeSession();
-    const silentManager = new MavlinkMissionManager(silentSession);
+    const silentManager = new MavlinkMissionManager(
+      silentSession,
+      referencedTimerOptions,
+    );
     await assert.rejects(
       silentManager.download({ timeoutMs: 10, retries: 0 }),
       /Mission list request failed/,
