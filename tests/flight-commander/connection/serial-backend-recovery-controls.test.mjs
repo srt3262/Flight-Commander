@@ -13,11 +13,18 @@ const projectRoot = resolve(
 function loadRecoveryHarness({
   ports = ["COM9", "manual"],
   selectedPort = "COM9",
+  sourceLineEnding = null,
 } = {}) {
-  const source = readFileSync(
+  const rawSource = readFileSync(
     resolve(projectRoot, "js/serial_backend.js"),
     "utf8",
+  );
+  const source = (
+    sourceLineEnding === "\r\n"
+      ? rawSource.replace(/\r?\n/g, "\r\n")
+      : rawSource
   )
+    .replace(/\r\n/g, "\n")
     .replace(
       /^import[\s\S]*?from\s+["'][^"']+["'];\s*$/gm,
       "",
@@ -393,6 +400,14 @@ function startupCloseContext({
     },
   };
 }
+
+test("the recovery harness instruments a Windows CRLF checkout", () => {
+  const harness = loadRecoveryHarness({ sourceLineEnding: "\r\n" });
+  assert.equal(
+    typeof harness.backendPrivate.scheduleUnexpectedSerialRecovery,
+    "function",
+  );
+});
 
 test("port, protocol, and baud changes cancel recovery and invalidate its queued callback", () => {
   const cases = [
