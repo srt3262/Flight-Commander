@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.4.0
+
+- Fixed the post-COM-open lifecycle that could leave explicit MAVLink on the
+  Welcome page with the connection button permanently showing `Connecting`.
+  Ground Control and its no-heartbeat recovery now exist before MAVLink session
+  attachment can invoke renderer subscribers.
+- Isolated failing MAVLink subscribers and made attachment rollback atomic, so
+  optional UI state cannot leave a half-attached reader or heartbeat timer.
+- Matched Mission Planner's transmitter-module startup more closely with a
+  one-second USB settle and MAVLink v1 discovery heartbeats until the vehicle's
+  own protocol is known.
+- Added operator-visible milestones for the first discovery write, received
+  serial bytes, decoded MAVLink frame, and vehicle heartbeat.
+- Captured protocol selection per connection attempt, rejected stale successful
+  and failed COM-open completions, queued Ground Control activation across tab
+  transitions, and surfaced dynamic-load failures instead of wedging the UI.
+
 ## 1.3.9
 
 - Fixed ExpressLRS USB MAVLink startup on Windows so the native COM open begins

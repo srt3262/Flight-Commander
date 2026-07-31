@@ -22,6 +22,8 @@ class Connection {
         this._outputBuffer   = [];
         this._outputGeneration = 0;
         this._lifecycleGeneration = 0;
+        this._openGeneration = 0;
+        this._activeConnectionId = 0;
         this._onReceiveListeners      = [];
         this._onReceiveErrorListeners = [];
         this._type = null;
@@ -76,17 +78,29 @@ class Connection {
         // which belongs to an older disconnect.  Without this guard, a slow
         // Windows close can clear the new connection ID and replay stale UI
         // cleanup after a rapid reconnect.
-        this._lifecycleGeneration += 1;
+        const openGeneration = ++this._lifecycleGeneration;
+        this._openGeneration = openGeneration;
         this._openRequested = true;
         this._openCanceled = false;
         this._failed = 0;
-        this.connectImplementation(path, options, connectionInfo => {                   
+        this.connectImplementation(path, options, connectionInfo => {
+            if (openGeneration !== this._openGeneration) {
+                // Some implementations assign _connectionId immediately before
+                // invoking this callback. Restore the last accepted connection
+                // so a late completion cannot replace a newer transport.
+                this._connectionId = this._activeConnectionId;
+                console.log('Ignored stale open completion for generation: ' + openGeneration);
+                return;
+            }
+
             if (connectionInfo && !this._openCanceled) { 
                 this._connectionId = connectionInfo.connectionId;
+                this._activeConnectionId = connectionInfo.connectionId;
                 this._bitrate = connectionInfo.bitrate;
                 this._bytesReceived = 0;
                 this._bytesSent = 0;    
                 this._openRequested = false;
+                this._openGeneration = 0;
             
                 this.addOnReceiveListener((info) => {
                     this._bytesReceived += info.data.byteLength;
@@ -105,8 +119,15 @@ class Connection {
 
                 // some bluetooth dongles/dongle drivers really doesn't like to be closed instantly, adding a small delay
                 setTimeout(() => {
+                    if (openGeneration !== this._openGeneration) {
+                        this._connectionId = this._activeConnectionId;
+                        console.log('Ignored stale canceled-open cleanup for generation: ' + openGeneration);
+                        return;
+                    }
+
                     this._openRequested = false;
                     this._openCanceled = false;
+                    this._openGeneration = 0;
                     this.disconnect(() => {
                         if (callback) {
                             callback(false);
@@ -118,11 +139,15 @@ class Connection {
                 console.log('Connection didn\'t open and request was canceled');
                 this._openRequested = false;
                 this._openCanceled = false;
+                this._openGeneration = 0;
+                this._connectionId = this._activeConnectionId;
                 if (callback) {
                     callback(false);
                 }
             } else {
                 this._openRequested = false;
+                this._openGeneration = 0;
+                this._connectionId = this._activeConnectionId;
                 console.log('Failed to open');
                 if (callback) {
                     callback(false);
@@ -141,6 +166,10 @@ class Connection {
             const closingConnectionId = this._connectionId;
             const bytesSent = this._bytesSent;
             const bytesReceived = this._bytesReceived;
+            // A connection being closed is no longer authoritative while its
+            // native close callback is pending. If a replacement fails, the
+            // renderer must remain disconnected instead of restoring this ID.
+            this._activeConnectionId = false;
             this.emptyOutputBuffer();
             this.removeAllListeners();
 
@@ -166,6 +195,7 @@ class Connection {
                 }
 
                 this._connectionId = false;
+                this._activeConnectionId = false;
                 if (callback) {
                     callback(result);
                 }

@@ -78,6 +78,7 @@ const MISSION_CURRENT_FIELD_LENGTHS = Object.freeze({
   missionId: 10,
 });
 const BOOT_TIME_REORDER_TOLERANCE_MS = 2000;
+const DEFAULT_DISCOVERY_DELAY_MS = 1000;
 
 function numeric(value) {
   const number = Number(value);
@@ -265,10 +266,13 @@ export class MavlinkSession {
     this.ipcHandler = null;
     this.watchdog = null;
     this.gcsHeartbeat = null;
+    this.gcsHeartbeatStartTimer = null;
     this.firmwareDetectionTimer = null;
     this.firmwareDetectionTimeoutMs =
       options.firmwareDetectionTimeoutMs ?? 1500;
     this.heartbeatTimeoutMs = options.heartbeatTimeoutMs ?? 5000;
+    this.discoveryDelayMs =
+      options.discoveryDelayMs ?? DEFAULT_DISCOVERY_DELAY_MS;
     this.firmwareFamilyOverride = options.firmwareFamilyOverride ?? null;
     this.bridge = options.bridge ?? globalThis.window?.electronAPI ?? null;
     this.now = options.now ?? Date.now;
@@ -276,7 +280,20 @@ export class MavlinkSession {
     this.clearTimeoutFn = options.clearTimeoutFn ?? clearTimeout;
     this.setIntervalFn = options.setIntervalFn ?? setInterval;
     this.clearIntervalFn = options.clearIntervalFn ?? clearInterval;
+    this.listenerErrorHandler =
+      options.listenerErrorHandler ??
+      ((error, eventName) => {
+        console.error(
+          `MAVLink ${eventName} listener failed:`,
+          error,
+        );
+      });
     this.readHandler = null;
+    this.reportedDiscoveryVersions = new Set();
+    this.reportedReceiveBytes = false;
+    this.reportedValidFrame = false;
+    this.lastDiscoveryErrors = new Map();
+    this.discoveryHeartbeatInFlight = false;
 
     if (this.firmwareFamilyOverride != null) {
       this.validateFirmwareFamily(this.firmwareFamilyOverride);
@@ -314,16 +331,33 @@ export class MavlinkSession {
     this.connection = connection;
     this.state = createInitialMavlinkState();
     this.applyFirmwareFamilyOverride();
+    this.reportedDiscoveryVersions.clear();
+    this.reportedReceiveBytes = false;
+    this.reportedValidFrame = false;
+    this.lastDiscoveryErrors.clear();
+    this.discoveryHeartbeatInFlight = false;
     const attachment = this.activeAttachment("receiving MAVLink data");
     this.readHandler = (event) => this.read(event, attachment);
-    connection.addOnReceiveListener(this.readHandler);
-    // A number of MAVLink radio transports (including ExpressLRS standalone
-    // mode) wait for traffic from the GCS before they start forwarding the
-    // vehicle link.  Start the discovery heartbeat as soon as the transport is
-    // attached instead of waiting for a vehicle heartbeat that may never be
-    // forwarded until we transmit first.
-    this.startGcsHeartbeat();
-    this.emit("state", this.snapshot());
+    try {
+      connection.addOnReceiveListener(this.readHandler);
+      // A number of MAVLink radio transports (including ExpressLRS standalone
+      // mode) wait for traffic from the GCS before they start forwarding the
+      // vehicle link. Mission Planner allows the USB device to settle, then
+      // probes with MAVLink v1 until it observes the vehicle. Match that
+      // startup sequence, then lock outbound traffic to the detected protocol.
+      this.startGcsHeartbeat();
+      this.emit("state", this.snapshot());
+    } catch (error) {
+      this.stopGcsHeartbeat();
+      connection.removeOnReceiveCallback(this.readHandler);
+      this.readHandler = null;
+      this.connection = null;
+      this.attachmentGeneration += 1;
+      this.state = createInitialMavlinkState();
+      this.applyFirmwareFamilyOverride();
+      this.bridge?.mavlinkReset?.(this.attachmentGeneration);
+      throw error;
+    }
   }
 
   detach() {
@@ -373,6 +407,18 @@ export class MavlinkSession {
           }
         : null);
     if (event?.data != null && this.attachmentIsCurrent(activeAttachment)) {
+      if (!this.reportedReceiveBytes) {
+        const byteLength =
+          Number(event.data?.byteLength) ||
+          Number(event.data?.length) ||
+          0;
+        this.reportedReceiveBytes = true;
+        this.emit("transportDiagnostic", {
+          stage: "serial-bytes-received",
+          byteLength,
+          generation: activeAttachment.generation,
+        });
+      }
       this.bridge?.mavlinkFeed?.(event.data, activeAttachment.generation);
     }
   }
@@ -395,7 +441,15 @@ export class MavlinkSession {
 
   emit(eventName, value) {
     for (const listener of [...(this.listeners.get(eventName) ?? [])]) {
-      listener(value);
+      try {
+        listener(value);
+      } catch (error) {
+        try {
+          this.listenerErrorHandler(error, eventName);
+        } catch {
+          // Diagnostics must never be able to interrupt the transport.
+        }
+      }
     }
   }
 
@@ -463,6 +517,15 @@ export class MavlinkSession {
     }
     const envelope = normalizeMavlinkEnvelope(frame);
     const { messageName, data, header } = envelope;
+    if (!this.reportedValidFrame) {
+      this.reportedValidFrame = true;
+      this.emit("transportDiagnostic", {
+        stage: "valid-frame-decoded",
+        messageName,
+        protocol: envelope.protocol,
+        generation: this.attachmentGeneration,
+      });
+    }
 
     if (
       messageName === "Heartbeat" &&
@@ -986,7 +1049,7 @@ export class MavlinkSession {
     });
   }
 
-  sendGcsHeartbeat() {
+  sendGcsHeartbeat(options = {}) {
     return this.send("Heartbeat", {
       type: MAV_TYPE_GCS,
       autopilot: MAV_AUTOPILOT_INVALID,
@@ -994,24 +1057,98 @@ export class MavlinkSession {
       customMode: 0,
       systemStatus: MAV_STATE_ACTIVE,
       mavlinkVersion: 3,
-    });
+    }, options);
   }
 
   startGcsHeartbeat() {
     this.stopGcsHeartbeat();
-    this.sendGcsHeartbeat().catch(() => {});
-    this.gcsHeartbeat = timerUnref(
-      this.setIntervalFn(() => {
-        this.sendGcsHeartbeat().catch(() => {});
-      }, 1000),
-    );
+    const heartbeatGeneration = this.attachmentGeneration;
+    const sendProbe = () => {
+      if (this.discoveryHeartbeatInFlight) return;
+      const probeGeneration = this.attachmentGeneration;
+      const version = this.state.protocolVersion ?? 1;
+      this.discoveryHeartbeatInFlight = true;
+      this.sendGcsHeartbeat({ version })
+        .then((bytesSent) => {
+          if (
+            probeGeneration !== this.attachmentGeneration ||
+            !this.connection
+          ) {
+            return;
+          }
+          this.lastDiscoveryErrors.delete(version);
+          if (this.reportedDiscoveryVersions.has(version)) return;
+          this.reportedDiscoveryVersions.add(version);
+          this.emit("transportDiagnostic", {
+            stage: "discovery-heartbeat-write-accepted",
+            version,
+            bytesSent,
+            generation: this.attachmentGeneration,
+          });
+        })
+        .catch((error) => {
+          if (
+            probeGeneration !== this.attachmentGeneration ||
+            !this.connection
+          ) {
+            return;
+          }
+          const message = error?.message || String(error);
+          if (message === this.lastDiscoveryErrors.get(version)) return;
+          this.lastDiscoveryErrors.set(version, message);
+          this.emit("transportDiagnostic", {
+            stage: "discovery-heartbeat-failed",
+            version,
+            error: message,
+            generation: this.attachmentGeneration,
+          });
+        })
+        .finally(() => {
+          if (probeGeneration === this.attachmentGeneration) {
+            this.discoveryHeartbeatInFlight = false;
+          }
+        });
+    };
+    const beginProbes = () => {
+      if (
+        heartbeatGeneration !== this.attachmentGeneration ||
+        !this.connection
+      ) {
+        return;
+      }
+      this.gcsHeartbeatStartTimer = null;
+      sendProbe();
+      this.gcsHeartbeat = timerUnref(
+        this.setIntervalFn(() => {
+          if (
+            heartbeatGeneration !== this.attachmentGeneration ||
+            !this.connection
+          ) {
+            return;
+          }
+          sendProbe();
+        }, 1000),
+      );
+    };
+    if (this.discoveryDelayMs > 0) {
+      this.gcsHeartbeatStartTimer = timerUnref(
+        this.setTimeoutFn(beginProbes, this.discoveryDelayMs),
+      );
+    } else {
+      beginProbes();
+    }
   }
 
   stopGcsHeartbeat() {
+    if (this.gcsHeartbeatStartTimer != null) {
+      this.clearTimeoutFn(this.gcsHeartbeatStartTimer);
+      this.gcsHeartbeatStartTimer = null;
+    }
     if (this.gcsHeartbeat != null) {
       this.clearIntervalFn(this.gcsHeartbeat);
       this.gcsHeartbeat = null;
     }
+    this.discoveryHeartbeatInFlight = false;
   }
 
   availableModes() {

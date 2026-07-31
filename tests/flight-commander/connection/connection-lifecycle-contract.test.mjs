@@ -44,6 +44,10 @@ const mavlinkSession = readFileSync(
   resolve(projectRoot, "js/mavlink/mavlinkSession.js"),
   "utf8",
 );
+const mavlinkTransportStartup = readFileSync(
+  resolve(projectRoot, "js/gcs/mavlinkTransportStartup.js"),
+  "utf8",
+);
 const flightData = readFileSync(
   resolve(projectRoot, "tabs/flight_data.js"),
   "utf8",
@@ -89,7 +93,7 @@ test("MAVLink listener installation precedes attach and explicit transport opens
   assert.ok(subscribe >= 0 && attach > subscribe);
   assert.match(
     serialBackend,
-    /requestedProtocol === 'mavlink'[\s\S]*?privateScope\.onMavlinkTransportOpen\(\)/,
+    /requestedProtocol === 'mavlink'[\s\S]*?showWaitingState: privateScope\.onMavlinkTransportOpen/,
   );
   assert.match(
     serialBackend,
@@ -98,6 +102,45 @@ test("MAVLink listener installation precedes attach and explicit transport opens
   assert.match(
     serialBackend,
     /Flight Commander will keep listening/,
+  );
+  assert.match(
+    serialBackend,
+    /initializeExplicitMavlinkTransport\(\{[\s\S]*?showWaitingState:[\s\S]*?scheduleNoHeartbeatTimeout:[\s\S]*?attachSession:/,
+  );
+  assert.match(
+    mavlinkTransportStartup,
+    /showWaitingState\(\);[\s\S]*?scheduleNoHeartbeatTimeout\(\);[\s\S]*?attachSession\(\);/,
+  );
+  assert.match(
+    serialBackend,
+    /runCriticalMavlinkTransition\(\{[\s\S]*?onMavlinkConnected\(state\)[\s\S]*?onMavlinkConnectedTransitionFailure/,
+  );
+  assert.match(
+    serialBackend,
+    /onMavlinkTransportStartupFailure = function[\s\S]*?scheduleMavlinkFailureAbort\(\)[\s\S]*?GUI\.log\(/,
+  );
+  assert.match(
+    serialBackend,
+    /onMavlinkConnectedTransitionFailure = function[\s\S]*?scheduleMavlinkFailureAbort\(\)[\s\S]*?GUI\.log\(/,
+  );
+});
+
+test("serial open completion uses the immutable protocol captured by the click attempt", () => {
+  assert.match(
+    serialBackend,
+    /const openAttempt = Object\.freeze\(\{[\s\S]*?protocol: requestedProtocol,[\s\S]*?bitrate: selected_baud/,
+  );
+  assert.match(
+    serialBackend,
+    /const handleOpen = openInfo => privateScope\.onOpen\(openInfo, openAttempt\)/,
+  );
+  assert.match(
+    serialBackend,
+    /openAttempt\?\.protocol \|\| privateScope\.\$protocol\.val\(\) \|\| 'auto'/,
+  );
+  assert.match(
+    serialBackend,
+    /privateScope\.pendingOpenAttempt !== openAttempt[\s\S]*?return;[\s\S]*?CONFIGURATOR\.connection\.connect\("127\.0\.0\.1:5760"/,
   );
 });
 
@@ -175,6 +218,14 @@ test("native serial open and cleanup paths are bounded", () => {
     mainSerial,
     /oldPort\.opening && !oldPort\.isOpen[\s\S]*?quarantineOpeningSerialPort\(oldPort\)/,
   );
+  assert.match(
+    mainSerial,
+    /openGeneration !== this\._openGeneration[\s\S]*?this\._serialport !== port/,
+  );
+  assert.match(
+    mainSerial,
+    /Serial port open was superseded by a newer connection/,
+  );
 });
 
 test("stale disconnect completion cannot clear a replacement connection", () => {
@@ -190,6 +241,11 @@ test("stale disconnect completion cannot clear a replacement connection", () => 
   assert.match(
     connectionBase,
     /this\._connectionId !== closingConnectionId/,
+  );
+  assert.match(connectionBase, /this\._openGeneration = 0/);
+  assert.match(
+    connectionBase,
+    /openGeneration !== this\._openGeneration/,
   );
 });
 
@@ -209,6 +265,18 @@ test("Ground Control can render before heartbeat while commands and mission read
   assert.match(
     flightData,
     /!CONFIGURATOR\.connectionValid[\s\S]*?!\['msp', 'mavlink'\]\.includes\(this\.protocol\)/,
+  );
+  assert.match(
+    flightData,
+    /const initializeGeneration = \+\+this\.initializeGeneration/,
+  );
+  assert.match(
+    flightData,
+    /initializeGeneration === this\.initializeGeneration[\s\S]*?GUI\.active_tab === this/,
+  );
+  assert.match(
+    flightData,
+    /flightData\.cleanup = function[\s\S]*?this\.initializeGeneration \+= 1/,
   );
 });
 

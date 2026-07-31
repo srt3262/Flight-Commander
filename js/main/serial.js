@@ -16,8 +16,10 @@ const serial = {
     _serialport: null,
     _connectionId: null,
     _id: 1,
+    _openGeneration: 0,
 
     connect: async function(path, options, window) {
+        const openGeneration = ++this._openGeneration;
         // Clean up any existing serial port to prevent handle leaks
         if (this._serialport) {
             try {
@@ -148,6 +150,17 @@ const serial = {
                         return;
                     }
 
+                    if (
+                        openGeneration !== this._openGeneration
+                        || this._serialport !== port
+                    ) {
+                        await disposeSerialPort(port);
+                        finishOpen({
+                            error: true,
+                            msg: 'Serial port open was superseded by a newer connection',
+                        });
+                        return;
+                    }
                     if (openPortResolved) return;
                     this._connectionId = connectionId;
                     finishOpen({error: false, id: connectionId});
@@ -168,6 +181,7 @@ const serial = {
                 msg: 'Stale serial connection close was rejected',
             };
         }
+        this._openGeneration += 1;
         const port = this._serialport;
         this._serialport = null;
         this._connectionId = null;

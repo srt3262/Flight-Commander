@@ -497,7 +497,8 @@ if (
 }
 if (
   !compiledMain.includes("Serial port open timed out") ||
-  !compiledMain.includes("Stale serial connection close was rejected")
+  !compiledMain.includes("Stale serial connection close was rejected") ||
+  !compiledMain.includes("Serial port open was superseded by a newer connection")
 ) {
   fail(
     "the compiled main process does not contain bounded, connection-scoped serial lifecycle handling",
@@ -591,6 +592,11 @@ for (const marker of [
   "forceDtrLow",
   "Waiting for vehicle heartbeat",
   "MAVLink serial transport is open",
+  "discovery-heartbeat-write-accepted",
+  "serial-bytes-received",
+  "valid-frame-decoded",
+  "MAVLink transport startup failed",
+  "A vehicle heartbeat was decoded, but Ground Control could not finish connecting",
   "MAVLINK_SESSION_DETACHED",
   "supported controls unlock after identification and safety checks",
 ]) {

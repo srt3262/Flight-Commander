@@ -7,6 +7,7 @@ import {
   MAV_MODE_FLAG_SAFETY_ARMED,
   MavlinkSession,
 } from "../../../js/mavlink/mavlinkSession.js";
+import { MavlinkIpcCodec } from "../../../js/main/mavlink.js";
 import {
   canonicalMessageName,
   normalizeMavlinkEnvelope,
@@ -113,6 +114,7 @@ function createAttachedSession(options = {}) {
   const session = new MavlinkSession({
     bridge,
     firmwareDetectionTimeoutMs: 25,
+    discoveryDelayMs: 0,
     setTimeoutFn: referencedSetTimeout,
     clearTimeoutFn: clearReferencedTimeout,
     ...options,
@@ -419,6 +421,173 @@ describe("commands, acknowledgements and cleanup", () => {
     );
   });
 
+  test("does not report a stale discovery result on a replacement attachment", async () => {
+    const bridge = new FakeBridge();
+    let releaseFirstProbe;
+    let heartbeatEncodes = 0;
+    const normalEncode = bridge.mavlinkEncode.bind(bridge);
+    bridge.mavlinkEncode = (messageName, payload, options) => {
+      if (messageName === "Heartbeat" && heartbeatEncodes++ === 0) {
+        return new Promise((resolve) => {
+          releaseFirstProbe = () => resolve(Uint8Array.of(0xfe, 0x01));
+        });
+      }
+      return normalEncode(messageName, payload, options);
+    };
+    const firstConnection = new FakeConnection();
+    const session = new MavlinkSession({
+      bridge,
+      discoveryDelayMs: 0,
+    });
+    sessions.add(session);
+    const diagnostics = [];
+    session.on("transportDiagnostic", (entry) => diagnostics.push(entry));
+
+    session.attach(firstConnection);
+    await Promise.resolve();
+    assert.equal(typeof releaseFirstProbe, "function");
+
+    const replacement = new FakeConnection();
+    session.attach(replacement);
+    await Promise.resolve();
+    await Promise.resolve();
+    releaseFirstProbe();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    assert.equal(
+      diagnostics.some(({ stage }) => stage === "discovery-heartbeat-failed"),
+      false,
+    );
+    assert.equal(
+      diagnostics.every(
+        ({ generation }) => generation === session.attachmentGeneration,
+      ),
+      true,
+    );
+    assert.equal(firstConnection.sent.length, 0);
+    assert.equal(replacement.sent.length > 0, true);
+  });
+
+  test("keeps discovery single-flight when MAVLink encoding is delayed", async () => {
+    const bridge = new FakeBridge();
+    let releaseFirstProbe;
+    let heartbeatEncodes = 0;
+    const normalEncode = bridge.mavlinkEncode.bind(bridge);
+    bridge.mavlinkEncode = (messageName, payload, options) => {
+      if (messageName === "Heartbeat") {
+        heartbeatEncodes += 1;
+        if (heartbeatEncodes === 1) {
+          bridge.encoded.push({ messageName, payload, options });
+          return new Promise((resolve) => {
+            releaseFirstProbe = () => resolve(Uint8Array.of(0xfe, 0x01));
+          });
+        }
+      }
+      return normalEncode(messageName, payload, options);
+    };
+    const intervals = [];
+    const connection = new FakeConnection();
+    const session = new MavlinkSession({
+      bridge,
+      discoveryDelayMs: 0,
+      setIntervalFn(callback, delay) {
+        const handle = { callback, delay, unref() {} };
+        intervals.push(handle);
+        return handle;
+      },
+      clearIntervalFn() {},
+    });
+    sessions.add(session);
+
+    session.attach(connection);
+    const discoveryInterval = intervals.at(-1);
+    assert.equal(typeof releaseFirstProbe, "function");
+    discoveryInterval.callback();
+    assert.equal(heartbeatEncodes, 1);
+    assert.equal(connection.sent.length, 0);
+
+    releaseFirstProbe();
+    await new Promise((resolve) => setImmediate(resolve));
+    discoveryInterval.callback();
+    await new Promise((resolve) => setImmediate(resolve));
+
+    assert.equal(heartbeatEncodes, 2);
+    assert.equal(connection.sent.length, 2);
+    assert.deepEqual(
+      bridge.encoded
+        .filter(({ messageName }) => messageName === "Heartbeat")
+        .map(({ options }) => options.version),
+      [1, 1],
+    );
+  });
+
+  test("detach before the settle deadline prevents a late discovery timer", () => {
+    const bridge = new FakeBridge();
+    const connection = new FakeConnection();
+    const timeouts = [];
+    const intervals = [];
+    const session = new MavlinkSession({
+      bridge,
+      discoveryDelayMs: 1000,
+      setTimeoutFn(callback, delay) {
+        const handle = { callback, delay, cleared: false, unref() {} };
+        timeouts.push(handle);
+        return handle;
+      },
+      clearTimeoutFn(handle) {
+        handle.cleared = true;
+      },
+      setIntervalFn(callback, delay) {
+        const handle = { callback, delay, cleared: false, unref() {} };
+        intervals.push(handle);
+        return handle;
+      },
+      clearIntervalFn(handle) {
+        handle.cleared = true;
+      },
+    });
+    sessions.add(session);
+
+    session.attach(connection);
+    const settle = timeouts.find(({ delay }) => delay === 1000);
+    assert.ok(settle);
+    session.detach();
+    assert.equal(settle.cleared, true);
+
+    // Model a callback which was already queued when clearTimeout ran.
+    settle.callback();
+    assert.equal(bridge.encoded.length, 0);
+    assert.equal(connection.sent.length, 0);
+    assert.equal(session.gcsHeartbeat, null);
+    assert.equal(intervals.length, 1); // The session watchdog only.
+  });
+
+  test("destroy while discovery encoding is pending cannot write or emit completion", async () => {
+    const bridge = new FakeBridge();
+    let releaseProbe;
+    bridge.mavlinkEncode = () =>
+      new Promise((resolve) => {
+        releaseProbe = () => resolve(Uint8Array.of(0xfe, 0x01));
+      });
+    const connection = new FakeConnection();
+    const session = new MavlinkSession({
+      bridge,
+      discoveryDelayMs: 0,
+    });
+    const diagnostics = [];
+    session.on("transportDiagnostic", (entry) => diagnostics.push(entry));
+    session.attach(connection);
+    assert.equal(typeof releaseProbe, "function");
+
+    session.destroy();
+    releaseProbe();
+    await new Promise((resolve) => setImmediate(resolve));
+
+    assert.equal(connection.sent.length, 0);
+    assert.deepEqual(diagnostics, []);
+  });
+
   test("starts and stops the GCS discovery heartbeat with the transport", async () => {
     const { session, bridge, connection } = createAttachedSession();
 
@@ -441,6 +610,143 @@ describe("commands, acknowledgements and cleanup", () => {
     session.detach();
     assert.equal(session.gcsHeartbeat, null);
     assert.equal(connection.listeners.size, 0);
+  });
+
+  test("isolates a failing state subscriber without wedging transport startup", async () => {
+    const listenerErrors = [];
+    const bridge = new FakeBridge();
+    const connection = new FakeConnection();
+    const session = new MavlinkSession({
+      bridge,
+      discoveryDelayMs: 0,
+      listenerErrorHandler(error, eventName) {
+        listenerErrors.push({ error, eventName });
+      },
+    });
+    sessions.add(session);
+    session.on("state", () => {
+      throw new Error("broken renderer subscriber");
+    });
+
+    assert.doesNotThrow(() => session.attach(connection));
+    await Promise.resolve();
+    await Promise.resolve();
+
+    assert.equal(session.connection, connection);
+    assert.equal(connection.listeners.size, 1);
+    assert.ok(session.gcsHeartbeat != null);
+    assert.equal(connection.sent.length > 0, true);
+    assert.equal(listenerErrors.length, 1);
+    assert.equal(listenerErrors[0].eventName, "state");
+    assert.match(listenerErrors[0].error.message, /broken renderer subscriber/);
+  });
+
+  test("settles with MAVLink v1, decodes chunked INAV, then uses the observed v2 protocol", async () => {
+    const timeoutHandles = [];
+    const intervalHandles = [];
+    let bridgeListener = null;
+    const codec = new MavlinkIpcCodec({
+      onMessage(envelope) {
+        bridgeListener?.(envelope);
+      },
+    });
+    const bridge = {
+      encoded: [],
+      onMavlinkMessage(listener) {
+        bridgeListener = listener;
+        return listener;
+      },
+      offMavlinkMessage(listener) {
+        if (bridgeListener === listener) bridgeListener = null;
+      },
+      mavlinkReset(generation) {
+        codec.reset(generation);
+      },
+      mavlinkFeed(bytes, generation) {
+        codec.feed(bytes, generation);
+      },
+      async mavlinkEncode(messageName, payload, options) {
+        this.encoded.push({ messageName, payload, options });
+        return codec.encode(messageName, payload, options);
+      },
+    };
+    const connection = new FakeConnection();
+    const session = new MavlinkSession({
+      bridge,
+      discoveryDelayMs: 1000,
+      setTimeoutFn(callback, delay) {
+        const handle = { callback, delay, cleared: false, unref() {} };
+        timeoutHandles.push(handle);
+        return handle;
+      },
+      clearTimeoutFn(handle) {
+        handle.cleared = true;
+      },
+      setIntervalFn(callback, delay) {
+        const handle = { callback, delay, cleared: false, unref() {} };
+        intervalHandles.push(handle);
+        return handle;
+      },
+      clearIntervalFn(handle) {
+        handle.cleared = true;
+      },
+    });
+    sessions.add(session);
+
+    session.attach(connection);
+    assert.equal(connection.sent.length, 0);
+    const settle = timeoutHandles.find(({ delay }) => delay === 1000);
+    assert.ok(settle);
+    settle.callback();
+    await new Promise((resolve) => setImmediate(resolve));
+
+    assert.deepEqual(
+      connection.sent[0],
+      Array.from(Buffer.from("fe0900ffbe000000000006080004034921", "hex")),
+    );
+
+    const discoveryInterval = intervalHandles.at(-1);
+    assert.equal(discoveryInterval.delay, 1000);
+    discoveryInterval.callback();
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(connection.sent[1][0], 0xfe);
+
+    const vehicleCodec = new MavlinkIpcCodec();
+    const vehicleHeartbeat = vehicleCodec.encode(
+      "Heartbeat",
+      {
+        type: 2,
+        autopilot: 0,
+        baseMode: 0,
+        customMode: 0,
+        systemStatus: 4,
+        mavlinkVersion: 3,
+      },
+      { version: 2, systemId: 1, componentId: 1 },
+    );
+    connection.receive(vehicleHeartbeat.subarray(0, 3));
+    connection.receive(vehicleHeartbeat.subarray(3, 11));
+    connection.receive(vehicleHeartbeat.subarray(11));
+    await new Promise((resolve) => setImmediate(resolve));
+
+    assert.equal(session.state.connected, true);
+    assert.equal(session.state.protocolVersion, 2);
+    assert.equal(session.state.firmwareFamily, FIRMWARE_FAMILY_INAV);
+    assert.equal(session.state.systemId, 1);
+    const heartbeatsBeforeProtocolLock = bridge.encoded.filter(
+      ({ messageName }) => messageName === "Heartbeat",
+    ).length;
+    discoveryInterval.callback();
+    await new Promise((resolve) => setImmediate(resolve));
+    const heartbeats = bridge.encoded.filter(
+      ({ messageName }) => messageName === "Heartbeat",
+    );
+    assert.equal(heartbeats.length, heartbeatsBeforeProtocolLock + 1);
+    assert.equal(heartbeats.at(-1).options.version, 2);
+    session.destroy();
+    sessions.delete(session);
+    codec.destroy();
+    vehicleCodec.destroy();
   });
 
   test("confirms mode and arm commands from subsequent heartbeat state", async () => {

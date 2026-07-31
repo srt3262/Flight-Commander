@@ -113,6 +113,7 @@ const flightData = {
   estimatedMissionCurrent: null,
   hud: null,
   hudLoadToken: 0,
+  initializeGeneration: 0,
   globalLogWasOpen: false,
   globalLogGuard: null,
   mavlinkWasConnected: false,
@@ -154,6 +155,11 @@ flightData.restoreGlobalLog = function () {
 };
 
 flightData.initialize = function (callback) {
+  const initializeGeneration = ++this.initializeGeneration;
+  const isCurrentInitialization = () => (
+    initializeGeneration === this.initializeGeneration &&
+    GUI.active_tab === this
+  );
   if (GUI.active_tab !== this) {
     GUI.active_tab = this;
   }
@@ -161,7 +167,9 @@ flightData.initialize = function (callback) {
   this.protocol = CONFIGURATOR.connectionProtocol;
   this.suspendGlobalLog();
   import('./flight_data.html?raw').then(({ default: html }) => {
+    if (!isCurrentInitialization()) return;
     GUI.load(html, () => {
+      if (!isCurrentInitialization()) return;
       this.loadStoredMapStyle();
       this.buildMap();
       this.bindControls();
@@ -171,6 +179,21 @@ flightData.initialize = function (callback) {
       setTimeout(() => this.map?.updateSize(), 0);
       this.loadVehicleMission();
     });
+  }).catch((error) => {
+    if (!isCurrentInitialization()) return;
+    const message = `Ground Control could not load: ${error?.message || error}`;
+    this.restoreGlobalLog();
+    GUI.log($('<div>').text(message).html());
+    $('#content')
+      .empty()
+      .append(
+        $('<div>')
+          .addClass('tab-flight-data fc-ground-control-load-error')
+          .append($('<h1>').text('Ground Control unavailable'))
+          .append($('<p>').text(message))
+          .append($('<p>').text('Disconnect and retry. The serial error remains available in the log.')),
+      );
+    GUI.content_ready(callback);
   });
 };
 
@@ -324,7 +347,11 @@ flightData.configureProtocol = function () {
         'MAVLink serial transport is open; waiting for the first vehicle heartbeat.',
       );
       this.setActionStatus(
-        'Waiting for a MAVLink vehicle heartbeat. Telemetry and commands remain disabled until the aircraft link is live.',
+        GUI.mavlinkWaitingMessage ||
+          'Waiting for a MAVLink vehicle heartbeat. Telemetry and commands remain disabled until the aircraft link is live.',
+        Boolean(GUI.mavlinkWaitingMessage?.startsWith(
+          'The MAVLink serial transport is open, but no vehicle heartbeat',
+        )),
       );
     }
     return;
@@ -956,6 +983,7 @@ flightData.setActionStatus = function (message, isError = false) {
 };
 
 flightData.cleanup = function (callback) {
+  this.initializeGeneration += 1;
   this.unsubscribeState?.();
   this.unsubscribeState = null;
   this.unsubscribeText?.();

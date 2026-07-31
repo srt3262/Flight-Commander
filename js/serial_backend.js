@@ -38,6 +38,11 @@ import {
     resolveConnectionBaud,
     serialOptionsForProtocol,
 } from './connection/connectionPreferences';
+import {
+    initializeExplicitMavlinkTransport,
+    queueGroundControlActivation,
+    runCriticalMavlinkTransition,
+} from './gcs/mavlinkTransportStartup';
 
 var SerialBackend = (function () {
 
@@ -52,6 +57,11 @@ var SerialBackend = (function () {
     privateScope.activeProtocol = null;
     privateScope.mavlinkConnectedUnsubscribe = null;
     privateScope.mavlinkStateUnsubscribe = null;
+    privateScope.mavlinkDiagnosticUnsubscribe = null;
+    privateScope.cancelGroundControlActivation = null;
+    privateScope.pendingOpenAttempt = null;
+    privateScope.activeOpenAttempt = null;
+    privateScope.sitlDemoConnectTimer = null;
 
     /*
      * Handle "Wireless" mode with strict queueing of messages
@@ -214,14 +224,25 @@ var SerialBackend = (function () {
                 var selected_port = privateScope.$port.find('option:selected').data().isManual ?
                     publicScope.$portOverride.val() :
                         String(privateScope.$port.val());
+                const openAttempt = Object.freeze({
+                    protocol: requestedProtocol,
+                    port: selected_port,
+                    bitrate: selected_baud,
+                });
+                const handleOpen = openInfo => privateScope.onOpen(openInfo, openAttempt);
                 
                 if (selected_port === 'DFU') {
                     GUI.log(i18n.getMessage('dfu_connect_message'));
                 }
                 else if (selected_port != '0') {
                     if (isIdle) {
+                        if (privateScope.sitlDemoConnectTimer != null) {
+                            clearTimeout(privateScope.sitlDemoConnectTimer);
+                            privateScope.sitlDemoConnectTimer = null;
+                        }
                         console.log('Connecting to: ' + selected_port);
                         GUI.connecting_to = selected_port;
+                        privateScope.pendingOpenAttempt = openAttempt;
 
                         // Clear leftover MSP state so a fast reconnect isn't
                         // blocked by a previous session's retrying requests.
@@ -237,23 +258,30 @@ var SerialBackend = (function () {
                         $('div.connect_controls a.connect_state').text(i18n.getMessage('connecting'));
 
                         if (selected_port == 'tcp' || selected_port == 'udp') {
-                            CONFIGURATOR.connection.connect(publicScope.$portOverride.val(), {}, privateScope.onOpen);
+                            CONFIGURATOR.connection.connect(publicScope.$portOverride.val(), {}, handleOpen);
                         } else if (selected_port == 'sitl') {
-                            CONFIGURATOR.connection.connect("127.0.0.1:5760", {}, privateScope.onOpen);
+                            CONFIGURATOR.connection.connect("127.0.0.1:5760", {}, handleOpen);
                         } else if (selected_port == 'sitl-demo') {
                             SITLProcess.stop();
                             SITLProcess.start("demo.bin");                        
                             this.isDemoRunning = true;
 
                             // Wait 1 sec until SITL is ready
-                            setTimeout(() => {
-                                CONFIGURATOR.connection.connect("127.0.0.1:5760", {}, privateScope.onOpen);
+                            privateScope.sitlDemoConnectTimer = setTimeout(() => {
+                                privateScope.sitlDemoConnectTimer = null;
+                                if (
+                                    privateScope.pendingOpenAttempt !== openAttempt ||
+                                    GUI.connecting_to !== selected_port
+                                ) {
+                                    return;
+                                }
+                                CONFIGURATOR.connection.connect("127.0.0.1:5760", {}, handleOpen);
                             }, 1000);
                         } else {
                             CONFIGURATOR.connection.connect(
                                 selected_port,
                                 serialOptionsForProtocol(requestedProtocol, selected_baud),
-                                privateScope.onOpen,
+                                handleOpen,
                             );
                         }
                     } else {
@@ -298,6 +326,12 @@ var SerialBackend = (function () {
                             GUI.connected_to = false;
                             GUI.connecting_to = false;
                             GUI.allowedTabs = GUI.defaultAllowedTabsWhenDisconnected.slice();
+                            if (privateScope.sitlDemoConnectTimer != null) {
+                                clearTimeout(privateScope.sitlDemoConnectTimer);
+                                privateScope.sitlDemoConnectTimer = null;
+                            }
+                            privateScope.pendingOpenAttempt = null;
+                            privateScope.activeOpenAttempt = null;
                             privateScope.clearProtocolSession();
 
                             /*
@@ -411,7 +445,12 @@ var SerialBackend = (function () {
     }
 
 
-    privateScope.onOpen = function (openInfo) {
+    privateScope.onOpen = function (openInfo, openAttempt = null) {
+
+        if (openAttempt && openAttempt !== privateScope.pendingOpenAttempt) {
+            console.log('Ignored stale serial open callback.');
+            return;
+        }
 
         if (FC.restartRequired) {
             GUI.log("<span style='color: red; font-weight: bolder'><strong>" + i18n.getMessage("illegalStateRestartRequired") + "</strong></span>");
@@ -420,7 +459,14 @@ var SerialBackend = (function () {
         }
 
         if (openInfo) {
-            const requestedProtocol = privateScope.$protocol.val() || 'auto';
+            const requestedProtocol =
+                openAttempt?.protocol || privateScope.$protocol.val() || 'auto';
+            privateScope.activeOpenAttempt = openAttempt || {
+                protocol: requestedProtocol,
+                port: GUI.connecting_to,
+                bitrate: openInfo.bitrate,
+            };
+            privateScope.pendingOpenAttempt = null;
 
             // update connected_to
             GUI.connected_to = GUI.connecting_to;
@@ -450,48 +496,45 @@ var SerialBackend = (function () {
 
             privateScope.activeProtocol = null;
             CONFIGURATOR.connectionProtocol = null;
-            mavlinkCommandRouter.stop();
-            FC.resetState();
-            MSP.disconnect_cleanup();
+            try {
+                mavlinkCommandRouter.stop();
+                FC.resetState();
+                MSP.disconnect_cleanup();
+            } catch (error) {
+                if (requestedProtocol === 'mavlink') {
+                    privateScope.onMavlinkTransportStartupFailure(error);
+                    return;
+                }
+                throw error;
+            }
 
             const allowInavProtocols = requestedProtocol !== 'mavlink';
             const allowMavlink = requestedProtocol !== 'msp';
-
-            if (allowInavProtocols) {
-                CONFIGURATOR.connection.addOnReceiveListener(publicScope.read_serial);
-                CONFIGURATOR.connection.addOnReceiveListener(ltmDecoder.read);
-            }
-            if (allowMavlink) {
-                privateScope.mavlinkConnectedUnsubscribe = mavlinkSession.on('connected', function (state) {
-                    privateScope.onMavlinkConnected(state);
-                });
-                mavlinkSession.attach(CONFIGURATOR.connection);
-                if (requestedProtocol === 'mavlink') {
-                    privateScope.onMavlinkTransportOpen();
-                }
-            }
-
-            // disconnect after 10 seconds with error if we don't get IDENT data
-            timeout.add('connecting', function () {
-
-                if (
-                    !CONFIGURATOR.connectionValid &&
-                    !ltmDecoder.isReceiving() &&
-                    !mavlinkSession.state.connected
-                ) {
-                    if (requestedProtocol === 'mavlink') {
-                        const message =
-                            'The MAVLink serial transport is open, but no vehicle heartbeat was received. ' +
-                            'Flight Commander will keep listening; verify the aircraft/radio link and use ' +
-                            '460800 baud for ExpressLRS USB MAVLink.';
-                        GUI.log(`<span style="color: #d98f00">${message}</span>`);
-                        $('#logo .firmware_version').text('MAVLink / Waiting for vehicle heartbeat');
-                        $('#flightDataActionStatus')
-                            .text(message)
-                            .addClass('fc-action-status--error');
-                        return;
-                    }
-                    GUI.log(i18n.getMessage('noConfigurationReceived'));
+            let connectingTimeoutInstalled = false;
+            const scheduleConnectingTimeout = function () {
+                if (connectingTimeoutInstalled) return;
+                connectingTimeoutInstalled = true;
+                timeout.add('connecting', function () {
+                    if (
+                        !CONFIGURATOR.connectionValid &&
+                        !ltmDecoder.isReceiving() &&
+                        !mavlinkSession.state.connected
+                    ) {
+                        if (requestedProtocol === 'mavlink') {
+                            const message =
+                                'The MAVLink serial transport is open, but no vehicle heartbeat was received. ' +
+                                'Flight Commander will keep listening; verify the aircraft/radio link and use ' +
+                                '460800 baud for ExpressLRS USB MAVLink.';
+                            GUI.mavlinkWaitingMessage = message;
+                            GUI.log(`<span style="color: #d98f00">${message}</span>`);
+                            $('#logo .firmware_version').text('MAVLink / Waiting for vehicle heartbeat');
+                            $('#flightDataActionStatus')
+                                .text(message)
+                                .addClass('fc-action-status--error');
+                            privateScope.requestGroundControlOpen();
+                            return;
+                        }
+                        GUI.log(i18n.getMessage('noConfigurationReceived'));
 
                         mspQueue.flush();
                         mspQueue.freeHardLock();
@@ -499,9 +542,44 @@ var SerialBackend = (function () {
                         mspDeduplicationQueue.flush();
                         CONFIGURATOR.connection.emptyOutputBuffer();
 
-                    $('div.connect_controls a').click(); // disconnect
+                        $('div.connect_controls a').click(); // disconnect
+                    }
+                }, 10000);
+            };
+
+            if (allowInavProtocols) {
+                CONFIGURATOR.connection.addOnReceiveListener(publicScope.read_serial);
+                CONFIGURATOR.connection.addOnReceiveListener(ltmDecoder.read);
+            }
+            if (allowMavlink) {
+                privateScope.mavlinkConnectedUnsubscribe = mavlinkSession.on('connected', function (state) {
+                    runCriticalMavlinkTransition({
+                        transition: () => privateScope.onMavlinkConnected(state),
+                        onFailure: error => (
+                            privateScope.onMavlinkConnectedTransitionFailure(error)
+                        ),
+                    });
+                });
+                privateScope.mavlinkDiagnosticUnsubscribe =
+                    mavlinkSession.on('transportDiagnostic', privateScope.onMavlinkTransportDiagnostic);
+                if (requestedProtocol === 'mavlink') {
+                    const startup = initializeExplicitMavlinkTransport({
+                        showWaitingState: privateScope.onMavlinkTransportOpen,
+                        scheduleNoHeartbeatTimeout: scheduleConnectingTimeout,
+                        attachSession: () => mavlinkSession.attach(CONFIGURATOR.connection),
+                        onFailure: privateScope.onMavlinkTransportStartupFailure,
+                    });
+                    if (!startup.ok) return;
+                } else {
+                    try {
+                        mavlinkSession.attach(CONFIGURATOR.connection);
+                    } catch (error) {
+                        privateScope.onMavlinkAutoAttachFailure(error);
+                    }
                 }
-            }, 10000);
+            }
+
+            scheduleConnectingTimeout();
 
             if (allowInavProtocols) {
                 interval.add('ltm-connection-check', function () {
@@ -556,6 +634,8 @@ var SerialBackend = (function () {
                 });
             }
         } else {
+            privateScope.pendingOpenAttempt = null;
+            privateScope.activeOpenAttempt = null;
             console.log('Failed to open serial port');
             const openError = CONFIGURATOR.connection?.lastOpenError;
             const safeOpenError = openError ? $('<div>').text(openError).html() : '';
@@ -619,6 +699,7 @@ var SerialBackend = (function () {
         if (!privateScope.selectProtocol('mavlink')) {
             return;
         }
+        GUI.mavlinkWaitingMessage = null;
         privateScope.rememberValidatedBaud();
         CONFIGURATOR.connectionValid = true;
         GUI.allowedTabs = GUI.defaultAllowedTabsWhenMavlinkConnected.slice();
@@ -627,12 +708,134 @@ var SerialBackend = (function () {
         privateScope.onMavlinkConnect(state);
     };
 
+    privateScope.onMavlinkTransportDiagnostic = function (diagnostic) {
+        switch (diagnostic?.stage) {
+            case 'discovery-heartbeat-write-accepted':
+                GUI.log(
+                    `MAVLink v${diagnostic.version} discovery heartbeat write ` +
+                    `accepted by the serial driver (${diagnostic.bytesSent} bytes).`,
+                );
+                break;
+            case 'discovery-heartbeat-failed':
+                GUI.log(
+                    `<span style="color: #d42133">MAVLink v${diagnostic.version} ` +
+                    `discovery write failed: ${$('<div>').text(diagnostic.error).html()}</span>`,
+                );
+                break;
+            case 'serial-bytes-received':
+                GUI.log(
+                    `MAVLink serial data received (${diagnostic.byteLength} bytes); ` +
+                    'waiting for a complete valid frame.',
+                );
+                break;
+            case 'valid-frame-decoded':
+                GUI.log(
+                    `Valid ${diagnostic.protocol || 'MAVLink'} ` +
+                    `${diagnostic.messageName} frame decoded.`,
+                );
+                break;
+            default:
+                break;
+        }
+    };
+
+    privateScope.scheduleMavlinkFailureAbort = function () {
+        const failedConnectionId = CONFIGURATOR.connection.connectionId;
+        setTimeout(() => {
+            if (
+                (
+                    privateScope.activeProtocol === 'mavlink' ||
+                    privateScope.activeOpenAttempt?.protocol === 'mavlink'
+                ) &&
+                GUI.connected_to &&
+                CONFIGURATOR.connection.connectionId === failedConnectionId
+            ) {
+                CONFIGURATOR.connection.abort();
+            }
+        }, 0);
+    };
+
+    privateScope.onMavlinkTransportStartupFailure = function (error) {
+        // Schedule recovery before touching renderer/UI state. If the renderer
+        // itself caused the failure, best-effort diagnostics must not be able
+        // to suppress the connection-ID-scoped abort.
+        privateScope.scheduleMavlinkFailureAbort();
+        const detail = error?.message || String(error);
+        const message = `MAVLink transport startup failed: ${detail}`;
+        mavlinkSession.detach();
+        timeout.remove('connecting');
+        GUI.mavlinkWaitingMessage = message;
+        GUI.log(
+            `<span style="color: #d42133">${$('<div>').text(message).html()}</span>`,
+        );
+        $('#logo .firmware_version').text('MAVLink / Transport startup failed');
+        $('#flightDataActionStatus')
+            .text(message)
+            .addClass('fc-action-status--error');
+    };
+
+    privateScope.onMavlinkConnectedTransitionFailure = function (error) {
+        privateScope.scheduleMavlinkFailureAbort();
+        const detail = error?.message || String(error);
+        const message =
+            `A vehicle heartbeat was decoded, but Ground Control could not finish connecting: ${detail}`;
+        CONFIGURATOR.connectionValid = false;
+        GUI.mavlinkWaitingMessage = message;
+        timeout.remove('connecting');
+        GUI.log(
+            `<span style="color: #d42133">${$('<div>').text(message).html()}</span>`,
+        );
+        $('#logo .firmware_version').text('MAVLink / Ground Control startup failed');
+        $('#flightDataActionStatus')
+            .text(message)
+            .addClass('fc-action-status--error');
+    };
+
+    privateScope.onMavlinkAutoAttachFailure = function (error) {
+        mavlinkSession.detach();
+        privateScope.mavlinkConnectedUnsubscribe?.();
+        privateScope.mavlinkConnectedUnsubscribe = null;
+        privateScope.mavlinkDiagnosticUnsubscribe?.();
+        privateScope.mavlinkDiagnosticUnsubscribe = null;
+        const detail = $('<div>').text(error?.message || String(error)).html();
+        GUI.log(
+            `<span style="color: #d98f00">MAVLink auto-detection could not start ` +
+            `(${detail}); MSP and LTM detection remain active.</span>`,
+        );
+    };
+
+    privateScope.requestGroundControlOpen = function () {
+        privateScope.cancelGroundControlActivation?.();
+        privateScope.cancelGroundControlActivation = queueGroundControlActivation({
+            isCurrent: () => (
+                privateScope.activeProtocol === 'mavlink' &&
+                CONFIGURATOR.connectionProtocol === 'mavlink' &&
+                Boolean(GUI.connected_to) &&
+                $('#tabs ul.mode-mavlink .tab_flight_data a').length > 0
+            ),
+            isBusy: () => Boolean(
+                GUI.tab_switch_in_progress || GUI.connect_lock
+            ),
+            isOpen: () => $('#tabs ul.mode-mavlink .tab_flight_data').hasClass('active'),
+            activate: () => $('#tabs ul.mode-mavlink .tab_flight_data a').trigger('click'),
+            onExhausted: error => {
+                const detail = error?.message ? `: ${error.message}` : '';
+                GUI.log(
+                    `<span style="color: #d98f00">Ground Control tab activation ` +
+                    `did not complete${$('<div>').text(detail).html()}.</span>`,
+                );
+            },
+        });
+    };
+
     privateScope.onMavlinkTransportOpen = function () {
         if (!privateScope.selectProtocol('mavlink')) {
             return;
         }
         CONFIGURATOR.connectionValid = false;
         GUI.allowedTabs = ['flight_data', 'landing', 'help'];
+        GUI.mavlinkWaitingMessage =
+            'Waiting for a MAVLink vehicle heartbeat. Telemetry and commands remain disabled until the aircraft link is live.';
 
         $('#connectbutton a.connect_state')
             .text(i18n.getMessage('disconnect'))
@@ -650,7 +853,7 @@ var SerialBackend = (function () {
             `MAVLink transport ready on ${GUI.connected_to} at ` +
             `${CONFIGURATOR.connection.bitrate} baud; waiting for a vehicle heartbeat.`,
         );
-        $('#tabs ul.mode-mavlink .tab_flight_data a').trigger('click');
+        privateScope.requestGroundControlOpen();
     };
 
     privateScope.onLtmConnected = function () {
@@ -738,12 +941,16 @@ var SerialBackend = (function () {
         privateScope.mavlinkStateUnsubscribe = mavlinkSession.on('state', renderState);
         renderState(state);
         if (!$('#tabs ul.mode-mavlink .tab_flight_data').hasClass('active')) {
-            $('#tabs ul.mode-mavlink .tab_flight_data a').trigger('click');
+            privateScope.requestGroundControlOpen();
         }
     };
 
     privateScope.rememberValidatedBaud = function () {
-        const requestedProtocol = privateScope.$protocol.val() || 'auto';
+        const requestedProtocol =
+            privateScope.activeOpenAttempt?.protocol ||
+            privateScope.activeProtocol ||
+            privateScope.$protocol.val() ||
+            'auto';
         persistProtocolBaudPreference(
             store,
             requestedProtocol,
@@ -757,10 +964,15 @@ var SerialBackend = (function () {
         privateScope.mavlinkConnectedUnsubscribe = null;
         privateScope.mavlinkStateUnsubscribe?.();
         privateScope.mavlinkStateUnsubscribe = null;
+        privateScope.mavlinkDiagnosticUnsubscribe?.();
+        privateScope.mavlinkDiagnosticUnsubscribe = null;
+        privateScope.cancelGroundControlActivation?.();
+        privateScope.cancelGroundControlActivation = null;
         mavlinkSession.detach();
         ltmDecoder.reset();
         privateScope.activeProtocol = null;
         CONFIGURATOR.connectionProtocol = null;
+        GUI.mavlinkWaitingMessage = null;
     };
 
     privateScope.onConnect = function () {

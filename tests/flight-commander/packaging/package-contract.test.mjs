@@ -98,13 +98,22 @@ test("Windows verification follows the active renderer graph and rejects leftove
   assert.match(packageVerifier, /Windows MAVLink DTR\/RTS-low open setup/);
   assert.match(packageVerifier, /connectionBaudPreferencesByProtocol/);
   assert.match(packageVerifier, /Waiting for vehicle heartbeat/);
+  assert.match(packageVerifier, /discovery-heartbeat-write-accepted/);
+  assert.match(packageVerifier, /serial-bytes-received/);
+  assert.match(packageVerifier, /valid-frame-decoded/);
+  assert.match(packageVerifier, /MAVLink transport startup failed/);
+  assert.match(
+    packageVerifier,
+    /A vehicle heartbeat was decoded, but Ground Control could not finish connecting/,
+  );
   assert.match(packageVerifier, /Serial port open timed out/);
+  assert.match(packageVerifier, /Serial port open was superseded/);
   assert.match(packageVerifier, /MAVLINK_SESSION_DETACHED/);
   assert.match(packageVerifier, /Auto protocol \(selected baud\)/);
 });
 
 test("landing page reports the current Flight Commander release", () => {
-  assert.match(landingHtml, />Flight Commander 1\.3\.9</);
+  assert.match(landingHtml, />Flight Commander 1\.4\.0</);
 });
 
 test("canonical Flight Commander visual assets match the verified 1.3.5 identity", () => {
