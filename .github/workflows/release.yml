@@ -26,7 +26,7 @@ jobs:
         github.event_name == 'workflow_dispatch' ||
         (
           github.event_name == 'push' &&
-          github.event.head_commit.message == 'Publish Flight Commander 1.3.8 release'
+          github.event.head_commit.message == 'Publish Flight Commander 1.3.9 release'
         )
       )
     runs-on: windows-latest
@@ -382,21 +382,20 @@ jobs:
 
           $notesPath = Join-Path $env:RUNNER_TEMP 'flight-commander-release-notes.md'
           @"
-          Flight Commander $version restores the complete welcome-page lockup
-          over its light map background. The aircraft/compass details, FLIGHT
-          line, COMMANDER line, and welcome tagline are all rendered with
-          explicit light-surface contrast.
+          Flight Commander $version fixes Windows USB MAVLink startup for
+          RadioMaster Nomad and other ESP32-based ExpressLRS transmitter
+          modules. The native COM-port open now begins with both DTR and RTS
+          low, matching Mission Planner's control-line behavior and preventing
+          the reset or held state that can produce a telemetry-lost alarm.
 
-          This patch also repairs Windows USB MAVLink radio startup. Ground
-          Control now defaults to 460800 baud, forces DTR low, sends a GCS
-          heartbeat immediately, preserves bytes received during serial open,
-          and displays a useful waiting screen before the vehicle heartbeat
-          arrives. Telemetry and commands remain gated until the aircraft link
-          is validated.
+          The release preserves the validated 460800-baud MAVLink discovery and
+          connection lifecycle from 1.3.8. Native-open options, post-open
+          control-line verification, MAVLink wire vectors, and the packaged
+          Windows application all passed dedicated regression checks.
 
-          Source, active-renderer, serial-lifecycle, and welcome-artwork checks
-          passed, along with packaged-application verification, clean ZIP
-          extraction, and immutable artifact transfer in this workflow.
+          The archive also passed the complete repository source tests,
+          packaged-application verification, clean ZIP extraction, and
+          immutable artifact transfer in this workflow.
 
           This executable is not code-signed. Windows SmartScreen may therefore
           display an unknown-publisher warning.

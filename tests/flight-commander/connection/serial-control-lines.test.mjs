@@ -1,15 +1,89 @@
 import assert from "node:assert/strict";
-import { EventEmitter } from "node:events";
+import { EventEmitter, once } from "node:events";
 import { test } from "node:test";
+
+import { SerialPortStream } from "@serialport/stream";
 
 import {
   configureSerialControlLines,
   disposeSerialPort,
   prepareSerialPort,
   quarantineOpeningSerialPort,
+  serialOpenControlLineOptions,
 } from "../../../js/main/serialControlLines.js";
 
-test("DTR-low setup is applied only when explicitly requested on Windows", async () => {
+test("native Windows open starts ExpressLRS with DTR and RTS low", () => {
+  assert.deepEqual(
+    serialOpenControlLineOptions({ forceDtrLow: true }, "win32"),
+    {
+      hupcl: false,
+      rtscts: false,
+    },
+  );
+  assert.deepEqual(
+    serialOpenControlLineOptions({ forceDtrLow: false }, "win32"),
+    {},
+  );
+  assert.deepEqual(
+    serialOpenControlLineOptions({ forceDtrLow: true }, "linux"),
+    {},
+  );
+});
+
+test("pinned serial library receives low control lines before and after open", async () => {
+  let openOptions;
+  let setOptions;
+  const nativePort = {
+    isOpen: true,
+    async close() {
+      this.isOpen = false;
+    },
+    async drain() {},
+    async flush() {},
+    async get() {
+      return {};
+    },
+    async read(buffer) {
+      return { bytesRead: 0, buffer };
+    },
+    async set(options) {
+      setOptions = options;
+    },
+    async update() {},
+    async write() {},
+  };
+  const binding = {
+    async open(options) {
+      openOptions = options;
+      return nativePort;
+    },
+  };
+  const port = new SerialPortStream({
+    binding,
+    path: "COM8",
+    baudRate: 460800,
+    autoOpen: true,
+    ...serialOpenControlLineOptions({ forceDtrLow: true }, "win32"),
+  });
+
+  await once(port, "open");
+  assert.equal(openOptions.hupcl, false);
+  assert.equal(openOptions.rtscts, false);
+
+  await configureSerialControlLines(
+    port,
+    { forceDtrLow: true },
+    "win32",
+  );
+  assert.equal(setOptions.dtr, false);
+  assert.equal(setOptions.rts, false);
+
+  await new Promise((resolve, reject) => {
+    port.close((error) => (error ? reject(error) : resolve()));
+  });
+});
+
+test("DTR/RTS-low setup is applied only when explicitly requested on Windows", async () => {
   const calls = [];
   const port = {
     set(signals, callback) {
@@ -32,15 +106,15 @@ test("DTR-low setup is applied only when explicitly requested on Windows", async
     await configureSerialControlLines(port, { forceDtrLow: true }, "win32"),
     true,
   );
-  assert.deepEqual(calls, [{ dtr: false }]);
+  assert.deepEqual(calls, [{ dtr: false, rts: false }]);
 });
 
-test("DTR-low setup does not settle until the serial driver callback", async () => {
+test("DTR/RTS-low setup does not settle until the serial driver callback", async () => {
   let driverCallback;
   let settled = false;
   const port = {
     set(signals, callback) {
-      assert.deepEqual(signals, { dtr: false });
+      assert.deepEqual(signals, { dtr: false, rts: false });
       driverCallback = callback;
     },
   };
@@ -60,7 +134,7 @@ test("DTR-low setup does not settle until the serial driver callback", async () 
   assert.equal(settled, true);
 });
 
-test("DTR-low setup propagates callback and synchronous driver failures", async () => {
+test("DTR/RTS-low setup propagates callback and synchronous driver failures", async () => {
   await assert.rejects(
     configureSerialControlLines(
       {
@@ -88,7 +162,7 @@ test("DTR-low setup propagates callback and synchronous driver failures", async 
   );
 });
 
-test("DTR-low setup fails instead of leaving the UI connecting forever", async () => {
+test("DTR/RTS-low setup fails instead of leaving the UI connecting forever", async () => {
   await assert.rejects(
     configureSerialControlLines(
       {
@@ -104,7 +178,7 @@ test("DTR-low setup fails instead of leaving the UI connecting forever", async (
   );
 });
 
-test("DTR-low setup supports promise-based serial drivers", async () => {
+test("DTR/RTS-low setup supports promise-based serial drivers", async () => {
   const calls = [];
   const port = {
     set(signals) {
@@ -117,7 +191,7 @@ test("DTR-low setup supports promise-based serial drivers", async () => {
     await configureSerialControlLines(port, { forceDtrLow: true }, "win32"),
     true,
   );
-  assert.deepEqual(calls, [{ dtr: false }]);
+  assert.deepEqual(calls, [{ dtr: false, rts: false }]);
 });
 
 test("failed serial setup removes listeners, closes, then destroys the port", async () => {
@@ -215,7 +289,7 @@ test("serial preparation closes the port before propagating a DTR failure", asyn
     /DTR rejected/,
   );
   assert.deepEqual(events, [
-    ["set", { dtr: false }],
+    ["set", { dtr: false, rts: false }],
     "remove-listeners",
     "close",
     "destroy",

@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.3.9
+
+- Fixed ExpressLRS USB MAVLink startup on Windows so the native COM open begins
+  with DTR low instead of briefly asserting DTR and resetting the TX module.
+- Kept RTS low during post-open control-line verification; the pinned serial
+  library otherwise asserted RTS while lowering DTR.
+- Added regression and packaged-application checks for the complete
+  DTR/RTS-low open sequence used by RadioMaster Nomad and other ESP32-based
+  ExpressLRS transmitters.
+
 ## 1.3.8
 
 - Restored the complete Flight Commander welcome-page lockup by adding a

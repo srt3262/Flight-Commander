@@ -1,5 +1,25 @@
 const CONTROL_LINE_TIMEOUT_MS = 2000;
 
+/**
+ * @serialport/bindings-cpp maps `hupcl: true` to DTR enabled while opening a
+ * Windows COM port.  Lowering DTR from the later `open` event is too late for
+ * ESP32-based ExpressLRS transmitters because the initial high pulse can reboot
+ * or lock the module.  These options make the native open itself start with
+ * DTR low; disabling RTS/CTS also keeps RTS low during that same transition.
+ */
+export function serialOpenControlLineOptions(
+  options = {},
+  platform = process.platform,
+) {
+  if (platform !== "win32" || options.forceDtrLow !== true) {
+    return {};
+  }
+  return {
+    hupcl: false,
+    rtscts: false,
+  };
+}
+
 function setControlLines(
   port,
   signals,
@@ -53,7 +73,7 @@ export async function configureSerialControlLines(
 
   await setControlLines(
     port,
-    { dtr: false },
+    { dtr: false, rts: false },
     options.controlLineTimeoutMs ?? CONTROL_LINE_TIMEOUT_MS,
   );
   return true;

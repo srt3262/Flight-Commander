@@ -487,10 +487,12 @@ if (!compiledMain.includes(runtimeIcon.toString("base64"))) {
 if (
   !compiledMain.includes("Unable to configure serial control lines") ||
   !compiledMain.includes("Serial control-line setup timed out") ||
-  !compiledMain.includes("dtr")
+  !compiledMain.includes("dtr") ||
+  !compiledMain.includes("rts") ||
+  !compiledMain.includes("hupcl")
 ) {
   fail(
-    "the compiled main process does not contain the Windows MAVLink DTR-low setup",
+    "the compiled main process does not contain the Windows MAVLink DTR/RTS-low open setup",
   );
 }
 if (

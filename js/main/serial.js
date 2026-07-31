@@ -6,6 +6,7 @@ import {
     disposeSerialPort,
     prepareSerialPort,
     quarantineOpeningSerialPort,
+    serialOpenControlLineOptions,
 } from './serialControlLines';
 
 const binding = autoDetect();
@@ -47,7 +48,13 @@ const serial = {
                 return true;
             };
             try {
-                const port = new SerialPortStream({binding, path: path, baudRate: options.bitrate, autoOpen: true});
+                const port = new SerialPortStream({
+                    binding,
+                    path: path,
+                    baudRate: options.bitrate,
+                    autoOpen: true,
+                    ...serialOpenControlLineOptions(options),
+                });
                 this._serialport = port;
                 const openTimeoutMs = (
                     Number.isFinite(Number(options.openTimeoutMs))

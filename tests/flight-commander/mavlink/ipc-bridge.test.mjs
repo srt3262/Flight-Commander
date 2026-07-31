@@ -39,6 +39,32 @@ class FakeIpcMain {
   }
 }
 
+test("GCS discovery heartbeat matches known MAVLink wire vectors", () => {
+  const payload = {
+    type: 6,
+    autopilot: 8,
+    baseMode: 0,
+    customMode: 0,
+    systemStatus: 4,
+    mavlinkVersion: 3,
+  };
+  const expectedByVersion = new Map([
+    [1, "fe0900ffbe000000000006080004034921"],
+    [2, "fd09000000ffbe0000000000000006080004033d48"],
+  ]);
+
+  for (const [version, expected] of expectedByVersion) {
+    const codec = new MavlinkIpcCodec();
+    const encoded = codec.encode("Heartbeat", payload, {
+      version,
+      systemId: 255,
+      componentId: 190,
+    });
+    assert.equal(Buffer.from(encoded).toString("hex"), expected);
+    codec.destroy();
+  }
+});
+
 test("MAVLink IPC codec round-trips packets and rejects unsafe encode requests", async () => {
   const messages = [];
   const errors = [];

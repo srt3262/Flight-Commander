@@ -95,7 +95,7 @@ test("Windows verification follows the active renderer graph and rejects leftove
   assert.match(packageVerifier, /Flight Commander wordmark/);
   assert.match(packageVerifier, /embedded executable icon/);
   assert.match(packageVerifier, /exactly one group-icon resource/);
-  assert.match(packageVerifier, /Windows MAVLink DTR-low setup/);
+  assert.match(packageVerifier, /Windows MAVLink DTR\/RTS-low open setup/);
   assert.match(packageVerifier, /connectionBaudPreferencesByProtocol/);
   assert.match(packageVerifier, /Waiting for vehicle heartbeat/);
   assert.match(packageVerifier, /Serial port open timed out/);
@@ -104,7 +104,7 @@ test("Windows verification follows the active renderer graph and rejects leftove
 });
 
 test("landing page reports the current Flight Commander release", () => {
-  assert.match(landingHtml, />Flight Commander 1\.3\.8</);
+  assert.match(landingHtml, />Flight Commander 1\.3\.9</);
 });
 
 test("canonical Flight Commander visual assets match the verified 1.3.5 identity", () => {

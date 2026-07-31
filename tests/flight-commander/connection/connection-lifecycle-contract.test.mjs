@@ -69,7 +69,11 @@ test("explicit MAVLink serial options reach the Windows control-line setup", () 
   );
   assert.match(
     mainSerial,
-    /new SerialPortStream\(\{binding,\s*path:\s*path,\s*baudRate:\s*options\.bitrate/,
+    /new SerialPortStream\(\{\s*binding,\s*path:\s*path,\s*baudRate:\s*options\.bitrate/,
+  );
+  assert.match(
+    mainSerial,
+    /\.\.\.serialOpenControlLineOptions\(options\)/,
   );
   assert.match(mainSerial, /await prepareSerialPort\(port,\s*options\)/);
 });
