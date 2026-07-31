@@ -26,7 +26,7 @@ jobs:
         github.event_name == 'workflow_dispatch' ||
         (
           github.event_name == 'push' &&
-          github.event.head_commit.message == 'Publish Flight Commander 1.4.1 release'
+          github.event.head_commit.message == 'Publish Flight Commander 1.4.2 release'
         )
       )
     runs-on: windows-latest
@@ -382,27 +382,22 @@ jobs:
 
           $notesPath = Join-Path $env:RUNNER_TEMP 'flight-commander-release-notes.md'
           @"
-          Flight Commander $version fixes the immediate Ground Control close
-          observed after COM8 opened in 1.4.0. A temporary omission from
-          Windows serial-port enumeration is now advisory while the native COM
-          handle remains live, so it cannot synthesize a Disconnect click.
+          Flight Commander $version fixes the "MAVLink transport startup
+          failed: Illegal invocation" error observed after the Ground Control
+          page opened in 1.4.1. Chromium Window timers require the Window as
+          their receiver; the MAVLink session stored the native timer
+          functions and later invoked them as methods of the session object.
+          Node.js accepted that call shape, but Electron rejected it before
+          the discovery heartbeat could be scheduled.
 
-          If Windows genuinely closes or errors the handle, Flight Commander
-          now preserves the native phase, message, and platform error details,
-          reports an unexpected USB interruption instead of a successful
-          operator close, and avoids sending a redundant close request. One
-          bounded explicit-MAVLink startup retry allows an ExpressLRS module
-          that briefly re-enumerates to settle and reopen without entering a
-          reconnect loop. The retry is disabled once a vehicle heartbeat
-          arrives and is canceled by any operator change to the connection
-          selectors. Rapid Connect requests wait for Windows to finish
-          releasing the previous COM handle, while delayed clicks from the
-          ended session cannot accidentally start a replacement connection.
-
-          Renderer startup or post-heartbeat UI failures no longer tear down a
-          healthy serial/MAVLink transport. They leave Ground Control in an
-          explicit degraded state so the underlying link and diagnostics
-          remain available.
+          All stored MAVLink timeout and interval defaults now remain bound to
+          the renderer host, including session discovery, mission transfers,
+          parameter loading, INAV command overrides, and queued Ground Control
+          activation. MAVLink initialization is also atomic: a failed IPC or
+          watchdog setup removes partial state and permits a clean retry.
+          Browser-receiver regressions exercise every affected path with
+          timers that deliberately throw unless invoked with the
+          Chromium-compatible receiver.
 
           The archive also passed the complete repository source tests,
           packaged-application verification, clean ZIP extraction, and

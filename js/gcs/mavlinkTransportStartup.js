@@ -1,3 +1,5 @@
+import { bindHostTimer } from "../mavlink/hostTimers.js";
+
 export function initializeExplicitMavlinkTransport(options = {}) {
   const {
     showWaitingState,
@@ -57,8 +59,8 @@ export function queueGroundControlActivation(options = {}) {
     isBusy,
     isOpen,
     activate,
-    schedule = setTimeout,
-    cancelSchedule = clearTimeout,
+    schedule = bindHostTimer("setTimeout"),
+    cancelSchedule = bindHostTimer("clearTimeout"),
     retryDelayMs = 100,
     maxAttempts = 300,
     onExhausted = () => {},

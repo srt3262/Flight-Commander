@@ -120,11 +120,12 @@ test("Windows verification follows the active renderer graph and rejects leftove
   assert.match(packageVerifier, /commandBlockReason/);
   assert.match(packageVerifier, /validated MAVLink telemetry connection/);
   assert.match(packageVerifier, /MAVLINK_SESSION_DETACHED/);
+  assert.match(packageVerifier, /MAVLink host timer/);
   assert.match(packageVerifier, /Auto protocol \(selected baud\)/);
 });
 
 test("landing page reports the current Flight Commander release", () => {
-  assert.match(landingHtml, />Flight Commander 1\.4\.1</);
+  assert.match(landingHtml, />Flight Commander 1\.4\.2</);
 });
 
 test("canonical Flight Commander visual assets match the verified 1.3.5 identity", () => {

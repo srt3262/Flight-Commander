@@ -165,6 +165,77 @@ describe("decoded frame normalization", () => {
   });
 });
 
+test("binds default host timers to the Electron renderer receiver", () => {
+  const originalTimers = {
+    setTimeout: globalThis.setTimeout,
+    clearTimeout: globalThis.clearTimeout,
+    setInterval: globalThis.setInterval,
+    clearInterval: globalThis.clearInterval,
+  };
+  const calls = [];
+  const checkedTimer = (name) =>
+    function (...args) {
+      assert.equal(
+        this,
+        globalThis,
+        `${name} must retain the host receiver`,
+      );
+      calls.push(name);
+      if (name.startsWith("set")) {
+        return { name, args, unref() {} };
+      }
+      return undefined;
+    };
+  let session = null;
+
+  try {
+    globalThis.setTimeout = checkedTimer("setTimeout");
+    globalThis.clearTimeout = checkedTimer("clearTimeout");
+    globalThis.setInterval = checkedTimer("setInterval");
+    globalThis.clearInterval = checkedTimer("clearInterval");
+
+    session = new MavlinkSession({ bridge: new FakeBridge() });
+    const connection = new FakeConnection();
+    assert.doesNotThrow(() => session.attach(connection));
+    assert.doesNotThrow(() => session.detach());
+    assert.doesNotThrow(() => session.destroy());
+    session = null;
+
+    assert.ok(calls.includes("setInterval"));
+    assert.ok(calls.includes("setTimeout"));
+    assert.ok(calls.includes("clearInterval"));
+    assert.ok(calls.includes("clearTimeout"));
+  } finally {
+    session?.destroy();
+    Object.assign(globalThis, originalTimers);
+  }
+});
+
+test("rolls back a failed timer initialization and permits a clean retry", () => {
+  const bridge = new FakeBridge();
+  const connection = new FakeConnection();
+  const failure = new TypeError("Illegal invocation");
+  const session = new MavlinkSession({
+    bridge,
+    setIntervalFn() {
+      throw failure;
+    },
+  });
+
+  assert.throws(() => session.attach(connection), failure);
+  assert.equal(session.initialized, false);
+  assert.equal(session.ipcHandler, null);
+  assert.equal(session.watchdog, null);
+  assert.equal(session.connection, null);
+  assert.equal(bridge.unsubscribed, true);
+
+  session.setIntervalFn = () => ({ unref() {} });
+  assert.doesNotThrow(() => session.attach(connection));
+  assert.equal(session.initialized, true);
+  assert.equal(session.connection, connection);
+  session.destroy();
+});
+
 describe("MAVLink state normalization and firmware detection", () => {
   test("normalizes heartbeat, position, attitude, battery and sentinel values", () => {
     const { session } = createAttachedSession({

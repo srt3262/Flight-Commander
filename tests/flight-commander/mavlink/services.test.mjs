@@ -403,3 +403,72 @@ describe("MavlinkParameterManager", () => {
     assert.equal(session.listenerCount(), 0);
   });
 });
+
+test("mission and parameter defaults retain the Chromium timer receiver", async () => {
+  const originalTimers = {
+    setTimeout: globalThis.setTimeout,
+    clearTimeout: globalThis.clearTimeout,
+    setInterval: globalThis.setInterval,
+    clearInterval: globalThis.clearInterval,
+  };
+  const calls = [];
+  const checkedTimer = (name) =>
+    function (...args) {
+      assert.equal(
+        this,
+        globalThis,
+        `${name} must retain the host receiver`,
+      );
+      calls.push(name);
+      return name.startsWith("set")
+        ? { name, args, unref() {} }
+        : undefined;
+    };
+
+  try {
+    globalThis.setTimeout = checkedTimer("setTimeout");
+    globalThis.clearTimeout = checkedTimer("clearTimeout");
+    globalThis.setInterval = checkedTimer("setInterval");
+    globalThis.clearInterval = checkedTimer("clearInterval");
+
+    const missionSession = new FakeSession();
+    const missionManager = new MavlinkMissionManager(missionSession);
+    const waiter = missionManager.createResponseWaiter(
+      "Never",
+      () => true,
+      100,
+    );
+    const cancellation = new Error("receiver test complete");
+    const canceledPromise = waiter.promise.catch((error) => error);
+    waiter.cancel(cancellation);
+    assert.equal(await canceledPromise, cancellation);
+
+    const parameterSession = new FakeSession(
+      (messageName, _payload, source) => {
+        if (messageName === "ParamRequestList") {
+          source.message("ParamValue", {
+            paramId: "TEST_PARAM",
+            paramValue: 1,
+            paramType: 9,
+            paramIndex: 0,
+            paramCount: 1,
+          });
+        }
+      },
+    );
+    const parameterManager = new MavlinkParameterManager(parameterSession);
+    const parameters = await parameterManager.loadAll({
+      timeoutMs: 100,
+      retryAfterMs: 50,
+      maxRetryRounds: 0,
+    });
+
+    assert.equal(parameters.length, 1);
+    assert.ok(calls.includes("setTimeout"));
+    assert.ok(calls.includes("clearTimeout"));
+    assert.ok(calls.includes("setInterval"));
+    assert.ok(calls.includes("clearInterval"));
+  } finally {
+    Object.assign(globalThis, originalTimers);
+  }
+});

@@ -2,6 +2,7 @@
 
 import mavlinkSession from "./mavlinkSession.js";
 import { field } from "./frameNormalizer.js";
+import { bindHostTimer } from "./hostTimers.js";
 
 export const MAV_MISSION_TYPE_MISSION = 0;
 export const MAV_MISSION_ACCEPTED = 0;
@@ -197,8 +198,9 @@ export class MavlinkMissionManager {
     }
     this.session = session;
     this.transactionTail = Promise.resolve();
-    this.setTimeoutFn = options.setTimeoutFn ?? setTimeout;
-    this.clearTimeoutFn = options.clearTimeoutFn ?? clearTimeout;
+    this.setTimeoutFn = options.setTimeoutFn ?? bindHostTimer("setTimeout");
+    this.clearTimeoutFn =
+      options.clearTimeoutFn ?? bindHostTimer("clearTimeout");
   }
 
   targetMatches(envelope) {
@@ -751,10 +753,13 @@ export class MavlinkParameterManager {
     this.session = session;
     this.parameters = new Map();
     this.parameterIndexes = new Map();
-    this.setTimeoutFn = options.setTimeoutFn ?? setTimeout;
-    this.clearTimeoutFn = options.clearTimeoutFn ?? clearTimeout;
-    this.setIntervalFn = options.setIntervalFn ?? setInterval;
-    this.clearIntervalFn = options.clearIntervalFn ?? clearInterval;
+    this.setTimeoutFn = options.setTimeoutFn ?? bindHostTimer("setTimeout");
+    this.clearTimeoutFn =
+      options.clearTimeoutFn ?? bindHostTimer("clearTimeout");
+    this.setIntervalFn =
+      options.setIntervalFn ?? bindHostTimer("setInterval");
+    this.clearIntervalFn =
+      options.clearIntervalFn ?? bindHostTimer("clearInterval");
   }
 
   targetMatches(envelope) {

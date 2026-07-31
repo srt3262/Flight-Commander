@@ -8,6 +8,7 @@ import {
   vehicleFamily,
 } from "./ardupilotModes.js";
 import { field, normalizeMavlinkEnvelope } from "./frameNormalizer.js";
+import { bindHostTimer } from "./hostTimers.js";
 
 export const MAV_AUTOPILOT_INVALID = 8;
 export const MAV_AUTOPILOT_GENERIC = 0;
@@ -276,10 +277,17 @@ export class MavlinkSession {
     this.firmwareFamilyOverride = options.firmwareFamilyOverride ?? null;
     this.bridge = options.bridge ?? globalThis.window?.electronAPI ?? null;
     this.now = options.now ?? Date.now;
-    this.setTimeoutFn = options.setTimeoutFn ?? setTimeout;
-    this.clearTimeoutFn = options.clearTimeoutFn ?? clearTimeout;
-    this.setIntervalFn = options.setIntervalFn ?? setInterval;
-    this.clearIntervalFn = options.clearIntervalFn ?? clearInterval;
+    // Chromium's Window timers are receiver-sensitive. Storing an unbound
+    // timer here and later invoking it as `this.setIntervalFn(...)` supplies
+    // the MavlinkSession as the receiver and throws "Illegal invocation".
+    // Bind only the host defaults; injected test schedulers remain unchanged.
+    this.setTimeoutFn = options.setTimeoutFn ?? bindHostTimer("setTimeout");
+    this.clearTimeoutFn =
+      options.clearTimeoutFn ?? bindHostTimer("clearTimeout");
+    this.setIntervalFn =
+      options.setIntervalFn ?? bindHostTimer("setInterval");
+    this.clearIntervalFn =
+      options.clearIntervalFn ?? bindHostTimer("clearInterval");
     this.listenerErrorHandler =
       options.listenerErrorHandler ??
       ((error, eventName) => {
@@ -305,14 +313,39 @@ export class MavlinkSession {
   init() {
     if (this.initialized) return;
     this.initialized = true;
-    if (typeof this.bridge?.onMavlinkMessage === "function") {
-      this.ipcHandler = this.bridge.onMavlinkMessage((envelope) =>
-        this.handleMessage(envelope, { requireGeneration: true }),
+    try {
+      if (typeof this.bridge?.onMavlinkMessage === "function") {
+        this.ipcHandler = this.bridge.onMavlinkMessage((envelope) =>
+          this.handleMessage(envelope, { requireGeneration: true }),
+        );
+      }
+      this.watchdog = timerUnref(
+        this.setIntervalFn(() => this.checkHeartbeat(), 1000),
       );
+    } catch (error) {
+      if (this.watchdog != null) {
+        try {
+          this.clearIntervalFn(this.watchdog);
+        } catch {
+          // Preserve the original initialization error.
+        }
+      }
+      this.watchdog = null;
+      if (this.ipcHandler) {
+        try {
+          if (typeof this.bridge?.offMavlinkMessage === "function") {
+            this.bridge.offMavlinkMessage(this.ipcHandler);
+          } else if (typeof this.ipcHandler === "function") {
+            this.ipcHandler();
+          }
+        } catch {
+          // Preserve the original initialization error.
+        }
+      }
+      this.ipcHandler = null;
+      this.initialized = false;
+      throw error;
     }
-    this.watchdog = timerUnref(
-      this.setIntervalFn(() => this.checkHeartbeat(), 1000),
-    );
   }
 
   attach(connection) {

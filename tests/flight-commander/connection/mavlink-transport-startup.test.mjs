@@ -137,3 +137,40 @@ test("Ground Control activation stops after a bounded number of refused attempts
   assert.equal(exhausted, 1);
   assert.equal(scheduled.length, 0);
 });
+
+test("Ground Control retry uses the Chromium timer with its host receiver", () => {
+  const originalSetTimeout = globalThis.setTimeout;
+  const originalClearTimeout = globalThis.clearTimeout;
+  const scheduled = [];
+  const canceled = [];
+
+  try {
+    globalThis.setTimeout = function (callback, delay) {
+      assert.equal(this, globalThis);
+      const handle = { callback, delay };
+      scheduled.push(handle);
+      return handle;
+    };
+    globalThis.clearTimeout = function (handle) {
+      assert.equal(this, globalThis);
+      canceled.push(handle);
+    };
+
+    const cancel = queueGroundControlActivation({
+      isCurrent: () => true,
+      isBusy: () => true,
+      isOpen: () => false,
+      activate() {
+        assert.fail("activation must remain queued while the UI is busy");
+      },
+    });
+
+    assert.equal(scheduled.length, 1);
+    assert.equal(scheduled[0].delay, 100);
+    assert.doesNotThrow(cancel);
+    assert.deepEqual(canceled, [scheduled[0]]);
+  } finally {
+    globalThis.setTimeout = originalSetTimeout;
+    globalThis.clearTimeout = originalClearTimeout;
+  }
+});

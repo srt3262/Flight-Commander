@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.4.2
+
+- Fixed `MAVLink transport startup failed: Illegal invocation` after the
+  Ground Control page opened. Chromium's Window timers are receiver-sensitive;
+  the MAVLink session had stored them unbound and later invoked them with the
+  session object as `this`, aborting attachment before discovery could begin.
+- Bound every stored MAVLink timeout and interval default to the renderer host,
+  including session discovery, mission transfers, parameter loading, INAV
+  command overrides, and queued Ground Control activation.
+- Made MAVLink initialization atomic so a failed IPC or watchdog setup removes
+  its listener, clears partial state, and permits a clean retry.
+- Added browser-receiver regressions across startup, missions, parameters,
+  command streaming, and activation retries, closing the environment gap that
+  allowed the v1.4.1 source and packaging gates to pass.
+
 ## 1.4.1
 
 - Stopped transient Windows COM enumeration omissions from generating a

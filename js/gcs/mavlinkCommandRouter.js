@@ -1,6 +1,7 @@
 "use strict";
 
 import { vehicleFamily } from "../mavlink/ardupilotModes.js";
+import { bindHostTimer } from "../mavlink/hostTimers.js";
 
 export const INAV_MODE_IDS = Object.freeze({
   ARM: 0,
@@ -193,8 +194,10 @@ export class InavMavlinkCommandAdapter {
     this.overrideTimer = null;
     this.sendInFlight = null;
     this.intervalMs = options.intervalMs ?? OVERRIDE_INTERVAL_MS;
-    this.setIntervalFn = options.setIntervalFn ?? setInterval;
-    this.clearIntervalFn = options.clearIntervalFn ?? clearInterval;
+    this.setIntervalFn =
+      options.setIntervalFn ?? bindHostTimer("setInterval");
+    this.clearIntervalFn =
+      options.clearIntervalFn ?? bindHostTimer("clearInterval");
   }
 
   stop() {

@@ -206,6 +206,43 @@ describe("ArduPilot command routing and capability gates", () => {
 });
 
 describe("INAV command routing", () => {
+  test("default override timers retain the Chromium host receiver", () => {
+    const originalSetInterval = globalThis.setInterval;
+    const originalClearInterval = globalThis.clearInterval;
+    const calls = [];
+
+    try {
+      globalThis.setInterval = function (callback, delay) {
+        assert.equal(this, globalThis);
+        calls.push(["set", delay]);
+        return { callback, delay, unref() {} };
+      };
+      globalThis.clearInterval = function (handle) {
+        assert.equal(this, globalThis);
+        calls.push(["clear", handle.delay]);
+      };
+
+      const adapter = new InavMavlinkCommandAdapter(
+        {
+          state: { systemId: 9, componentId: 1 },
+          async send() {
+            return 1;
+          },
+        },
+        inavProfile(),
+      );
+      assert.doesNotThrow(() => adapter.ensureOverrideLoop());
+      assert.doesNotThrow(() => adapter.stop());
+      assert.deepEqual(calls, [
+        ["set", 125],
+        ["clear", 125],
+      ]);
+    } finally {
+      globalThis.setInterval = originalSetInterval;
+      globalThis.clearInterval = originalClearInterval;
+    }
+  });
+
   test("requires single-aircraft acknowledgement and a matching cached profile", async () => {
     const sent = [];
     const session = {

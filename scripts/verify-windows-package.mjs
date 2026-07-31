@@ -610,6 +610,7 @@ for (const marker of [
   "commandBlockReason",
   "validated MAVLink telemetry connection",
   "MAVLINK_SESSION_DETACHED",
+  "MAVLink host timer",
   "supported controls unlock after identification and safety checks",
 ]) {
   if (!rendererText.includes(marker)) {
