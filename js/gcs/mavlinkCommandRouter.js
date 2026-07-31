@@ -1030,6 +1030,7 @@ export class MavlinkCommandRouter {
     this.inavAdapter = null;
     this.inavAdapterProfileId = null;
     this.singleInavAircraftAcknowledged = false;
+    this.commandBlockReason = null;
   }
 
   firmwareFamily() {
@@ -1037,6 +1038,12 @@ export class MavlinkCommandRouter {
   }
 
   linkCapability() {
+    if (this.commandBlockReason) {
+      return {
+        available: false,
+        reason: this.commandBlockReason,
+      };
+    }
     if (!this.session.state.connected) {
       return {
         available: false,
@@ -1052,6 +1059,17 @@ export class MavlinkCommandRouter {
       };
     }
     return { available: true, reason: "" };
+  }
+
+  blockCommands(reason) {
+    this.commandBlockReason =
+      String(reason || "MAVLink command controls are unavailable.");
+    this.releaseInavAdapter();
+    return this.commandBlockReason;
+  }
+
+  clearCommandBlock() {
+    this.commandBlockReason = null;
   }
 
   selectInavProfile(profileId) {

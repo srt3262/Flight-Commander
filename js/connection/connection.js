@@ -270,7 +270,11 @@ class Connection {
     
     abort() {
         if (GUI.connected_to || GUI.connecting_to) {
-            $('a.connect').trigger('click');
+            if (typeof GUI.handleConnectionAbort === 'function') {
+                GUI.handleConnectionAbort();
+            } else {
+                $('a.connect').trigger('click');
+            }
         } else {
             this.disconnect();
         }

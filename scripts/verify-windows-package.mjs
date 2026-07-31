@@ -498,7 +498,9 @@ if (
 if (
   !compiledMain.includes("Serial port open timed out") ||
   !compiledMain.includes("Stale serial connection close was rejected") ||
-  !compiledMain.includes("Serial port open was superseded by a newer connection")
+  !compiledMain.includes("Serial port open was superseded by a newer connection") ||
+  !compiledMain.includes("errorDetails") ||
+  !compiledMain.includes("configuring-control-lines")
 ) {
   fail(
     "the compiled main process does not contain bounded, connection-scoped serial lifecycle handling",
@@ -597,6 +599,16 @@ for (const marker of [
   "valid-frame-decoded",
   "MAVLink transport startup failed",
   "A vehicle heartbeat was decoded, but Ground Control could not finish connecting",
+  "The USB device may have reset or briefly re-enumerated",
+  "The serial link ended during MAVLink startup",
+  "MAVLink / Serial link interrupted",
+  "PortHandler - Unable to enumerate serial ports",
+  "handleConnectionAbort",
+  "hadVehicleHeartbeat",
+  "pendingReconnectRequest",
+  "unexpectedTerminalOperatorGuardUntil",
+  "commandBlockReason",
+  "validated MAVLink telemetry connection",
   "MAVLINK_SESSION_DETACHED",
   "supported controls unlock after identification and safety checks",
 ]) {

@@ -1,5 +1,27 @@
 # Changelog
 
+## 1.4.1
+
+- Stopped transient Windows COM enumeration omissions from generating a
+  synthetic Disconnect click while the native serial handle is still live.
+- Preserved native serial close/error phase, message, and platform details
+  across Electron IPC and renderer cleanup. Unexpected USB loss is no longer
+  reported as a successful operator close, and an already-dead handle is not
+  closed a second time.
+- Added one bounded retry when an explicit MAVLink connection ends during its
+  first five seconds before any vehicle heartbeat, allowing an ExpressLRS
+  transmitter module that briefly re-enumerates to settle without creating a
+  reconnect loop. Changing a connection selector cancels the pending retry.
+- Queued rapid Connect requests until Windows confirms the previous COM handle
+  is released, and prevented a delayed Disconnect click from an ended session
+  from being reinterpreted as a new connection attempt.
+- Kept healthy serial/MAVLink transport attached when Ground Control startup or
+  post-heartbeat rendering fails, with an explicit degraded UI status instead
+  of automatic transport teardown.
+- Made serial-port polling single-instance and added executable regressions for
+  COM omission, structured native errors, duplicate terminal events,
+  intentional disconnects, and recovery limits.
+
 ## 1.4.0
 
 - Fixed the post-COM-open lifecycle that could leave explicit MAVLink on the

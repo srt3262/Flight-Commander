@@ -11,6 +11,45 @@ import {
 
 const binding = autoDetect();
 const SERIAL_OPEN_TIMEOUT_MS = 10000;
+const SERIAL_ERROR_DETAIL_KEYS = [
+    'code',
+    'errno',
+    'syscall',
+    'path',
+    'address',
+    'disconnected',
+    'canceled',
+];
+
+function describeSerialError(error) {
+    if (error == null) {
+        return {
+            error: null,
+            errorDetails: null,
+        };
+    }
+
+    const message = error.message || String(error);
+    const errorDetails = {
+        name: error.name || 'Error',
+        message,
+    };
+    SERIAL_ERROR_DETAIL_KEYS.forEach(key => {
+        const value = error[key];
+        if (
+            typeof value === 'string'
+            || typeof value === 'number'
+            || typeof value === 'boolean'
+        ) {
+            errorDetails[key] = value;
+        }
+    });
+
+    return {
+        error: message,
+        errorDetails,
+    };
+}
 
 const serial = {
     _serialport: null,
@@ -41,6 +80,7 @@ const serial = {
         return new Promise(resolve => {
             let openPortResolved = false;
             let openTimeout = null;
+            let lifecyclePhase = 'opening';
             const connectionId = this._id++;
             const finishOpen = result => {
                 if (openPortResolved) return false;
@@ -89,7 +129,11 @@ const serial = {
                     if (!window.isDestroyed()) {
                         window.webContents.send('serialError', {
                             connectionId,
-                            error: error.message || String(error),
+                            event: 'error',
+                            origin: 'native',
+                            expected: false,
+                            phase: lifecyclePhase,
+                            ...describeSerialError(error),
                         });
                     }
 
@@ -108,10 +152,15 @@ const serial = {
                     finishOpen({error: true, msg: error.message || 'Serial port error'});
                 });
 
-                port.on('close', () => {
+                port.on('close', disconnectError => {
                     if (!window.isDestroyed()) {
                         window.webContents.send('serialClose', {
                             connectionId,
+                            event: 'close',
+                            origin: 'native',
+                            expected: false,
+                            phase: lifecyclePhase,
+                            ...describeSerialError(disconnectError),
                         });
                     }
                     if (this._serialport === port) {
@@ -137,6 +186,7 @@ const serial = {
 
                 port.on('open', async () => {
                     clearTimeout(openTimeout);
+                    lifecyclePhase = 'configuring-control-lines';
                     try {
                         await prepareSerialPort(port, options);
                     } catch (error) {
@@ -162,6 +212,7 @@ const serial = {
                         return;
                     }
                     if (openPortResolved) return;
+                    lifecyclePhase = 'active';
                     this._connectionId = connectionId;
                     finishOpen({error: false, id: connectionId});
                 });

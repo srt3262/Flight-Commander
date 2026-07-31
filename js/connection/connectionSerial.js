@@ -32,10 +32,19 @@ class ConnectionSerial extends Connection {
         this._pendingIpcEvents = [];
         this._receiveReady = false;
         this._lastOpenError = '';
+        this._terminalConnectionId = null;
+        this._nativeDeadConnectionId = null;
+        this._disconnectCause = null;
     }
 
     get lastOpenError() {
         return this._lastOpenError;
+    }
+
+    consumeDisconnectCause() {
+        const cause = this._disconnectCause;
+        this._disconnectCause = null;
+        return cause;
     }
 
     dispatchReceived(buffer) {
@@ -61,22 +70,88 @@ class ConnectionSerial extends Connection {
         );
     }
 
-    handleSerialClose(envelope) {
+    createDisconnectCause(type, envelope) {
+        const phase = (
+            typeof envelope?.phase === 'string'
+            && envelope.phase
+        )
+            ? envelope.phase
+            : 'active';
+        const fallbackMessage = type === 'error'
+            ? 'Serial transport error'
+            : 'The operating system closed the serial port';
+        const message = (
+            typeof envelope?.error === 'string'
+            && envelope.error
+        )
+            ? envelope.error
+            : fallbackMessage;
+
+        return Object.freeze({
+            connectionId: envelope.connectionId,
+            event: type,
+            origin: envelope.origin || 'native',
+            expected: envelope.expected === true,
+            phase,
+            message,
+            details: (
+                envelope.errorDetails
+                && typeof envelope.errorDetails === 'object'
+            )
+                ? Object.freeze({...envelope.errorDetails})
+                : null,
+        });
+    }
+
+    handleSerialTerminalEvent(type, envelope) {
         if (!this.isCurrentIpcEnvelope(envelope)) return;
-        console.log("Serial connection closed");
-        this.abort();
+        if (this._terminalConnectionId === envelope.connectionId) return;
+
+        const cause = this.createDisconnectCause(type, envelope);
+        this._terminalConnectionId = envelope.connectionId;
+        this._nativeDeadConnectionId = envelope.connectionId;
+        this._disconnectCause = cause;
+
+        const action = type === 'error'
+            ? 'failed'
+            : 'closed unexpectedly';
+        const message = (
+            `Serial transport ${action} during ${cause.phase}: ${cause.message}`
+        );
+        const errorListeners = [...this._onReceiveErrorListeners];
+
+        // Teardown is authoritative. Renderer diagnostics and optional error
+        // listeners must never be able to leave a dead native handle displayed
+        // as connected.
+        try {
+            this.abort();
+        } catch (error) {
+            console.log(
+                'Serial terminal cleanup failed: ' +
+                (error?.message || error),
+            );
+            this.disconnect();
+        }
+
+        console.log(message);
+        errorListeners.forEach(listener => {
+            try {
+                listener(cause.message);
+            } catch (error) {
+                console.log(
+                    'Serial receive-error listener failed: ' +
+                    (error?.message || error),
+                );
+            }
+        });
+    }
+
+    handleSerialClose(envelope) {
+        this.handleSerialTerminalEvent('close', envelope);
     }
 
     handleSerialError(envelope) {
-        if (!this.isCurrentIpcEnvelope(envelope)) return;
-        const error = envelope.error || 'Serial transport error';
-        GUI.log($('<div>').text(error).html());
-        console.log(error);
-        this.abort();
-
-        this._onReceiveErrorListeners.forEach(listener => {
-            listener(error);
-        });
+        this.handleSerialTerminalEvent('error', envelope);
     }
 
     dispatchIpcEvent(type, envelope) {
@@ -145,6 +220,9 @@ class ConnectionSerial extends Connection {
         this._receiveReady = false;
         this._pendingIpcEvents = [];
         this._lastOpenError = '';
+        this._terminalConnectionId = null;
+        this._nativeDeadConnectionId = null;
+        this._disconnectCause = null;
         this.registerIpcListeners();
 
         window.electronAPI.serialConnect(path, options).then(response => {
@@ -181,6 +259,12 @@ class ConnectionSerial extends Connection {
         this._receiveReady = false;
         this._pendingIpcEvents = [];
         if (this._connectionId) {
+            if (this._nativeDeadConnectionId === this._connectionId) {
+                if (callback) {
+                    callback(true);
+                }
+                return;
+            }
             window.electronAPI.serialClose(this._connectionId).then(response => {
                 var ok = true;
                 if (response.error) {

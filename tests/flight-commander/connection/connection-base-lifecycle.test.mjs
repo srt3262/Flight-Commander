@@ -10,20 +10,23 @@ const projectRoot = resolve(
   "../../..",
 );
 
-function loadConnectionClass() {
+function loadConnectionClass(
+  GUI = { connected_to: false, connecting_to: false },
+) {
   const source = readFileSync(
     resolve(projectRoot, "js/connection/connection.js"),
     "utf8",
   )
     .replace(
       "import GUI from './../gui';",
-      "const GUI = { connected_to: false, connecting_to: false };",
+      "const GUI = globalThis.__GUI;",
     )
     .replace(
       "export  { ConnectionType, Connection};",
       "globalThis.__Connection = Connection;",
     );
   const context = vm.createContext({
+    __GUI: GUI,
     console: { log() {} },
     setTimeout,
   });
@@ -65,6 +68,24 @@ function createFakeConnection(Connection) {
     sendImplementation() {}
   }();
 }
+
+test("authoritative abort uses the backend hook even while UI controls are locked", () => {
+  let forcedAborts = 0;
+  const GUI = {
+    connected_to: "COM8",
+    connecting_to: false,
+    connect_lock: true,
+    handleConnectionAbort() {
+      forcedAborts += 1;
+    },
+  };
+  const Connection = loadConnectionClass(GUI);
+  const connection = createFakeConnection(Connection);
+
+  connection.abort();
+
+  assert.equal(forcedAborts, 1);
+});
 
 test("a delayed disconnect cannot clear or close the UI for a replacement connection", () => {
   const Connection = loadConnectionClass();

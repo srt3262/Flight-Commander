@@ -507,9 +507,12 @@ flightData.runVehicleAction = async function (
   successMessage,
   unconfirmedMessage,
 ) {
-  if (this.protocol !== 'mavlink') {
+  if (
+    this.protocol !== 'mavlink'
+    || !CONFIGURATOR.connectionValid
+  ) {
     this.setActionStatus(
-      'Airborne vehicle commands require a MAVLink telemetry connection.',
+      'Airborne vehicle commands require a validated MAVLink telemetry connection.',
       true,
     );
     return;
@@ -589,9 +592,12 @@ flightData.renderResumeCheckpoint = function (
 };
 
 flightData.resumeInterruptedMission = async function () {
-  if (this.protocol !== 'mavlink') {
+  if (
+    this.protocol !== 'mavlink'
+    || !CONFIGURATOR.connectionValid
+  ) {
     this.setActionStatus(
-      'Mission resume requires a MAVLink telemetry connection to the same powered flight controller.',
+      'Mission resume requires a validated MAVLink telemetry connection to the same powered flight controller.',
       true,
     );
     return;
@@ -624,7 +630,11 @@ flightData.resumeInterruptedMission = async function () {
 };
 
 flightData.updateActionAvailability = function (state) {
-  const linkReady = state.connected && !state.linkLost;
+  const linkReady = (
+    CONFIGURATOR.connectionValid
+    && state.connected
+    && !state.linkLost
+  );
   const isInavMavlink = this.protocol === 'mavlink' && state.firmwareFamily === 'inav';
   const guardAcknowledged = mavlinkCommandRouter.hasSingleInavAircraftAcknowledgement();
   $('#flightDataConfirmSingleInav')

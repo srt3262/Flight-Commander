@@ -108,12 +108,23 @@ test("Windows verification follows the active renderer graph and rejects leftove
   );
   assert.match(packageVerifier, /Serial port open timed out/);
   assert.match(packageVerifier, /Serial port open was superseded/);
+  assert.match(packageVerifier, /configuring-control-lines/);
+  assert.match(packageVerifier, /USB device may have reset or briefly re-enumerated/);
+  assert.match(packageVerifier, /serial link ended during MAVLink startup/);
+  assert.match(packageVerifier, /Serial link interrupted/);
+  assert.match(packageVerifier, /Unable to enumerate serial ports/);
+  assert.match(packageVerifier, /handleConnectionAbort/);
+  assert.match(packageVerifier, /hadVehicleHeartbeat/);
+  assert.match(packageVerifier, /pendingReconnectRequest/);
+  assert.match(packageVerifier, /unexpectedTerminalOperatorGuardUntil/);
+  assert.match(packageVerifier, /commandBlockReason/);
+  assert.match(packageVerifier, /validated MAVLink telemetry connection/);
   assert.match(packageVerifier, /MAVLINK_SESSION_DETACHED/);
   assert.match(packageVerifier, /Auto protocol \(selected baud\)/);
 });
 
 test("landing page reports the current Flight Commander release", () => {
-  assert.match(landingHtml, />Flight Commander 1\.4\.0</);
+  assert.match(landingHtml, />Flight Commander 1\.4\.1</);
 });
 
 test("canonical Flight Commander visual assets match the verified 1.3.5 identity", () => {

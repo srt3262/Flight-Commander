@@ -48,6 +48,10 @@ const mavlinkTransportStartup = readFileSync(
   resolve(projectRoot, "js/gcs/mavlinkTransportStartup.js"),
   "utf8",
 );
+const mavlinkCommandRouter = readFileSync(
+  resolve(projectRoot, "js/gcs/mavlinkCommandRouter.js"),
+  "utf8",
+);
 const flightData = readFileSync(
   resolve(projectRoot, "tabs/flight_data.js"),
   "utf8",
@@ -117,12 +121,13 @@ test("MAVLink listener installation precedes attach and explicit transport opens
   );
   assert.match(
     serialBackend,
-    /onMavlinkTransportStartupFailure = function[\s\S]*?scheduleMavlinkFailureAbort\(\)[\s\S]*?GUI\.log\(/,
+    /onMavlinkTransportStartupFailure = function[\s\S]*?GUI\.log\(/,
   );
   assert.match(
     serialBackend,
-    /onMavlinkConnectedTransitionFailure = function[\s\S]*?scheduleMavlinkFailureAbort\(\)[\s\S]*?GUI\.log\(/,
+    /onMavlinkConnectedTransitionFailure = function[\s\S]*?GUI\.log\(/,
   );
+  assert.doesNotMatch(serialBackend, /scheduleMavlinkFailureAbort/);
 });
 
 test("serial open completion uses the immutable protocol captured by the click attempt", () => {
@@ -187,6 +192,69 @@ test("serial IPC data, close and error events are scoped to one connection ID", 
   assert.match(
     mainSerial,
     /connectionId === this\._connectionId/,
+  );
+});
+
+test("unexpected native serial termination survives cleanup without a false success", () => {
+  assert.match(
+    connectionSerial,
+    /consumeDisconnectCause\(\)[\s\S]*?this\._disconnectCause = null/,
+  );
+  assert.match(
+    connectionSerial,
+    /this\._nativeDeadConnectionId === this\._connectionId[\s\S]*?callback\(true\)[\s\S]*?return;/,
+  );
+  assert.match(
+    serialBackend,
+    /consumeDisconnectCause\?\.\(\) \|\| null/,
+  );
+  assert.match(
+    serialBackend,
+    /onClosed = function \(result, closeContext = \{\}\)[\s\S]*?if \(unexpectedCause\)[\s\S]*?unexpectedSerialTerminationMessage/,
+  );
+  assert.match(
+    serialBackend,
+    /shouldAttemptMavlinkStartupRecovery\(\{[\s\S]*?connectedDurationMs/,
+  );
+  assert.match(
+    connectionBase,
+    /typeof GUI\.handleConnectionAbort === 'function'[\s\S]*?GUI\.handleConnectionAbort\(\)/,
+  );
+  assert.match(
+    serialBackend,
+    /GUI\.handleConnectionAbort = function \(\)[\s\S]*?forceDisconnect: true/,
+  );
+  assert.match(
+    serialBackend,
+    /GUI\.connect_lock != true \|\| forceDisconnect/,
+  );
+  assert.match(
+    serialBackend,
+    /if \(privateScope\.disconnectInProgress\)[\s\S]*?privateScope\.pendingReconnectRequest = options\.openAttempt/,
+  );
+  assert.match(
+    serialBackend,
+    /Date\.now\(\) < privateScope\.unexpectedTerminalOperatorGuardUntil[\s\S]*?cancelUnexpectedSerialRecovery\(\)/,
+  );
+  const finishDisconnect = serialBackend.indexOf(
+    "function finishDisconnect()",
+  );
+  const nativeDisconnect = serialBackend.indexOf(
+    "CONFIGURATOR.connection.disconnect(handleClosed)",
+    finishDisconnect,
+  );
+  const protocolCleanup = serialBackend.indexOf(
+    "() => privateScope.clearProtocolSession({",
+    finishDisconnect,
+  );
+  assert.ok(
+    finishDisconnect >= 0 &&
+      nativeDisconnect > finishDisconnect &&
+      protocolCleanup > nativeDisconnect,
+  );
+  assert.match(
+    serialBackend,
+    /const reconnectRequest =\s*privateScope\.pendingReconnectRequest[\s\S]*?privateScope\.disconnectInProgress = false[\s\S]*?privateScope\.reConnect\(reconnectRequest\)/,
   );
 });
 
@@ -315,6 +383,30 @@ test("first heartbeat distinguishes live telemetry from control readiness", () =
   assert.doesNotMatch(
     flightData,
     /MAVLink vehicle heartbeat received; live controls are available\./,
+  );
+  assert.match(
+    serialBackend,
+    /activeMavlinkHeartbeatReceived = true/,
+  );
+  assert.match(
+    serialBackend,
+    /hadVehicleHeartbeat:\s*privateScope\.activeMavlinkHeartbeatReceived/,
+  );
+  assert.match(
+    flightData,
+    /const linkReady = \(\s*CONFIGURATOR\.connectionValid\s*&&\s*state\.connected/,
+  );
+  assert.match(
+    flightData,
+    /this\.protocol !== 'mavlink'\s*\|\|\s*!CONFIGURATOR\.connectionValid/,
+  );
+  assert.match(
+    mavlinkCommandRouter,
+    /blockCommands\(reason\)[\s\S]*?this\.commandBlockReason/,
+  );
+  assert.match(
+    serialBackend,
+    /onMavlinkConnectedTransitionFailure = function[\s\S]*?mavlinkCommandRouter\.blockCommands\(message\)/,
   );
 });
 

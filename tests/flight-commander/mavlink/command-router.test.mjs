@@ -183,6 +183,26 @@ describe("ArduPilot command routing and capability gates", () => {
       /firmware family is identified/,
     );
   });
+
+  test("an application transition failure blocks commands while telemetry stays attached", () => {
+    const session = fakeArduPilotSession();
+    const router = new MavlinkCommandRouter(session);
+
+    router.blockCommands(
+      "Ground Control transition failed; commands are disabled.",
+    );
+    assert.equal(session.state.connected, true);
+    assert.equal(router.capabilities().canArm, false);
+    assert.match(router.capabilities().reason, /commands are disabled/);
+    assert.throws(
+      () => router.setArmed(true),
+      /commands are disabled/,
+    );
+    assert.deepEqual(session.calls, []);
+
+    router.clearCommandBlock();
+    assert.equal(router.capabilities().canArm, true);
+  });
 });
 
 describe("INAV command routing", () => {

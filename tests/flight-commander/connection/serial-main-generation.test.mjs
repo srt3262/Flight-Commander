@@ -35,6 +35,12 @@ function loadMainSerial({ prepareSerialPort, disposeSerialPort, ports }) {
       this.writes.push(Buffer.from(data));
       callback(null);
     }
+
+    destroy() {
+      this.destroyed = true;
+      this.opening = false;
+      this.isOpen = false;
+    }
   }
 
   const timers = new Set();
@@ -134,4 +140,112 @@ test("a late old control-line setup cannot replace the current main-process conn
   const write = await serial.send(Uint8Array.of(0xfe, 0x01), secondResult.id);
   assert.equal(write.error, false);
   assert.equal(write.bytesWritten, 2);
+});
+
+test("an active native close preserves its phase and disconnected error details", async () => {
+  const ports = [];
+  const sent = [];
+  const serial = loadMainSerial({
+    ports,
+    prepareSerialPort: async () => {},
+    async disposeSerialPort(port) {
+      port.opening = false;
+      port.isOpen = false;
+    },
+  });
+  const window = {
+    isDestroyed: () => false,
+    webContents: {
+      send(channel, envelope) {
+        sent.push({ channel, envelope });
+      },
+    },
+  };
+
+  const opening = serial.connect(
+    "COM8",
+    { bitrate: 460800, forceDtrLow: true },
+    window,
+  );
+  const port = ports[0];
+  port.opening = false;
+  port.isOpen = true;
+  port.emit("open");
+  const opened = await opening;
+  assert.equal(opened.error, false);
+
+  const disconnectError = new Error("ReadFile failed on COM8");
+  disconnectError.code = "EIO";
+  disconnectError.disconnected = true;
+  port.emit("close", disconnectError);
+
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].channel, "serialClose");
+  assert.equal(sent[0].envelope.connectionId, opened.id);
+  assert.equal(sent[0].envelope.event, "close");
+  assert.equal(sent[0].envelope.origin, "native");
+  assert.equal(sent[0].envelope.expected, false);
+  assert.equal(sent[0].envelope.phase, "active");
+  assert.equal(sent[0].envelope.error, "ReadFile failed on COM8");
+  assert.equal(sent[0].envelope.errorDetails.name, "Error");
+  assert.equal(sent[0].envelope.errorDetails.message, "ReadFile failed on COM8");
+  assert.equal(sent[0].envelope.errorDetails.code, "EIO");
+  assert.equal(sent[0].envelope.errorDetails.disconnected, true);
+  assert.equal(serial._serialport, null);
+  assert.equal(serial._connectionId, null);
+});
+
+test("an active native error preserves its phase and platform error details", async () => {
+  const ports = [];
+  const sent = [];
+  const serial = loadMainSerial({
+    ports,
+    prepareSerialPort: async () => {},
+    async disposeSerialPort(port) {
+      port.opening = false;
+      port.isOpen = false;
+    },
+  });
+  const window = {
+    isDestroyed: () => false,
+    webContents: {
+      send(channel, envelope) {
+        sent.push({ channel, envelope });
+      },
+    },
+  };
+
+  const opening = serial.connect(
+    "COM8",
+    { bitrate: 460800, forceDtrLow: true },
+    window,
+  );
+  const port = ports[0];
+  port.opening = false;
+  port.isOpen = true;
+  port.emit("open");
+  const opened = await opening;
+  assert.equal(opened.error, false);
+
+  const nativeError = new Error("Access to COM8 was lost");
+  nativeError.code = "ERROR_DEVICE_NOT_CONNECTED";
+  nativeError.errno = 1167;
+  port.emit("error", nativeError);
+
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].channel, "serialError");
+  assert.equal(sent[0].envelope.connectionId, opened.id);
+  assert.equal(sent[0].envelope.event, "error");
+  assert.equal(sent[0].envelope.origin, "native");
+  assert.equal(sent[0].envelope.expected, false);
+  assert.equal(sent[0].envelope.phase, "active");
+  assert.equal(sent[0].envelope.error, "Access to COM8 was lost");
+  assert.equal(
+    sent[0].envelope.errorDetails.code,
+    "ERROR_DEVICE_NOT_CONNECTED",
+  );
+  assert.equal(sent[0].envelope.errorDetails.errno, 1167);
+  assert.equal(port.destroyed, true);
+  assert.equal(serial._serialport, null);
+  assert.equal(serial._connectionId, null);
 });

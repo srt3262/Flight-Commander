@@ -55,7 +55,20 @@ test("preload preserves the connection ID on serial close events", () => {
   const { api, listeners } = loadPreloadApi();
   const received = [];
   const token = api.onSerialClose((envelope) => received.push(envelope));
-  const envelope = { connectionId: 83 };
+  const envelope = {
+    connectionId: 83,
+    event: "close",
+    origin: "native",
+    expected: false,
+    phase: "active",
+    error: "ReadFile failed",
+    errorDetails: {
+      name: "Error",
+      message: "ReadFile failed",
+      code: "EIO",
+      disconnected: true,
+    },
+  };
 
   listeners.get("serialClose")({}, envelope);
   assert.deepEqual(received, [envelope]);

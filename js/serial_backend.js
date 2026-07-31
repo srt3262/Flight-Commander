@@ -39,6 +39,12 @@ import {
     serialOptionsForProtocol,
 } from './connection/connectionPreferences';
 import {
+    SERIAL_STARTUP_RECOVERY_DELAY_MS,
+    SERIAL_TERMINAL_OPERATOR_GUARD_MS,
+    shouldAttemptMavlinkStartupRecovery,
+    unexpectedSerialTerminationMessage,
+} from './connection/serialRecoveryPolicy';
+import {
     initializeExplicitMavlinkTransport,
     queueGroundControlActivation,
     runCriticalMavlinkTransition,
@@ -61,7 +67,37 @@ var SerialBackend = (function () {
     privateScope.cancelGroundControlActivation = null;
     privateScope.pendingOpenAttempt = null;
     privateScope.activeOpenAttempt = null;
+    privateScope.activeOpenedAt = null;
+    privateScope.activeMavlinkHeartbeatReceived = false;
+    privateScope.unexpectedSerialRecoveryTimer = null;
+    privateScope.unexpectedSerialRecoveryGeneration = 0;
+    privateScope.disconnectInProgress = false;
+    privateScope.pendingDisconnectFinish = null;
+    privateScope.pendingReconnectRequest = null;
+    privateScope.unexpectedTerminalOperatorGuardUntil = 0;
     privateScope.sitlDemoConnectTimer = null;
+
+    privateScope.runBestEffort = function (label, action) {
+        try {
+            return action();
+        } catch (error) {
+            console.log(
+                `${label} failed during connection cleanup: ` +
+                (error?.message || error),
+            );
+            return undefined;
+        }
+    };
+
+    privateScope.cancelUnexpectedSerialRecovery = function () {
+        privateScope.unexpectedSerialRecoveryGeneration += 1;
+        if (privateScope.unexpectedSerialRecoveryTimer != null) {
+            clearTimeout(privateScope.unexpectedSerialRecoveryTimer);
+            privateScope.unexpectedSerialRecoveryTimer = null;
+            return true;
+        }
+        return false;
+    };
 
     /*
      * Handle "Wireless" mode with strict queueing of messages
@@ -85,6 +121,7 @@ var SerialBackend = (function () {
             legacyBaud: store.get('last_used_bps', null),
         }));
         privateScope.$protocol.on('change', function () {
+            privateScope.cancelUnexpectedSerialRecovery();
             const protocol = privateScope.$protocol.val() || 'auto';
             store.set('connectionProtocolPreference', protocol);
             privateScope.$baud.val(resolveConnectionBaud({
@@ -94,6 +131,7 @@ var SerialBackend = (function () {
             }));
         });
         privateScope.$baud.on('change', function () {
+            privateScope.cancelUnexpectedSerialRecovery();
             persistProtocolBaudPreference(
                 store,
                 privateScope.$protocol.val() || 'auto',
@@ -193,48 +231,92 @@ var SerialBackend = (function () {
         };
 
         GUI.updateManualPortVisibility();
+        GUI.handleConnectionAbort = function () {
+            privateScope.reConnect({forceDisconnect: true});
+        };
 
         publicScope.$portOverride.on('change', function () {
+            privateScope.cancelUnexpectedSerialRecovery();
             store.set('portOverride', publicScope.$portOverride.val());
         });
         
         publicScope.$portOverride.val(store.get('portOverride', ''));        
 
         privateScope.$port.on('change', function (target) {
+            privateScope.cancelUnexpectedSerialRecovery();
             GUI.updateManualPortVisibility();
         });
 
     $('div.connect_controls a.connect').on('click', () => {
         privateScope.reopenTab = null;
-        privateScope.reConnect()
+        privateScope.reConnect({operatorClick: true});
     });
     
-    privateScope.reConnect = function() {
-        if (groundstation.isActivated()) {
-            groundstation.deactivate();
+    privateScope.reConnect = function(options = {}) {
+        const forceDisconnect = options.forceDisconnect === true;
+        if (privateScope.disconnectInProgress) {
+            if (forceDisconnect) {
+                privateScope.pendingDisconnectFinish?.();
+            } else {
+                privateScope.pendingReconnectRequest = options.openAttempt
+                    ? {openAttempt: options.openAttempt}
+                    : {};
+            }
+            return;
+        }
+        if (
+            options.operatorClick === true
+            && GUI.connected_to === false
+            && GUI.connecting_to === false
+            && Date.now() < privateScope.unexpectedTerminalOperatorGuardUntil
+        ) {
+            privateScope.unexpectedTerminalOperatorGuardUntil = 0;
+            privateScope.cancelUnexpectedSerialRecovery();
+            return;
         }
 
-        if (GUI.connect_lock != true) { // GUI control overrides the user control
+        privateScope.runBestEffort('Ground-station deactivation', () => {
+            if (groundstation.isActivated()) {
+                groundstation.deactivate();
+            }
+        });
+
+        if (GUI.connect_lock != true || forceDisconnect) {
 
                 // Use the real connection state, not a toggle flag that competing
                 // async aborts could desync.
                 const isIdle = (GUI.connected_to === false) && (GUI.connecting_to === false);
-                var selected_baud = parseInt(privateScope.$baud.val());
-                const requestedProtocol = privateScope.$protocol.val() || 'auto';
-                var selected_port = privateScope.$port.find('option:selected').data().isManual ?
-                    publicScope.$portOverride.val() :
-                        String(privateScope.$port.val());
+                const requestedAttempt = options.openAttempt || null;
+                if (isIdle && !requestedAttempt) {
+                    privateScope.cancelUnexpectedSerialRecovery();
+                }
+                var selected_baud = isIdle
+                    ? requestedAttempt?.bitrate ?? parseInt(privateScope.$baud.val())
+                    : 0;
+                const requestedProtocol = isIdle
+                    ? requestedAttempt?.protocol ||
+                        privateScope.$protocol.val() ||
+                        'auto'
+                    : privateScope.activeOpenAttempt?.protocol || 'auto';
+                var selected_port = isIdle
+                    ? requestedAttempt?.port || (
+                        privateScope.$port.find('option:selected').data().isManual ?
+                            publicScope.$portOverride.val() :
+                                String(privateScope.$port.val())
+                    )
+                    : String(GUI.connected_to || GUI.connecting_to || '');
                 const openAttempt = Object.freeze({
                     protocol: requestedProtocol,
                     port: selected_port,
                     bitrate: selected_baud,
+                    recoveryAttempt: requestedAttempt?.recoveryAttempt || 0,
                 });
                 const handleOpen = openInfo => privateScope.onOpen(openInfo, openAttempt);
                 
-                if (selected_port === 'DFU') {
+                if (isIdle && selected_port === 'DFU') {
                     GUI.log(i18n.getMessage('dfu_connect_message'));
                 }
-                else if (selected_port != '0') {
+                else if (!isIdle || selected_port != '0') {
                     if (isIdle) {
                         if (privateScope.sitlDemoConnectTimer != null) {
                             clearTimeout(privateScope.sitlDemoConnectTimer);
@@ -286,7 +368,8 @@ var SerialBackend = (function () {
                         }
                     } else {
                         // Check for unsaved changes in JavaScript Programming tab
-                        if (GUI.active_tab === javascriptProgrammingTab &&
+                        if (!forceDisconnect &&
+                            GUI.active_tab === javascriptProgrammingTab &&
                             javascriptProgrammingTab.isDirty) {
                             console.log('[Disconnect] Checking for unsaved changes in JavaScript Programming tab');
                             const confirmMsg = i18n.getMessage('unsavedChanges') ||
@@ -301,73 +384,163 @@ var SerialBackend = (function () {
                             javascriptProgrammingTab.isDirty = false;
                         }
 
+                        privateScope.disconnectInProgress = true;
+                        const operatorRequested = !forceDisconnect;
+
                         if (this.isDemoRunning) {
-                            SITLProcess.stop();
+                            privateScope.runBestEffort(
+                                'SITL shutdown',
+                                () => SITLProcess.stop(),
+                            );
                             this.isDemoRunning = false;
                         }
 
                         var wasConnected = CONFIGURATOR.connectionValid;
 
-                        timeout.killAll();
-                        interval.killAll(['global_data_refresh', 'msp-load-update']);
+                        privateScope.runBestEffort('Connection timers', () => {
+                            timeout.killAll();
+                            interval.killAll([
+                                'global_data_refresh',
+                                'msp-load-update',
+                            ]);
+                        });
 
-                        if (CONFIGURATOR.cliActive) {
-                            GUI.tab_switch_cleanup(finishDisconnect);
+                        let disconnectFinished = false;
+                        privateScope.pendingDisconnectFinish = finishDisconnect;
+                        if (CONFIGURATOR.cliActive && !forceDisconnect) {
+                            try {
+                                GUI.tab_switch_cleanup(finishDisconnect);
+                            } catch (error) {
+                                console.log(
+                                    'CLI tab cleanup failed during disconnect: ' +
+                                    (error?.message || error),
+                                );
+                                finishDisconnect();
+                            }
                         } else {
-                            GUI.tab_switch_cleanup();
+                            privateScope.runBestEffort(
+                                'Active tab',
+                                () => GUI.tab_switch_cleanup(),
+                            );
                             finishDisconnect();
-
                         }
 
                         function finishDisconnect() {
+                            if (disconnectFinished) return;
+                            disconnectFinished = true;
+                            privateScope.pendingDisconnectFinish = null;
+
+                            const disconnectCause =
+                                CONFIGURATOR.connection.consumeDisconnectCause?.() || null;
+                            const disconnectedAttempt = privateScope.activeOpenAttempt;
+                            const connectedDurationMs = (
+                                Number.isFinite(privateScope.activeOpenedAt)
+                            )
+                                ? Date.now() - privateScope.activeOpenedAt
+                                : null;
+                            const closeContext = Object.freeze({
+                                cause: disconnectCause,
+                                openAttempt: disconnectedAttempt,
+                                connectedDurationMs,
+                                port: GUI.connected_to || disconnectedAttempt?.port || null,
+                                hadVehicleHeartbeat:
+                                    privateScope.activeMavlinkHeartbeatReceived,
+                                operatorRequested,
+                            });
+
                             GUI.tab_switch_in_progress = false;
                             CONFIGURATOR.connectionValid = false;
                             CONFIGURATOR.connectionProtocol = null;
                             GUI.connected_to = false;
                             GUI.connecting_to = false;
-                            GUI.allowedTabs = GUI.defaultAllowedTabsWhenDisconnected.slice();
                             if (privateScope.sitlDemoConnectTimer != null) {
                                 clearTimeout(privateScope.sitlDemoConnectTimer);
                                 privateScope.sitlDemoConnectTimer = null;
                             }
                             privateScope.pendingOpenAttempt = null;
                             privateScope.activeOpenAttempt = null;
-                            privateScope.clearProtocolSession();
+                            privateScope.activeOpenedAt = null;
+                            privateScope.activeMavlinkHeartbeatReceived = false;
 
-                            /*
-                            * Flush
-                            */
-                            mspQueue.flush();
-                            mspQueue.freeHardLock();
-                            mspQueue.freeSoftLock();
-                            mspDeduplicationQueue.flush();
-
-                            CONFIGURATOR.connection.disconnect(privateScope.onClosed);
-                            MSP.disconnect_cleanup();
-
-                            // Reset various UI elements
-                            $('span.i2c-error').text(0);
-                            $('span.cycle-time').text(0);
-                            $('span.cpu-load').text('');
-
-                            // unlock port select & baud
-                            privateScope.$port.prop('disabled', false);
-                            privateScope.$baud.prop('disabled', false);
-                            privateScope.$protocol.prop('disabled', false);
-
-                            // reset connect / disconnect button
-                            $('div.connect_controls a.connect').removeClass('active');
-                            $('div.connect_controls a.connect_state').text(i18n.getMessage('connect'));
-
-                            // reset active sensor indicators
-                            privateScope.sensor_status(0);
-
-                            if (wasConnected) {
-                                // detach listeners and remove element data
-                                $('#content').empty();
+                            const handleClosed = result => {
+                                const reconnectRequest =
+                                    privateScope.pendingReconnectRequest;
+                                privateScope.pendingReconnectRequest = null;
+                                privateScope.disconnectInProgress = false;
+                                privateScope.pendingDisconnectFinish = null;
+                                try {
+                                    privateScope.onClosed(result, closeContext);
+                                } catch (error) {
+                                    console.log(
+                                        'Serial close status rendering failed: ' +
+                                        (error?.message || error),
+                                    );
+                                }
+                                if (reconnectRequest) {
+                                    privateScope.reConnect(reconnectRequest);
+                                }
+                            };
+                            try {
+                                if (CONFIGURATOR.connection.connectionId) {
+                                    CONFIGURATOR.connection.disconnect(handleClosed);
+                                } else {
+                                    CONFIGURATOR.connection.disconnect();
+                                    handleClosed(true);
+                                }
+                            } catch (error) {
+                                console.log(
+                                    'Serial disconnect failed synchronously: ' +
+                                    (error?.message || error),
+                                );
+                                handleClosed(false);
                             }
 
-                            $('#tabs .tab_landing a').trigger( "click" );
+                            privateScope.runBestEffort(
+                                'Protocol session',
+                                () => privateScope.clearProtocolSession({
+                                    preserveStatusMessage: Boolean(
+                                        disconnectCause && !operatorRequested
+                                    ),
+                                }),
+                            );
+                            privateScope.runBestEffort('Allowed tabs', () => {
+                                GUI.allowedTabs =
+                                    GUI.defaultAllowedTabsWhenDisconnected.slice();
+                            });
+                            privateScope.runBestEffort('MSP queue', () => {
+                                mspQueue.flush();
+                                mspQueue.freeHardLock();
+                                mspQueue.freeSoftLock();
+                                mspDeduplicationQueue.flush();
+                                MSP.disconnect_cleanup();
+                            });
+                            privateScope.runBestEffort('Status fields', () => {
+                                $('span.i2c-error').text(0);
+                                $('span.cycle-time').text(0);
+                                $('span.cpu-load').text('');
+                            });
+                            privateScope.runBestEffort('Connection controls', () => {
+                                privateScope.$port.prop('disabled', false);
+                                privateScope.$baud.prop('disabled', false);
+                                privateScope.$protocol.prop('disabled', false);
+                                $('div.connect_controls a.connect').removeClass('active');
+                                $('div.connect_controls a.connect_state')
+                                    .text(i18n.getMessage('connect'));
+                            });
+                            privateScope.runBestEffort(
+                                'Sensor status',
+                                () => privateScope.sensor_status(0),
+                            );
+                            if (wasConnected) {
+                                privateScope.runBestEffort(
+                                    'Connected tab content',
+                                    () => $('#content').empty(),
+                                );
+                            }
+                            privateScope.runBestEffort(
+                                'Landing tab',
+                                () => $('#tabs .tab_landing a').trigger('click'),
+                            );
                         }
                     }
                 }
@@ -465,7 +638,11 @@ var SerialBackend = (function () {
                 protocol: requestedProtocol,
                 port: GUI.connecting_to,
                 bitrate: openInfo.bitrate,
+                recoveryAttempt: 0,
             };
+            privateScope.activeOpenedAt = Date.now();
+            privateScope.activeMavlinkHeartbeatReceived = false;
+            privateScope.unexpectedTerminalOperatorGuardUntil = 0;
             privateScope.pendingOpenAttempt = null;
 
             // update connected_to
@@ -498,6 +675,7 @@ var SerialBackend = (function () {
             CONFIGURATOR.connectionProtocol = null;
             try {
                 mavlinkCommandRouter.stop();
+                mavlinkCommandRouter.clearCommandBlock();
                 FC.resetState();
                 MSP.disconnect_cleanup();
             } catch (error) {
@@ -636,6 +814,8 @@ var SerialBackend = (function () {
         } else {
             privateScope.pendingOpenAttempt = null;
             privateScope.activeOpenAttempt = null;
+            privateScope.activeOpenedAt = null;
+            privateScope.activeMavlinkHeartbeatReceived = false;
             console.log('Failed to open serial port');
             const openError = CONFIGURATOR.connection?.lastOpenError;
             const safeOpenError = openError ? $('<div>').text(openError).html() : '';
@@ -699,6 +879,8 @@ var SerialBackend = (function () {
         if (!privateScope.selectProtocol('mavlink')) {
             return;
         }
+        privateScope.activeMavlinkHeartbeatReceived = true;
+        privateScope.cancelUnexpectedSerialRecovery();
         GUI.mavlinkWaitingMessage = null;
         privateScope.rememberValidatedBaud();
         CONFIGURATOR.connectionValid = true;
@@ -739,30 +921,11 @@ var SerialBackend = (function () {
         }
     };
 
-    privateScope.scheduleMavlinkFailureAbort = function () {
-        const failedConnectionId = CONFIGURATOR.connection.connectionId;
-        setTimeout(() => {
-            if (
-                (
-                    privateScope.activeProtocol === 'mavlink' ||
-                    privateScope.activeOpenAttempt?.protocol === 'mavlink'
-                ) &&
-                GUI.connected_to &&
-                CONFIGURATOR.connection.connectionId === failedConnectionId
-            ) {
-                CONFIGURATOR.connection.abort();
-            }
-        }, 0);
-    };
-
     privateScope.onMavlinkTransportStartupFailure = function (error) {
-        // Schedule recovery before touching renderer/UI state. If the renderer
-        // itself caused the failure, best-effort diagnostics must not be able
-        // to suppress the connection-ID-scoped abort.
-        privateScope.scheduleMavlinkFailureAbort();
         const detail = error?.message || String(error);
         const message = `MAVLink transport startup failed: ${detail}`;
         mavlinkSession.detach();
+        mavlinkCommandRouter.blockCommands(message);
         timeout.remove('connecting');
         GUI.mavlinkWaitingMessage = message;
         GUI.log(
@@ -775,11 +938,14 @@ var SerialBackend = (function () {
     };
 
     privateScope.onMavlinkConnectedTransitionFailure = function (error) {
-        privateScope.scheduleMavlinkFailureAbort();
         const detail = error?.message || String(error);
         const message =
             `A vehicle heartbeat was decoded, but Ground Control could not finish connecting: ${detail}`;
         CONFIGURATOR.connectionValid = false;
+        mavlinkCommandRouter.blockCommands(message);
+        GUI.allowedTabs = ['flight_data', 'landing', 'help'];
+        privateScope.cancelGroundControlActivation?.();
+        privateScope.cancelGroundControlActivation = null;
         GUI.mavlinkWaitingMessage = message;
         timeout.remove('connecting');
         GUI.log(
@@ -789,6 +955,10 @@ var SerialBackend = (function () {
         $('#flightDataActionStatus')
             .text(message)
             .addClass('fc-action-status--error');
+        $('#flightDataMode, #flightDataSetMode, #flightDataArm, ' +
+          '#flightDataStartMission, #flightDataTakeoff, #flightDataRtl, ' +
+          '#flightDataLand, #flightDataResumeMission, #flightDataConfirmSingleInav')
+            .prop('disabled', true);
     };
 
     privateScope.onMavlinkAutoAttachFailure = function (error) {
@@ -958,7 +1128,9 @@ var SerialBackend = (function () {
         );
     };
 
-    privateScope.clearProtocolSession = function () {
+    privateScope.clearProtocolSession = function ({
+        preserveStatusMessage = false,
+    } = {}) {
         mavlinkCommandRouter.stop();
         privateScope.mavlinkConnectedUnsubscribe?.();
         privateScope.mavlinkConnectedUnsubscribe = null;
@@ -972,7 +1144,9 @@ var SerialBackend = (function () {
         ltmDecoder.reset();
         privateScope.activeProtocol = null;
         CONFIGURATOR.connectionProtocol = null;
-        GUI.mavlinkWaitingMessage = null;
+        if (!preserveStatusMessage) {
+            GUI.mavlinkWaitingMessage = null;
+        }
     };
 
     privateScope.onConnect = function () {
@@ -1026,26 +1200,129 @@ var SerialBackend = (function () {
         });
     }
 
-    privateScope.onClosed = function (result) {
-        if (result) { // All went as expected
-            GUI.log(i18n.getMessage('serialPortClosedOk'));
-        } else { // Something went wrong
-            GUI.log(i18n.getMessage('serialPortClosedFail'));
+    privateScope.prepareSerialRecoveryAttempt = function (openAttempt) {
+        privateScope.$protocol.val(openAttempt.protocol);
+        privateScope.$baud.val(String(openAttempt.bitrate));
+
+        const matchingPort = privateScope.$port.find('option').filter(function () {
+            return String($(this).val()) === String(openAttempt.port);
+        });
+        if (matchingPort.length) {
+            privateScope.$port.val(openAttempt.port);
+        } else {
+            privateScope.$port.val('manual');
+            publicScope.$portOverride.val(openAttempt.port);
+            store.set('portOverride', openAttempt.port);
+        }
+        GUI.updateManualPortVisibility();
+    };
+
+    privateScope.scheduleUnexpectedSerialRecovery = function (closeContext) {
+        privateScope.cancelUnexpectedSerialRecovery();
+        const recoveryGeneration =
+            privateScope.unexpectedSerialRecoveryGeneration;
+
+        const previousAttempt = closeContext.openAttempt;
+        const recoveryAttempt = Object.freeze({
+            protocol: previousAttempt.protocol,
+            port: previousAttempt.port,
+            bitrate: previousAttempt.bitrate,
+            recoveryAttempt: (previousAttempt.recoveryAttempt || 0) + 1,
+        });
+
+        privateScope.unexpectedSerialRecoveryTimer = setTimeout(() => {
+            if (
+                recoveryGeneration !==
+                privateScope.unexpectedSerialRecoveryGeneration
+            ) {
+                return;
+            }
+            privateScope.unexpectedSerialRecoveryTimer = null;
+            if (GUI.connected_to !== false || GUI.connecting_to !== false) {
+                return;
+            }
+            try {
+                privateScope.prepareSerialRecoveryAttempt(recoveryAttempt);
+            } catch (error) {
+                console.log(
+                    'Serial recovery controls could not be restored: ' +
+                    (error?.message || error),
+                );
+            } finally {
+                privateScope.reConnect({openAttempt: recoveryAttempt});
+            }
+        }, SERIAL_STARTUP_RECOVERY_DELAY_MS);
+
+        privateScope.runBestEffort('Serial recovery notice', () => {
+            const safePort = $('<div>').text(recoveryAttempt.port).html();
+            GUI.log(
+                `<span style="color: #d98f00">The serial link ended during MAVLink startup. ` +
+                `Flight Commander will retry ${safePort} once after the USB device settles.</span>`,
+            );
+        });
+    };
+
+    privateScope.onClosed = function (result, closeContext = {}) {
+        const unexpectedCause = closeContext.operatorRequested
+            ? null
+            : closeContext.cause || null;
+        const shouldRecover = shouldAttemptMavlinkStartupRecovery({
+            cause: unexpectedCause,
+            openAttempt: closeContext.openAttempt,
+            connectedDurationMs: closeContext.connectedDurationMs,
+            hadVehicleHeartbeat: closeContext.hadVehicleHeartbeat,
+        });
+
+        // Install recovery before any optional renderer work. A broken status
+        // widget must not suppress the only bounded reopen attempt.
+        if (shouldRecover) {
+            privateScope.scheduleUnexpectedSerialRecovery(closeContext);
         }
 
-        $('.mode-connected, .mode-mavlink, .mode-telemetry').hide();
-        $('.mode-disconnected').show();
-        $('body').removeClass('fc-controller-ardupilot fc-controller-inav-mavlink');
-        $('#tabs ul.mode-mavlink .tab_mavlink_parameters a')
-            .text('Vehicle Setup')
-            .attr('title', 'Vehicle Setup');
+        if (unexpectedCause) {
+            privateScope.unexpectedTerminalOperatorGuardUntil =
+                Date.now() + SERIAL_TERMINAL_OPERATOR_GUARD_MS;
+            const message = unexpectedSerialTerminationMessage(
+                unexpectedCause,
+                closeContext.port,
+            );
+            privateScope.runBestEffort('Unexpected serial status', () => {
+                GUI.mavlinkWaitingMessage = message;
+                GUI.log(
+                    `<span style="color: #d42133">${$('<div>').text(message).html()}</span>`,
+                );
+                $('#logo .firmware_version').text('MAVLink / Serial link interrupted');
+                $('#flightDataActionStatus')
+                    .text(message)
+                    .addClass('fc-action-status--error');
+            });
+        } else if (result) { // All went as expected
+            privateScope.unexpectedTerminalOperatorGuardUntil = 0;
+            privateScope.runBestEffort(
+                'Serial close status',
+                () => GUI.log(i18n.getMessage('serialPortClosedOk')),
+            );
+        } else { // Something went wrong
+            privateScope.runBestEffort(
+                'Serial close status',
+                () => GUI.log(i18n.getMessage('serialPortClosedFail')),
+            );
+        }
 
-        $('#sensor-status').hide();
-        $('#portsinput').show();
-        $('#dataflash_wrapper_global').hide();
-        $('#profiles_wrapper_global').hide();
-        $('#quad-status_wrapper').hide();
+        privateScope.runBestEffort('Disconnected layout', () => {
+            $('.mode-connected, .mode-mavlink, .mode-telemetry').hide();
+            $('.mode-disconnected').show();
+            $('body').removeClass('fc-controller-ardupilot fc-controller-inav-mavlink');
+            $('#tabs ul.mode-mavlink .tab_mavlink_parameters a')
+                .text('Vehicle Setup')
+                .attr('title', 'Vehicle Setup');
 
+            $('#sensor-status').hide();
+            $('#portsinput').show();
+            $('#dataflash_wrapper_global').hide();
+            $('#profiles_wrapper_global').hide();
+            $('#quad-status_wrapper').hide();
+        });
         //updateFirmwareVersion();
     }
 
