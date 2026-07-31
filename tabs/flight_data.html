@@ -55,7 +55,7 @@
                 </div>
             </section>
         </div>
-        <div class="fc-flight-layout">
+        <div id="flightDataWorkspace" class="fc-flight-layout">
             <section class="fc-telemetry-grid" aria-label="Vehicle telemetry">
                 <div class="fc-card"><span>Mode</span><strong id="flightDataModeValue">--</strong></div>
                 <div class="fc-card"><span>Relative altitude</span><strong id="flightDataAltitude">--</strong></div>
@@ -75,6 +75,19 @@
             </section>
             <section class="fc-flight-map-panel">
                 <div class="fc-flight-view-toolbar" aria-label="Ground Control view controls">
+                    <label class="fc-unit-switch" for="flightDataUnits" title="Switch live telemetry between metric and imperial units">
+                        <span>Metric</span>
+                        <input
+                            id="flightDataUnits"
+                            type="checkbox"
+                            role="switch"
+                            aria-label="Use imperial telemetry units"
+                        >
+                        <span class="fc-unit-switch__track" aria-hidden="true">
+                            <span class="fc-unit-switch__thumb"></span>
+                        </span>
+                        <span>Imperial</span>
+                    </label>
                     <label class="fc-map-style-control" for="flightDataMapStyle">
                         <span>Map layer</span>
                         <select id="flightDataMapStyle">
@@ -84,10 +97,16 @@
                     </label>
                     <button id="flightDataCenter" class="fc-map-center-control" type="button">Center vehicle</button>
                     <button
+                        id="flightDataResetMinorView"
+                        class="fc-minor-view-reset"
+                        type="button"
+                        title="Return the movable minor view to its default corner"
+                    >Reset minor view</button>
+                    <button
                         id="flightDataPrimaryView"
                         class="fc-primary-view-control"
                         type="button"
-                        aria-controls="flightDataVisuals"
+                        aria-controls="flightDataVisuals flightDataMinorWindow"
                         aria-pressed="false"
                         title="Make the live HUD the primary view"
                     >Expand HUD</button>
@@ -97,15 +116,37 @@
                         <div id="flightDataMap" class="fc-map"></div>
                         <div id="flightDataAttribution" class="fc-map-attribution"></div>
                     </div>
-                    <section
-                        id="flightDataHud"
-                        class="fc-hud-surface"
-                        aria-label="Live flight HUD waiting for telemetry"
-                    >
-                        <canvas id="flightDataHudCanvas" aria-hidden="true"></canvas>
-                    </section>
                 </div>
             </section>
+            <div id="flightDataFloatingLayer" class="fc-minor-view-layer" aria-hidden="false">
+                <section
+                    id="flightDataMinorWindow"
+                    class="fc-minor-view-window"
+                    data-view="hud"
+                    aria-label="Movable live HUD view"
+                >
+                    <button
+                        id="flightDataMinorDragHandle"
+                        class="fc-minor-view-handle"
+                        type="button"
+                        aria-label="Move the minor live HUD view. Drag or use the arrow keys."
+                        title="Drag to move the minor view; use arrow keys for precise movement"
+                    >
+                        <span class="fc-minor-view-handle__grip" aria-hidden="true">&#8942;&#8942;</span>
+                        <strong id="flightDataMinorViewTitle">Live HUD</strong>
+                        <span>Drag to move</span>
+                    </button>
+                    <div id="flightDataMinorContent" class="fc-minor-view-content">
+                        <section
+                            id="flightDataHud"
+                            class="fc-hud-surface"
+                            aria-label="Live flight HUD waiting for telemetry"
+                        >
+                            <canvas id="flightDataHudCanvas" aria-hidden="true"></canvas>
+                        </section>
+                    </div>
+                </section>
+            </div>
         </div>
         <section class="fc-status-panel">
             <h3>Autopilot messages</h3>

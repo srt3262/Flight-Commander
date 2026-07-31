@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.5.0
+
+- Added a persistent Metric/Imperial switch to Ground Control. The telemetry
+  cards, live HUD tapes, airspeed and vertical-speed readouts, next-waypoint
+  distance, labels, increments, and accessible HUD announcement now change
+  together between meters and m/s or feet, mph, and ft/s.
+- Kept all received telemetry, mission calculations, map geometry, and vehicle
+  commands in their canonical SI units; the new preference converts values
+  only at the display boundary.
+- Replaced the fixed map/HUD inset with a movable minor-view window spanning
+  the Ground Control workspace. It supports pointer dragging, arrow-key
+  positioning, normalized position persistence across window sizes, and an
+  always-reachable reset control.
+- Preserved the existing map/HUD primary-view switch by moving the live
+  OpenLayers map and HUD canvas between stable primary and floating slots,
+  retaining map state, telemetry, and input behavior through every swap.
+- Changed the simulated HUD ground from brown to a muted forest-green
+  gradient. Both stops preserve enhanced contrast against the white
+  instruments and yellow aircraft marker and remain distinct from the sky.
+- Added conversion, accessibility, drag, clamping, persistence, reset,
+  reparenting, responsive-layout, HUD-contrast, and packaged-renderer
+  verification.
+
 ## 1.4.2
 
 - Fixed `MAVLink transport startup failed: Illegal invocation` after the

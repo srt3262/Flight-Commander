@@ -5,6 +5,8 @@
 }
 
 .fc-flight-view-toolbar {
+    position: relative;
+    z-index: 30;
     display: flex;
     align-items: center;
     justify-content: flex-end;
@@ -15,7 +17,9 @@
 }
 
 .fc-flight-view-toolbar .fc-map-style-control,
-.fc-flight-view-toolbar .fc-map-center-control {
+.fc-flight-view-toolbar .fc-map-center-control,
+.fc-flight-view-toolbar .fc-minor-view-reset,
+.fc-flight-view-toolbar .fc-unit-switch {
     position: static;
     inset: auto;
     min-height: 34px;
@@ -33,7 +37,71 @@
     box-shadow: none;
 }
 
+.fc-unit-switch {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 8px;
+    border: 1px solid #c5d0d7;
+    border-radius: 5px;
+    background: #f8fafb;
+    color: #263b48;
+    font-weight: 600;
+    cursor: pointer;
+    user-select: none;
+}
+
+.fc-unit-switch input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+.fc-unit-switch__track {
+    position: relative;
+    width: 34px;
+    height: 18px;
+    flex: 0 0 auto;
+    border: 1px solid #7c909c;
+    border-radius: 999px;
+    background: #d8e1e6;
+    transition: background-color 150ms ease, border-color 150ms ease;
+}
+
+.fc-unit-switch__thumb {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #ffffff;
+    box-shadow: 0 1px 2px rgba(15, 32, 43, 0.32);
+    transition: transform 150ms ease;
+}
+
+.fc-unit-switch input:checked + .fc-unit-switch__track {
+    border-color: #167ba8;
+    background: #2a9ccc;
+}
+
+.fc-unit-switch input:checked + .fc-unit-switch__track .fc-unit-switch__thumb {
+    transform: translateX(16px);
+}
+
+.fc-unit-switch input:focus-visible + .fc-unit-switch__track {
+    outline: 2px solid #187da8;
+    outline-offset: 2px;
+}
+
 .fc-flight-view-toolbar .fc-map-center-control,
+.fc-flight-view-toolbar .fc-minor-view-reset,
 .fc-primary-view-control {
     padding: 5px 11px;
     border: 1px solid #aebdc6;
@@ -72,14 +140,9 @@
 .fc-map-surface,
 .fc-hud-surface {
     position: absolute;
+    inset: 0;
     box-sizing: border-box;
     overflow: hidden;
-    transition:
-        inset 220ms ease,
-        width 220ms ease,
-        height 220ms ease,
-        border-radius 220ms ease,
-        box-shadow 220ms ease;
 }
 
 .fc-map-surface {
@@ -105,9 +168,8 @@
     height: 100%;
 }
 
-.fc-flight-visuals[data-primary="map"] .fc-map-surface,
-.fc-flight-visuals[data-primary="hud"] .fc-hud-surface {
-    inset: 0;
+.fc-flight-visuals > .fc-map-surface,
+.fc-flight-visuals > .fc-hud-surface {
     z-index: 1;
     width: auto;
     height: auto;
@@ -116,33 +178,99 @@
     box-shadow: none;
 }
 
-.fc-flight-visuals[data-primary="map"] .fc-hud-surface,
-.fc-flight-visuals[data-primary="hud"] .fc-map-surface {
-    z-index: 3;
-    width: clamp(270px, 39%, 410px);
-    height: clamp(190px, 43%, 275px);
-    border: 2px solid rgba(255, 255, 255, 0.92);
+.fc-minor-view-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.fc-minor-view-window {
+    position: absolute;
+    right: 12px;
+    bottom: 12px;
+    display: flex;
+    width: clamp(270px, 33%, 410px);
+    height: clamp(218px, 48%, 305px);
+    flex-direction: column;
+    box-sizing: border-box;
+    overflow: hidden;
+    border: 2px solid rgba(255, 255, 255, 0.94);
     border-radius: 7px;
+    background: #07131b;
     box-shadow:
         0 5px 18px rgba(0, 0, 0, 0.48),
         0 0 0 1px rgba(14, 35, 47, 0.76);
+    pointer-events: auto;
+    will-change: left, top;
 }
 
-.fc-flight-visuals[data-primary="map"] .fc-hud-surface {
-    inset: auto auto 12px 12px;
-    cursor: default;
+.fc-minor-view-window.fc-minor-view-window--dragging {
+    box-shadow:
+        0 9px 25px rgba(0, 0, 0, 0.58),
+        0 0 0 2px #43b0df;
 }
 
-.fc-flight-visuals[data-primary="hud"] .fc-map-surface {
-    inset: auto 12px 12px auto;
+.fc-minor-view-handle {
+    display: flex;
+    min-height: 28px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 7px;
+    padding: 4px 8px;
+    border: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 0;
+    background: linear-gradient(#304b5b, #1a3342);
+    color: #ffffff;
+    font: inherit;
+    text-align: left;
     cursor: grab;
+    touch-action: none;
+    user-select: none;
 }
 
-.fc-flight-visuals[data-primary="hud"] .fc-map-surface:active {
+.fc-minor-view-handle:active,
+.fc-minor-view-window--dragging .fc-minor-view-handle {
     cursor: grabbing;
 }
 
-.fc-flight-visuals[data-primary="hud"] .fc-map-attribution {
+.fc-minor-view-handle:focus-visible {
+    outline: 2px solid #65c8ef;
+    outline-offset: -3px;
+}
+
+.fc-minor-view-handle > span:last-child {
+    color: #c6d8e2;
+    font-size: 0.86em;
+    font-weight: 500;
+}
+
+.fc-minor-view-handle__grip {
+    color: #9fd9ef;
+    font-size: 1.1em;
+    letter-spacing: -0.25em;
+}
+
+.fc-minor-view-content {
+    position: relative;
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow: hidden;
+}
+
+.fc-minor-view-content > .fc-map-surface,
+.fc-minor-view-content > .fc-hud-surface {
+    z-index: 1;
+    width: auto;
+    height: auto;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+}
+
+.fc-minor-view-content .fc-map-attribution {
     max-width: calc(100% - 12px);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -150,10 +278,9 @@
 }
 
 @media (max-width: 1180px) {
-    .fc-flight-visuals[data-primary="map"] .fc-hud-surface,
-    .fc-flight-visuals[data-primary="hud"] .fc-map-surface {
-        width: clamp(245px, 44%, 360px);
-        height: clamp(175px, 42%, 245px);
+    .fc-minor-view-window {
+        width: clamp(245px, 36%, 360px);
+        height: clamp(203px, 47%, 273px);
     }
 }
 
@@ -166,19 +293,12 @@
         min-height: 360px;
     }
 
-    .fc-flight-visuals[data-primary="map"] .fc-hud-surface,
-    .fc-flight-visuals[data-primary="hud"] .fc-map-surface {
+    .fc-minor-view-window {
         width: min(58%, 285px);
         min-width: 215px;
-        height: 175px;
-    }
-
-    .fc-flight-visuals[data-primary="map"] .fc-hud-surface {
-        inset: auto auto 8px 8px;
-    }
-
-    .fc-flight-visuals[data-primary="hud"] .fc-map-surface {
-        inset: auto 8px 8px auto;
+        height: 203px;
+        right: 8px;
+        bottom: 8px;
     }
 }
 
@@ -268,6 +388,7 @@
 }
 
 .tab-flight-data .fc-flight-layout {
+    position: relative;
     grid-template-columns: minmax(370px, 0.92fr) minmax(460px, 1.72fr);
     gap: 10px;
     width: 100%;
@@ -443,6 +564,8 @@
 
     .tab-flight-data .fc-flight-view-toolbar .fc-map-style-control,
     .tab-flight-data .fc-flight-view-toolbar .fc-map-center-control,
+    .tab-flight-data .fc-flight-view-toolbar .fc-minor-view-reset,
+    .tab-flight-data .fc-flight-view-toolbar .fc-unit-switch,
     .tab-flight-data .fc-primary-view-control {
         min-height: 30px;
         padding-block: 3px;
@@ -491,8 +614,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .fc-map-surface,
-    .fc-hud-surface {
+    .fc-unit-switch__track,
+    .fc-unit-switch__thumb {
         transition: none;
     }
 }

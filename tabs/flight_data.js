@@ -17,6 +17,12 @@ import View from 'ol/View.js';
 import CONFIGURATOR from './../js/data_storage';
 import FC from './../js/fc';
 import { estimateInavMissionProgress } from './../js/gcs/inavMissionProgress';
+import {
+  DEFAULT_GROUND_CONTROL_UNIT_SYSTEM,
+  GROUND_CONTROL_UNIT_SYSTEMS,
+  formatGroundControlValue,
+  normalizeGroundControlUnitSystem,
+} from './../js/gcs/groundControlUnits';
 import { mavlinkCommandRouter } from './../js/gcs/mavlinkCommandRouterInstance';
 import GUI from './../js/gui';
 import interval from './../js/intervals';
@@ -119,6 +125,7 @@ const flightData = {
   mavlinkWasConnected: false,
   mavlinkAttachmentGeneration: 0,
   mavlinkMissionAbortController: null,
+  unitSystem: DEFAULT_GROUND_CONTROL_UNIT_SYSTEM,
 };
 
 flightData.suspendGlobalLog = function () {
@@ -171,6 +178,7 @@ flightData.initialize = function (callback) {
     GUI.load(html, () => {
       if (!isCurrentInitialization()) return;
       this.loadStoredMapStyle();
+      this.loadStoredUnitSystem();
       this.buildMap();
       this.bindControls();
       this.configureProtocol();
@@ -214,6 +222,32 @@ flightData.applyMapStyle = function () {
   $('#flightDataAttribution').text(mapAttribution(selected));
 };
 
+flightData.loadStoredUnitSystem = function () {
+  this.unitSystem = normalizeGroundControlUnitSystem(
+    store.get(
+      'flightCommanderGroundControlUnits',
+      DEFAULT_GROUND_CONTROL_UNIT_SYSTEM,
+    ),
+  );
+  const imperial = this.unitSystem === GROUND_CONTROL_UNIT_SYSTEMS.IMPERIAL;
+  $('#flightDataUnits')
+    .prop('checked', imperial)
+    .attr('aria-checked', String(imperial));
+};
+
+flightData.applyUnitSystem = function (value, persist = true) {
+  this.unitSystem = normalizeGroundControlUnitSystem(value);
+  const imperial = this.unitSystem === GROUND_CONTROL_UNIT_SYSTEMS.IMPERIAL;
+  $('#flightDataUnits')
+    .prop('checked', imperial)
+    .attr('aria-checked', String(imperial));
+  if (persist) {
+    store.set('flightCommanderGroundControlUnits', this.unitSystem);
+  }
+  this.hud?.setUnitSystem(this.unitSystem);
+  this.render(this.currentState());
+};
+
 flightData.setupHud = function () {
   const loadToken = ++this.hudLoadToken;
   import('./flight_hud-v1.3.5.js')
@@ -223,6 +257,7 @@ flightData.setupHud = function () {
       this.hud = createGroundControlHud({
         getState: () => this.currentState(),
         onLayoutChange: () => this.map?.updateSize(),
+        unitSystem: this.unitSystem,
       });
       this.hud.render(this.currentState());
     })
@@ -499,6 +534,11 @@ flightData.bindControls = function () {
 
   $('#flightDataCenter').on('click', () => this.centerVehicle(true));
   $('#flightDataMapStyle').on('change', () => this.applyMapStyle());
+  $('#flightDataUnits').on('change', (event) => this.applyUnitSystem(
+    event.currentTarget.checked
+      ? GROUND_CONTROL_UNIT_SYSTEMS.IMPERIAL
+      : GROUND_CONTROL_UNIT_SYSTEMS.METRIC,
+  ));
 };
 
 flightData.runVehicleAction = async function (
@@ -746,11 +786,31 @@ flightData.render = function (state) {
     $('#flightDataMode').val(modeName);
   }
   $('#flightDataModeValue').text(state.modeName ?? '--');
-  $('#flightDataAltitude').text(format(state.relativeAltitude, 1, ' m'));
-  $('#flightDataGroundSpeed').text(format(state.groundSpeed, 1, ' m/s'));
-  $('#flightDataAirSpeed').text(format(state.airSpeed, 1, ' m/s'));
+  $('#flightDataAltitude').text(formatGroundControlValue(
+    state.relativeAltitude,
+    'relativeAltitude',
+    this.unitSystem,
+    { decimals: 1 },
+  ));
+  $('#flightDataGroundSpeed').text(formatGroundControlValue(
+    state.groundSpeed,
+    'groundSpeed',
+    this.unitSystem,
+    { decimals: 1 },
+  ));
+  $('#flightDataAirSpeed').text(formatGroundControlValue(
+    state.airSpeed,
+    'airSpeed',
+    this.unitSystem,
+    { decimals: 1 },
+  ));
   $('#flightDataHeading').text(format(state.heading, 0, '°'));
-  $('#flightDataClimb').text(format(state.climbRate, 1, ' m/s'));
+  $('#flightDataClimb').text(formatGroundControlValue(
+    state.climbRate,
+    'climbRate',
+    this.unitSystem,
+    { decimals: 1 },
+  ));
   $('#flightDataGps').text(
     `${GPS_FIX_NAMES[state.gpsFix] ?? `Fix ${state.gpsFix}`} · ${Number.isFinite(state.satellites) ? state.satellites : '--'} sats`,
   );
@@ -831,7 +891,12 @@ flightData.renderMissionProgress = function (state) {
   } else {
     $('#flightDataMissionProgress').text(total > 0 ? `${total} items loaded` : '--');
   }
-  $('#flightDataWaypointDistance').text(format(state.distanceToWaypoint, 0, ' m'));
+  $('#flightDataWaypointDistance').text(formatGroundControlValue(
+    state.distanceToWaypoint,
+    'distanceToWaypoint',
+    this.unitSystem,
+    { decimals: 0 },
+  ));
 };
 
 flightData.centerVehicle = function (force, state = this.currentState()) {
@@ -1023,6 +1088,7 @@ flightData.cleanup = function (callback) {
   this.modeSignature = '';
   this.estimatedMissionCurrent = null;
   this.mavlinkWasConnected = false;
+  this.unitSystem = DEFAULT_GROUND_CONTROL_UNIT_SYSTEM;
   this.restoreGlobalLog();
   if (callback) callback();
 };

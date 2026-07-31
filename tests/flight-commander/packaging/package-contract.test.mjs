@@ -122,10 +122,25 @@ test("Windows verification follows the active renderer graph and rejects leftove
   assert.match(packageVerifier, /MAVLINK_SESSION_DETACHED/);
   assert.match(packageVerifier, /MAVLink host timer/);
   assert.match(packageVerifier, /Auto protocol \(selected baud\)/);
+  assert.match(packageVerifier, /flightDataMinorDragHandle/);
+  assert.match(packageVerifier, /Reset minor view/);
+  assert.match(packageVerifier, /flightCommanderGroundControlUnits/);
+  assert.match(packageVerifier, /flightCommanderGroundControlMinorPosition/);
+  assert.match(packageVerifier, /miles per hour/);
+  assert.match(packageVerifier, /#31523b/);
+  assert.match(packageVerifier, /#172a20/);
+  for (const selector of [
+    "fc-unit-switch",
+    "fc-minor-view-layer",
+    "fc-minor-view-window",
+    "fc-minor-view-handle",
+  ]) {
+    assert.match(packageVerifier, new RegExp(selector));
+  }
 });
 
 test("landing page reports the current Flight Commander release", () => {
-  assert.match(landingHtml, />Flight Commander 1\.4\.2</);
+  assert.match(landingHtml, />Flight Commander 1\.5\.0</);
 });
 
 test("canonical Flight Commander visual assets match the verified 1.3.5 identity", () => {

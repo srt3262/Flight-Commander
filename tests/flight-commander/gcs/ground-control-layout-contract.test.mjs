@@ -16,6 +16,14 @@ const hudCssSource = readFileSync(
   resolve(projectRoot, "tabs/flight_hud-v1.3.5.css"),
   "utf8",
 );
+const groundControlSource = readFileSync(
+  resolve(projectRoot, "tabs/flight_data.js"),
+  "utf8",
+);
+const hudSource = readFileSync(
+  resolve(projectRoot, "tabs/flight_hud-v1.3.5.js"),
+  "utf8",
+);
 const mainProcessSource = readFileSync(
   resolve(projectRoot, "js/main/main.js"),
   "utf8",
@@ -74,7 +82,9 @@ function shortHeightBudget({ width, height }) {
     availableFlightWidth * (telemetryRatio / (telemetryRatio + mapRatio));
   const telemetryCardWidth = (telemetryWidth - 12) / 3;
   const telemetryCardHeight = (flightHeight - 24) / 5;
-  const mapToolbarHeight = compactHeight ? 34 : 45;
+  // At the 1024px operating minimum the five view controls intentionally wrap
+  // to two 30px rows, with a 5px row gap and the 4px toolbar margin.
+  const mapToolbarHeight = compactHeight ? 69 : 45;
 
   return {
     contentWidth,
@@ -83,6 +93,7 @@ function shortHeightBudget({ width, height }) {
     telemetryCardWidth,
     telemetryCardHeight,
     visualHeight: flightHeight - mapToolbarHeight,
+    minorWindowHeight: width <= 1180 ? 203 : 218,
   };
 }
 
@@ -122,50 +133,133 @@ test("Ground Control source exposes all fifteen telemetry values", () => {
   );
   assert.match(
     groundControlHtml,
-    /id="flightDataPrimaryView"[\s\S]*?aria-pressed="false"[\s\S]*?>Expand HUD<\/button>/,
+    /id="flightDataPrimaryView"[\s\S]*?aria-controls="flightDataVisuals flightDataMinorWindow"[\s\S]*?aria-pressed="false"[\s\S]*?>Expand HUD<\/button>/,
+  );
+  assert.match(
+    groundControlHtml,
+    /id="flightDataUnits"[\s\S]*?type="checkbox"[\s\S]*?role="switch"/,
+  );
+  assert.match(groundControlHtml, /id="flightDataResetMinorView"/);
+  assert.match(groundControlHtml, /id="flightDataMinorDragHandle"/);
+  assert.match(
+    groundControlHtml,
+    /id="flightDataVisuals"[\s\S]*?id="flightDataMapSurface"[\s\S]*?<\/div>[\s\S]*?id="flightDataFloatingLayer"[\s\S]*?id="flightDataMinorContent"[\s\S]*?id="flightDataHud"/,
   );
 });
 
-test("map-primary and HUD-primary CSS both retain a major and inset view", () => {
+test("primary slot and movable minor window remain distinct and uncluttered", () => {
   const primarySelector =
-    '.fc-flight-visuals[data-primary="map"] .fc-map-surface, ' +
-    '.fc-flight-visuals[data-primary="hud"] .fc-hud-surface';
-  const insetSelector =
-    '.fc-flight-visuals[data-primary="map"] .fc-hud-surface, ' +
-    '.fc-flight-visuals[data-primary="hud"] .fc-map-surface';
+    ".fc-flight-visuals > .fc-map-surface, " +
+    ".fc-flight-visuals > .fc-hud-surface";
+  const minorSelector =
+    ".fc-minor-view-content > .fc-map-surface, " +
+    ".fc-minor-view-content > .fc-hud-surface";
   const primaryBody = ruleBody(primarySelector);
-  const insetBody = ruleBody(insetSelector);
+  const minorBody = ruleBody(minorSelector);
 
   expectDeclarations(
     primaryBody,
-    ["inset: 0;", "z-index: 1;", "width: auto;", "height: auto;"],
+    ["z-index: 1;", "width: auto;", "height: auto;", "border: 0;"],
     "primary view",
   );
   expectDeclarations(
-    insetBody,
+    ruleBody(".fc-minor-view-layer"),
     [
-      "z-index: 3;",
-      "width: clamp(270px, 39%, 410px);",
-      "height: clamp(190px, 43%, 275px);",
-      "border: 2px solid",
+      "position: absolute;",
+      "inset: 0;",
+      "z-index: 20;",
+      "overflow: hidden;",
+      "pointer-events: none;",
     ],
-    "inset view",
+    "minor view layer",
   );
+  expectDeclarations(
+    ruleBody(".fc-minor-view-window"),
+    [
+      "position: absolute;",
+      "width: clamp(270px, 33%, 410px);",
+      "height: clamp(218px, 48%, 305px);",
+      "border: 2px solid",
+      "pointer-events: auto;",
+    ],
+    "movable minor window",
+  );
+  expectDeclarations(
+    minorBody,
+    ["z-index: 1;", "width: auto;", "height: auto;", "border: 0;"],
+    "minor view content",
+  );
+  expectDeclarations(
+    ruleBody(".fc-map-surface, .fc-hud-surface"),
+    ["position: absolute;", "inset: 0;", "overflow: hidden;"],
+    "both live surfaces",
+  );
+  expectDeclarations(
+    ruleBody(".fc-minor-view-handle"),
+    ["cursor: grab;", "touch-action: none;", "user-select: none;"],
+    "minor drag handle",
+  );
+  expectDeclarations(
+    ruleBody(".fc-flight-view-toolbar"),
+    ["position: relative;", "z-index: 30;"],
+    "always-recoverable view toolbar",
+  );
+  assert.match(
+    hudCssSource,
+    /@media \(max-width: 1180px\)[\s\S]*?\.fc-minor-view-window\s*\{[\s\S]*?width:\s*clamp\(245px,\s*36%,\s*360px\)/,
+  );
+});
 
-  for (const primary of ["map", "hud"]) {
-    const majorSurface =
-      primary === "map" ? ".fc-map-surface" : ".fc-hud-surface";
-    const insetSurface =
-      primary === "map" ? ".fc-hud-surface" : ".fc-map-surface";
+test("minor view can fit wholly beside the major display across breakpoints", () => {
+  const clampValue = (minimum, preferred, maximum) =>
+    Math.min(maximum, Math.max(minimum, preferred));
+  for (const width of [1024, 1180, 1181, 1280, 1366, 1920]) {
+    const compactNavigation = width <= 1055;
+    const contentWidth = width - (compactNavigation ? 60 : 200);
+    const wrapperHorizontalPadding = 16;
+    const workspaceWidth = contentWidth - wrapperHorizontalPadding;
+    const gap = width <= 1050 ? 7 : 10;
+    const availableWidth = workspaceWidth - gap;
+    const telemetryRatio = width <= 1050 ? 0.92 : width <= 1180 ? 0.95 : 0.92;
+    const mapRatio = width <= 1050 ? 1.5 : width <= 1180 ? 1.55 : 1.72;
+    const telemetryWidth =
+      availableWidth * (telemetryRatio / (telemetryRatio + mapRatio));
+    const roomBeforeMajor = telemetryWidth + gap;
+    const minorWidth = width <= 1180
+      ? clampValue(245, workspaceWidth * 0.36, 360)
+      : clampValue(270, workspaceWidth * 0.33, 410);
     assert.ok(
-      primarySelector.includes(`[data-primary="${primary}"] ${majorSurface}`),
-      `${primary}-primary major surface`,
-    );
-    assert.ok(
-      insetSelector.includes(`[data-primary="${primary}"] ${insetSurface}`),
-      `${primary}-primary inset surface`,
+      minorWidth <= roomBeforeMajor,
+      `${width}px: ${minorWidth.toFixed(1)}px minor exceeds ${roomBeforeMajor.toFixed(1)}px before major view`,
     );
   }
+});
+
+test("unit switching converts only Ground Control display boundaries", () => {
+  assert.match(
+    groundControlSource,
+    /flightCommanderGroundControlUnits/,
+  );
+  for (const quantity of [
+    "relativeAltitude",
+    "groundSpeed",
+    "airSpeed",
+    "climbRate",
+    "distanceToWaypoint",
+  ]) {
+    assert.match(
+      groundControlSource,
+      new RegExp(`formatGroundControlValue\\([\\s\\S]*?['\"]${quantity}['\"]`),
+    );
+  }
+  assert.match(hudSource, /toGroundControlDisplayState/);
+  assert.match(hudSource, /hudTapeSteps\.groundSpeed/);
+  assert.match(hudSource, /hudTapeSteps\.relativeAltitude/);
+  assert.doesNotMatch(
+    groundControlSource,
+    /mavlinkCommandRouter\.takeoff\([\s\S]*?convertGroundControlValue/,
+    "the telemetry toggle must not reinterpret the flight-command altitude",
+  );
 });
 
 test("supported Ground Control layout is fixed-height and only messages scroll internally", () => {
@@ -187,7 +281,12 @@ test("supported Ground Control layout is fixed-height and only messages scroll i
   );
   expectDeclarations(
     ruleBody(".tab-flight-data .fc-flight-layout"),
-    ["height: 100%;", "min-height: 0;", "overflow: hidden;"],
+    [
+      "position: relative;",
+      "height: 100%;",
+      "min-height: 0;",
+      "overflow: hidden;",
+    ],
     "flight workspace",
   );
   expectDeclarations(
@@ -267,7 +366,11 @@ test("the 1024 by 720 CSS budget retains readable telemetry in both primary layo
       budget.flightHeight >= 290,
       `${primary}: flight workspace height`,
     );
-    assert.ok(budget.visualHeight >= 235, `${primary}: major view height`);
+    assert.ok(budget.visualHeight >= 200, `${primary}: major view height`);
+    assert.ok(
+      budget.flightHeight >= budget.minorWindowHeight,
+      `${primary}: movable minor view fits the workspace`,
+    );
     assert.ok(
       budget.telemetryCardWidth >= 100,
       `${primary}: telemetry card width`,

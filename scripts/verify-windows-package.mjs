@@ -580,6 +580,16 @@ if (
 if (rendererCss.includes(".inavLogo{")) {
   fail("the active renderer CSS still contains the retired INAV logo selector");
 }
+for (const selector of [
+  ".fc-unit-switch",
+  ".fc-minor-view-layer",
+  ".fc-minor-view-window",
+  ".fc-minor-view-handle",
+]) {
+  if (ruleDeclarations(rendererCss, selector).length === 0) {
+    fail(`the active renderer CSS does not contain ${selector}`);
+  }
+}
 
 const rendererText = rendererFiles
   .map((path) => readFileSync(path, "utf8"))
@@ -587,6 +597,13 @@ const rendererText = rendererFiles
 for (const marker of [
   "flightDataMap",
   "flightDataHud",
+  "flightDataMinorDragHandle",
+  "Reset minor view",
+  "flightCommanderGroundControlUnits",
+  "flightCommanderGroundControlMinorPosition",
+  "miles per hour",
+  "#31523b",
+  "#172a20",
   "plannerCameraCommandMode",
   "plannerInavMissionRestart",
   "plannerArduPilotMissionRestart",

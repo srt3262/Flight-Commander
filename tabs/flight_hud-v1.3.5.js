@@ -1,6 +1,20 @@
+import {
+    DEFAULT_GROUND_CONTROL_UNIT_SYSTEM,
+    getGroundControlUnitProfile,
+    groundControlUnitLabel,
+    normalizeGroundControlUnitSystem,
+    toGroundControlDisplayState,
+} from './../js/gcs/groundControlUnits.js';
+
 const STORAGE_KEY = 'flightCommanderGroundControlPrimaryView';
+const MINOR_POSITION_STORAGE_KEY = 'flightCommanderGroundControlMinorPosition';
 const PRIMARY_VIEWS = new Set(['map', 'hud']);
 const DEG_TO_RAD = Math.PI / 180;
+
+export const HUD_GROUND_COLORS = Object.freeze({
+    horizon: '#31523b',
+    depth: '#172a20',
+});
 
 function finite(value) {
     if (value === null || value === undefined || value === '') return null;
@@ -108,8 +122,24 @@ export function hudAttitudeTransform(state, height) {
     };
 }
 
-export function buildHudAnnouncement(state) {
-    const value = normalizeHudState(state);
+export function buildHudAnnouncement(
+    state,
+    unitSystem = DEFAULT_GROUND_CONTROL_UNIT_SYSTEM,
+) {
+    const value = toGroundControlDisplayState(
+        normalizeHudState(state),
+        unitSystem,
+    );
+    const speedUnit = groundControlUnitLabel(
+        'groundSpeed',
+        unitSystem,
+        { spoken: true },
+    );
+    const altitudeUnit = groundControlUnitLabel(
+        'relativeAltitude',
+        unitSystem,
+        { spoken: true },
+    );
     if (!value.connected) return 'Live flight HUD waiting for telemetry';
     const link = value.linkLost ? 'link lost' : 'link active';
     const armed = value.armed ? 'armed' : 'disarmed';
@@ -119,8 +149,8 @@ export function buildHudAnnouncement(state) {
         `roll ${format(value.roll, 0, ' degrees')}`,
         `pitch ${format(value.pitch, 0, ' degrees')}`,
         `heading ${format(value.heading, 0, ' degrees')}`,
-        `ground speed ${format(value.groundSpeed, 1, ' meters per second')}`,
-        `relative altitude ${format(value.relativeAltitude, 1, ' meters')}`,
+        `ground speed ${format(value.groundSpeed, 1, ` ${speedUnit}`)}`,
+        `relative altitude ${format(value.relativeAltitude, 1, ` ${altitudeUnit}`)}`,
     ].join(', ');
 }
 
@@ -145,8 +175,8 @@ function drawAttitude(context, width, height, state, compact) {
     context.fillRect(-extent, -extent, extent * 2, extent);
 
     const ground = context.createLinearGradient(0, 0, 0, extent);
-    ground.addColorStop(0, '#a26a37');
-    ground.addColorStop(1, '#4f2b16');
+    ground.addColorStop(0, HUD_GROUND_COLORS.horizon);
+    ground.addColorStop(1, HUD_GROUND_COLORS.depth);
     context.fillStyle = ground;
     context.fillRect(-extent, 0, extent * 2, extent);
 
@@ -335,7 +365,7 @@ function drawVerticalTape(context, options) {
     context.fillText(label, x + width / 2, y + (compact ? 7 : 9));
 }
 
-function drawStatus(context, width, height, state, compact) {
+function drawStatus(context, width, height, state, compact, unitProfile) {
     const barHeight = compact ? 29 : 35;
     const y = height - barHeight;
     context.fillStyle = 'rgba(2, 12, 18, 0.84)';
@@ -381,7 +411,7 @@ function drawStatus(context, width, height, state, compact) {
     if (!compact) {
         context.fillStyle = '#ffffff';
         context.fillText(
-            `VS ${format(state.climbRate, 1)}`,
+            `VS ${format(state.climbRate, 1)} ${unitProfile.verticalSpeed.symbol}`,
             width * 0.76,
             y + barHeight / 2,
         );
@@ -393,7 +423,11 @@ function drawStatus(context, width, height, state, compact) {
     context.fillText(state.linkLost ? 'LINK LOST' : 'LINK', width - (compact ? 5 : 8), y + barHeight / 2);
 }
 
-export function drawGroundControlHud(canvas, telemetryState) {
+export function drawGroundControlHud(
+    canvas,
+    telemetryState,
+    unitSystem = DEFAULT_GROUND_CONTROL_UNIT_SYSTEM,
+) {
     if (!canvas || typeof canvas.getContext !== 'function') return false;
     const context = canvas.getContext('2d');
     if (!context) return false;
@@ -416,7 +450,12 @@ export function drawGroundControlHud(canvas, telemetryState) {
     context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
     context.clearRect(0, 0, width, height);
 
-    const state = normalizeHudState(telemetryState);
+    const normalizedUnitSystem = normalizeGroundControlUnitSystem(unitSystem);
+    const unitProfile = getGroundControlUnitProfile(normalizedUnitSystem);
+    const state = toGroundControlDisplayState(
+        normalizeHudState(telemetryState),
+        normalizedUnitSystem,
+    );
     const compact = width < 500 || height < 300;
     const attitudeAvailable = Number.isFinite(state.roll) && Number.isFinite(state.pitch);
     if (attitudeAvailable) {
@@ -440,9 +479,11 @@ export function drawGroundControlHud(canvas, telemetryState) {
         width: tapeWidth,
         height: tapeHeight,
         value: state.groundSpeed,
-        step: compact ? 2 : 5,
+        step: compact
+            ? unitProfile.hudTapeSteps.groundSpeed.compact
+            : unitProfile.hudTapeSteps.groundSpeed.regular,
         decimals: 1,
-        label: 'GS m/s',
+        label: `GS ${unitProfile.horizontalSpeed.symbol}`,
         align: 'left',
         compact,
     });
@@ -452,9 +493,13 @@ export function drawGroundControlHud(canvas, telemetryState) {
         width: tapeWidth,
         height: tapeHeight,
         value: state.relativeAltitude,
-        step: compact ? 5 : 10,
+        step: compact
+            ? unitProfile.hudTapeSteps.relativeAltitude.compact
+            : unitProfile.hudTapeSteps.relativeAltitude.regular,
         decimals: 1,
-        label: compact ? 'REL m' : 'REL ALT m',
+        label: compact
+            ? `REL ${unitProfile.altitude.symbol}`
+            : `REL ALT ${unitProfile.altitude.symbol}`,
         align: 'right',
         compact,
     });
@@ -467,13 +512,13 @@ export function drawGroundControlHud(canvas, telemetryState) {
         context.textBaseline = 'middle';
         context.font = `${compact ? 8 : 10}px "Segoe UI", sans-serif`;
         context.fillText(
-            `AS ${format(state.airSpeed, 1)} m/s`,
+            `AS ${format(state.airSpeed, 1)} ${unitProfile.horizontalSpeed.symbol}`,
             tapeWidth + 8,
             tapeTop + (compact ? 10 : 12),
         );
     }
 
-    drawStatus(context, width, height, state, compact);
+    drawStatus(context, width, height, state, compact, unitProfile);
 
     if (!state.connected || state.linkLost || !attitudeAvailable) {
         const message = !state.connected
@@ -520,16 +565,86 @@ function writePrimaryView(storage, value) {
     }
 }
 
+export function normalizeMinorViewPosition(value) {
+    let parsed = value;
+    if (typeof parsed === 'string') {
+        try {
+            parsed = JSON.parse(parsed);
+        } catch {
+            return null;
+        }
+    }
+    if (!parsed || typeof parsed !== 'object') return null;
+    const x = finite(parsed.x);
+    const y = finite(parsed.y);
+    if (x === null || y === null) return null;
+    return {
+        x: clamp(x, 0, 1),
+        y: clamp(y, 0, 1),
+    };
+}
+
+function readMinorViewPosition(storage) {
+    try {
+        return normalizeMinorViewPosition(
+            storage?.getItem(MINOR_POSITION_STORAGE_KEY),
+        );
+    } catch {
+        return null;
+    }
+}
+
+function writeMinorViewPosition(storage, value) {
+    try {
+        storage?.setItem(MINOR_POSITION_STORAGE_KEY, JSON.stringify(value));
+    } catch {
+        // A denied storage write should not stop direct manipulation.
+    }
+}
+
+function clearMinorViewPosition(storage) {
+    try {
+        if (typeof storage?.removeItem === 'function') {
+            storage.removeItem(MINOR_POSITION_STORAGE_KEY);
+        } else {
+            storage?.setItem(MINOR_POSITION_STORAGE_KEY, '');
+        }
+    } catch {
+        // Resetting the live position still succeeds if persistence is denied.
+    }
+}
+
+function elementSize(rect, axis) {
+    const direct = finite(rect?.[axis]);
+    if (direct !== null) return Math.max(0, direct);
+    const start = finite(rect?.[axis === 'width' ? 'left' : 'top']);
+    const end = finite(rect?.[axis === 'width' ? 'right' : 'bottom']);
+    return start === null || end === null ? 0 : Math.max(0, end - start);
+}
+
 export function createGroundControlHud({
     getState,
     onLayoutChange,
     storage,
+    unitSystem = DEFAULT_GROUND_CONTROL_UNIT_SYSTEM,
 } = {}) {
+    const workspace = document.getElementById('flightDataWorkspace');
     const visuals = document.getElementById('flightDataVisuals');
     const surface = document.getElementById('flightDataHud');
+    const mapSurface = document.getElementById('flightDataMapSurface');
     const canvas = document.getElementById('flightDataHudCanvas');
     const button = document.getElementById('flightDataPrimaryView');
-    if (!visuals || !surface || !canvas || !button) {
+    const floatingLayer = document.getElementById('flightDataFloatingLayer');
+    const minorWindow = document.getElementById('flightDataMinorWindow');
+    const minorContent = document.getElementById('flightDataMinorContent');
+    const dragHandle = document.getElementById('flightDataMinorDragHandle');
+    const minorTitle = document.getElementById('flightDataMinorViewTitle');
+    const resetButton = document.getElementById('flightDataResetMinorView');
+    if (
+        !workspace || !visuals || !surface || !mapSurface || !canvas || !button
+        || !floatingLayer || !minorWindow || !minorContent || !dragHandle
+        || !minorTitle || !resetButton
+    ) {
         throw new Error('Ground Control HUD elements are unavailable.');
     }
 
@@ -545,12 +660,66 @@ export function createGroundControlHud({
     let lastState = normalizeHudState(typeof getState === 'function' ? getState() : {});
     let lastLiveState = lastState.connected && !lastState.linkLost ? lastState : null;
     let primaryView = readPrimaryView(preferenceStorage);
+    let minorPosition = readMinorViewPosition(preferenceStorage);
+    let displayUnitSystem = normalizeGroundControlUnitSystem(unitSystem);
+    let dragState = null;
     const timeouts = new Set();
     let animationFrame = null;
 
+    const travelBounds = () => {
+        const layerRect = floatingLayer.getBoundingClientRect();
+        const windowRect = minorWindow.getBoundingClientRect();
+        return {
+            layerRect,
+            windowRect,
+            maxX: Math.max(
+                0,
+                elementSize(layerRect, 'width') - elementSize(windowRect, 'width'),
+            ),
+            maxY: Math.max(
+                0,
+                elementSize(layerRect, 'height') - elementSize(windowRect, 'height'),
+            ),
+        };
+    };
+
+    const applyMinorPosition = () => {
+        if (!minorPosition) {
+            minorWindow.style.left = '';
+            minorWindow.style.top = '';
+            minorWindow.style.right = '';
+            minorWindow.style.bottom = '';
+            resetButton.disabled = true;
+            return;
+        }
+        const { maxX, maxY } = travelBounds();
+        minorWindow.style.left = `${Math.round(minorPosition.x * maxX)}px`;
+        minorWindow.style.top = `${Math.round(minorPosition.y * maxY)}px`;
+        minorWindow.style.right = 'auto';
+        minorWindow.style.bottom = 'auto';
+        resetButton.disabled = false;
+    };
+
+    const setMinorPositionPixels = (left, top, persist = false) => {
+        const { maxX, maxY } = travelBounds();
+        const clampedLeft = clamp(finite(left) ?? 0, 0, maxX);
+        const clampedTop = clamp(finite(top) ?? 0, 0, maxY);
+        minorPosition = {
+            x: maxX > 0 ? clampedLeft / maxX : 0,
+            y: maxY > 0 ? clampedTop / maxY : 0,
+        };
+        minorWindow.style.left = `${Math.round(clampedLeft)}px`;
+        minorWindow.style.top = `${Math.round(clampedTop)}px`;
+        minorWindow.style.right = 'auto';
+        minorWindow.style.bottom = 'auto';
+        resetButton.disabled = false;
+        if (persist) writeMinorViewPosition(preferenceStorage, minorPosition);
+    };
+
     const updateSizes = () => {
         if (destroyed) return;
-        drawGroundControlHud(canvas, lastState);
+        applyMinorPosition();
+        drawGroundControlHud(canvas, lastState, displayUnitSystem);
         if (typeof onLayoutChange === 'function') onLayoutChange(primaryView);
     };
 
@@ -569,7 +738,23 @@ export function createGroundControlHud({
 
     const applyPrimaryView = (value, persist = true) => {
         primaryView = PRIMARY_VIEWS.has(value) ? value : 'map';
+        const primarySurface = primaryView === 'map' ? mapSurface : surface;
+        const minorSurface = primaryView === 'map' ? surface : mapSurface;
+        visuals.appendChild(primarySurface);
+        minorContent.appendChild(minorSurface);
         visuals.dataset.primary = primaryView;
+        const minorView = primaryView === 'map' ? 'hud' : 'map';
+        floatingLayer.dataset.minor = minorView;
+        minorWindow.dataset.view = minorView;
+        minorTitle.textContent = minorView === 'map' ? 'Live map' : 'Live HUD';
+        minorWindow.setAttribute(
+            'aria-label',
+            `Movable live ${minorView === 'map' ? 'map' : 'HUD'} view`,
+        );
+        dragHandle.setAttribute(
+            'aria-label',
+            `Move the minor live ${minorView === 'map' ? 'map' : 'HUD'} view. Drag or use the arrow keys.`,
+        );
         const hudPrimary = primaryView === 'hud';
         button.setAttribute('aria-pressed', String(hudPrimary));
         button.textContent = hudPrimary ? 'Expand map' : 'Expand HUD';
@@ -598,17 +783,113 @@ export function createGroundControlHud({
         } else {
             lastState = nextState;
         }
-        surface.setAttribute('aria-label', buildHudAnnouncement(lastState));
-        drawGroundControlHud(canvas, lastState);
+        surface.setAttribute(
+            'aria-label',
+            buildHudAnnouncement(lastState, displayUnitSystem),
+        );
+        drawGroundControlHud(canvas, lastState, displayUnitSystem);
+    };
+
+    const resetMinorPosition = () => {
+        minorPosition = null;
+        clearMinorViewPosition(preferenceStorage);
+        applyMinorPosition();
+        scheduleSizeUpdate();
+    };
+
+    const beginDrag = (event) => {
+        if (destroyed || event?.isPrimary === false) return;
+        if (Number.isFinite(event?.button) && event.button !== 0) return;
+        const { layerRect, windowRect } = travelBounds();
+        dragState = {
+            pointerId: event?.pointerId,
+            startX: finite(event?.clientX) ?? 0,
+            startY: finite(event?.clientY) ?? 0,
+            startLeft: (finite(windowRect?.left) ?? 0) - (finite(layerRect?.left) ?? 0),
+            startTop: (finite(windowRect?.top) ?? 0) - (finite(layerRect?.top) ?? 0),
+        };
+        dragHandle.setPointerCapture?.(event.pointerId);
+        minorWindow.classList.add('fc-minor-view-window--dragging');
+        event?.preventDefault?.();
+    };
+
+    const moveDrag = (event) => {
+        if (!dragState) return;
+        if (
+            dragState.pointerId !== undefined
+            && event?.pointerId !== undefined
+            && event.pointerId !== dragState.pointerId
+        ) return;
+        const clientX = finite(event?.clientX) ?? dragState.startX;
+        const clientY = finite(event?.clientY) ?? dragState.startY;
+        setMinorPositionPixels(
+            dragState.startLeft + clientX - dragState.startX,
+            dragState.startTop + clientY - dragState.startY,
+        );
+        event?.preventDefault?.();
+    };
+
+    const finishDrag = (event) => {
+        if (!dragState) return;
+        if (
+            dragState.pointerId !== undefined
+            && event?.pointerId !== undefined
+            && event.pointerId !== dragState.pointerId
+        ) return;
+        const pointerId = dragState.pointerId;
+        dragState = null;
+        minorWindow.classList.remove('fc-minor-view-window--dragging');
+        if (minorPosition) writeMinorViewPosition(preferenceStorage, minorPosition);
+        if (
+            pointerId !== undefined
+            && dragHandle.hasPointerCapture?.(pointerId)
+        ) {
+            dragHandle.releasePointerCapture(pointerId);
+        }
+        scheduleSizeUpdate();
+        event?.preventDefault?.();
+    };
+
+    const moveWithKeyboard = (event) => {
+        const direction = {
+            ArrowLeft: [-1, 0],
+            ArrowRight: [1, 0],
+            ArrowUp: [0, -1],
+            ArrowDown: [0, 1],
+        }[event?.key];
+        if (!direction) return;
+        const { layerRect, windowRect } = travelBounds();
+        const step = event.shiftKey ? 30 : 10;
+        setMinorPositionPixels(
+            (finite(windowRect?.left) ?? 0)
+                - (finite(layerRect?.left) ?? 0)
+                + direction[0] * step,
+            (finite(windowRect?.top) ?? 0)
+                - (finite(layerRect?.top) ?? 0)
+                + direction[1] * step,
+            true,
+        );
+        scheduleSizeUpdate();
+        event.preventDefault();
     };
 
     button.addEventListener('click', togglePrimaryView);
+    resetButton.addEventListener('click', resetMinorPosition);
+    dragHandle.addEventListener('pointerdown', beginDrag);
+    dragHandle.addEventListener('pointermove', moveDrag);
+    dragHandle.addEventListener('pointerup', finishDrag);
+    dragHandle.addEventListener('pointercancel', finishDrag);
+    dragHandle.addEventListener('lostpointercapture', finishDrag);
+    dragHandle.addEventListener('keydown', moveWithKeyboard);
     let resizeObserver = null;
     const resizeHandler = () => scheduleSizeUpdate();
     if (typeof ResizeObserver === 'function') {
         resizeObserver = new ResizeObserver(resizeHandler);
+        resizeObserver.observe(workspace);
         resizeObserver.observe(visuals);
         resizeObserver.observe(surface);
+        resizeObserver.observe(mapSurface);
+        resizeObserver.observe(minorWindow);
     } else {
         globalThis.addEventListener?.('resize', resizeHandler);
     }
@@ -620,9 +901,37 @@ export function createGroundControlHud({
         render,
         primaryView: () => primaryView,
         setPrimaryView: (value) => applyPrimaryView(value),
+        minorViewPosition: () => minorPosition && { ...minorPosition },
+        resetMinorPosition,
+        unitSystem: () => displayUnitSystem,
+        setUnitSystem(value) {
+            displayUnitSystem = normalizeGroundControlUnitSystem(value);
+            render(lastState);
+            scheduleSizeUpdate();
+        },
         destroy() {
             destroyed = true;
+            const capturedPointerId = dragState?.pointerId;
+            if (
+                capturedPointerId !== undefined
+                && dragHandle.hasPointerCapture?.(capturedPointerId)
+            ) {
+                try {
+                    dragHandle.releasePointerCapture(capturedPointerId);
+                } catch {
+                    // Chromium can release capture first as the tab detaches.
+                }
+            }
             button.removeEventListener('click', togglePrimaryView);
+            resetButton.removeEventListener('click', resetMinorPosition);
+            dragHandle.removeEventListener('pointerdown', beginDrag);
+            dragHandle.removeEventListener('pointermove', moveDrag);
+            dragHandle.removeEventListener('pointerup', finishDrag);
+            dragHandle.removeEventListener('pointercancel', finishDrag);
+            dragHandle.removeEventListener('lostpointercapture', finishDrag);
+            dragHandle.removeEventListener('keydown', moveWithKeyboard);
+            dragState = null;
+            minorWindow.classList.remove('fc-minor-view-window--dragging');
             resizeObserver?.disconnect();
             globalThis.removeEventListener?.('resize', resizeHandler);
             if (animationFrame !== null) cancelAnimationFrame(animationFrame);
