@@ -140,7 +140,7 @@ test("Windows verification follows the active renderer graph and rejects leftove
 });
 
 test("landing page reports the current Flight Commander release", () => {
-  assert.match(landingHtml, />Flight Commander 1\.5\.0</);
+  assert.match(landingHtml, />Flight Commander 1\.5\.1</);
 });
 
 test("canonical Flight Commander visual assets match the verified 1.3.5 identity", () => {

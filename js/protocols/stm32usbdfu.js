@@ -22,6 +22,8 @@ var STM32DFU_protocol = function () {
     this.verify_hex = [];
 
     this.usbDevice = null; // USB Device object
+    this.flashSuccessful = false;
+    this.callbackCompleted = false;
 
     this.request = {
         DETACH:     0x00, // OUT, Requests the device to leave DFU mode and enter the application.
@@ -71,10 +73,19 @@ var STM32DFU_protocol = function () {
     this.transferSize = 2048; // Default USB DFU transfer size for F3,F4 and F7
 };
 
+STM32DFU_protocol.prototype.finish = function (success) {
+    if (this.callbackCompleted) return;
+    this.callbackCompleted = true;
+    if (this.callback) this.callback(success === true);
+};
+
 STM32DFU_protocol.prototype.connect = function (usbDevices, hex, options, callback) {
     var self = this;
     self.hex = hex;
     self.callback = callback;
+    self.usbDevice = null;
+    self.flashSuccessful = false;
+    self.callbackCompleted = false;
 
     self.options = {
         erase_chip: false,
@@ -111,8 +122,15 @@ STM32DFU_protocol.prototype.connect = function (usbDevices, hex, options, callba
         } else {
             console.log('USB DFU not found');
             GUI.log(i18n.getMessage('stm32UsbDfuNotFound'));
+            GUI.connect_lock = false;
+            self.finish(false);
         }
 
+    }).catch(error => {
+        console.log('Unable to enumerate USB DFU devices: ' + error);
+        GUI.log(i18n.getMessage('stm32UsbDfuNotFound'));
+        GUI.connect_lock = false;
+        self.finish(false);
     });
 };
 
@@ -130,6 +148,7 @@ STM32DFU_protocol.prototype.openDevice = function () {
             GUI.log(i18n.getMessage('usbDeviceUdevNotice'));
         }
         GUI.connect_lock = false;
+        self.finish(false);
     });
 };
 
@@ -1020,6 +1039,7 @@ STM32DFU_protocol.prototype.upload_procedure = function (step) {
 
                         if (verify) {
                             console.log('Programming: SUCCESSFUL');
+                            self.flashSuccessful = true;
                             // update progress bar
                             firmwareFlasherTab.flashingMessage(i18n.getMessage('stm32ProgrammingSuccessful'), firmwareFlasherTab.FLASH_MESSAGE_TYPES.VALID);
 
@@ -1076,9 +1096,7 @@ STM32DFU_protocol.prototype.cleanup = function () {
 
     console.log('Script finished after: ' + (timeSpent / 1000) + ' seconds');
 
-    if (self.callback) {
-        self.callback();
-    }
+    self.finish(self.flashSuccessful);
 };
 
 // initialize object

@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.5.1
+
+- Added first-time ArduPilot installation from a running INAV controller or
+  STM32 ROM DFU. Flight Commander now downloads the official, version-matched
+  `*_with_bl.hex`, performs a full-chip erase, writes the ArduPilot bootloader
+  and application, and requires byte-for-byte read-back verification.
+- Added raw MSP identification in the ArduPilot flasher. Exact INAV target names
+  are matched against official ArduPilot platforms before first installation;
+  the Aero Selfie/MicoAir H743 hardware mapping resolves to `MicoAir743`.
+- Kept PX4 bootloader board IDs authoritative for subsequent APJ updates and
+  blocked local APJ packages from the first-install path because they do not
+  contain an ArduPilot bootloader. Catalog filtering now also separates
+  standard Copter and Helicopter artifacts that share a platform and board ID.
+- Made the legacy serial and USB STM32 drivers report verified success or
+  failure explicitly. Post-flash configuration restore is no longer entered
+  after a failed controller open, erase, program, or verification step.
+
 ## 1.5.0
 
 - Added a persistent Metric/Imperial switch to Ground Control. The telemetry

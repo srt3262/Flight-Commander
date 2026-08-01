@@ -26,8 +26,8 @@ planning, and selected Cube/Pixhawk firmware workflows.
   optional Google Elevation and local GIS sources.
 - ArduPilot parameter download, search, editing, comparison, and verified write.
 - Controller-aware autotune and operational controls.
-- INAV firmware flashing plus board-ID-checked APJ flashing for compatible
-  Cube/Pixhawk controllers using the PX4FMU serial bootloader.
+- INAV firmware flashing, first-time ArduPilot installation through STM32 DFU,
+  and board-ID-checked APJ updates through the PX4FMU serial bootloader.
 
 Flight Commander deliberately fails closed when a mission or command cannot be
 represented by the connected controller. It does not silently discard
@@ -51,9 +51,15 @@ over MSP. ArduPilot resume uses mission identity and boot-session checks and
 requires a compatible `MIS_RESTART` setting. In both cases, resume is intended
 for the same powered flight controller; power loss invalidates the checkpoint.
 
-Firmware flashing is a separate serial-bootloader operation, not an airborne
-MAVLink Ground Control command. Always verify the detected board ID and selected
-firmware before writing.
+Firmware flashing is a separate bootloader operation, not an airborne MAVLink
+Ground Control command. An existing ArduPilot installation is updated with an
+APJ package only after its PX4 bootloader board ID is checked. A controller
+running INAV has no PX4 bootloader identity, so its first ArduPilot installation
+uses the official, same-release `*_with_bl.hex` through STM32 DFU with a full
+erase and read-back verification. Flight Commander can pre-match an exact INAV
+MSP target name; raw STM32 DFU cannot report a board model and therefore
+requires manual hardware-target confirmation. Always verify the detected
+identity, selected target, and firmware before writing.
 
 ### USB MAVLink radios
 

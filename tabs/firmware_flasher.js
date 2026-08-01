@@ -84,7 +84,29 @@ firmwareFlasherTab.initialize = function (callback) {
     import('./firmware_flasher.html?raw').then(({default: html}) => GUI.load(html, function () {
         // translate to user-selected language
         i18n.localize();
-        ardupilotFlasher = new ArduPilotFirmwareFlasher();
+        ardupilotFlasher = new ArduPilotFirmwareFlasher({
+            stm32Flash({ path, baudRate, hex, options }) {
+                return new Promise(resolve => {
+                    $('.progress').val(0).removeClass('valid invalid');
+                    $('span.progressLabel').removeClass('valid invalid');
+                    const complete = reportedSuccess => {
+                        const uiVerified = (
+                            $('span.progressLabel').hasClass('valid')
+                            || $('.progress').hasClass('valid')
+                        );
+                        resolve(reportedSuccess === false ? false : reportedSuccess === true || uiVerified);
+                    };
+                    if (path === 'DFU') {
+                        STM32DFU.connect(usbDevices, hex, options, complete);
+                    } else {
+                        STM32.connect(path, 921600, hex, {
+                            ...options,
+                            reboot_baud: baudRate,
+                        }, complete);
+                    }
+                });
+            },
+        });
         ardupilotFlasher.initialize();
         firmwareFlasherTab.ardupilotFlasher = ardupilotFlasher;
 
@@ -103,7 +125,7 @@ firmwareFlasherTab.initialize = function (callback) {
 
             if (ardupilot) {
                 $('#firmware_backend_description').text(
-                    'Official ArduPilot APJ packages with PX4FMU bootloader identification, compatibility checks, CRC verification, and reboot.',
+                    'Official APJ updates through the PX4 bootloader, plus first-time ArduPilot installation from INAV/STM32 DFU using official with-bootloader images.',
                 );
                 $('a.load_file').text('Load local APJ/PX4').removeClass('disabled');
                 $('a.load_remote_file').text('Download firmware').addClass('disabled');
@@ -744,13 +766,17 @@ firmwareFlasherTab.initialize = function (callback) {
                                     });
                                 }
 
-                                STM32.connect(port, baud, parsed_hex, options, () => restoreFlow.onFlashComplete());
+                                STM32.connect(port, baud, parsed_hex, options, success => {
+                                    if (success === true) restoreFlow.onFlashComplete();
+                                });
                             } else {
                                 console.log('Please select valid serial port');
                                 GUI.log(i18n.getMessage('selectValidSerialPort'));
                             }
                         } else {
-                            STM32DFU.connect(usbDevices, parsed_hex, options, () => restoreFlow.onFlashComplete());
+                            STM32DFU.connect(usbDevices, parsed_hex, options, success => {
+                                if (success === true) restoreFlow.onFlashComplete();
+                            });
                         }
 
                         } // end proceedWithFlash

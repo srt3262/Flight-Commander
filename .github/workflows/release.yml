@@ -26,7 +26,7 @@ jobs:
         github.event_name == 'workflow_dispatch' ||
         (
           github.event_name == 'push' &&
-          github.event.head_commit.message == 'Publish Flight Commander 1.5.0 release'
+          github.event.head_commit.message == 'Publish Flight Commander 1.5.1 release'
         )
       )
     runs-on: windows-latest
@@ -382,24 +382,26 @@ jobs:
 
           $notesPath = Join-Path $env:RUNNER_TEMP 'flight-commander-release-notes.md'
           @"
-          Flight Commander $version adds an operator-selectable Metric /
-          Imperial telemetry switch to Ground Control. Telemetry cards, live
-          HUD tapes, airspeed, vertical speed, next-waypoint distance, labels,
-          increments, and accessible announcements now change together while
-          received MAVLink data, mission calculations, and vehicle commands
-          remain in canonical SI units.
+          Flight Commander $version fixes first-time ArduPilot installation on
+          flight controllers that are still running INAV. The ArduPilot
+          flasher now reads the live INAV MSP target, exact-matches it against
+          the official ArduPilot catalog, and uses the matching official
+          with-bootloader HEX image through STM32 DFU. For the Aero Selfie H743,
+          MICOAIR743 resolves to ArduPilot's MicoAir743 target.
 
-          The secondary map or HUD is now a movable window spanning the Ground
-          Control workspace. Drag its dedicated title bar to place it clear of
-          the dominant display, use arrow keys for precise movement, or use
-          Reset minor view to recall it. The normalized position and selected
-          units persist across restarts and window sizes. Switching the
-          dominant display reparents the live OpenLayers map and HUD canvas so
-          their state and controls remain intact.
+          First installation performs a mandatory full-chip erase, installs
+          the ArduPilot bootloader and application together, and requires
+          byte-for-byte read-back verification. Raw STM32 DFU remains
+          available for manual recovery, with an explicit warning that DFU
+          cannot identify the board model. Existing ArduPilot installations
+          continue to use board-ID-checked APJ updates through the PX4
+          bootloader.
 
-          The artificial-horizon ground now uses a muted forest-green gradient
-          whose lightest stop retains at least 7:1 contrast against both the
-          white instrument markings and yellow aircraft reference symbol.
+          Catalog filtering now keeps standard Copter and Helicopter artifacts
+          separate even when they share a platform and board ID. Local APJ
+          files are blocked from the first-install path because they do not
+          include the bootloader, and configuration restore no longer runs
+          after any failed erase, program, or verification operation.
 
           The archive also passed the complete repository source tests,
           packaged-application verification, clean ZIP extraction, and

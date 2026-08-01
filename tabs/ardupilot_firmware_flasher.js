@@ -5,18 +5,28 @@ import {
     ArduPilotFirmwareProvider,
     Px4BootloaderUploader,
     checkFirmwareCompatibility,
+    findArduPilotWithBootloaderEntry,
     parseApjPackage,
+    resolveArduPilotPlatformForInav,
 } from './../js/firmware/index.js';
 import ElectronSerialByteTransport from './../js/connection/electronSerialByteTransport.js';
 import { rebootArduPilotToBootloader } from './../js/connection/ardupilotBootloaderEntry.js';
+import { identifyInavRuntime } from './../js/connection/inavRuntimeIdentity.js';
 
 const BOOTLOADER_BAUD = 115200;
 const BOOTLOADER_WAIT_MS = 20000;
 const PORT_RETRY_MS = 650;
+const DFU_PORT = 'DFU';
+const MANIFEST_MAV_TYPE_BY_VEHICLE = Object.freeze({
+    Copter: 'Copter',
+    Plane: 'FIXED_WING',
+    Rover: 'GROUND_ROVER',
+    Sub: 'SUBMARINE',
+    Tracker: 'ANTENNA_TRACKER',
+});
 const INVALID_PORTS = new Set([
     '',
     '0',
-    'DFU',
     'ble',
     'tcp',
     'udp',
@@ -58,16 +68,27 @@ function basename(url) {
     }
 }
 
-function selectedPortPath() {
+function selectedConnectionTarget() {
     const option = $('div#port-picker #port option:selected');
     const selected = String(option.val() ?? '');
     const path = option.data('isManual')
         ? String($('#port-override').val() ?? '').trim()
         : selected;
-    if (INVALID_PORTS.has(path)) {
-        throw new Error('Select a local serial port for the Cube/Pixhawk controller.');
+    if (path === DFU_PORT) {
+        return Object.freeze({ kind: 'dfu', path });
     }
-    return path;
+    if (INVALID_PORTS.has(path)) {
+        throw new Error('Select a local serial port or an STM32 DFU controller.');
+    }
+    return Object.freeze({ kind: 'serial', path });
+}
+
+function selectedPortPath() {
+    const selected = selectedConnectionTarget();
+    if (selected.kind !== 'serial') {
+        throw new Error('Select the controller serial port for PX4 bootloader identification.');
+    }
+    return selected.path;
 }
 
 function selectedBaudRate() {
@@ -79,6 +100,7 @@ class ArduPilotFirmwareFlasher {
     constructor(options = {}) {
         this.provider = options.provider ?? new ArduPilotFirmwareProvider();
         this.api = options.api ?? window.electronAPI;
+        this.stm32Flash = options.stm32Flash ?? null;
         this.active = false;
         this.busy = false;
         this.manifest = null;
@@ -86,9 +108,13 @@ class ArduPilotFirmwareFlasher {
         this.selectedEntry = null;
         this.firmware = null;
         this.boardInfo = null;
+        this.runtimeIdentity = null;
+        this.platformResolution = null;
+        this.detectedPlatform = null;
         this.abortController = null;
         this.transport = null;
         this.uploader = null;
+        this.stm32FlashActive = false;
     }
 
     initialize() {
@@ -171,12 +197,15 @@ class ArduPilotFirmwareFlasher {
         const listed = await this.provider.listFirmware({
             manifest: this.manifest,
             vehicleClass,
+            mavType: MANIFEST_MAV_TYPE_BY_VEHICLE[vehicleClass],
             releaseChannel,
             flashableOnly: true,
         });
         this.entries = this.boardInfo
             ? listed.filter(entry => entry.boardId === this.boardInfo.boardId)
-            : listed;
+            : this.detectedPlatform
+                ? listed.filter(entry => entry.platform === this.detectedPlatform)
+                : listed;
 
         const platforms = new Map();
         for (const entry of this.entries) {
@@ -190,7 +219,9 @@ class ArduPilotFirmwareFlasher {
             value: '',
             text: this.boardInfo
                 ? `Select a target matching board ID ${this.boardInfo.boardId}`
-                : 'Select a Cube/Pixhawk target',
+                : this.detectedPlatform
+                    ? `Detected ${this.detectedPlatform}`
+                    : 'Select an ArduPilot target',
         }));
         for (const [platform, entry] of [...platforms.entries()].sort(([left], [right]) => (
             left.localeCompare(right)
@@ -205,7 +236,7 @@ class ArduPilotFirmwareFlasher {
             }));
         }
 
-        if (this.boardInfo && platforms.size === 1) {
+        if ((this.boardInfo || this.detectedPlatform) && platforms.size === 1) {
             select.val([...platforms.keys()][0]);
         }
         this.populateVersions();
@@ -368,35 +399,120 @@ class ArduPilotFirmwareFlasher {
             return;
         }
 
+        let verificationMessage = 'The controller will be identified and checked again before erase.';
+        let kind = compatibility ? 'valid' : 'neutral';
+        if (this.boardInfo) {
+            verificationMessage = 'The package matches the authoritative PX4 bootloader board ID.';
+        } else if (this.runtimeIdentity?.kind === 'inav' && this.detectedPlatform) {
+            verificationMessage = (
+                `INAV target ${this.runtimeIdentity.target} matches ${this.detectedPlatform}. `
+                + 'The target will be rechecked before the official with-bootloader image is installed through STM32 DFU.'
+            );
+            kind = 'valid';
+        } else if (this.runtimeIdentity?.kind === 'dfu') {
+            verificationMessage = (
+                'STM32 DFU cannot report a board model. The manually selected target will require explicit confirmation.'
+            );
+            kind = 'action';
+        }
+
         this.setStatus(
             `Firmware loaded: board ID ${this.firmware.boardId}, ${formatBytes(this.firmware.imageSize)}. `
-            + (this.boardInfo
-                ? 'The package matches the identified controller.'
-                : 'The controller will be identified and checked again before erase.'),
-            compatibility ? 'valid' : 'neutral',
+            + verificationMessage,
+            kind,
         );
         this.setFlashReady(true);
     }
 
+    async refreshCatalogPreservingLoadedFirmware() {
+        const loadedFirmware = this.firmware;
+        const selectedEntry = this.selectedEntry;
+        await this.refreshCatalog();
+        if (
+            !loadedFirmware
+            || !selectedEntry
+            || !this.entries.some(entry => entry.index === selectedEntry.index)
+        ) {
+            return;
+        }
+        $('#ardupilot_board').val(selectedEntry.platform);
+        this.populateVersions();
+        $('#ardupilot_firmware_version').val(String(selectedEntry.index));
+        this.selectedEntry = selectedEntry;
+        this.firmware = loadedFirmware;
+        this.renderRelease(selectedEntry);
+        this.renderFirmwareReady();
+    }
+
+    async applyInavIdentity(inavInfo) {
+        this.boardInfo = null;
+        this.runtimeIdentity = Object.freeze({ kind: 'inav', ...inavInfo });
+        this.platformResolution = resolveArduPilotPlatformForInav(
+            inavInfo.target,
+            this.manifest?.entries ?? [],
+        );
+        this.detectedPlatform = this.platformResolution.matched
+            ? this.platformResolution.platform
+            : null;
+        await this.refreshCatalogPreservingLoadedFirmware();
+        this.renderBoardIdentity();
+        if (this.detectedPlatform) {
+            const method = this.platformResolution.method === 'exact-name'
+                ? 'exact target-name match'
+                : 'documented hardware mapping';
+            this.setStatus(
+                `Detected INAV ${inavInfo.firmwareVersion} target ${inavInfo.target}; `
+                + `${method} selected ArduPilot target ${this.detectedPlatform}.`,
+                'valid',
+            );
+        } else {
+            this.setStatus(
+                `Detected INAV target ${inavInfo.target}, but no exact official ArduPilot target match exists. `
+                + 'Select the documented hardware target manually before first installation.',
+                'action',
+            );
+        }
+        if (this.firmware) this.renderFirmwareReady();
+    }
+
     async identifyController() {
         if (this.busy || GUI.connect_lock) return;
+        const selected = selectedConnectionTarget();
         this.setBusy(true);
         this.abortController = new AbortController();
         try {
-            const acquired = await this.acquireBootloader(this.abortController.signal);
+            if (selected.kind === 'dfu') {
+                this.boardInfo = null;
+                this.runtimeIdentity = Object.freeze({ kind: 'dfu', path: DFU_PORT });
+                this.platformResolution = null;
+                this.detectedPlatform = null;
+                await this.refreshCatalogPreservingLoadedFirmware();
+                this.renderBoardIdentity();
+                this.setStatus(
+                    'STM32 ROM DFU detected. It cannot report the board model; select the exact ArduPilot target manually.',
+                    'action',
+                );
+                return;
+            }
+
+            const acquired = await this.acquireController(this.abortController.signal);
+            if (acquired.kind === 'inav') {
+                await this.applyInavIdentity(acquired.inavInfo);
+                return;
+            }
+
             this.boardInfo = acquired.boardInfo;
+            this.runtimeIdentity = null;
+            this.platformResolution = null;
+            this.detectedPlatform = null;
             this.transport = acquired.transport;
             this.uploader = acquired.uploader;
             this.setStatus(
-                `Identified bootloader board ID ${this.boardInfo.boardId}, revision ${this.boardInfo.boardRevision}.`,
+                `Identified PX4 bootloader board ID ${this.boardInfo.boardId}, revision ${this.boardInfo.boardRevision}.`,
                 'valid',
             );
             this.renderBoardIdentity();
-            const loadedFirmware = this.firmware;
-            const selectedEntry = this.selectedEntry;
-            await this.refreshCatalog();
-            this.firmware = loadedFirmware;
-            this.selectedEntry = selectedEntry;
+            await this.refreshCatalogPreservingLoadedFirmware();
             try {
                 await this.uploader.reboot({ signal: this.abortController.signal });
             } catch (_error) {
@@ -412,13 +528,13 @@ class ArduPilotFirmwareFlasher {
         }
     }
 
-    async acquireBootloader(signal) {
+    async acquireController(signal) {
         const selectedPath = selectedPortPath();
         const before = await this.api.listSerialDeviceInfo();
         const selectedInfo = before.find(info => info.path === selectedPath) ?? null;
 
-        this.setStatus(`Checking ${selectedPath} for a PX4FMU bootloader…`);
-        const direct = await this.tryBootloaderPort(selectedPath, signal);
+        this.setStatus(`Checking ${selectedPath} for a PX4 bootloader or running INAV target…`);
+        const direct = await this.tryControllerPort(selectedPath, signal);
         if (direct) return direct;
 
         this.setStatus('Requesting the running ArduPilot controller to enter its bootloader…');
@@ -470,8 +586,47 @@ class ArduPilotFirmwareFlasher {
         }
 
         throw new Error(
-            'The Cube/Pixhawk bootloader was not detected. Select its serial port, then press Identify again while reconnecting or resetting the controller.',
+            'No PX4 bootloader or running INAV MSP target was detected. Select the controller port, or enter STM32 DFU for a manual first install.',
         );
+    }
+
+    async tryControllerPort(path, signal) {
+        const transport = new ElectronSerialByteTransport(this.api);
+        try {
+            await transport.open(path, BOOTLOADER_BAUD);
+            try {
+                const probe = new Px4BootloaderUploader(transport, {
+                    timeoutMs: 900,
+                    eraseTimeoutMs: 20000,
+                    maxRetries: 0,
+                    onProgress: event => this.handleProgress(event),
+                });
+                const boardInfo = await probe.identify({ signal });
+                const uploader = new Px4BootloaderUploader(transport, {
+                    onProgress: event => this.handleProgress(event),
+                });
+                uploader.boardInfo = boardInfo;
+                return { kind: 'px4', path, transport, uploader, boardInfo };
+            } catch (_bootloaderError) {
+                transport.flushInput();
+            }
+
+            this.setStatus(`Checking ${path} for a running INAV MSP target…`);
+            try {
+                const inavInfo = await identifyInavRuntime(transport, {
+                    timeoutMs: 1200,
+                    signal,
+                });
+                await transport.close().catch(() => {});
+                return { kind: 'inav', path, inavInfo };
+            } catch (_inavError) {
+                await transport.close().catch(() => {});
+                return null;
+            }
+        } catch (_error) {
+            await transport.close().catch(() => {});
+            return null;
+        }
     }
 
     async tryBootloaderPort(path, signal) {
@@ -489,11 +644,185 @@ class ArduPilotFirmwareFlasher {
                 onProgress: event => this.handleProgress(event),
             });
             uploader.boardInfo = boardInfo;
-            return { path, transport, uploader, boardInfo };
+            return { kind: 'px4', path, transport, uploader, boardInfo };
         } catch (_error) {
             await transport.close().catch(() => {});
             return null;
         }
+    }
+
+    async flashPx4Firmware(acquired, signal) {
+        this.transport = acquired.transport;
+        this.uploader = acquired.uploader;
+        this.boardInfo = acquired.boardInfo;
+        this.runtimeIdentity = null;
+        this.platformResolution = null;
+        this.detectedPlatform = null;
+        this.renderBoardIdentity();
+
+        const compatibility = checkFirmwareCompatibility(this.boardInfo, this.firmware);
+        if (!compatibility.compatible) {
+            throw new Error(compatibility.reasons.join(' '));
+        }
+
+        const confirmed = await this.api.confirmDialog(
+            `Erase and flash PX4 bootloader board ID ${this.boardInfo.boardId} `
+            + `(revision ${this.boardInfo.boardRevision}) with firmware board ID `
+            + `${this.firmware.boardId}, ${formatBytes(this.firmware.imageSize)}?`,
+        );
+        if (!confirmed) {
+            try {
+                await this.uploader.reboot({ signal });
+            } catch (_error) {
+                // The device may already have rebooted.
+            }
+            this.setStatus('ArduPilot firmware flash cancelled.');
+            return;
+        }
+
+        const result = await this.uploader.flash(this.firmware, {
+            signal,
+            onProgress: event => this.handleProgress(event),
+            reboot: true,
+        });
+        this.setStatus(
+            `Firmware verified by CRC and controller rebooted. ${result.bytesProgrammed} bytes programmed.`,
+            'valid',
+        );
+        $('.progress').val(100).addClass('valid').removeClass('invalid');
+    }
+
+    validateFirstInstallTarget(connection, selectedEntry) {
+        if (connection.kind !== 'inav') {
+            return null;
+        }
+        const resolution = resolveArduPilotPlatformForInav(
+            connection.inavInfo.target,
+            this.manifest?.entries ?? [],
+        );
+        if (resolution.matched && resolution.platform !== selectedEntry.platform) {
+            throw new Error(
+                `INAV target ${connection.inavInfo.target} matches ArduPilot target `
+                + `${resolution.platform}, not the selected ${selectedEntry.platform}.`,
+            );
+        }
+        if (
+            resolution.ambiguous
+            && !resolution.candidates.includes(selectedEntry.platform)
+        ) {
+            throw new Error(
+                `Selected ArduPilot target ${selectedEntry.platform} is not one of the matches for `
+                + `INAV target ${connection.inavInfo.target}.`,
+            );
+        }
+        return resolution;
+    }
+
+    async flashFirstInstall(connection, signal) {
+        const selectedEntry = this.selectedEntry;
+        const firmware = this.firmware;
+        if (!selectedEntry) {
+            throw new Error(
+                'A first ArduPilot install from INAV/DFU requires an online catalog selection. '
+                + 'A local APJ does not include the ArduPilot bootloader.',
+            );
+        }
+        if (selectedEntry.boardId !== firmware.boardId) {
+            throw new Error(
+                `Selected target board ID ${selectedEntry.boardId} does not match loaded firmware board ID ${firmware.boardId}.`,
+            );
+        }
+
+        const resolution = this.validateFirstInstallTarget(connection, selectedEntry);
+        if (connection.kind === 'inav') {
+            this.boardInfo = null;
+            this.runtimeIdentity = Object.freeze({
+                kind: 'inav',
+                ...connection.inavInfo,
+            });
+            this.platformResolution = resolution;
+            this.detectedPlatform = resolution?.matched ? resolution.platform : null;
+            this.renderBoardIdentity();
+        } else {
+            this.boardInfo = null;
+            this.runtimeIdentity = Object.freeze({ kind: 'dfu', path: DFU_PORT });
+            this.platformResolution = null;
+            this.detectedPlatform = null;
+            this.renderBoardIdentity();
+        }
+
+        const withBootloaderEntry = findArduPilotWithBootloaderEntry(
+            this.manifest,
+            selectedEntry,
+        );
+        if (!withBootloaderEntry) {
+            throw new Error(
+                `The official manifest does not provide a matching with-bootloader HEX for `
+                + `${selectedEntry.platform} ${selectedEntry.version}.`,
+            );
+        }
+
+        this.setStatus(
+            `Downloading official first-install image ${basename(withBootloaderEntry.url)}…`,
+        );
+        const withBootloaderHex = await this.provider.downloadWithBootloaderHex(
+            withBootloaderEntry,
+            { signal },
+        );
+
+        const identityText = connection.kind === 'inav' && resolution?.matched
+            ? `INAV target ${connection.inavInfo.target} matches ${selectedEntry.platform}.`
+            : connection.kind === 'inav'
+                ? `INAV target ${connection.inavInfo.target} has no exact catalog-name match; ${selectedEntry.platform} was selected manually.`
+                : 'STM32 DFU cannot report a board model; the target was selected manually.';
+        const confirmed = await this.api.confirmDialog(
+            `${identityText} Install official ${selectedEntry.vehicleType} ${selectedEntry.version} `
+            + `for board ID ${firmware.boardId}? This first install will fully erase INAV, `
+            + 'write the ArduPilot bootloader and firmware, then verify every programmed byte.',
+        );
+        if (!confirmed) {
+            this.setStatus('First-time ArduPilot installation cancelled. No erase was started.');
+            return;
+        }
+        if (typeof this.stm32Flash !== 'function') {
+            throw new Error('STM32 first-install bridge is unavailable in this build.');
+        }
+
+        this.stm32FlashActive = true;
+        this.setBusy(true);
+        this.setStatus(
+            connection.kind === 'dfu'
+                ? 'Full-chip erase and ArduPilot first install starting in STM32 DFU…'
+                : 'Rebooting INAV to STM32 DFU for full-chip erase and ArduPilot first install…',
+            'action',
+        );
+        const successful = await this.stm32Flash({
+            path: connection.path,
+            baudRate: selectedBaudRate(),
+            hex: withBootloaderHex,
+            options: {
+                erase_chip: true,
+                reboot_baud: selectedBaudRate(),
+            },
+        });
+        if (!successful) {
+            throw new Error(
+                'STM32 erase, programming, or read-back verification failed. Enter DFU again and retry the same target.',
+            );
+        }
+
+        this.runtimeIdentity = Object.freeze({
+            kind: 'installed',
+            platform: selectedEntry.platform,
+            boardId: firmware.boardId,
+        });
+        this.detectedPlatform = selectedEntry.platform;
+        this.setStatus(
+            `ArduPilot bootloader and ${selectedEntry.vehicleType} ${selectedEntry.version} installed; `
+            + `${withBootloaderHex.bytes_total} bytes passed STM32 read-back verification. Reconnect after USB returns.`,
+            'valid',
+        );
+        $('.progress').val(100).addClass('valid').removeClass('invalid');
     }
 
     async flash() {
@@ -502,59 +831,38 @@ class ArduPilotFirmwareFlasher {
             throw new Error('Download or load an ArduPilot APJ package before flashing.');
         }
 
+        const selected = selectedConnectionTarget();
+        const controller = new AbortController();
         this.setBusy(true);
         GUI.connect_lock = true;
-        this.abortController = new AbortController();
-        let acquired = null;
+        this.abortController = controller;
         try {
-            acquired = await this.acquireBootloader(this.abortController.signal);
-            this.transport = acquired.transport;
-            this.uploader = acquired.uploader;
-            this.boardInfo = acquired.boardInfo;
-            this.renderBoardIdentity();
-
-            const compatibility = checkFirmwareCompatibility(this.boardInfo, this.firmware);
-            if (!compatibility.compatible) {
-                throw new Error(compatibility.reasons.join(' '));
-            }
-
-            const confirmed = await this.api.confirmDialog(
-                `Erase and flash bootloader board ID ${this.boardInfo.boardId} `
-                + `(revision ${this.boardInfo.boardRevision}) with firmware board ID `
-                + `${this.firmware.boardId}, ${formatBytes(this.firmware.imageSize)}?`,
-            );
-            if (!confirmed) {
-                try {
-                    await this.uploader.reboot({ signal: this.abortController.signal });
-                } catch (_error) {
-                    // The device may already have rebooted.
-                }
-                this.setStatus('ArduPilot firmware flash cancelled.');
+            if (selected.kind === 'dfu') {
+                await this.flashFirstInstall(selected, controller.signal);
                 return;
             }
 
-            const result = await this.uploader.flash(this.firmware, {
-                signal: this.abortController.signal,
-                onProgress: event => this.handleProgress(event),
-                reboot: true,
-            });
-            this.setStatus(
-                `Firmware verified by CRC and controller rebooted. ${result.bytesProgrammed} bytes programmed.`,
-                'valid',
-            );
-            $('.progress').val(100).addClass('valid').removeClass('invalid');
+            const acquired = await this.acquireController(controller.signal);
+            if (acquired.kind === 'inav') {
+                await this.flashFirstInstall(acquired, controller.signal);
+                return;
+            }
+            await this.flashPx4Firmware(acquired, controller.signal);
         } catch (error) {
-            if (this.abortController.signal.aborted) {
+            if (controller.signal.aborted && !this.stm32FlashActive) {
                 this.setStatus(
-                    'Firmware operation cancelled. The controller remains recoverable in its bootloader; restart the flash to complete programming.',
+                    'Firmware operation cancelled before programming completed. Re-enter the bootloader/DFU and restart the flash.',
                     'invalid',
                 );
             } else {
                 throw error;
             }
         } finally {
+            this.stm32FlashActive = false;
             await this.closeTransport();
-            this.abortController = null;
+            if (this.abortController === controller) {
+                this.abortController = null;
+            }
             GUI.connect_lock = false;
             this.setBusy(false);
         }
@@ -578,10 +886,42 @@ class ArduPilotFirmwareFlasher {
     renderBoardIdentity() {
         const element = $('#ardupilot_board_identity')
             .removeClass('is-valid is-error');
+        if (this.runtimeIdentity?.kind === 'inav') {
+            const resolution = this.platformResolution;
+            element
+                .addClass(resolution?.matched ? 'is-valid' : 'is-error')
+                .text(
+                    `Running INAV ${this.runtimeIdentity.firmwareVersion} · MSP target `
+                    + `${this.runtimeIdentity.target} · board ${this.runtimeIdentity.boardIdentifier}`
+                    + (resolution?.matched
+                        ? ` · ArduPilot first-install target: ${resolution.platform} (${resolution.method})`
+                        : ' · no exact ArduPilot catalog-name match; manual hardware confirmation required')
+                    + ' · PX4 board ID becomes available after the ArduPilot bootloader is installed',
+                );
+            return;
+        }
+        if (this.runtimeIdentity?.kind === 'dfu') {
+            element
+                .addClass('is-error')
+                .text(
+                    'STM32 ROM DFU · MCU recovery interface detected · board model and PX4 board ID unavailable · '
+                    + 'select and confirm the exact hardware target manually',
+                );
+            return;
+        }
+        if (this.runtimeIdentity?.kind === 'installed') {
+            element
+                .addClass('is-valid')
+                .text(
+                    `First install verified · ${this.runtimeIdentity.platform} · firmware board ID `
+                    + `${this.runtimeIdentity.boardId} · reconnect and identify again to read the new PX4 bootloader`,
+                );
+            return;
+        }
         if (!this.boardInfo) {
             element.text(
-                'Controller not identified. Select a serial port, then identify the controller. '
-                + 'Flight Commander will not infer a board model from its name or heartbeat.',
+                'Controller not identified. A PX4 bootloader provides the authoritative board ID. '
+                + 'A running INAV controller can be pre-matched by its exact MSP target for a first install.',
             );
             return;
         }
@@ -616,8 +956,8 @@ class ArduPilotFirmwareFlasher {
           + '#ardupilot_firmware_version, #ardupilot_detect_board')
             .prop('disabled', busy);
         $('#cancel_firmware')
-            .toggleClass('disabled', !busy)
-            .toggleClass('is-hidden', !busy);
+            .toggleClass('disabled', !busy || this.stm32FlashActive)
+            .toggleClass('is-hidden', !busy || this.stm32FlashActive);
         $('a.load_file').toggleClass('disabled', busy);
         $('a.load_remote_file').toggleClass('disabled', busy || !this.selectedEntry);
         this.setFlashReady(Boolean(this.firmware) && !busy);
@@ -646,6 +986,13 @@ class ArduPilotFirmwareFlasher {
     }
 
     cancel() {
+        if (this.stm32FlashActive) {
+            this.setStatus(
+                'STM32 programming cannot be cancelled safely after erase begins. Keep the controller connected until verification finishes.',
+                'action',
+            );
+            return;
+        }
         if (this.abortController && !this.abortController.signal.aborted) {
             this.abortController.abort(new Error('Cancelled by user.'));
         }
@@ -675,5 +1022,6 @@ export default ArduPilotFirmwareFlasher;
 export {
     ArduPilotFirmwareFlasher,
     BOOTLOADER_BAUD,
+    selectedConnectionTarget,
     selectedPortPath,
 };

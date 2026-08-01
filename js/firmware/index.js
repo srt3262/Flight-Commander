@@ -26,11 +26,23 @@ export {
   ArduPilotFirmwareProvider,
   DEFAULT_ARDUPILOT_FIRMWARE_BASE_URL,
   buildArduPilotFirmwareDirectoryUrl,
+  findArduPilotWithBootloaderEntry,
   listArduPilotFirmware,
   normalizeReleaseChannel,
   normalizeVehicleClass,
   parseArduPilotManifest,
 } from "./manifest.js";
+export {
+  DEFAULT_MAX_INTEL_HEX_IMAGE_BYTES,
+  DEFAULT_MAX_INTEL_HEX_SOURCE_BYTES,
+  assertArduPilotWithBootloaderHex,
+  parseIntelHex,
+} from "./intelHex.js";
+export {
+  INAV_TARGET_ALIASES,
+  normalizeFirmwareTargetName,
+  resolveArduPilotPlatformForInav,
+} from "./crossFirmwareIdentity.js";
 export {
   PX4_BOOTLOADER,
   Px4BootloaderUploader,

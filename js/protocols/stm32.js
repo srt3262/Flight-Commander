@@ -29,6 +29,7 @@ var STM32_protocol = function () {
 
     this.upload_time_start;
     this.upload_process_alive;
+    this.flashSuccessful = false;
 
     this.status = {
         ACK:    0x79, // y
@@ -254,6 +255,7 @@ STM32_protocol.prototype.connect = function (port, baud, hex, options, callback)
     self.hex = hex;
     self.baud = baud;
     self.callback = callback;
+    self.flashSuccessful = false;
 
     // we will crunch the options here since doing it inside initialization routine would be too late
     self.options = {
@@ -301,12 +303,16 @@ STM32_protocol.prototype.connectSerial = function(port, hex, options) {
                 self.initialize();
             } else {
                 GUI.log(i18n.getMessage('failedToOpenSerialPort'));
+                GUI.connect_lock = false;
+                if (self.callback) self.callback(false);
             }
         });
     } else {
         CONFIGURATOR.connection.connect(port, {bitrate: self.options.reboot_baud}, function (openInfo) {
             if (!openInfo) {
                 GUI.log(i18n.getMessage('failedToOpenSerialPort'));
+                GUI.connect_lock = false;
+                if (self.callback) self.callback(false);
                 return;
             }
 
@@ -315,6 +321,7 @@ STM32_protocol.prototype.connectSerial = function(port, hex, options) {
             self.sendRebootCommand(function(disconnectResult) {
                 if (!disconnectResult) {
                     GUI.connect_lock = false;
+                    if (self.callback) self.callback(false);
                     return;
                 }
 
@@ -330,6 +337,7 @@ STM32_protocol.prototype.connectSerial = function(port, hex, options) {
                         GUI.log(i18n.getMessage('failedToFlash') + port);
                         $('span.progressLabel').html(i18n.getMessage('failedToFlash') + port);
                         GUI.connect_lock = false;
+                        if (self.callback) self.callback(false);
                     }
                 );
             });
@@ -906,6 +914,7 @@ STM32_protocol.prototype.upload_procedure = function (step) {
 
                         if (verify) {
                             console.log('Programming: SUCCESSFUL');
+                            self.flashSuccessful = true;
                             $('span.progressLabel').text('Programming: SUCCESSFUL');
 
                             // update progress bar
@@ -968,7 +977,7 @@ STM32_protocol.prototype.upload_procedure = function (step) {
 
                 console.log('Script finished after: ' + (timeSpent / 1000) + ' seconds');
 
-                if (self.callback) self.callback();
+                if (self.callback) self.callback(self.flashSuccessful);
             });
             break;
     }

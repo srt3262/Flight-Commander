@@ -1,5 +1,9 @@
 import { parseApjPackage } from "./apj.js";
 import { FirmwareManifestError, FirmwarePackageError } from "./errors.js";
+import {
+  assertArduPilotWithBootloaderHex,
+  parseIntelHex,
+} from "./intelHex.js";
 
 const VEHICLE_CLASS_ALIASES = new Map([
   ["copter", "copter"],
@@ -131,7 +135,7 @@ function inferPackageFormat(value, url) {
     .trim()
     .toLowerCase()
     .replace(/^\./, "");
-  if (normalized === "apj" || normalized === "px4") {
+  if (["apj", "px4", "hex"].includes(normalized)) {
     return normalized;
   }
   const path = url.pathname.toLowerCase();
@@ -140,6 +144,9 @@ function inferPackageFormat(value, url) {
   }
   if (path.endsWith(".px4")) {
     return "px4";
+  }
+  if (path.endsWith(".hex")) {
+    return "hex";
   }
   return null;
 }
@@ -263,6 +270,8 @@ function normalizeEntry(entry, index) {
     packageFormat,
     flashableByPx4Bootloader:
       packageFormat === "apj" || packageFormat === "px4",
+    flashableByStm32Dfu:
+      packageFormat === "hex" && /_with_bl\.hex$/i.test(url.pathname),
     url: url.href,
     isLatest,
     metadata: Object.freeze({ ...entry }),
@@ -366,6 +375,9 @@ export function listArduPilotFirmware(manifest, options = {}) {
   const platform = options.platform
     ? String(options.platform).trim().toLowerCase()
     : null;
+  const mavType = options.mavType
+    ? String(options.mavType).trim().toLowerCase()
+    : null;
   const flashableOnly = options.flashableOnly !== false;
 
   return manifest.entries
@@ -374,8 +386,48 @@ export function listArduPilotFirmware(manifest, options = {}) {
       (entry) => !releaseChannel || entry.releaseChannel === releaseChannel,
     )
     .filter((entry) => !platform || entry.platform.toLowerCase() === platform)
+    .filter(
+      (entry) => !mavType || String(entry.mavType ?? '').toLowerCase() === mavType,
+    )
     .filter((entry) => !flashableOnly || entry.flashableByPx4Bootloader)
     .sort(compareVersionsDescending);
+}
+
+export function findArduPilotWithBootloaderEntry(manifest, firmwareEntry) {
+  if (!manifest || !Array.isArray(manifest.entries)) {
+    throw new FirmwareManifestError("A parsed ArduPilot manifest is required");
+  }
+  if (
+    !firmwareEntry?.flashableByPx4Bootloader ||
+    !["apj", "px4"].includes(firmwareEntry.packageFormat)
+  ) {
+    throw new FirmwareManifestError(
+      "An APJ/PX4 manifest entry is required to locate with-bootloader firmware",
+    );
+  }
+
+  const packageUrl = new URL(firmwareEntry.url);
+  const expectedUrl = new URL(packageUrl.href);
+  expectedUrl.pathname = expectedUrl.pathname.replace(
+    /\.(?:apj|px4)$/i,
+    "_with_bl.hex",
+  );
+  if (expectedUrl.href === packageUrl.href) {
+    throw new FirmwareManifestError(
+      "Selected ArduPilot package URL cannot be mapped to with-bootloader HEX",
+    );
+  }
+
+  return (
+    manifest.entries.find(
+      (entry) =>
+        entry.flashableByStm32Dfu &&
+        entry.url === expectedUrl.href &&
+        entry.platform === firmwareEntry.platform &&
+        entry.vehicleClass === firmwareEntry.vehicleClass &&
+        entry.version === firmwareEntry.version,
+    ) ?? null
+  );
 }
 
 function normalizedBaseUrl(value) {
@@ -493,6 +545,33 @@ export class ArduPilotFirmwareProvider {
     const packageBytes = await responseBytes(response);
     return parse
       ? parseApjPackage(packageBytes, { sourceFormat: entry.packageFormat })
+      : packageBytes;
+  }
+
+  async downloadWithBootloaderHex(entry, { signal, parse = true } = {}) {
+    if (!entry?.flashableByStm32Dfu || entry.packageFormat !== "hex") {
+      throw new FirmwarePackageError(
+        "Selected manifest entry is not an ArduPilot with-bootloader HEX image",
+      );
+    }
+
+    const url = new URL(entry.url);
+    if (url.protocol !== "https:" || !this.allowedOrigins.has(url.origin)) {
+      throw new FirmwarePackageError(
+        `Firmware URL origin is not allowed: ${url.origin}`,
+      );
+    }
+
+    const response = await this.fetchImpl(url.href, { signal });
+    if (!response?.ok) {
+      throw new FirmwarePackageError(
+        `ArduPilot with-bootloader firmware download failed with HTTP ${response?.status ?? "unknown"}`,
+      );
+    }
+
+    const packageBytes = await responseBytes(response);
+    return parse
+      ? assertArduPilotWithBootloaderHex(parseIntelHex(packageBytes))
       : packageBytes;
   }
 }

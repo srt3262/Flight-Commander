@@ -71,7 +71,7 @@
                             <label for="firmware_backend"><strong>Firmware family</strong></label><br />
                             <select id="firmware_backend">
                                 <option value="inav">INAV flight controllers</option>
-                                <option value="ardupilot">ArduPilot CubePilot / Pixhawk</option>
+                                <option value="ardupilot">ArduPilot flight controllers</option>
                             </select>
                         </td>
                         <td>
@@ -171,7 +171,7 @@
                     </tr>
                     <tr class="ardupilot_firmware_option is-hidden">
                         <td>
-                            <input id="ardupilot_target_search" placeholder="Search Cube/Pixhawk targets..." autocomplete="off"><br />
+                            <input id="ardupilot_target_search" placeholder="Search ArduPilot targets..." autocomplete="off"><br />
                             <select id="ardupilot_board">
                                 <option value="">Load the official firmware catalog first</option>
                             </select>
@@ -181,7 +181,7 @@
                                 <a id="ardupilot_detect_board" href="#">Identify connected controller</a>
                             </div>
                             <span class="description">
-                                Identification comes from the PX4FMU bootloader board ID and revision.
+                                PX4 board ID is authoritative. Running INAV can be pre-matched by its exact MSP target for a first install.
                             </span>
                         </td>
                     </tr>
@@ -194,7 +194,7 @@
                         </td>
                         <td>
                             <span class="description">
-                                Only official APJ packages compatible with the detected board can be flashed.
+                                Existing bootloader: board-ID-checked APJ. First install: official with-bootloader HEX, full erase, and read-back verification.
                             </span>
                         </td>
                     </tr>
