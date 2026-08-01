@@ -12,6 +12,7 @@ import {
 } from './../js/ardupilot/setupModel';
 import {
   createArduPilotParameterEditor,
+  bindArduPilotTabLinks,
   finishArduPilotTab,
   loadArduPilotSetup,
   metadataSourceLabel,
@@ -61,6 +62,7 @@ ardupilotReceiver.initialize = function (callback) {
       this.staged.clear();
       this.currentChannels = [...mavlinkSession.snapshot().rcChannels];
       renderArduPilotTabIdentity('apReceiver');
+      bindArduPilotTabLinks($('.tab-ardupilot-receiver'));
       $('#apReceiverRefresh').on('click', () => this.load(true));
       $('#apReceiverSave').on('click', () => this.save(false));
       $('#apReceiverSaveReboot').on('click', () => this.save(true));

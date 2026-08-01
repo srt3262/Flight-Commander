@@ -16,9 +16,9 @@
         </div>
 
         <section class="fc-ap-feature-controls">
-            <div class="fc-ap-feature-view-switch" role="tablist" aria-label="Setting detail level">
-                <button type="button" data-ap-feature-view="standard" class="active">Standard</button>
-                <button type="button" data-ap-feature-view="advanced">Advanced</button>
+            <div class="fc-ap-feature-view-switch" role="tablist" aria-label="Configuration view">
+                <button type="button" data-ap-feature-view="guided" class="active">INAV-style setup</button>
+                <button type="button" data-ap-feature-view="native">ArduPilot extras</button>
             </div>
             <label class="fc-ap-feature-search">
                 Search settings
@@ -30,13 +30,14 @@
                 <span class="fc-unit-switch__track" aria-hidden="true"><span class="fc-unit-switch__thumb"></span></span>
                 <span>Imperial</span>
             </label>
+            <button type="button" class="fc-ap-all-parameters" data-open-ardupilot-tab="mavlink_parameters">All Parameters</button>
         </section>
 
         <section class="fc-ap-panel">
             <header>
                 <div>
                     <h2 id="apFeaturePanelTitle">Settings</h2>
-                    <p>Controls come from the parameters reported by this controller.</p>
+                    <p id="apFeaturePanelHelp">Familiar controls are translated to parameters reported by this controller.</p>
                 </div>
                 <span id="apFeatureMetadata">Not loaded</span>
             </header>

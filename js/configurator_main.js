@@ -1,5 +1,8 @@
 import '../src/css/styles.css'
 import '../src/css/flight-commander.css'
+// Keep the single dark visual system last so it can normalize both inherited
+// INAV widgets and Flight Commander's newer MAVLink/ArduPilot surfaces.
+import '../src/css/theme.css'
 
 import $ from 'jquery';
 import 'jquery-ui-dist/jquery-ui';
@@ -23,11 +26,7 @@ import { SITLProcess } from './sitl';
 import settingsCache from './settingsCache';
 import store from './store';
 import periodicStatusUpdater from './periodicStatusUpdater';
-import {
-    APPLICATION_THEMES,
-    applyApplicationTheme,
-    initializeApplicationTheme,
-} from './theme';
+import { initializeApplicationTheme } from './theme';
 
 // "Preload" tabs
 import landingTab from './../tabs/landing';
@@ -79,7 +78,7 @@ import autotuneTab from './../tabs/autotune';
 import dialog from './dialog'
 
 window.$ = $;
-let applicationTheme = initializeApplicationTheme(store);
+initializeApplicationTheme(store);
 
 // Set how the units render on the configurator only
 $(function() {
@@ -107,23 +106,6 @@ $(function() {
         globalSettings.assistnowOfflineData = store.get('assistnow_offline_data', []);
         globalSettings.assistnowOfflineDate = store.get('assistnow_offline_date', 0);
         updateProfilesHighlightColours();
-
-        const syncApplicationThemeSwitch = () => {
-            const dark = applicationTheme === APPLICATION_THEMES.DARK;
-            $('#applicationTheme')
-                .prop('checked', dark)
-                .attr('aria-checked', String(dark));
-        };
-        syncApplicationThemeSwitch();
-        $('#applicationTheme').on('change', function () {
-            applicationTheme = applyApplicationTheme(
-                $(this).prop('checked')
-                    ? APPLICATION_THEMES.DARK
-                    : APPLICATION_THEMES.LIGHT,
-                { storeApi: store, persist: true },
-            );
-            syncApplicationThemeSwitch();
-        });
 
         var cliAutocomplete = store.get('cli_autocomplete', true);
         globalSettings.cliAutocomplete = cliAutocomplete;

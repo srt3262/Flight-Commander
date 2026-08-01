@@ -10,6 +10,7 @@ import {
 } from './../js/parameters/ardupilotParameterModel';
 import {
   ardupilotParameterExplanation,
+  bindArduPilotTabLinks,
   createArduPilotParameterEditor,
   finishArduPilotTab,
   loadArduPilotSetup,
@@ -33,11 +34,39 @@ const ardupilotPidTuning = {
   loading: false,
   writing: false,
   rebootPending: false,
-  viewMode: 'standard',
+  sectionMode: 'gains',
 };
 
 function currentValue(definition, staged) {
   return staged.get(definition.id) ?? definition.parameter.value;
+}
+
+function createPidEditor(definition, options = {}) {
+  const editor = createArduPilotParameterEditor(definition, options);
+  if (!editor.is('input[type="number"]')) return editor;
+  const min = Number(definition.metadata.min);
+  const max = Number(definition.metadata.max);
+  if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min) {
+    return editor;
+  }
+  const increment = Number(definition.metadata.increment);
+  const step = Number.isFinite(increment) && increment > 0
+    ? increment
+    : (max - min) / 200;
+  const slider = $('<input>').attr({
+    type: 'range',
+    min,
+    max,
+    step,
+    value: options.value ?? definition.parameter.value,
+    'data-ardupilot-parameter': definition.id,
+    'data-ardupilot-read-only': definition.metadata.readOnly ? 'true' : 'false',
+    'data-ap-pid-slider': 'true',
+    'aria-label': `${options.ariaLabel ?? definition.metadata.displayName ?? definition.id} slider`,
+  }).prop('disabled', Boolean(definition.metadata.readOnly));
+  return $('<div>')
+    .addClass('fc-ap-pid-editor')
+    .append(editor.addClass('fc-ap-pid-editor__number'), slider);
 }
 
 ardupilotPidTuning.initialize = function (callback) {
@@ -46,14 +75,33 @@ ardupilotPidTuning.initialize = function (callback) {
     GUI.load(html, () => {
       this.staged.clear();
       renderArduPilotTabIdentity('apPid');
+      bindArduPilotTabLinks($('.tab-ardupilot-pid-tuning'));
       $('#apPidRefresh').on('click', () => this.load(true));
       $('#apPidSave').on('click', () => this.save(false));
       $('#apPidSaveReboot').on('click', () => this.save(true));
       $('#apPidSearch').on('input', () => this.render());
-      $('[data-ap-pid-view]').on('click', (event) => {
-        this.viewMode = String($(event.currentTarget).data('ap-pid-view'));
+      $('[data-ap-pid-section]').on('click', (event) => {
+        this.sectionMode = String($(event.currentTarget).data('ap-pid-section'));
         this.render();
       });
+      $('.tab-ardupilot-pid-tuning').on(
+        'input',
+        'input[data-ap-pid-slider]',
+        (event) => {
+          $(event.currentTarget)
+            .siblings('input[type="number"]')
+            .val($(event.currentTarget).val());
+        },
+      );
+      $('.tab-ardupilot-pid-tuning').on(
+        'input',
+        '.fc-ap-pid-editor__number',
+        (event) => {
+          $(event.currentTarget)
+            .siblings('input[type="range"]')
+            .val($(event.currentTarget).val());
+        },
+      );
       $('.tab-ardupilot-pid-tuning').on(
         'change',
         '[data-ardupilot-parameter]',
@@ -115,12 +163,6 @@ ardupilotPidTuning.visibleGroups = function () {
       gain.metadata?.description,
     ])].some((value) => String(value ?? '').toLowerCase().includes(query));
   });
-  if (this.viewMode === 'standard' && ardupilotSetupService.metadata.size) {
-    const standard = groups.filter((group) => Object.values(group.gains).some(
-      (gain) => gain.metadata?.user === 'standard',
-    ));
-    if (standard.length) groups = standard;
-  }
   return groups;
 };
 
@@ -129,20 +171,22 @@ ardupilotPidTuning.visibleRelated = function () {
   let views = this.related
     .map((parameter) => parameterView(parameter, ardupilotSetupService.metadata))
     .filter((view) => matchesSearch(view, query));
-  if (this.viewMode === 'standard' && ardupilotSetupService.metadata.size) {
-    const standard = views.filter((view) => view.metadata.user === 'standard');
-    if (standard.length) views = standard;
-  }
   return views;
 };
 
 ardupilotPidTuning.render = function () {
-  $('[data-ap-pid-view]').each((_index, element) => {
+  $('[data-ap-pid-section]').each((_index, element) => {
     $(element).toggleClass(
       'active',
-      $(element).data('ap-pid-view') === this.viewMode,
+      $(element).data('ap-pid-section') === this.sectionMode,
+    );
+    $(element).attr(
+      'aria-selected',
+      String($(element).data('ap-pid-section') === this.sectionMode),
     );
   });
+  $('#apPidGainPanel').prop('hidden', this.sectionMode !== 'gains');
+  $('#apPidRelatedPanel').prop('hidden', this.sectionMode !== 'filters');
   const groups = this.visibleGroups();
   const body = $('#apPidRows').empty();
   for (const group of groups) {
@@ -158,7 +202,7 @@ ardupilotPidTuning.render = function () {
       if (gain) {
         const definition = parameterDefinition(gain.id);
         cell
-          .append(createArduPilotParameterEditor(definition, {
+          .append(createPidEditor(definition, {
             value: currentValue(definition, this.staged),
             ariaLabel: `${group.label} ${gainName.toUpperCase()} gain`,
           }).attr('title', `${gain.id}: ${ardupilotParameterExplanation(definition, 'PID tuning')}`))
@@ -219,7 +263,7 @@ ardupilotPidTuning.renderRelated = function () {
         .append(title)
         .append($('<p>').text(ardupilotParameterExplanation(definition, 'PID and filter tuning'))))
       .append($('<div>').addClass('fc-ap-feature-setting__editor')
-        .append(createArduPilotParameterEditor(definition, {
+        .append(createPidEditor(definition, {
           value: currentValue(definition, this.staged),
           ariaLabel: view.metadata.displayName || view.id,
         })));
@@ -309,7 +353,7 @@ ardupilotPidTuning.save = async function (reboot) {
 
 ardupilotPidTuning.updateControls = function () {
   const busy = this.loading || this.writing;
-  $('#apPidRefresh, #apPidSearch, [data-ap-pid-view]').prop('disabled', busy);
+  $('#apPidRefresh, #apPidSearch, [data-ap-pid-section]').prop('disabled', busy);
   $('#apPidSave').prop('disabled', busy || !this.staged.size);
   $('#apPidSaveReboot').prop(
     'disabled',

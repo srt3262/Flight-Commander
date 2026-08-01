@@ -161,6 +161,17 @@ var mspQueue = function () {
                      * Create new entry in the queue
                      */
                     publicScope.put(request);
+                } else {
+                    /*
+                     * A terminal timeout must finish the caller's operation.
+                     * Historically the callback was simply discarded here,
+                     * leaving preset dialogs and save chains blocked forever.
+                     */
+                    publicScope.freeSoftLock();
+                    publicScope.freeHardLock();
+                    if (request.onFinish) {
+                        request.onFinish(false);
+                    }
                 }
 
             }, privateScope.getTimeout(request.code));

@@ -3490,12 +3490,22 @@ var mspHelper = (function () {
     };
 
     self.setSetting = function (name, value, callback) {
-        this.encodeSetting(name, value).then(function (data) {
-            return MSP.promise(MSPCodes.MSPV2_SET_SETTING, data).then(callback);
-        }).catch(error =>  {
-            console.log("Invalid setting: " + name, error);
-            return Promise.resolve().then(callback);
-        });
+        return this.encodeSetting(name, value).then(function (data) {
+            return MSP.promise(MSPCodes.MSPV2_SET_SETTING, data);
+        }).then(
+            function (result) {
+                if (callback) callback(result);
+                return result;
+            },
+            function (error) {
+                console.log("Invalid setting: " + name, error);
+                if (callback) {
+                    callback(false);
+                    return false;
+                }
+                throw error;
+            }
+        );
     };
 
     self.getRTC = function (callback) {

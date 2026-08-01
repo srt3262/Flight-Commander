@@ -9,7 +9,9 @@ import {
   listArduPilotFirmware,
   parseArduPilotManifest,
   parseIntelHex,
+  resolveArduPilotPlatformForBoardId,
   resolveArduPilotPlatformForInav,
+  resolveInavTargetForArduPilot,
 } from "../../../js/firmware/index.js";
 import {
   MSP_V1,
@@ -209,6 +211,41 @@ test("INAV MICOAIR743 identity exact-matches the official MicoAir743 platform", 
   assert.equal(branded.method, "documented-alias");
 });
 
+test("PX4 board ID 1166 maps MicoAir743 back to the exact INAV target", () => {
+  const entries = [
+    { platform: "MicoAir743", boardId: 1166, vehicleType: "Copter" },
+    { platform: "MicoAir743", boardId: 1166, vehicleType: "Plane" },
+    { platform: "OtherH743", boardId: 1200, vehicleType: "Copter" },
+  ];
+  const platform = resolveArduPilotPlatformForBoardId(1166, entries);
+  assert.equal(platform.matched, true);
+  assert.equal(platform.platform, "MicoAir743");
+  assert.equal(platform.method, "px4-board-id");
+
+  const target = resolveInavTargetForArduPilot(platform.platform, [
+    "MICOAIR743V2",
+    "MICOAIR743",
+    "OTHERH743",
+  ]);
+  assert.equal(target.matched, true);
+  assert.equal(target.platform, "MICOAIR743");
+  assert.equal(target.method, "exact-name");
+});
+
+test("reverse firmware identity refuses ambiguous PX4 board IDs", () => {
+  const platform = resolveArduPilotPlatformForBoardId(42, [
+    { platform: "BoardA", boardId: 42 },
+    { platform: "BoardB", boardId: 42 },
+  ]);
+  assert.equal(platform.matched, false);
+  assert.equal(platform.ambiguous, true);
+  assert.deepEqual(platform.candidates, ["BoardA", "BoardB"]);
+
+  const target = resolveInavTargetForArduPilot("UnknownBoard", ["BOARDA"]);
+  assert.equal(target.matched, false);
+  assert.equal(target.ambiguous, false);
+});
+
 test("running INAV identity probe reads firmware, board, and target over MSPv1", async () => {
   const target = new TextEncoder().encode("MICOAIR743");
   const board = Uint8Array.from([
@@ -263,4 +300,17 @@ test("ArduPilot renderer routes INAV/DFU first installs through full erase", () 
     2,
     "serial and USB DFU restore flows must run only after verified flashing",
   );
+});
+
+test("INAV renderer identifies ArduPilot by board ID but requires ROM DFU", () => {
+  const flasher = readFileSync(
+    new URL("../../../tabs/ardupilot_firmware_flasher.js", import.meta.url),
+    "utf8",
+  );
+  assert.match(flasher, /identifyForInavMigration\(inavTargets/);
+  assert.match(flasher, /resolveArduPilotPlatformForBoardId/);
+  assert.match(flasher, /resolveInavTargetForArduPilot/);
+  assert.match(flasher, /requiresRomDfu:\s*true/);
+  assert.match(flasher, /requiresFullErase:\s*true/);
+  assert.match(flasher, /await this\.uploader\.reboot/);
 });

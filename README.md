@@ -28,19 +28,22 @@ planning, and controller-aware firmware workflows.
 - INAV-style ArduPilot navigation with live Status, Ports, Receiver, Modes,
   PID Tuning, Configuration, Motors & Outputs, Safety & Failsafe, Sensors,
   GPS & Navigation, Power, OSD, Logging, Mission, and All Parameters pages.
-  Controls are discovered from the connected firmware and show official
-  explanations, exact parameter names, limits, choices, and restart needs.
+  Guided controls translate familiar INAV concepts to parameters discovered
+  on the connected vehicle and show official explanations, exact native names,
+  limits, choices, and restart needs. ArduPilot Extras and All Parameters retain
+  every firmware-specific setting without a safe one-to-one mapping.
 - Guarded Save and Save & Reboot on ArduPilot configuration pages. Parameter
   readback must confirm before a normal reboot is sent, and both operations are
   refused while the vehicle is armed.
-- Persistent light and dark themes, plus synchronized metric or imperial
-  displays in Ground Control and ArduPilot setup. Controller writes and JSON
-  backups remain in the flight controller's native parameter units.
+- One application-wide high-contrast dark theme, plus synchronized metric or
+  imperial displays in Ground Control and ArduPilot setup. Controller writes
+  and JSON backups remain in the flight controller's native parameter units.
 - INAV 10, 12, 15, and 17-inch multirotor presets with prop-size-tuned EZ Tune
   baselines and explicit generated P/I/D/FF values.
 - Controller-aware autotune and operational controls.
 - INAV firmware flashing, first-time ArduPilot installation through STM32 DFU,
-  and board-ID-checked APJ updates through the PX4FMU serial bootloader.
+  board-ID-checked APJ updates through the PX4FMU serial bootloader, and a
+  guarded STM32 ROM-DFU/full-erase handoff when returning from ArduPilot to INAV.
 
 Flight Commander deliberately fails closed when a mission or command cannot be
 represented by the connected controller. It does not silently discard

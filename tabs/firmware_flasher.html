@@ -204,6 +204,23 @@
                 </div>
             </div>
         </div>
+        <div id="inav_cross_firmware_notice" class="gui_box inav_firmware_detail is-hidden">
+            <div class="gui_box_titlebar darkgrey">
+                <div class="spacer_box_title">ArduPilot → INAV requires STM32 ROM DFU</div>
+            </div>
+            <div class="spacer inav-cross-firmware-notice__body">
+                <p id="inav_cross_firmware_identity"></p>
+                <ol>
+                    <li>Disconnect the flight battery and USB cable.</li>
+                    <li>Hold the flight controller <strong>BOOT</strong> button while reconnecting USB.</li>
+                    <li>Release BOOT after one or two seconds and wait for <strong>DFU</strong> to appear as the selected port.</li>
+                    <li>Download the selected INAV firmware, then flash it. Full chip erase is mandatory and locked on for this migration.</li>
+                </ol>
+                <p>
+                    The normal ArduPilot COM port and PX4 bootloader cannot install INAV. Do not continue unless the port picker shows <strong>DFU</strong>.
+                </p>
+            </div>
+        </div>
         <div class="clear-both"></div>
         <div class="git_info inav_firmware_detail">
             <div class="title" i18n="firmwareFlasherGithubInfoHead"></div>

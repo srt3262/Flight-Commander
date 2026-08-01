@@ -35,37 +35,36 @@ function fakeDocument() {
 
 test("application theme normalization defaults safely to dark", () => {
   assert.equal(DEFAULT_APPLICATION_THEME, "dark");
-  assert.equal(normalizeApplicationTheme(" LIGHT "), "light");
+  assert.deepEqual(APPLICATION_THEMES, { DARK: "dark" });
+  assert.equal(normalizeApplicationTheme(" LIGHT "), "dark");
   assert.equal(normalizeApplicationTheme("dark"), "dark");
   assert.equal(normalizeApplicationTheme("unknown"), "dark");
-  assert.equal(monacoThemeForApplicationTheme("light"), "vs");
+  assert.equal(monacoThemeForApplicationTheme("light"), "vs-dark");
   assert.equal(monacoThemeForApplicationTheme("dark"), "vs-dark");
 });
 
-test("stored theme is applied to the whole document before controls bind", () => {
+test("startup replaces any legacy light preference with canonical dark", () => {
   const documentRef = fakeDocument();
-  const reads = [];
+  const writes = [];
   const theme = initializeApplicationTheme({
-    get(key, fallback) {
-      reads.push({ key, fallback });
-      return APPLICATION_THEMES.LIGHT;
-    },
+    get: () => "light",
+    set: (key, value) => writes.push({ key, value }),
   }, documentRef);
 
-  assert.equal(theme, "light");
-  assert.deepEqual(reads, [{
+  assert.equal(theme, "dark");
+  assert.deepEqual(writes, [{
     key: APPLICATION_THEME_STORAGE_KEY,
-    fallback: DEFAULT_APPLICATION_THEME,
+    value: "dark",
   }]);
-  assert.equal(documentRef.attributes.get("data-theme"), "light");
-  assert.equal(documentRef.documentElement.style.colorScheme, "light");
+  assert.equal(documentRef.attributes.get("data-theme"), "dark");
+  assert.equal(documentRef.documentElement.style.colorScheme, "dark");
   assert.equal(documentRef.events.length, 0);
 });
 
-test("theme toggles persist and announce one normalized application event", () => {
+test("all theme requests persist and announce dark", () => {
   const documentRef = fakeDocument();
   const writes = [];
-  const theme = applyApplicationTheme("DARK", {
+  const theme = applyApplicationTheme("light", {
     documentRef,
     storeApi: { set: (key, value) => writes.push({ key, value }) },
     persist: true,

@@ -169,17 +169,12 @@ function hasFlightCommanderWordmark(declaration) {
   );
 }
 
-function hasCompleteWelcomeWordmark(declaration) {
+function hasCompleteDarkWelcomeWordmark(declaration) {
   return decodedSvgDataUrls(declaration).some(
     (svg) =>
-      /data-wordmark-surface=["']light["']/.test(svg) &&
-      /<text[^>]+fill=["']#104156["'][^>]*>FLIGHT<\/text>/.test(svg) &&
-      /<text[^>]+fill=["']#2186b5["'][^>]*>COMMANDER<\/text>/.test(svg) &&
-      /<path[^>]+fill=["']#104156["'][^>]+stroke=["']#104156["']/.test(
-        svg,
-      ) &&
-      /<circle[^>]+stroke=["']#104156["']/.test(svg) &&
-      !/(?:fill|stroke)=["']#(?:fff|ffffff)["']/i.test(svg),
+      svg.includes("Flight Commander") &&
+      /<text[^>]+fill=["']#ffffff["'][^>]*>FLIGHT<\/text>/i.test(svg) &&
+      /<text[^>]+fill=["']#37a8db["'][^>]*>COMMANDER<\/text>/i.test(svg),
   );
 }
 
@@ -534,6 +529,15 @@ const rendererStylesheets = activeRendererStylesheets(rendererDirectory);
 const rendererCss = rendererStylesheets
   .map((path) => readFileSync(path, "utf8"))
   .join("\n");
+if (!/<html\b[^>]*data-theme=["']dark["']/i.test(rendererEntryHtml)) {
+  fail("the active renderer entry is not initialized as dark-only");
+}
+if (/id=["']applicationTheme["']|fc-theme-switch/i.test(rendererEntryHtml)) {
+  fail("the dark-only renderer still contains a light/dark theme switch");
+}
+if (/data-theme=["']light["']|\.fc-theme-switch/.test(rendererCss)) {
+  fail("the active renderer CSS still packages a light-theme or theme-switch surface");
+}
 for (const selector of [
   "#logo",
   ".tab-cli .backdrop",
@@ -556,37 +560,28 @@ if (welcomeLogoDeclarations.length === 0) {
     "the active renderer CSS does not contain the welcome Flight Commander logo",
   );
 }
-if (!welcomeLogoDeclarations.some(hasCompleteWelcomeWordmark)) {
+if (!hasCompleteDarkWelcomeWordmark(welcomeLogoDeclarations.at(-1) ?? "")) {
   fail(
-    "the welcome surface does not render the complete light-background Flight Commander wordmark",
+    "the dark-only welcome surface does not end with the complete dark-background Flight Commander wordmark",
   );
 }
 const welcomeTaglineDeclarations = ruleDeclarations(
   rendererCss,
   ".tab-landing .flightCommanderTagline",
 );
-if (
-  welcomeTaglineDeclarations.length === 0 ||
-  !welcomeTaglineDeclarations.some((declaration) =>
-    /(?:^|;)color:#104156(?:;|$)/i.test(
-      declaration.replace(/\s+/g, ""),
-    ),
-  )
-) {
-  fail(
-    "the welcome tagline does not use the verified light-surface contrast color",
-  );
+if (welcomeTaglineDeclarations.length === 0) {
+  fail("the dark-only welcome tagline style is missing");
 }
 if (rendererCss.includes(".inavLogo{")) {
   fail("the active renderer CSS still contains the retired INAV logo selector");
 }
 for (const selector of [
   ".fc-unit-switch",
-  ".fc-theme-switch",
   ".fc-ap-editor-page",
   ".fc-ap-status-primary",
   ".fc-ap-feature-setting",
   ".fc-ap-pid-table",
+  ".fc-ap-pid-editor",
   ".fc-minor-view-layer",
   ".fc-minor-view-window",
   ".fc-minor-view-handle",
@@ -618,18 +613,6 @@ if (
 ) {
   fail("the ArduPilot action footer is still positioned over settings");
 }
-const connectionLaneDeclarations = ruleDeclarations(
-  rendererCss,
-  ".headerbar .connect_controls",
-);
-if (
-  !connectionLaneDeclarations.some((declaration) =>
-    /(?:^|;)top:34px(?:;|$)/.test(declaration.replace(/\s+/g, "")),
-  )
-) {
-  fail("the theme and connection controls do not use separate header lanes");
-}
-
 const rendererText = [
   rendererEntryHtml,
   ...rendererFiles.map((path) => readFileSync(path, "utf8")),
@@ -642,7 +625,6 @@ for (const marker of [
   "flightCommanderGroundControlUnits",
   "flightCommanderTheme",
   "flight-commander-theme-change",
-  "Use dark application theme",
   "Use imperial ArduPilot setup units",
   "Use imperial ArduPilot status units",
   "controller-native",
@@ -652,6 +634,11 @@ for (const marker of [
   "INAV-style preflight overview",
   "Detect moved channel",
   "Start endpoint capture",
+  "INAV-style setup",
+  "ArduPilot extras",
+  "Complete native fallback",
+  "GPS update rate",
+  "data-ap-pid-slider",
   "Save &amp; reboot",
   "Sending normal ArduPilot reboot",
   "Disarm the vehicle before rebooting the flight controller",

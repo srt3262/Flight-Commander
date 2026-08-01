@@ -41,7 +41,9 @@ export {
 export {
   INAV_TARGET_ALIASES,
   normalizeFirmwareTargetName,
+  resolveArduPilotPlatformForBoardId,
   resolveArduPilotPlatformForInav,
+  resolveInavTargetForArduPilot,
 } from "./crossFirmwareIdentity.js";
 export {
   PX4_BOOTLOADER,

@@ -90,6 +90,23 @@
     line-height: 15px;
 }
 
+.defaults-dialog__error {
+    margin: 0 0 12px;
+    padding: 10px 12px;
+    border: 1px solid #b94b55;
+    border-radius: 4px;
+    background: #4b2227;
+    color: #ffd7da;
+    line-height: 1.45;
+}
+
+#modal-saving-defaults-progress {
+    display: block;
+    margin-top: 10px;
+    color: var(--fc-theme-muted, #687780);
+    line-height: 1.4;
+}
+
 .defaults_btn a:hover .defaults-preset-description {
     color: inherit;
 }

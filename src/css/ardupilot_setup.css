@@ -526,6 +526,11 @@ body.fc-controller-ardupilot .fc-mavlink-setup-fallback {
     background: var(--fc-theme-raised, #e9eef1);
 }
 
+.fc-ap-all-parameters {
+    flex: 0 0 auto;
+    min-height: 29px;
+}
+
 .fc-ap-feature-view-switch {
     display: flex;
     gap: 4px;
@@ -533,8 +538,8 @@ body.fc-controller-ardupilot .fc-mavlink-setup-fallback {
 
 .fc-ap-feature-view-switch button.active {
     color: #ffffff;
-    border-color: var(--fc-theme-accent, #2186b5);
-    background: var(--fc-theme-accent, #2186b5);
+    border-color: var(--fc-theme-accent-strong, #167ca7);
+    background: var(--fc-theme-accent-strong, #167ca7);
 }
 
 .fc-ap-feature-search {
@@ -576,6 +581,18 @@ body.fc-controller-ardupilot .fc-mavlink-setup-fallback {
 .fc-ap-feature-group h3 {
     margin: 0;
     font-size: 13px;
+}
+
+.fc-ap-feature-group--guided > header > div {
+    min-width: 0;
+}
+
+.fc-ap-feature-group--guided > header p {
+    max-width: 900px;
+    margin: 3px 0 0;
+    color: var(--fc-theme-muted, #657680);
+    font-size: 10px;
+    line-height: 1.4;
 }
 
 .fc-ap-feature-group header span {
@@ -631,6 +648,27 @@ body.fc-controller-ardupilot .fc-mavlink-setup-fallback {
     margin-top: 5px;
     color: var(--fc-theme-muted, #657680);
     font-size: 9px;
+}
+
+.fc-parameter-badge--mapped {
+    color: var(--fc-theme-accent-text, #ffffff);
+    border-color: var(--fc-theme-accent-strong, #167ca7);
+    background: var(--fc-theme-accent-strong, #167ca7);
+}
+
+.fc-ap-native-details {
+    margin-top: 6px;
+}
+
+.fc-ap-native-details summary {
+    color: var(--fc-theme-accent, #2186b5);
+    font-size: 9px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.fc-ap-native-details p {
+    margin-top: 4px;
 }
 
 .fc-ap-feature-setting__editor {
@@ -714,6 +752,23 @@ body.fc-controller-ardupilot .fc-mavlink-setup-fallback {
 .fc-ap-pid-gain select {
     width: 100%;
     min-height: 29px;
+}
+
+.fc-ap-pid-editor {
+    display: grid;
+    width: 100%;
+    min-width: 135px;
+    gap: 6px;
+}
+
+.fc-ap-pid-editor input[type="range"] {
+    width: 100%;
+    min-height: 18px;
+    accent-color: var(--fc-theme-accent, #2186b5);
+}
+
+.fc-ap-panel[hidden] {
+    display: none;
 }
 
 .fc-ap-pid-help {

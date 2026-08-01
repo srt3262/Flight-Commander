@@ -22,17 +22,18 @@
         </div>
 
         <section class="fc-ap-feature-controls">
-            <div class="fc-ap-feature-view-switch" role="tablist" aria-label="PID detail level">
-                <button type="button" data-ap-pid-view="standard" class="active">Standard</button>
-                <button type="button" data-ap-pid-view="advanced">Advanced</button>
+            <div class="fc-ap-feature-view-switch" role="tablist" aria-label="PID tuning section">
+                <button type="button" data-ap-pid-section="gains" class="active" aria-selected="true">Main PID Gains</button>
+                <button type="button" data-ap-pid-section="filters" aria-selected="false">Filters &amp; Mechanics</button>
             </div>
             <label class="fc-ap-feature-search">
                 Search tuning settings
                 <input id="apPidSearch" type="search" placeholder="Roll, pitch, yaw, filter, or parameter">
             </label>
+            <button type="button" class="fc-ap-all-parameters" data-open-ardupilot-tab="mavlink_parameters">All Parameters</button>
         </section>
 
-        <section class="fc-ap-panel">
+        <section id="apPidGainPanel" class="fc-ap-panel">
             <header>
                 <div>
                     <h2>Control-loop gains</h2>
@@ -57,11 +58,11 @@
             </div>
         </section>
 
-        <section class="fc-ap-panel">
+        <section id="apPidRelatedPanel" class="fc-ap-panel" hidden>
             <header>
                 <div>
-                    <h2>Related tuning, filters, and limits</h2>
-                    <p>Additional tuning parameters from the same firmware, with standard and advanced filtering.</p>
+                    <h2>Filters, feed-forward, mechanics, and limits</h2>
+                    <p>Additional tuning controls reported by this vehicle, with exact native names and explanations.</p>
                 </div>
                 <span id="apPidRelatedCount">0 settings</span>
             </header>

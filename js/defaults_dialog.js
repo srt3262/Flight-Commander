@@ -5,7 +5,6 @@ import FC from './fc';
 import MSP from './msp';
 import MSPCodes from './../js/msp/MSPCodes';
 import mspHelper from './msp/MSPHelper';
-import MSPChainerClass from './msp/MSPchainer';
 import features from './feature_framework';
 import periodicStatusUpdater from './periodicStatusUpdater';
 import { mixer } from './model';
@@ -15,6 +14,11 @@ import defaultsDialogData from './defaults_dialog_entries.js';
 import Settings from './settings.js';
 import wizardUiBindings from './wizard_ui_bindings';
 import wizardSaveFramework from './wizard_save_framework';
+import {
+    runDefaultPresetCallbackStep,
+    runDefaultPresetTransaction,
+    verifyAppliedDefaultsValue,
+} from './presets/defaultPresetTransaction';
 
 var savingDefaultsModal;
 
@@ -27,10 +31,70 @@ var defaultsDialog = (function () {
 
     privateScope.wizardSettings = [];
     privateScope.needsShow = false;
+    privateScope.inProgress = false;
+    privateScope.activePreset = null;
+
+    privateScope.closeSavingModal = function () {
+        if (savingDefaultsModal) {
+            savingDefaultsModal.close();
+        }
+    };
+
+    privateScope.openSavingModal = function (message = '') {
+        privateScope.closeSavingModal();
+        $('#modal-saving-defaults-progress').text(message);
+        savingDefaultsModal = new jBox('Modal', {
+            width: 420,
+            minHeight: 120,
+            animation: false,
+            closeOnClick: false,
+            closeOnEsc: false,
+            content: $('#modal-saving-defaults')
+        }).open();
+    };
+
+    privateScope.setProgress = function ({ index, total, label }) {
+        $('#modal-saving-defaults-progress').text(
+            `${index + 1} / ${total}: ${label}`
+        );
+    };
+
+    privateScope.fail = function (error) {
+        console.error('[Defaults] Preset application failed', error);
+        privateScope.inProgress = false;
+        privateScope.activePreset = null;
+        periodicStatusUpdater.resume();
+        privateScope.closeSavingModal();
+        privateScope.render();
+        $container
+            .find('.defaults-dialog__error')
+            .text(
+                `Preset application stopped: ${error?.message ?? String(error)}. `
+                + 'Some earlier values may already be staged on the controller; reconnect or retry before flying.'
+            )
+            .show();
+        $container.show();
+        GUI.log(`Preset application failed: ${error?.message ?? String(error)}`);
+    };
+
+    privateScope.finishSuccess = function () {
+        privateScope.inProgress = false;
+        privateScope.activePreset = null;
+        periodicStatusUpdater.resume();
+        privateScope.closeSavingModal();
+        $container.hide();
+    };
 
     // Ensure we're waiting until the setting is loaded.
     publicScope.init = async function () {
-        const setting = await mspHelper.getSetting("applied_defaults")
+        let setting;
+        try {
+            setting = await mspHelper.getSetting("applied_defaults");
+        } catch (error) {
+            GUI.log(`Could not check first-run presets: ${error?.message ?? String(error)}`);
+            return;
+        }
+        if (!setting) return;
         if (setting.value > 0) {
             return; //Defaults were applied, we can just ignore
         }
@@ -41,7 +105,7 @@ var defaultsDialog = (function () {
     };
 
 
-    privateScope.setFeaturesBits = function (selectedDefaultPreset) {
+    privateScope.setFeaturesBits = async function (selectedDefaultPreset) {
 
         if (selectedDefaultPreset.features && selectedDefaultPreset.features.length > 0) {
             features.reset();
@@ -54,12 +118,21 @@ var defaultsDialog = (function () {
                 }
             }
 
-            features.execute(function () {
-                privateScope.setSettings(selectedDefaultPreset);
+            await runDefaultPresetCallbackStep('Applying feature selections', (done) => {
+                features.execute(done);
             });
-        } else {
-            privateScope.setSettings(selectedDefaultPreset);
         }
+    };
+
+    privateScope.saveAndVerify = async function (selectedDefaultPreset) {
+        await runDefaultPresetCallbackStep('Saving settings to EEPROM', (done) => {
+            mspHelper.saveToEeprom(done);
+        });
+        const marker = await runDefaultPresetCallbackStep('Reading preset confirmation', (done) => {
+            mspHelper.getSetting('applied_defaults').then(done).catch(() => done(false));
+        });
+        verifyAppliedDefaultsValue(selectedDefaultPreset, marker);
+        GUI.log(i18n.getMessage('configurationEepromSaved'));
     };
 
     privateScope.saveWizardStep = function (selectedDefaultPreset, wizardStep) {
@@ -112,16 +185,18 @@ var defaultsDialog = (function () {
         if (wizardStep >= stepsCount) {
             //This is the last step, time to finalize
             $container.hide();
-
-            wizardSaveFramework.persist(privateScope.wizardSettings, function () {
-                mspHelper.saveToEeprom(function () {
-                    //noinspection JSUnresolvedVariable
-                    GUI.log(i18n.getMessage('configurationEepromSaved'));
-                    if (selectedDefaultPreset.reboot) {
-                        privateScope.reboot();
-                    }
+            privateScope.openSavingModal('Saving receiver and GPS selections…');
+            (async () => {
+                await runDefaultPresetCallbackStep('Saving setup-wizard selections', (done) => {
+                    wizardSaveFramework.persist(privateScope.wizardSettings, done);
                 });
-            });
+                await privateScope.saveAndVerify(selectedDefaultPreset);
+                if (selectedDefaultPreset.reboot) {
+                    privateScope.reboot();
+                } else {
+                    privateScope.finishSuccess();
+                }
+            })().catch(privateScope.fail);
         } else {
             const $content = $container.find('.defaults-dialog__wizard');
 
@@ -164,49 +239,58 @@ var defaultsDialog = (function () {
                             savingDefaultsModal.close();
                             $container.show();
                         }
-                    );
+                    ).catch(privateScope.fail);
                 });
-            });
+            }).catch(privateScope.fail);
         }
 
     };
 
     privateScope.reboot = function () {
         periodicStatusUpdater.resume();
+        privateScope.inProgress = false;
+        privateScope.activePreset = null;
+        privateScope.closeSavingModal();
+        $container.hide();
 
         GUI.tab_switch_cleanup(function () {
-            MSP.send_message(MSPCodes.MSP_SET_REBOOT, false, false, function () {
-                //noinspection JSUnresolvedVariable
-                if (typeof savingDefaultsModal !== 'undefined') {
-                    savingDefaultsModal.close();
-                }
+            let reconnectStarted = false;
+            const reconnect = function () {
+                if (reconnectStarted) return;
+                reconnectStarted = true;
                 GUI.log(i18n.getMessage('deviceRebooting'));
                 GUI.handleReconnect(false);
-            });
+            };
+            MSP.send_message(MSPCodes.MSP_SET_REBOOT, false, false, reconnect);
+            // A reboot commonly removes USB before INAV can acknowledge it.
+            // Treat that disconnect as expected and never leave the preset
+            // modal waiting for an acknowledgement that cannot arrive.
+            setTimeout(reconnect, 1500);
         });
     };
 
-    privateScope.finalize = function (selectedDefaultPreset) {
+    privateScope.finalize = async function (selectedDefaultPreset) {
         if (selectedDefaultPreset.wizardPages) {
             privateScope.wizard(selectedDefaultPreset, 0);
         } else {
-            mspHelper.saveToEeprom(function () {
-                //noinspection JSUnresolvedVariable
-                GUI.log(i18n.getMessage('configurationEepromSaved'));
-                if (selectedDefaultPreset.reboot) {
-                    privateScope.reboot();
-                }
-            });
+            await privateScope.saveAndVerify(selectedDefaultPreset);
+            if (selectedDefaultPreset.reboot) {
+                privateScope.reboot();
+            } else {
+                privateScope.finishSuccess();
+            }
         }
     };
 
-    privateScope.setSettings = function (selectedDefaultPreset) {
+    privateScope.setSettings = async function (selectedDefaultPreset) {
         if(selectedDefaultPreset.reboot) {
             periodicStatusUpdater.stop();
         }
         
         var currentControlProfile = parseInt($("#profilechange").val());
         var currentBatteryProfile = parseInt($("#batteryprofilechange").val());
+        if (!Number.isInteger(currentControlProfile)) currentControlProfile = 0;
+        if (!Number.isInteger(currentBatteryProfile)) currentBatteryProfile = 0;
 
         var controlProfileSettings = [];
         var batterySettings = [];
@@ -222,32 +306,46 @@ var defaultsDialog = (function () {
             }
         });
         
-        var settingsChainer = MSPChainerClass();
-        var chain = [];
+        const steps = [];
 
         miscSettings.forEach(input => {
-            chain.push(function (callback) {
-                mspHelper.setSetting(input.key, input.value, callback);
+            steps.push({
+                label: `Setting ${input.key}`,
+                run: function (callback) {
+                    mspHelper.setSetting(input.key, input.value, callback);
+                }
             });
         });
 
         // Set control and battery parameters on all 3 profiles
         for (let profileIdx = 0; profileIdx < 3; profileIdx++){
-            chain.push(function (callback) {
-                MSP.send_message(MSPCodes.MSP_SELECT_SETTING, [profileIdx], false, callback);
+            steps.push({
+                label: `Selecting control profile ${profileIdx + 1}`,
+                run: function (callback) {
+                    MSP.send_message(MSPCodes.MSP_SELECT_SETTING, [profileIdx], false, callback);
+                }
             });
             controlProfileSettings.forEach(input => {
-                chain.push(function (callback) {
-                    mspHelper.setSetting(input.key, input.value, callback);
+                steps.push({
+                    label: `Control profile ${profileIdx + 1}: ${input.key}`,
+                    run: function (callback) {
+                        mspHelper.setSetting(input.key, input.value, callback);
+                    }
                 });
             });
 
-            chain.push(function (callback) {
-                MSP.send_message(MSPCodes.MSP2_INAV_SELECT_BATTERY_PROFILE, [profileIdx], false, callback);
+            steps.push({
+                label: `Selecting battery profile ${profileIdx + 1}`,
+                run: function (callback) {
+                    MSP.send_message(MSPCodes.MSP2_INAV_SELECT_BATTERY_PROFILE, [profileIdx], false, callback);
+                }
             });
             batterySettings.forEach(input => {
-                chain.push(function (callback) {
-                    mspHelper.setSetting(input.key, input.value, callback);
+                steps.push({
+                    label: `Battery profile ${profileIdx + 1}: ${input.key}`,
+                    run: function (callback) {
+                        mspHelper.setSetting(input.key, input.value, callback);
+                    }
                 });
             });
         }
@@ -269,60 +367,63 @@ var defaultsDialog = (function () {
             FC.MOTOR_RULES.cleanup();
             FC.MOTOR_RULES.inflate();
             
-            chain = chain.concat([
-                mspHelper.saveMixerConfig,
-                mspHelper.sendServoMixer,
-                mspHelper.sendMotorMixer
-            ]);
+            steps.push(
+                { label: 'Saving mixer configuration', run: mspHelper.saveMixerConfig },
+                { label: 'Saving servo mixer', run: mspHelper.sendServoMixer },
+                { label: 'Saving motor mixer', run: mspHelper.sendMotorMixer }
+            );
         }
             
-        chain.push(function (callback) {
-            MSP.send_message(MSPCodes.MSP_SELECT_SETTING, [currentControlProfile], false, callback);
+        steps.push({
+            label: 'Restoring the selected control profile',
+            run: function (callback) {
+                MSP.send_message(MSPCodes.MSP_SELECT_SETTING, [currentControlProfile], false, callback);
+            }
         });
             
-        chain.push(function (callback) {
-            MSP.send_message(MSPCodes.MSP2_INAV_SELECT_BATTERY_PROFILE, [currentBatteryProfile], false, callback);
+        steps.push({
+            label: 'Restoring the selected battery profile',
+            run: function (callback) {
+                MSP.send_message(MSPCodes.MSP2_INAV_SELECT_BATTERY_PROFILE, [currentBatteryProfile], false, callback);
+            }
         });
-        
-        settingsChainer.setChain(chain);
-        settingsChainer.setExitPoint(function () {
-            privateScope.finalize(selectedDefaultPreset);
+        await runDefaultPresetTransaction(steps, {
+            onProgress: privateScope.setProgress,
         });
-        
-        settingsChainer.execute();        
+        await privateScope.finalize(selectedDefaultPreset);
     }
 
     privateScope.onPresetClick = function (event) {
-        savingDefaultsModal = new jBox('Modal', {
-            width: 400,
-            height: 120,
-            animation: false,
-            closeOnClick: false,
-            closeOnEsc: false,
-            content: $('#modal-saving-defaults')
-        }).open();
+        event.preventDefault();
+        if (privateScope.inProgress) return;
+        privateScope.inProgress = true;
+        privateScope.wizardSettings = [];
+        $container.find('.defaults-dialog__error').hide().text('');
+        privateScope.openSavingModal('Preparing preset…');
 
         $container.hide();
 
         let selectedDefaultPreset = defaultsDialogData[$(event.currentTarget).data("index")];
+        privateScope.activePreset = selectedDefaultPreset;
         if (selectedDefaultPreset && selectedDefaultPreset.settings) {
 
             if (selectedDefaultPreset.id == 0) {
                 // Close applying preset dialog if keeping current settings.
                 savingDefaultsModal.close();
             }
-
-            mspHelper.loadFeatures(function () {
-                privateScope.setFeaturesBits(selectedDefaultPreset)
-            });
+            (async () => {
+                await privateScope.setFeaturesBits(selectedDefaultPreset);
+                await privateScope.setSettings(selectedDefaultPreset);
+            })().catch(privateScope.fail);
         } else {
-            savingDefaultsModal.close();
+            privateScope.fail(new Error('The selected preset has no settings to apply.'));
         }
     };
 
     privateScope.render = function () {
         $container.find('.defaults-dialog__content').show();
         $container.find('.defaults-dialog__wizard').hide();
+        $container.find('.defaults-dialog__error').hide().text('');
         let $place = $container.find('.defaults-dialog__options');
         $place.html("");
         for (let i in defaultsDialogData) {

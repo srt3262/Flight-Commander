@@ -30,8 +30,18 @@ var wizardSaveFramework = (function () {
                 }
 
                 serialPortHelper.set(config.value.port, 'GPS', config.value.baud);
-                mspHelper.saveSerialPorts(function () {
-                    features.execute(self.enableVirtulaPitot(config, callback));
+                mspHelper.saveSerialPorts(function (serialResult) {
+                    if (serialResult === false) {
+                        callback(false);
+                        return;
+                    }
+                    features.execute(function (featureResult) {
+                        if (featureResult === false) {
+                            callback(false);
+                            return;
+                        }
+                        self.enableVirtulaPitot(config, callback);
+                    });
                 });
                 break;
             case 'gpsProtocol':
@@ -55,7 +65,11 @@ var wizardSaveFramework = (function () {
 
         if (configs.length > 0) {
             let setting = configs.shift();
-            self.saveSetting(setting, function () {
+            self.saveSetting(setting, function (result) {
+                if (result === false) {
+                    finalCallback(false);
+                    return;
+                }
                 self.handleSetting(configs, finalCallback);
             });
         } else {

@@ -34,19 +34,6 @@
                     <div class="firmware_version"></div>
                 </div>
             </div>
-            <label id="applicationThemeControl" class="fc-theme-switch" for="applicationTheme" title="Switch the entire application between light and dark themes">
-                <span>Light</span>
-                <input
-                    id="applicationTheme"
-                    type="checkbox"
-                    role="switch"
-                    aria-label="Use dark application theme"
-                >
-                <span class="fc-theme-switch__track" aria-hidden="true">
-                    <span class="fc-theme-switch__thumb"></span>
-                </span>
-                <span>Dark</span>
-            </label>
             <a id="options" href="#" data-i18n_title="options_title"></a>
 
             <div id="port-picker">
@@ -605,6 +592,7 @@
     </div>
     <div id="modal-saving-defaults" class="is-hidden">
         <div data-i18n="savingDefaults"></div>
+        <small id="modal-saving-defaults-progress" role="status" aria-live="polite"></small>
     </div>
     <div id="defaults-wrapper" style="display: none">
 
@@ -615,6 +603,7 @@
             <div class="defaults-dialog__content--wrapper">
                 <p class="defaults-dialog__info" data-i18n="defaultsDialogInfo"></p>
                 <p class="defaults-dialog__info" data-i18n="defaultsDialogInfo2"></p>
+                <p class="defaults-dialog__error" role="alert" hidden></p>
                 <div class="defaults-dialog__options"></div>
             </div>
         </div>

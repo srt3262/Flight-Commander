@@ -281,6 +281,24 @@
     font-weight: normal;
 }
 
+.tab-firmware_flasher #inav_cross_firmware_notice {
+    margin-bottom: 10px;
+    border: 1px solid #d68b20;
+}
+
+.tab-firmware_flasher .inav-cross-firmware-notice__body {
+    padding: 10px 14px;
+    line-height: 1.45;
+}
+
+.tab-firmware_flasher .inav-cross-firmware-notice__body ol {
+    margin: 8px 0 8px 24px;
+}
+
+.tab-firmware_flasher .inav-cross-firmware-notice__body li {
+    margin: 4px 0;
+}
+
 /* Version warning overlay: minor/major update without chip erase */
 #version-warning-overlay {
     position: fixed;

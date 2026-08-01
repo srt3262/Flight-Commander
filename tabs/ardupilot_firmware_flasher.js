@@ -7,7 +7,9 @@ import {
     checkFirmwareCompatibility,
     findArduPilotWithBootloaderEntry,
     parseApjPackage,
+    resolveArduPilotPlatformForBoardId,
     resolveArduPilotPlatformForInav,
+    resolveInavTargetForArduPilot,
 } from './../js/firmware/index.js';
 import ElectronSerialByteTransport from './../js/connection/electronSerialByteTransport.js';
 import { rebootArduPilotToBootloader } from './../js/connection/ardupilotBootloaderEntry.js';
@@ -528,8 +530,81 @@ class ArduPilotFirmwareFlasher {
         }
     }
 
-    async acquireController(signal) {
-        const selectedPath = selectedPortPath();
+    async identifyForInavMigration(inavTargets, options = {}) {
+        if (this.busy) {
+            throw new Error('Another firmware operation is already in progress.');
+        }
+        const selected = options.connectionTarget ?? selectedConnectionTarget();
+        if (selected.kind === 'dfu') {
+            return Object.freeze({
+                kind: 'dfu',
+                requiresRomDfu: true,
+                requiresFullErase: true,
+            });
+        }
+
+        const controller = new AbortController();
+        this.abortController = controller;
+        this.setBusy(true);
+        try {
+            if (!this.manifest) {
+                this.manifest = await this.provider.loadManifest({
+                    signal: controller.signal,
+                });
+            }
+            const acquired = await this.acquireController(
+                controller.signal,
+                selected.path,
+            );
+            if (acquired.kind === 'inav') {
+                return Object.freeze({
+                    kind: 'inav',
+                    inavInfo: acquired.inavInfo,
+                    requiresRomDfu: false,
+                    requiresFullErase: false,
+                });
+            }
+
+            this.transport = acquired.transport;
+            this.uploader = acquired.uploader;
+            const platformResolution = resolveArduPilotPlatformForBoardId(
+                acquired.boardInfo.boardId,
+                this.manifest.entries,
+            );
+            const inavTargetResolution = platformResolution.matched
+                ? resolveInavTargetForArduPilot(
+                    platformResolution.platform,
+                    inavTargets,
+                )
+                : null;
+
+            try {
+                await this.uploader.reboot({ signal: controller.signal });
+            } catch (_error) {
+                // Some controllers remove the bootloader serial endpoint before
+                // the acknowledgement reaches the host. The physical BOOT/DFU
+                // handoff below remains authoritative either way.
+            }
+
+            return Object.freeze({
+                kind: 'ardupilot',
+                boardInfo: acquired.boardInfo,
+                platformResolution,
+                inavTargetResolution,
+                requiresRomDfu: true,
+                requiresFullErase: true,
+            });
+        } finally {
+            await this.closeTransport();
+            if (this.abortController === controller) {
+                this.abortController = null;
+            }
+            this.setBusy(false);
+        }
+    }
+
+    async acquireController(signal, selectedPathOverride = null) {
+        const selectedPath = selectedPathOverride ?? selectedPortPath();
         const before = await this.api.listSerialDeviceInfo();
         const selectedInfo = before.find(info => info.path === selectedPath) ?? null;
 

@@ -7,6 +7,12 @@ import {
 } from './../js/ardupilot/featureDefinitions';
 import { ardupilotSetupService } from './../js/ardupilot/setupService';
 import {
+  discoverInavCompatibleControls,
+  fromInavCompatibleDisplayValue,
+  inavCompatibleDisplayMetadata,
+  toInavCompatibleDisplayValue,
+} from './../js/ardupilot/inavCompatibility';
+import {
   matchesSearch,
   parameterView,
   validateParameterValue,
@@ -25,6 +31,7 @@ import {
 import store from './../js/store';
 import {
   ardupilotParameterExplanation,
+  bindArduPilotTabLinks,
   finishArduPilotTab,
   loadArduPilotSetup,
   metadataSourceLabel,
@@ -41,11 +48,13 @@ function createFeatureTab(definition) {
   const tab = {
     definition,
     parameters: [],
+    compatibility: null,
+    compatibilityByParameterId: new Map(),
     staged: new Map(),
     loading: false,
     writing: false,
     rebootPending: false,
-    viewMode: 'standard',
+    viewMode: 'guided',
     unitSystem: DEFAULT_GROUND_CONTROL_UNIT_SYSTEM,
   };
 
@@ -65,6 +74,7 @@ function createFeatureTab(definition) {
         $('#apFeatureSummary').text(definition.summary);
         $('#apFeatureGuidance').text(definition.guidance);
         $('#apFeatureCaution').text(definition.caution);
+        bindArduPilotTabLinks($('.tab-ardupilot-feature'));
         $('#apFeatureRefresh').on('click', () => this.load(true));
         $('#apFeatureSave').on('click', () => this.save(false));
         $('#apFeatureSaveReboot').on('click', () => this.save(true));
@@ -113,6 +123,19 @@ function createFeatureTab(definition) {
         ardupilotSetupService.parameterManager.values(),
         definition,
       );
+      this.compatibility = discoverInavCompatibleControls(
+        this.parameters,
+        definition.id,
+        ardupilotSetupService.metadata,
+      );
+      this.compatibilityByParameterId = new Map(
+        this.compatibility.sections.flatMap((mappedSection) => (
+          mappedSection.controls.map((mappedControl) => [
+            mappedControl.nativeId,
+            mappedControl,
+          ])
+        )),
+      );
       $('#apFeatureMetadata').text(metadataSourceLabel(result.metadataResult));
       this.render();
       setArduPilotTabStatus(
@@ -129,10 +152,10 @@ function createFeatureTab(definition) {
     }
   };
 
-  tab.views = function () {
+  tab.nativeViews = function () {
     const metadata = ardupilotSetupService.metadata;
     const query = String($('#apFeatureSearch').val() ?? '');
-    let views = this.parameters
+    return (this.compatibility?.unmatchedParameters ?? this.parameters)
       .map((parameter) => parameterView(parameter, metadata))
       .filter((view) => (
         matchesSearch(view, query)
@@ -141,11 +164,34 @@ function createFeatureTab(definition) {
           metadata: arduPilotDisplayMetadata(view.metadata, this.unitSystem),
         }, query)
       ));
-    if (this.viewMode === 'standard' && metadata.size) {
-      const standard = views.filter((view) => view.metadata.user === 'standard');
-      if (standard.length) views = standard;
-    }
-    return views;
+  };
+
+  tab.guidedSections = function () {
+    const query = String($('#apFeatureSearch').val() ?? '').trim().toLowerCase();
+    return (this.compatibility?.sections ?? [])
+      .map((mappedSection) => ({
+        ...mappedSection,
+        controls: mappedSection.controls
+          .map((mappedControl) => ({
+            mappedControl,
+            view: parameterView(
+              mappedControl.parameter,
+              ardupilotSetupService.metadata,
+            ),
+          }))
+          .filter(({ mappedControl, view }) => {
+            if (!query) return true;
+            return [
+              mappedControl.label,
+              mappedControl.description,
+              mappedControl.nativeId,
+              view.metadata.displayName,
+              view.metadata.description,
+              view.metadata.units,
+            ].some((value) => String(value ?? '').toLowerCase().includes(query));
+          }),
+      }))
+      .filter((mappedSection) => mappedSection.controls.length);
   };
 
   tab.render = function () {
@@ -159,51 +205,95 @@ function createFeatureTab(definition) {
         $(element).data('ap-feature-view') === this.viewMode,
       );
     });
+    $('#apFeaturePanelHelp').text(
+      this.viewMode === 'guided'
+        ? 'Familiar controls are translated to the exact parameters reported by this controller.'
+        : 'These feature-specific native settings have no safe one-to-one INAV control; All Parameters contains the complete list.',
+    );
 
-    const views = this.views();
-    const groups = new Map();
-    for (const view of views) {
-      if (!groups.has(view.group.id)) {
-        groups.set(view.group.id, { ...view.group, parameters: [] });
-      }
-      groups.get(view.group.id).parameters.push(view);
-    }
     const container = $('#apFeatureGroups').empty();
-    for (const group of [...groups.values()].sort(
-      (left, right) => left.label.localeCompare(right.label),
-    )) {
-      const card = $('<section>').addClass('fc-ap-feature-group');
-      card.append(
-        $('<header>')
-          .append($('<h3>').text(group.label))
-          .append($('<span>').text(`${group.parameters.length} settings`)),
-      );
-      const settings = $('<div>').addClass('fc-ap-feature-settings');
-      for (const view of group.parameters.sort(
-        (left, right) => left.id.localeCompare(right.id),
-      )) {
-        settings.append(this.renderSetting(view));
+    let shown = 0;
+    if (this.viewMode === 'guided') {
+      const mappedSections = this.guidedSections();
+      for (const mappedSection of mappedSections) {
+        const card = $('<section>').addClass('fc-ap-feature-group fc-ap-feature-group--guided');
+        card.append(
+          $('<header>')
+            .append($('<div>')
+              .append($('<h3>').text(mappedSection.label))
+              .append($('<p>').text(mappedSection.description)))
+            .append($('<span>').text(`${mappedSection.controls.length} controls`)),
+        );
+        const settings = $('<div>').addClass('fc-ap-feature-settings');
+        for (const { mappedControl, view } of mappedSection.controls) {
+          settings.append(this.renderSetting(view, mappedControl));
+          shown += 1;
+        }
+        card.append(settings);
+        container.append(card);
       }
-      card.append(settings);
-      container.append(card);
+    } else {
+      const views = this.nativeViews();
+      const groups = new Map();
+      for (const view of views) {
+        if (!groups.has(view.group.id)) {
+          groups.set(view.group.id, { ...view.group, parameters: [] });
+        }
+        groups.get(view.group.id).parameters.push(view);
+      }
+      for (const group of [...groups.values()].sort(
+        (left, right) => left.label.localeCompare(right.label),
+      )) {
+        const card = $('<section>').addClass('fc-ap-feature-group');
+        card.append(
+          $('<header>')
+            .append($('<h3>').text(group.label))
+            .append($('<span>').text(`${group.parameters.length} native settings`)),
+        );
+        const settings = $('<div>').addClass('fc-ap-feature-settings');
+        for (const view of group.parameters.sort(
+          (left, right) => left.id.localeCompare(
+            right.id,
+            undefined,
+            { numeric: true },
+          ),
+        )) {
+          settings.append(this.renderSetting(view));
+          shown += 1;
+        }
+        card.append(settings);
+        container.append(card);
+      }
     }
     if (!container.children().length) {
       container.append(
         $('<p>').addClass('fc-ap-empty').text(
           this.parameters.length
-            ? 'No settings match this search and detail level.'
+            ? (
+              this.viewMode === 'guided'
+                ? 'No INAV-style controls match this search. Open ArduPilot extras or All Parameters for native-only settings.'
+                : 'No native-only settings match this search. Mapped controls are available in INAV-style setup.'
+            )
             : `The connected firmware does not expose parameters for ${definition.title}.`,
         ),
       );
     }
+    const mapped = this.compatibility?.mappedControlCount ?? 0;
+    const extras = this.compatibility?.unmatchedParameters?.length ?? 0;
     $('#apFeatureProgress').text(
-      `${views.length} shown · ${this.parameters.length} available · ${this.staged.size} changed`,
+      `${shown} shown · ${mapped} INAV-style controls · ${extras} ArduPilot extras · ${this.staged.size} changed`,
     );
     this.updateControls();
   };
 
-  tab.renderSetting = function (view) {
-    const displayMetadata = arduPilotDisplayMetadata(view.metadata, this.unitSystem);
+  tab.displayMetadata = function (view, mappedControl = null) {
+    return mappedControl?.presentation
+      ? inavCompatibleDisplayMetadata(mappedControl, view.metadata)
+      : arduPilotDisplayMetadata(view.metadata, this.unitSystem);
+  };
+
+  tab.renderSetting = function (view, mappedControl = null) {
+    const displayMetadata = this.displayMetadata(view, mappedControl);
     const changed = this.staged.has(view.id);
     const setting = $('<article>')
       .addClass('fc-ap-feature-setting')
@@ -211,20 +301,34 @@ function createFeatureTab(definition) {
       .attr('data-ap-feature-setting', view.id);
     const details = $('<div>').addClass('fc-ap-feature-setting__details');
     const title = $('<div>').addClass('fc-ap-feature-setting__title')
-      .append($('<strong>').text(view.metadata.displayName || view.id))
+      .append($('<strong>').text(mappedControl?.label || view.metadata.displayName || view.id))
       .append($('<code>').text(view.id));
+    if (mappedControl) {
+      title.append($('<span>').addClass('fc-parameter-badge fc-parameter-badge--mapped').text('INAV-style'));
+    }
     if (view.metadata.rebootRequired) {
       title.append($('<span>').addClass('fc-parameter-badge').text('Reboot required'));
     }
     if (view.metadata.readOnly) {
       title.append($('<span>').addClass('fc-parameter-badge fc-parameter-badge--muted').text('Read only'));
     }
-    details
-      .append(title)
-      .append($('<p>').text(ardupilotParameterExplanation(
+    details.append(title).append(
+      $('<p>').text(mappedControl?.description ?? ardupilotParameterExplanation(
         { id: view.id, metadata: view.metadata },
         definition.context,
-      )));
+      )),
+    );
+    if (mappedControl) {
+      details.append(
+        $('<details>')
+          .addClass('fc-ap-native-details')
+          .append($('<summary>').text('ArduPilot parameter details'))
+          .append($('<p>').text(ardupilotParameterExplanation(
+            { id: view.id, metadata: view.metadata },
+            definition.context,
+          ))),
+      );
+    }
     const constraints = [];
     if (displayMetadata.min != null || displayMetadata.max != null) {
       constraints.push(`${displayMetadata.min ?? '−∞'} to ${displayMetadata.max ?? '∞'}`);
@@ -236,7 +340,7 @@ function createFeatureTab(definition) {
       details,
       $('<div>')
         .addClass('fc-ap-feature-setting__editor')
-        .append(this.renderControl(view)),
+        .append(this.renderControl(view, mappedControl)),
     );
     return setting;
   };
@@ -245,7 +349,7 @@ function createFeatureTab(definition) {
     return this.staged.get(view.id) ?? view.value;
   };
 
-  tab.renderControl = function (view) {
+  tab.renderControl = function (view, mappedControl = null) {
     const value = this.currentValue(view);
     const disabled = view.metadata.readOnly || this.loading || this.writing;
     if (view.controlKind === 'bitmask') {
@@ -302,12 +406,14 @@ function createFeatureTab(definition) {
       }
       return select;
     }
-    const displayMetadata = arduPilotDisplayMetadata(view.metadata, this.unitSystem);
-    const displayValue = toArduPilotDisplayValue(
-      value,
-      view.metadata.units,
-      this.unitSystem,
-    );
+    const displayMetadata = this.displayMetadata(view, mappedControl);
+    const displayValue = mappedControl?.presentation
+      ? toInavCompatibleDisplayValue(mappedControl, value)
+      : toArduPilotDisplayValue(
+        value,
+        view.metadata.units,
+        this.unitSystem,
+      );
     const input = $('<input>').attr({
       type: 'number',
       step: displayMetadata.increment ?? 'any',
@@ -330,11 +436,14 @@ function createFeatureTab(definition) {
     if (input.attr('type') === 'checkbox') {
       value = input.prop('checked') ? 1 : 0;
     } else if (definitionForParameter.parameter.controlKind === 'number') {
-      value = fromArduPilotDisplayValue(
-        input.val(),
-        definitionForParameter.metadata.units,
-        this.unitSystem,
-      );
+      const mappedControl = this.compatibilityByParameterId.get(id);
+      value = mappedControl?.presentation
+        ? fromInavCompatibleDisplayValue(mappedControl, input.val())
+        : fromArduPilotDisplayValue(
+          input.val(),
+          definitionForParameter.metadata.units,
+          this.unitSystem,
+        );
     } else {
       value = Number(input.val());
     }

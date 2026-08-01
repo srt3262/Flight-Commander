@@ -34,19 +34,20 @@
       </div>
       <div class="column half text2">
         <div class="wrap">
-          <h2>Flight Commander 1.7.1</h2>
+          <h2>Flight Commander 1.8.0</h2>
           <div>
             Built from the verified INAV Configurator 9.1.1 source base. INAV
             keeps its complete wired configurator and flasher, while ArduPilot
             controllers receive a metadata-driven setup GUI, verified first
             installation through STM32 DFU, and board-ID-checked APJ updates.
-            This release adds an INAV-style ArduPilot Status and setup tree,
-            plain-language parameter guidance, guarded Save &amp; Reboot,
-            persistent light and dark themes, metric and imperial setup units,
-            and tuned INAV multirotor presets for 10, 12, 15, and 17-inch
-            propellers. This maintenance release also reserves dedicated space
-            for ArduPilot save/reboot controls and separates the theme switch
-            from Connect and Disconnect.
+            This release makes the application dark-only with a complete
+            contrast pass, replaces the ArduPilot setup surface with guided
+            INAV-style controls backed by native parameters and full-parameter
+            fallbacks, and makes first-connection INAV preset application
+            bounded and verifiable. It also adds a guarded STM32 ROM-DFU and
+            full-erase handoff when returning an ArduPilot controller to INAV,
+            while retaining metric and imperial setup units and tuned INAV
+            multirotor presets for 10, 12, 15, and 17-inch propellers.
           </div>
           <h2 style="margin-top: 1em">Open-source foundations</h2>
           <div>

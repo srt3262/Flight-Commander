@@ -33,6 +33,17 @@ function resolution(reportedTarget, method, candidates) {
   });
 }
 
+function boardResolution(boardId, candidates) {
+  return Object.freeze({
+    boardId,
+    matched: candidates.length === 1,
+    ambiguous: candidates.length > 1,
+    method: "px4-board-id",
+    platform: candidates.length === 1 ? candidates[0] : null,
+    candidates: Object.freeze(candidates),
+  });
+}
+
 export function resolveArduPilotPlatformForInav(reportedTarget, entries) {
   const rawTarget = String(reportedTarget ?? "").trim();
   const normalizedTarget = normalizeFirmwareTargetName(rawTarget);
@@ -57,6 +68,48 @@ export function resolveArduPilotPlatformForInav(reportedTarget, entries) {
     (platform) => normalizeFirmwareTargetName(platform) === normalizedAlias,
   );
   return resolution(rawTarget, "documented-alias", mapped);
+}
+
+export function resolveArduPilotPlatformForBoardId(boardId, entries) {
+  const parsedBoardId = Number(boardId);
+  if (!Number.isInteger(parsedBoardId) || parsedBoardId <= 0) {
+    return boardResolution(boardId, []);
+  }
+
+  const platforms = uniquePlatforms(
+    (entries ?? []).filter((entry) => Number(entry?.boardId) === parsedBoardId),
+  );
+  return boardResolution(parsedBoardId, platforms);
+}
+
+export function resolveInavTargetForArduPilot(reportedPlatform, targets) {
+  const rawPlatform = String(reportedPlatform ?? "").trim();
+  const normalizedPlatform = normalizeFirmwareTargetName(rawPlatform);
+  if (!normalizedPlatform) {
+    return resolution(rawPlatform, "none", []);
+  }
+
+  const availableTargets = [...new Set(
+    (targets ?? [])
+      .map((target) => String(target ?? "").trim())
+      .filter(Boolean),
+  )].sort((left, right) => left.localeCompare(right));
+  const exact = availableTargets.filter(
+    (target) => normalizeFirmwareTargetName(target) === normalizedPlatform,
+  );
+  if (exact.length) {
+    return resolution(rawPlatform, "exact-name", exact);
+  }
+
+  const reverseAliases = [...INAV_TARGET_ALIASES.entries()]
+    .filter(([, platform]) => (
+      normalizeFirmwareTargetName(platform) === normalizedPlatform
+    ))
+    .map(([target]) => target);
+  const mapped = availableTargets.filter((target) => (
+    reverseAliases.includes(normalizeFirmwareTargetName(target))
+  ));
+  return resolution(rawPlatform, "documented-alias", mapped);
 }
 
 export { INAV_TARGET_ALIASES };

@@ -28,8 +28,11 @@ test("ArduPilot Save and reboot pages reserve a non-overlaying footer", () => {
   assert.match(css, /\.fc-ap-editor-page\s*>\s*\.fc-ap-toolbar\s*\{[^}]*position:\s*static;/s);
 });
 
-test("theme and connection controls occupy separate header lanes", () => {
+test("dark-only header has no theme control that can overlap Connect", () => {
+  const index = source("index.html");
   const css = source("src/css/theme.css");
-  assert.match(css, /\.fc-theme-switch\s*\{[^}]*top:\s*4px;/s);
-  assert.match(css, /\.headerbar\s+\.connect_controls\s*\{[^}]*top:\s*34px;/s);
+  assert.doesNotMatch(index, /id="applicationTheme"/);
+  assert.doesNotMatch(index, /fc-theme-switch/);
+  assert.doesNotMatch(css, /\.fc-theme-switch/);
+  assert.match(source("src/css/main.css"), /\.connect_controls\s*\{[^}]*position:\s*relative;/s);
 });

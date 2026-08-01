@@ -7,7 +7,7 @@ const DEFINITIONS = [
     title: "Vehicle Configuration",
     navigationLabel: "Configuration",
     summary: "Common vehicle behavior and board-level configuration, arranged like INAV’s Configuration page.",
-    guidance: "Start with Standard settings. Advanced settings are shown only when requested, and every control writes the exact ArduPilot parameter named beside it.",
+    guidance: "Start with INAV-style setup. ArduPilot extras contain vehicle-specific settings without a safe INAV equivalent, and every control shows the exact native parameter it writes.",
     context: "vehicle configuration",
     patterns: [
       /^(AHRS|PILOT|SYSID|SCHED|BRD_|FORMAT_VERSION|ARMING|ARM_|DISARM|THR_DZ|MANUAL_|FLIGHT_OPTIONS|ANGLE_MAX|ACRO_)/,
@@ -55,7 +55,7 @@ const DEFINITIONS = [
     title: "GPS & Navigation",
     navigationLabel: "GPS & Navigation",
     summary: "GPS, estimator, loiter, waypoint, avoidance, rally, return, and guided-navigation settings.",
-    guidance: "The connected vehicle decides which navigation controls exist. Standard view keeps routine choices visible; Advanced exposes estimator and controller details.",
+    guidance: "The connected vehicle decides which navigation controls exist. INAV-style setup keeps routine GPS, waypoint, return, and terrain choices visible; ArduPilot extras exposes firmware-specific estimator and controller details.",
     context: "GPS and navigation configuration",
     patterns: [/^(GPS|EK[234F]_|NAV|WP|WPNAV|LOIT|TERR|OA_|AVOID|CIRCLE|RALLY|FOLL|GUIDED|POSCONTROL|FENCE|RTL_)/],
     caution: "Navigation values change position holding, path following, avoidance, and return behavior. Verify GPS/EKF health and test in a clear area.",
@@ -125,6 +125,10 @@ export function discoverArduPilotFeatureParameters(
         definition,
         parameter.id,
       ))
-      .sort((left, right) => left.id.localeCompare(right.id)),
+      .sort((left, right) => left.id.localeCompare(
+        right.id,
+        undefined,
+        { numeric: true },
+      )),
   );
 }

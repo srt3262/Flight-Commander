@@ -80,6 +80,11 @@ test("custom ArduPilot pages provide explanations and guarded Save & reboot", ()
   assert.match(source("tabs/ardupilot_modes.html"), /Detect moved channel/);
   assert.match(source("tabs/ardupilot_receiver.html"), /Start endpoint capture/);
   assert.match(source("tabs/ardupilot_pid_tuning.html"), /P — response/);
+  assert.match(source("tabs/ardupilot_pid_tuning.html"), /Main PID Gains/);
+  assert.match(source("tabs/ardupilot_pid_tuning.html"), /Filters &amp; Mechanics/);
+  assert.match(source("tabs/ardupilot_pid_tuning.js"), /data-ap-pid-slider/);
+  assert.match(source("tabs/mavlink_parameters.html"), /All ArduPilot Parameters/);
+  assert.match(source("tabs/mavlink_parameters.html"), /Complete native fallback/);
   assert.match(source("tabs/ardupilot_feature.js"), /ardupilotParameterExplanation/);
   assert.match(source("tabs/ardupilot_setup_common.js"), /Official metadata is unavailable/);
   assert.match(source("js/ardupilot/setupService.js"), /ARDUPILOT_REBOOT_AUTOPILOT = 1/);

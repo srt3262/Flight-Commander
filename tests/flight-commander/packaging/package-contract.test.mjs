@@ -146,7 +146,7 @@ test("Windows verification follows the active renderer graph and rejects leftove
   assert.match(packageVerifier, /flightCommanderGroundControlUnits/);
   assert.match(packageVerifier, /flightCommanderTheme/);
   assert.match(packageVerifier, /flight-commander-theme-change/);
-  assert.match(packageVerifier, /Use dark application theme/);
+  assert.match(packageVerifier, /dark-only/);
   assert.match(packageVerifier, /Use imperial ArduPilot setup units/);
   assert.match(packageVerifier, /Use imperial ArduPilot status units/);
   assert.match(packageVerifier, /controller-native/);
@@ -172,7 +172,6 @@ test("Windows verification follows the active renderer graph and rejects leftove
   assert.match(packageVerifier, /#172a20/);
   for (const selector of [
     "fc-unit-switch",
-    "fc-theme-switch",
     "fc-ap-editor-page",
     "fc-ap-status-primary",
     "fc-ap-feature-setting",
@@ -185,16 +184,34 @@ test("Windows verification follows the active renderer graph and rejects leftove
   }
 });
 
-test("application preference controls are global, persistent, and release-packaged", () => {
+test("application is dark-only while unit preferences remain global and persistent", () => {
   assert.match(rendererEntry, /<html[^>]+data-theme="dark"/);
-  assert.match(rendererEntry, /id="applicationTheme"/);
-  assert.match(rendererEntry, /Use dark application theme/);
+  assert.doesNotMatch(rendererEntry, /id="applicationTheme"/);
+  assert.doesNotMatch(rendererEntry, /fc-theme-switch/);
   assert.match(parameterHtml, /id="parameterUnits"/);
   assert.match(parameterHtml, /Use imperial ArduPilot setup units/);
-  assert.match(themeCss, /:root\[data-theme="light"\]/);
-  assert.match(themeCss, /:root\[data-theme="dark"\]/);
-  assert.match(themeCss, /\.fc-theme-switch/);
+  assert.match(themeCss, /:root\s*\{[^}]*color-scheme:\s*dark;/s);
+  assert.doesNotMatch(themeCss, /data-theme="light"/);
+  assert.doesNotMatch(themeCss, /\.fc-theme-switch/);
+  assert.match(themeCss, /\.tab-ports table tbody tr:nth-child\(even\)/);
+  assert.match(themeCss, /input:disabled/);
+  assert.match(themeCss, /\.tab-pid_tuning \.pid-sliders-axis/);
   assert.match(themeCss, /\.tab-landing \.flightCommanderLogo/);
+});
+
+test("ArduPilot feature pages package guided mappings, PID sliders, and native fallback", () => {
+  const featureHtml = readFileSync(resolve(projectRoot, "tabs/ardupilot_feature.html"), "utf8");
+  const featureSource = readFileSync(resolve(projectRoot, "tabs/ardupilot_feature.js"), "utf8");
+  const compatibility = readFileSync(resolve(projectRoot, "js/ardupilot/inavCompatibility.js"), "utf8");
+  const pidHtml = readFileSync(resolve(projectRoot, "tabs/ardupilot_pid_tuning.html"), "utf8");
+  assert.match(featureHtml, /INAV-style setup/);
+  assert.match(featureHtml, /ArduPilot extras/);
+  assert.match(featureSource, /discoverInavCompatibleControls/);
+  assert.match(compatibility, /GPS update rate/);
+  assert.match(compatibility, /SERVO\(\\d\+\)_FUNCTION/);
+  assert.match(pidHtml, /Main PID Gains/);
+  assert.match(pidHtml, /Filters &amp; Mechanics/);
+  assert.match(parameterHtml, /Complete native fallback/);
 });
 
 test("all requested large-prop INAV presets are wired into the release source", () => {
@@ -207,7 +224,7 @@ test("all requested large-prop INAV presets are wired into the release source", 
 });
 
 test("landing page reports the current Flight Commander release", () => {
-  assert.equal(packageManifest.version, "1.7.1");
+  assert.equal(packageManifest.version, "1.8.0");
   assert.equal(manifest.version, packageManifest.version);
   assert.match(
     landingHtml,
@@ -266,7 +283,7 @@ test("every active product identity path selects Flight Commander artwork", () =
   assert.doesNotMatch(linuxDesktop, /INAV Configurator|\/opt\/|\/usr\/lib\//);
 });
 
-test("welcome branding remains complete and readable on its light map surface", () => {
+test("legacy welcome art remains intact while the active theme selects dark branding", () => {
   assert.match(welcomeWordmark, /data-wordmark-surface="light"/);
   assert.match(
     welcomeWordmark,
@@ -294,4 +311,12 @@ test("welcome branding remains complete and readable on its light map surface", 
   );
   assert.ok(contrastAgainstWhite("#2186b5") >= 4);
   assert.ok(contrastAgainstWhite("#104156") >= 7);
+  assert.match(
+    themeCss,
+    /\.tab-landing \.flightCommanderLogo\s*\{[^}]*flight-commander-wordmark\.svg/s,
+  );
+  assert.match(
+    themeCss,
+    /\.tab-landing \.content_top\s*\{[^}]*background-color:\s*#17242b/s,
+  );
 });

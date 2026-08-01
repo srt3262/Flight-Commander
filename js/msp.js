@@ -376,8 +376,14 @@ var MSP = {
         /*
          * In case of MSP_REBOOT special procedure is required
          */
-        if (code == MSPCodes.MSP_SET_REBOOT || code == MSPCodes.MSP_EEPROM_WRITE) {
+        if (code == MSPCodes.MSP_SET_REBOOT) {
             message.retryCounter = 10;
+        } else if (code == MSPCodes.MSP_EEPROM_WRITE) {
+            // EEPROM writes should normally acknowledge within one five-second
+            // window. Two retries retain tolerance for a busy controller while
+            // keeping a failed first-run preset from blocking the UI for a
+            // minute before it can recover.
+            message.retryCounter = 2;
         }
 
         this._enqueue(message);
@@ -419,8 +425,12 @@ var MSP = {
     },
     promise(code, data, protocolVersion) {
         var self = this;
-        return new Promise(function(resolve) {
+        return new Promise(function(resolve, reject) {
             self.send_message(code, data, false, function(data) {
+                if (data === false) {
+                    reject(new Error(`MSP command ${code} did not receive a response.`));
+                    return;
+                }
                 resolve(data);
             }, protocolVersion);
         });

@@ -72,7 +72,12 @@ var features = (function() {
         mspHelper.loadFeatures(privateScope.setBits);
     };
 
-    privateScope.setBits = function () {
+    privateScope.setBits = function (result) {
+
+        if (result === false) {
+            exitPoint(false);
+            return;
+        }
 
         for (const bit of toSet) {
             FC.FEATURES = BitHelper.bit_set(FC.FEATURES, bit);

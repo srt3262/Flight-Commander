@@ -1,7 +1,6 @@
 "use strict";
 
 export const APPLICATION_THEMES = Object.freeze({
-  LIGHT: "light",
   DARK: "dark",
 });
 
@@ -10,15 +9,13 @@ export const APPLICATION_THEME_STORAGE_KEY = "flightCommanderTheme";
 export const APPLICATION_THEME_EVENT = "flight-commander-theme-change";
 
 export function normalizeApplicationTheme(value) {
-  return String(value ?? "").trim().toLowerCase() === APPLICATION_THEMES.LIGHT
-    ? APPLICATION_THEMES.LIGHT
-    : APPLICATION_THEMES.DARK;
+  void value;
+  return APPLICATION_THEMES.DARK;
 }
 
 export function monacoThemeForApplicationTheme(value) {
-  return normalizeApplicationTheme(value) === APPLICATION_THEMES.DARK
-    ? "vs-dark"
-    : "vs";
+  void value;
+  return "vs-dark";
 }
 
 export function applyApplicationTheme(
@@ -57,14 +54,13 @@ export function initializeApplicationTheme(
   storeApi,
   documentRef = globalThis.document,
 ) {
-  const stored = storeApi?.get?.(
-    APPLICATION_THEME_STORAGE_KEY,
-    DEFAULT_APPLICATION_THEME,
-  );
-  return applyApplicationTheme(stored, {
+  // Flight Commander is intentionally dark-only. Persist the canonical value
+  // once so installations that previously selected the light theme cannot
+  // briefly restore it during startup or after an application update.
+  return applyApplicationTheme(DEFAULT_APPLICATION_THEME, {
     documentRef,
     storeApi,
-    persist: false,
+    persist: true,
     announce: false,
   });
 }

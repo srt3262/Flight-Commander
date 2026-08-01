@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.8.0
+
+- Removed the light/dark selector and made Flight Commander dark-only. The
+  final theme layer now loads after both inherited INAV and newer
+  Flight Commander styles, with explicit contrast coverage for every active
+  configuration family, disabled fields, alternating rows, PID surfaces,
+  dialogs, and ArduPilot pages.
+- Rebuilt first-connection INAV preset application as a bounded, sequential
+  transaction. Every controller operation now settles on retry exhaustion or
+  timeout, failures close the blocking progress modal and offer recovery, and
+  success requires an EEPROM save plus `applied_defaults` read-back.
+- Added INAV-style guided mappings to ArduPilot Configuration, Motors &
+  Outputs, Safety & Failsafe, Sensors, GPS & Navigation, Power, OSD, and
+  Logging. Controls resolve only against parameters actually reported by the
+  connected vehicle, show their exact native parameter and official details,
+  and preserve ArduPilot Extras and All Parameters fallbacks.
+- Expanded ArduPilot PID Tuning with familiar Main PID Gains and Filters &
+  Mechanics views plus synchronized numeric/slider editing for firmware
+  parameters that publish safe limits.
+- Added the reverse ArduPilot-to-INAV migration handoff: PX4 board identity can
+  select the exact INAV target, but Flight Commander requires STM32 ROM DFU and
+  full-chip erase instead of sending INAV CLI commands to ArduPilot.
+
 ## 1.7.1
 
 - Fixed the ArduPilot Save, Save & Reboot, and refresh footer covering

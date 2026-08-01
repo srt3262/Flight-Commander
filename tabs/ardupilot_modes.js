@@ -11,6 +11,7 @@ import {
 } from './../js/ardupilot/setupModel';
 import {
   createArduPilotParameterEditor,
+  bindArduPilotTabLinks,
   finishArduPilotTab,
   loadArduPilotSetup,
   metadataSourceLabel,
@@ -47,6 +48,7 @@ ardupilotModes.initialize = function (callback) {
       this.staged.clear();
       this.currentChannels = [...mavlinkSession.snapshot().rcChannels];
       renderArduPilotTabIdentity('apModes');
+      bindArduPilotTabLinks($('.tab-ardupilot-modes'));
       $('#apModesRefresh').on('click', () => this.load(true));
       $('#apModesSave').on('click', () => this.save(false));
       $('#apModesSaveReboot').on('click', () => this.save(true));

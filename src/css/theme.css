@@ -1,483 +1,988 @@
-:root[data-theme="light"] {
-    color-scheme: light;
-    --fc-theme-bg: #e8eef2;
-    --fc-theme-content: #ffffff;
-    --fc-theme-surface: #f7f9fb;
-    --fc-theme-raised: #eef3f6;
-    --fc-theme-input: #ffffff;
-    --fc-theme-border: #c8d3da;
-    --fc-theme-border-strong: #aab9c3;
-    --fc-theme-text: #22313b;
-    --fc-theme-muted: #60717c;
-    --fc-theme-nav: #f0f4f7;
-    --fc-theme-nav-raised: #e4ebf0;
-    --fc-theme-log: #e1e8ed;
-    --fc-theme-shadow: rgba(22, 42, 55, 0.16);
-    --fc-theme-accent: #167ca7;
-    --fc-theme-warning: #fff4cf;
-}
-
-:root[data-theme="dark"] {
+/*
+ * Flight Commander has one visual system: dark.  This file is imported after
+ * every legacy INAV stylesheet so it can normalize older light-only widgets
+ * without duplicating those tabs or changing their behavior.
+ */
+:root {
     color-scheme: dark;
-    --fc-theme-bg: #10161b;
-    --fc-theme-content: #151c22;
-    --fc-theme-surface: #1c252c;
-    --fc-theme-raised: #25313a;
-    --fc-theme-input: #11181d;
-    --fc-theme-border: #394954;
-    --fc-theme-border-strong: #526570;
-    --fc-theme-text: #e7edf1;
-    --fc-theme-muted: #aab7bf;
-    --fc-theme-nav: #172027;
+    --fc-theme-bg: #0d1318;
+    --fc-theme-content: #131b21;
+    --fc-theme-surface: #1b252c;
+    --fc-theme-surface-alt: #202c34;
+    --fc-theme-raised: #27353e;
+    --fc-theme-input: #10181e;
+    --fc-theme-disabled: #20282e;
+    --fc-theme-border: #3d4e59;
+    --fc-theme-border-strong: #607581;
+    --fc-theme-text: #edf3f6;
+    --fc-theme-muted: #b5c1c8;
+    --fc-theme-disabled-text: #8e9ba3;
+    --fc-theme-nav: #161f26;
     --fc-theme-nav-raised: #202c34;
-    --fc-theme-log: #0d1216;
-    --fc-theme-shadow: rgba(0, 0, 0, 0.42);
-    --fc-theme-accent: #42aedd;
+    --fc-theme-log: #0a1014;
+    --fc-theme-shadow: rgba(0, 0, 0, 0.48);
+    --fc-theme-accent: #5bbce2;
+    --fc-theme-accent-strong: #167ca7;
+    --fc-theme-success: #55c985;
     --fc-theme-warning: #493a18;
+    --fc-theme-warning-text: #ffe5a0;
+    --fc-theme-danger: #d85b66;
+    --fc-theme-row-even: #202a31;
+    --fc-theme-row-odd: #182128;
 }
 
-:root[data-theme] body,
-:root[data-theme] #main-wrapper {
+html,
+body,
+#main-wrapper {
     color: var(--fc-theme-text);
     background: var(--fc-theme-bg);
 }
 
-:root[data-theme] #content,
-:root[data-theme] #content.logopen,
-:root[data-theme] .data-loading {
+body,
+button,
+input,
+select,
+textarea {
+    color: var(--fc-theme-text);
+}
+
+::selection {
+    color: #ffffff;
+    background: #287fa3;
+}
+
+* {
+    scrollbar-color: #667680 #12191e;
+}
+
+a {
+    color: var(--fc-theme-text);
+}
+
+a:hover {
+    color: #ffffff;
+}
+
+#content,
+#content.logopen,
+.data-loading {
     color: var(--fc-theme-text);
     background-color: var(--fc-theme-content);
 }
 
-:root[data-theme] a {
-    color: var(--fc-theme-text);
-}
-
-:root[data-theme] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
-:root[data-theme] select,
-:root[data-theme] textarea,
-:root[data-theme] button:not(.fc-button--primary) {
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+select,
+textarea,
+button:not(.fc-button--primary) {
     box-sizing: border-box;
-    border: 1px solid var(--fc-theme-border-strong);
+    border-color: var(--fc-theme-border-strong);
     background-color: var(--fc-theme-input);
     color: var(--fc-theme-text);
 }
 
-:root[data-theme] input::placeholder,
-:root[data-theme] textarea::placeholder {
+select option {
+    color: var(--fc-theme-text);
+    background: var(--fc-theme-input);
+}
+
+input::placeholder,
+textarea::placeholder {
     color: var(--fc-theme-muted);
-    opacity: 0.85;
+    opacity: 0.82;
 }
 
-:root[data-theme] button:not(:disabled),
-:root[data-theme] select:not(:disabled),
-:root[data-theme] input[type="checkbox"]:not(:disabled),
-:root[data-theme] input[type="radio"]:not(:disabled) {
-    cursor: pointer;
+input[type="range"] {
+    accent-color: var(--fc-theme-accent-strong);
 }
 
-:root[data-theme] .tab_title,
-:root[data-theme] .tab_subtitle {
-    color: var(--fc-theme-text);
-    border-bottom-color: var(--fc-theme-accent);
-}
-
-:root[data-theme] .gui_box,
-:root[data-theme] .grey,
-:root[data-theme] .gui_note,
-:root[data-theme] dialog,
-:root[data-theme] #options-window,
-:root[data-theme] .jBox-content,
-:root[data-theme] .defaults-dialog__content,
-:root[data-theme] .defaults-dialog__wizard {
-    color: var(--fc-theme-text);
-    border-color: var(--fc-theme-border);
-    background-color: var(--fc-theme-surface);
-}
-
-:root[data-theme] .gui_box_titlebar,
-:root[data-theme] .content_toolbar,
-:root[data-theme] .fixed_band,
-:root[data-theme] .subtab__header_label {
-    color: var(--fc-theme-text);
-    border-color: var(--fc-theme-border);
-    background-color: var(--fc-theme-raised);
-}
-
-:root[data-theme] .default_btn a,
-:root[data-theme] .modal__button {
-    color: var(--fc-theme-accent);
-    border-color: var(--fc-theme-accent);
-    background-color: var(--fc-theme-input);
-}
-
-:root[data-theme] .default_btn a:hover,
-:root[data-theme] .modal__button:hover,
-:root[data-theme] .subtab__header_label--current {
-    color: #ffffff !important;
-    background-color: var(--fc-theme-accent);
-}
-
-:root[data-theme] .note {
-    color: var(--fc-theme-text);
-    border-color: #9a7d2e;
-    background-color: var(--fc-theme-warning);
-}
-
-:root[data-theme] .input-unit,
-:root[data-theme] .defaults-dialog__wizard p,
-:root[data-theme] .fc-parameter-unit {
-    color: var(--fc-theme-muted);
-}
-
-/* Always-visible application theme switch. */
-.headerbar {
-    position: relative;
-}
-
-.fc-theme-switch {
-    position: absolute;
-    top: 4px;
-    right: 40px;
-    z-index: 10001;
-    box-sizing: border-box;
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    min-height: 22px;
-    padding: 2px 7px;
-    border: 1px solid var(--fc-theme-border-strong);
-    border-radius: 999px;
-    background: var(--fc-theme-surface);
-    box-shadow: 0 1px 3px var(--fc-theme-shadow);
-    color: var(--fc-theme-text);
-    font-size: 10px;
-    font-weight: 700;
-    cursor: pointer;
-    user-select: none;
-}
-
-/* Keep the connection control in its own lane below the utility controls. */
-.headerbar .connect_controls {
-    top: 34px;
-}
-
-.fc-theme-switch input {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    clip-path: inset(50%);
-    white-space: nowrap;
-}
-
-.fc-theme-switch__track {
-    position: relative;
-    width: 30px;
-    height: 16px;
-    flex: 0 0 auto;
-    border: 1px solid var(--fc-theme-border-strong);
-    border-radius: 999px;
-    background: #c9d4da;
-    transition: background-color 150ms ease, border-color 150ms ease;
-}
-
-.fc-theme-switch__thumb {
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: #ffffff;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.36);
-    transition: transform 150ms ease;
-}
-
-.fc-theme-switch input:checked + .fc-theme-switch__track {
-    border-color: #278eb9;
-    background: #216f94;
-}
-
-.fc-theme-switch input:checked + .fc-theme-switch__track .fc-theme-switch__thumb {
-    transform: translateX(14px);
-}
-
-.fc-theme-switch input:focus-visible + .fc-theme-switch__track {
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+button:focus-visible,
+a:focus-visible {
     outline: 2px solid var(--fc-theme-accent);
     outline-offset: 2px;
 }
 
-/* Light theme includes the header, navigation, log, and status chrome. */
-:root[data-theme="light"] .headerbar {
-    border-bottom: 1px solid #c9d5dc;
-    background: linear-gradient(#f8fafb, #dde7ec);
+button:not(:disabled),
+select:not(:disabled),
+input[type="checkbox"]:not(:disabled),
+input[type="radio"]:not(:disabled) {
+    cursor: pointer;
 }
 
-:root[data-theme="light"] #logo {
-    background-image: url("./../../images/flight-commander-wordmark-on-light.svg");
+input:disabled,
+select:disabled,
+textarea:disabled,
+button:disabled,
+.disabled input,
+.disabled select,
+.tab-configuration .disabled,
+.tab-failsafe .number input:disabled {
+    border-color: #3b4850 !important;
+    background-color: var(--fc-theme-disabled) !important;
+    color: var(--fc-theme-disabled-text) !important;
+    opacity: 1;
 }
 
-:root[data-theme="light"] #options {
-    background-image: url("./../../images/CF_settings_black.svg");
+hr,
+.cell_setup,
+.config-section .number,
+.config-section .select,
+.config-section .checkbox,
+.tab-configuration .number,
+.tab-configuration .select,
+.tab-configuration .radio,
+.tab-configuration .checkbox {
+    border-color: var(--fc-theme-border) !important;
 }
 
-:root[data-theme="light"] #portsinput .portsinput__top-element--port-override,
-:root[data-theme="light"] .dropdown-dark {
-    border-color: #a9b8c2;
-    background: #ffffff;
-    box-shadow: 0 1px 2px rgba(26, 47, 60, 0.12);
-}
-
-:root[data-theme="light"] #port-override,
-:root[data-theme="light"] .dropdown-dark .dropdown-select {
-    color: #30434f;
-    text-shadow: none;
-}
-
-:root[data-theme="light"] #port-override-option label,
-:root[data-theme="light"] .portsinput__top-element--inline span {
-    color: #334955;
-}
-
-:root[data-theme="light"] .dropdown-dark .dropdown-select > option {
-    color: #22313b;
-    background: #ffffff;
-    text-shadow: none;
-}
-
-:root[data-theme="light"] #sensor-status,
-:root[data-theme="light"] #sensor-status li {
-    border-color: #b8c6cf;
-    background: linear-gradient(#f8fafb, #dce5ea);
-    box-shadow: none;
-    text-shadow: none;
-}
-
-:root[data-theme="light"] .tab_container,
-:root[data-theme="light"] #tabs .group-items {
-    background-color: var(--fc-theme-nav);
-}
-
-:root[data-theme="light"] #tabs .group-header {
-    border-color: #d4dde3;
-    background-color: var(--fc-theme-nav-raised);
-}
-
-:root[data-theme="light"] #tabs li,
-:root[data-theme="light"] #tabs .nav-group {
-    border-color: #d2dce2;
-}
-
-:root[data-theme="light"] #tabs li a,
-:root[data-theme="light"] #tabs .group-title,
-:root[data-theme="light"] #tabs .chevron {
-    color: #3e535f;
-    text-shadow: none;
-    border-top-color: rgba(255, 255, 255, 0.8);
-}
-
-:root[data-theme="light"] #tabs li a:hover {
-    color: #1f303a;
-    background-color: #dbe5ea;
-}
-
-:root[data-theme="light"] #tabs li.active a {
-    color: #ffffff;
-    background-color: #167ca7;
-}
-
-:root[data-theme="light"] #log {
-    color: #344954;
-    background: var(--fc-theme-log);
-}
-
-:root[data-theme="light"] #status-bar {
-    color: #273943;
-    border-color: #aab9c3;
-    background: #d5dfe5;
-}
-
-/* Dark theme surfaces for the legacy INAV tabs and Flight Commander views. */
-:root[data-theme="dark"] .headerbar {
+/* Application chrome */
+.headerbar {
     border-bottom: 1px solid #080b0d;
-    background: linear-gradient(#222b31, #11171b);
+    background: linear-gradient(#222c33, #10161a);
 }
 
-:root[data-theme="dark"] .tab_container,
-:root[data-theme="dark"] #tabs .group-items {
+#logo,
+.tab-landing .flightCommanderLogo {
+    background-image: url("./../../images/flight-commander-wordmark.svg");
+}
+
+.tab_container,
+#tabs .group-items {
     background-color: var(--fc-theme-nav);
 }
 
-:root[data-theme="dark"] #tabs .group-header {
+#tabs .group-header {
+    border-color: #2f3d46;
     background-color: var(--fc-theme-nav-raised);
 }
 
-:root[data-theme="dark"] #log {
+#tabs li,
+#tabs .nav-group {
+    border-color: #2b3942;
+}
+
+#tabs li a,
+#tabs .group-title,
+#tabs .chevron {
+    color: var(--fc-theme-muted);
+    text-shadow: none;
+}
+
+#tabs li a:hover {
+    color: #ffffff;
+    background-color: #26343d;
+}
+
+#tabs li.active a {
+    color: #ffffff;
+    background-color: var(--fc-theme-accent-strong);
+}
+
+#log {
+    color: var(--fc-theme-muted);
     background: var(--fc-theme-log);
 }
 
-:root[data-theme="dark"] #status-bar {
+#status-bar {
     color: var(--fc-theme-text);
     border-color: #3c4a53;
     background: #222c33;
 }
 
-:root[data-theme="dark"] .tab-landing .content_top {
-    background-color: #17232a;
+#portsinput .portsinput__top-element--port-override,
+.dropdown-dark {
+    border-color: var(--fc-theme-border);
+    background: #1a2329;
+    box-shadow: 0 1px 3px var(--fc-theme-shadow);
 }
 
-:root[data-theme="dark"] .tab-landing .flightCommanderLogo {
-    background-image: url("./../../images/flight-commander-wordmark.svg");
-}
-
-:root[data-theme="dark"] .tab-landing .flightCommanderTagline,
-:root[data-theme="dark"] .tab-landing .content_mid {
+#port-override,
+.dropdown-dark .dropdown-select,
+#port-override-option label,
+.portsinput__top-element--inline span {
     color: var(--fc-theme-text);
+    text-shadow: none;
 }
 
-:root[data-theme="dark"] .tab-landing .content_mid {
-    background-color: var(--fc-theme-content);
+#sensor-status,
+#sensor-status li {
+    border-color: #35444d;
+    background: linear-gradient(#28343b, #171e23);
+    box-shadow: none;
+    text-shadow: none;
 }
 
-:root[data-theme="dark"] table,
-:root[data-theme="dark"] thead,
-:root[data-theme="dark"] tbody,
-:root[data-theme="dark"] tr,
-:root[data-theme="dark"] td,
-:root[data-theme="dark"] th {
+/* Shared legacy surfaces */
+.tab_title,
+.tab_subtitle {
     color: var(--fc-theme-text);
-    border-color: var(--fc-theme-border) !important;
+    border-bottom-color: var(--fc-theme-accent);
 }
 
-:root[data-theme="dark"] #content table:not(.fc-parameter-table) th,
-:root[data-theme="dark"] #content table:not(.fc-parameter-table) .head,
-:root[data-theme="dark"] #content .head {
-    background-color: var(--fc-theme-raised) !important;
+.gui_box,
+.grey,
+.gui_note,
+.logic__content,
+dialog,
+#options-window,
+.defaults-dialog__content,
+.defaults-dialog__wizard,
+.jBox-container,
+.jBox-content,
+.fc-panel {
+    color: var(--fc-theme-text);
+    border-color: var(--fc-theme-border);
+    background-color: var(--fc-theme-surface);
 }
 
-:root[data-theme="dark"] #content table:not(.fc-parameter-table) td,
-:root[data-theme="dark"] #content table:not(.fc-parameter-table) tr,
-:root[data-theme="dark"] #content .block,
-:root[data-theme="dark"] #content .section,
-:root[data-theme="dark"] #content .settings {
-    border-color: var(--fc-theme-border) !important;
+.gui_box_titlebar,
+.content_toolbar,
+.fixed_band,
+.subtab__header_label,
+.settings-table th,
+.tab-pid_tuning .profile .head {
+    color: var(--fc-theme-text);
+    border-color: var(--fc-theme-border);
+    background-color: var(--fc-theme-raised);
 }
 
-:root[data-theme="dark"] .batteryProfileHighlightActive,
-:root[data-theme="dark"] .controlProfileHighlightActive {
-    color: #f4f7f9;
-    background-color: #344652 !important;
+.subtab__header_label:hover {
+    background-color: #32434d;
 }
 
-:root[data-theme="dark"] .defaults_btn--not-recommended a {
-    color: #e8d99f;
+.subtab__header_label--current {
+    color: #ffffff !important;
+    background-color: var(--fc-theme-accent-strong);
+}
+
+.note {
+    color: var(--fc-theme-warning-text);
+    border-color: #8b7129;
+    background-color: var(--fc-theme-warning);
+}
+
+.gui_warning {
+    color: #ffd7da;
+    background: #4b2227;
+}
+
+.input-unit,
+.defaults-dialog__wizard p,
+.fc-parameter-unit,
+.help,
+small {
+    color: var(--fc-theme-muted);
+}
+
+.default_btn a,
+.modal__button,
+.buttons a,
+#interactive_block a.reset,
+.tab-magnetometer .buttons a,
+.tab-auxiliary .buttons a,
+#accel_calib_running,
+#mag_calib_running {
+    color: var(--fc-theme-accent);
+    border-color: var(--fc-theme-accent-strong);
+    background-color: var(--fc-theme-input);
+}
+
+.default_btn a:hover,
+.modal__button:hover,
+.buttons a:hover,
+#interactive_block a.reset:hover,
+.tab-magnetometer .buttons a:hover,
+.tab-auxiliary .buttons a:hover {
+    color: #ffffff !important;
+    border-color: var(--fc-theme-accent);
+    background-color: var(--fc-theme-accent-strong);
+}
+
+.default_btn a.disabled {
+    color: var(--fc-theme-disabled-text);
+    border-color: var(--fc-theme-border);
+    background-color: var(--fc-theme-disabled);
+}
+
+.defaults-dialog__background,
+.jBox-overlay {
+    background: rgba(0, 0, 0, 0.72) !important;
+}
+
+.defaults-preset-description {
+    color: var(--fc-theme-muted);
+}
+
+.defaults_btn--not-recommended a {
+    color: #f4dda0;
     border-color: #7b6c3d;
     background: repeating-linear-gradient(
         45deg,
         #453b20 0,
         #453b20 10px,
-        #2a2d2d 10px,
-        #2a2d2d 20px
+        #292d2f 10px,
+        #292d2f 20px
     );
 }
 
-:root[data-theme="dark"] .fc-toolbar,
-:root[data-theme="dark"] .fc-command-panel,
-:root[data-theme="dark"] .fc-controller-mission,
-:root[data-theme="dark"] .fc-card,
-:root[data-theme="dark"] .fc-parameter-identity > div,
-:root[data-theme="dark"] .fc-parameter-notice,
-:root[data-theme="dark"] .fc-parameter-group,
-:root[data-theme="dark"] .fc-parameter-table,
-:root[data-theme="dark"] .fc-autotune-hero,
-:root[data-theme="dark"] .fc-status-panel,
-:root[data-theme="dark"] .fc-mission-card {
+.modal__button--warning,
+.content_toolbar .btn-danger a {
+    color: #ffffff;
+    background-color: #b83f49;
+}
+
+progress::-webkit-progress-bar,
+.dataflash-contents_global progress::-webkit-progress-bar,
+.quad-status-contents progress::-webkit-progress-bar {
+    background-color: #222d34;
+}
+
+/* Tables: preserve colored indicators, but normalize structural rows. */
+#content table,
+#content thead,
+#content tbody,
+#content tr,
+#content td,
+#content th {
+    color: var(--fc-theme-text);
+    border-color: var(--fc-theme-border) !important;
+}
+
+#content table thead tr,
+#content table thead th,
+#content table thead td,
+#content table .head,
+#content .head {
+    color: var(--fc-theme-text) !important;
+    background-color: var(--fc-theme-raised) !important;
+}
+
+.tab-ports table tbody tr:nth-child(odd),
+.tab-modes .boxes .switches:nth-child(even),
+.tab-adjustments .adjustment:nth-child(even),
+.tab-receiver .tunings table tr:nth-child(even),
+.tab-servos table tr:nth-child(odd),
+.mixer-table tr:nth-child(odd),
+.tab-mission-control table tr:nth-child(odd),
+.map-table tr:nth-child(odd) {
+    background-color: var(--fc-theme-row-odd) !important;
+}
+
+.tab-ports table tbody tr:nth-child(even),
+.tab-modes .boxes .switches:nth-child(odd),
+.tab-adjustments .adjustment:nth-child(odd),
+.tab-receiver .tunings table tr:nth-child(odd),
+.tab-servos table tr:nth-child(even),
+.mixer-table tr:nth-child(even),
+.output-table #function-row,
+.tab-mission-control table tr:nth-child(even),
+.map-table tr:nth-child(even) {
+    background-color: var(--fc-theme-row-even) !important;
+}
+
+.tab-ports table tbody td,
+.tab-modes .boxes .heads,
+.tab-modes .boxes .main,
+.tab-modes .boxes .mode,
+.tab-modes .boxes .modeSection > td,
+.settings-table.settings-table--inav td,
+.settings-table.settings-table--filtering td,
+.settings-table.settings-table--misc td,
+.tab-pid_tuning .cf tr,
+.tab-servos table .main {
+    color: var(--fc-theme-text) !important;
+    border-color: var(--fc-theme-border) !important;
+    background-color: transparent !important;
+}
+
+/* Landing, setup, calibration, configuration */
+.tab-landing .content_top {
+    background-color: #17242b;
+}
+
+.tab-landing .flightCommanderTagline,
+.tab-landing .content_mid,
+.tab-landing .text3 {
+    color: var(--fc-theme-text);
+}
+
+.tab-landing .content_mid,
+.tab-landing .content_mid .text3 .wrap2 {
+    border-color: var(--fc-theme-border);
+    background-color: var(--fc-theme-content);
+}
+
+#interactive_block,
+.tab-configuration .mixerPreview,
+.tab-calibration .tile,
+.tab-calibration .active,
+.tab-calibration .finished {
+    color: var(--fc-theme-text);
+    border-color: var(--fc-theme-border);
+    background-color: var(--fc-theme-surface-alt);
+    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.35);
+}
+
+#canvas_wrapper {
+    background-color: #1a2228;
+    background-blend-mode: multiply;
+}
+
+.attitude_info,
+.tab-configuration .gui_box h3,
+.tab-configuration .gui_box span,
+.tab-configuration .preset__feature-text {
+    color: var(--fc-theme-text);
+}
+
+.tab-calibration .steptitle,
+.tab-calibration .finished .steptitle {
+    background-color: #44545e;
+}
+
+/* Ports, receiver, modes, mixer, outputs */
+.tab-auxiliary .help,
+.tab-receiver .help,
+.tab-led-strip .help {
+    color: #211a08;
+    background-color: #e9bb34;
+}
+
+.tab-auxiliary .modeSection > td,
+.tab-auxiliary .mode,
+.tab-auxiliary .channelInfo,
+.tab-receiver .bars ul,
+.tab-receiver-msp .sticks,
+.tab-receiver_msp .sticks,
+.crosshair,
+.tab-mixer .mixer-table,
+.tab-motors .plot_control,
+.tab-motors .m-block,
+.tab-motors .m-block .meter-bar,
+.tab-motors .motor_testing_notice,
+.tab-servos .title {
+    color: var(--fc-theme-text);
+    border-color: var(--fc-theme-border);
+    background-color: var(--fc-theme-surface-alt);
+}
+
+.tab-auxiliary .modeInfo,
+.tab-auxiliary .channelInfo,
+.tab-motors .m-block .label,
+.tab-motors text {
+    color: var(--fc-theme-muted);
+    fill: var(--fc-theme-muted);
+}
+
+.tab-motors .m-block .indicator .label {
+    color: #ffffff;
+}
+
+/* Per-tab legacy contrast scrub. These are structural light surfaces from the
+ * inherited INAV sheets; colored meters, warnings, and LED palette swatches
+ * intentionally retain their functional colors. */
+.noUi-background,
+.tab-adjustments .adjustments,
+.tab-auxiliary .mode .info,
+.tab-auxiliary .range,
+.tab-failsafe .radioarea,
+.tab-failsafe .pro5,
+.tab-gps .GPS_info .head,
+.tab-gps .GPS_signal_strength .head,
+.tab-gps #loadmap .controls,
+.tab-magnetometer .magnetometer_info .head,
+.tab-magnetometer .magnetometer_signal_strength .head,
+.tab-magnetometer #loadmap .controls,
+.tab-magnetometer .info,
+.tab-led-strip .mainGrid,
+.tab-led-strip .mainGrid .gPoint,
+.tab-led-strip button,
+.tab-led-strip .colorDefineSliders,
+.tab-mixer .outputImageNumber,
+.wizard-progress-step,
+.tab-modes .boxes .heads th:first-child,
+.tab-onboard_logging .dataflash-contents,
+.tab-onboard_logging .sdcard-contents,
+.tab-osd .display-field.mouseover,
+.pid_mode,
+.tab-configuration .preset .top,
+.tab-receiver .tunings table td,
+.tab-receiver .rssi_channel_wrapper,
+.tab-receiver .rcmap_wrapper,
+.control-gimbal,
+.tab-sensors .plot_control,
+#accel_calib_running,
+#mag_calib_running,
+.map-table tr:nth-child(even) td,
+.map-table tr:nth-child(even) th,
+.tab-mission-control .geozoneVerticesTable tr:nth-child(even) td,
+.tab-mission-control .geozoneVerticesTable tr:nth-child(even) th,
+.tab-mission-control .safehomesTable tr:nth-child(even) td,
+.tab-mission-control .safehomesTable tr:nth-child(even) th,
+.tab-mission-control .waypointOptionsTable tr:nth-child(even) td,
+.tab-mission-control .waypointOptionsTable tr:nth-child(even) th,
+.mixer-table tr:nth-child(even) td,
+.mixer-table tr:nth-child(even) th,
+.output-table #function-row td {
+    color: var(--fc-theme-text) !important;
+    border-color: var(--fc-theme-border) !important;
+    background-color: var(--fc-theme-surface-alt) !important;
+    background-image: none !important;
+}
+
+.tab-gps #loadmap .controls a,
+.tab-magnetometer #loadmap .controls a,
+.tab-firmware_flasher .buttons a,
+.tab-osd .buttons a,
+.tab-led-strip .editPalette,
+.tab-auxiliary .buttons a,
+.tab-magnetometer .buttons a,
+#interactive_block a.reset {
+    color: var(--fc-theme-accent) !important;
+    border-color: var(--fc-theme-border-strong) !important;
+    background-color: var(--fc-theme-input) !important;
+}
+
+.tab-gps #loadmap .controls a:hover,
+.tab-magnetometer #loadmap .controls a:hover,
+.tab-firmware_flasher .buttons a:hover,
+.tab-osd .buttons a:hover,
+.tab-led-strip .editPalette:hover,
+.tab-auxiliary .buttons a:hover,
+.tab-magnetometer .buttons a:hover,
+#interactive_block a.reset:hover {
+    color: #ffffff !important;
+    border-color: var(--fc-theme-accent) !important;
+    background-color: var(--fc-theme-accent-strong) !important;
+}
+
+.tab-led-strip .select,
+.tab-led-strip .select .functionSelect option {
+    color: var(--fc-theme-text) !important;
+    background-color: var(--fc-theme-input) !important;
+}
+
+.wizard-progress-step.active,
+.tab-led-strip .directions .btnOn {
+    color: #ffffff !important;
+    border-color: var(--fc-theme-accent) !important;
+    background-color: var(--fc-theme-accent-strong) !important;
+}
+
+/* INAV tuning keeps axis identity without using light panels. */
+.tab-pid_tuning .pid-sliders-axis {
+    color: var(--fc-theme-text);
+    border: 1px solid var(--fc-theme-border);
+    border-radius: 4px;
+}
+
+.tab-pid_tuning .pid-sliders-axis[style] {
+    background-color: #1d403b !important;
+}
+
+.tab-pid_tuning .pid-sliders-axis[data-axis="roll"],
+.tab-pid_tuning .pid-sliders-axis[data-axis="0"] {
+    background-color: #20394a;
+}
+
+.tab-pid_tuning .pid-sliders-axis[data-axis="pitch"],
+.tab-pid_tuning .pid-sliders-axis[data-axis="1"] {
+    background-color: #173d4a;
+}
+
+.tab-pid_tuning .pid-sliders-axis[data-axis="yaw"],
+.tab-pid_tuning .pid-sliders-axis[data-axis="2"] {
+    background-color: #443c1f;
+}
+
+.tab-pid_tuning .pid-sliders-axis[data-axis="3"] {
+    background-color: #4a3020;
+}
+
+.pid-slider-row input[type="number"],
+.pid-switch-row input[type="number"] {
+    border-color: var(--fc-theme-border-strong);
+    background-color: var(--fc-theme-input);
+    color: var(--fc-theme-text);
+}
+
+.batteryProfileHighlightActive,
+.controlProfileHighlightActive {
+    color: #f4f7f9;
+    background-color: #344652 !important;
+}
+
+.tab-pid_tuning .expo-chart {
+    background-color: #d6dce0;
+    background-blend-mode: multiply;
+}
+
+/* GPS, magnetometer, sensors, logging and LED tools */
+.tab-gps .controls a,
+.tab-magnetometer .controls a,
+.tab-magnetometer .info,
+.tab-magnetometer .mag-map,
+.tab-onboard_logging .dataflash-contents,
+.tab-onboard_logging .sdcard-contents,
+.tab-led-strip .grid,
+.tab-led-strip .wire,
+.tab-led-strip .editPalette,
+#preset_info {
+    color: var(--fc-theme-text) !important;
+    border-color: var(--fc-theme-border) !important;
+    background-color: var(--fc-theme-surface-alt) !important;
+}
+
+.tab-gps .controls a:hover,
+.tab-magnetometer .controls a:hover,
+.tab-led-strip .editPalette:hover {
+    background-color: #30414b !important;
+}
+
+.tab-led-strip .select,
+.tab-led-strip .select .functionSelect option,
+.tab-led-strip .colorSelectPanel {
+    color: var(--fc-theme-text);
+    border-color: var(--fc-theme-border);
+    background: var(--fc-theme-input);
+}
+
+.tab-led-strip .step-instruction {
+    color: var(--fc-theme-muted);
+}
+
+/* OSD, programming and flasher dialogs. */
+.tab-osd .ce-card,
+.tab-osd .ce-icon-picker-popup,
+.tab-osd .ce-icon-picker-tile,
+.tab-osd .ce-ico-picker-btn,
+.version-warning-overlay__content,
+.restore-overlay__content,
+.restore-confirm-overlay__content,
+.restore-error-dialog__content,
+.migration-preview__content,
+.restore-error-dialog__errors,
+.migration-preview__changes {
     color: var(--fc-theme-text);
     border-color: var(--fc-theme-border);
     background: var(--fc-theme-surface);
 }
 
-:root[data-theme="dark"] .fc-command-panel,
-:root[data-theme="dark"] .fc-controller-mission,
-:root[data-theme="dark"] .fc-parameter-identity > div,
-:root[data-theme="dark"] .fc-autotune-hero {
+.tab-osd .ce-card-header:hover,
+.tab-osd .ce-icon-picker-tile:hover,
+.tab-osd .ce-icon-picker-tile.ce-icon-picker-selected,
+.tab-osd .ce-ico-picker-btn:hover {
+    color: #ffffff;
+    border-color: var(--fc-theme-accent);
+    background: #263f4c;
+}
+
+.ce-card-preview,
+.ce-card-chevron,
+.ce-ico-label,
+.gvar-hint {
+    color: var(--fc-theme-muted);
+}
+
+.lc-count,
+.example-select,
+.monaco-editor .margin {
+    color: var(--fc-theme-text) !important;
+    border-color: var(--fc-theme-border) !important;
+    background: var(--fc-theme-raised) !important;
+}
+
+.optimization-stats .note {
+    color: #c9f6d7;
+    background: #173522;
+}
+
+.transpiler-warnings .note {
+    color: var(--fc-theme-warning-text);
+    background: var(--fc-theme-warning);
+}
+
+.transpiler-warnings .note.error {
+    color: #ffd7da;
+    background: #4b2227;
+}
+
+.version-warning-overlay__text,
+.restore-overlay__text,
+.restore-confirm-overlay__text,
+.restore-error-dialog__text,
+.migration-preview__description,
+.migration-preview__summary {
+    color: var(--fc-theme-muted);
+}
+
+.restore-overlay__title,
+.restore-confirm-overlay__title,
+.migration-preview__title {
+    color: var(--fc-theme-text);
+}
+
+.version-warning-overlay__title,
+.restore-error-dialog__title,
+.restore-error-dialog__errors,
+.restore-error-dialog__btn--abort {
+    color: #ff9ca4;
+}
+
+.restore-overlay__status,
+.restore-overlay__progress-text,
+.restore-confirm-overlay__status,
+.migration-preview__subtitle {
+    color: var(--fc-theme-muted) !important;
+}
+
+.restore-confirm-overlay__btn--no,
+.restore-error-dialog__btn--abort,
+.migration-preview__btn--cancel {
+    color: var(--fc-theme-text);
+    border-color: var(--fc-theme-border-strong);
+    background: var(--fc-theme-input);
+}
+
+.migration-preview__warnings {
+    color: var(--fc-theme-warning-text);
+    border-color: #8b7129;
+    background: var(--fc-theme-warning);
+}
+
+.version-warning-overlay__btn--cancel,
+.restore-confirm-overlay__btn--yes,
+.restore-error-dialog__btn--save,
+.migration-preview__btn--continue,
+.settings .btn_blue a {
+    color: #ffffff;
+    border-color: #12698f;
+    background: var(--fc-theme-accent-strong);
+}
+
+.settings .btn_danger a {
+    color: #ffffff;
+    border-color: #8f3038;
+    background: #a63b44;
+}
+
+.version-warning-overlay__btn--cancel:hover,
+.restore-confirm-overlay__btn--yes:hover,
+.restore-error-dialog__btn--save:hover,
+.migration-preview__btn--continue:hover,
+.settings .btn_blue a:hover {
+    background: #12698f;
+}
+
+.settings .btn_danger a:hover {
+    background: #8f3038;
+}
+
+/* Flight Commander and ArduPilot-native views. */
+.fc-toolbar,
+.fc-command-panel,
+.fc-controller-mission,
+.fc-card,
+.fc-parameter-identity > div,
+.fc-parameter-notice,
+.fc-parameter-group,
+.fc-parameter-table,
+.fc-autotune-hero,
+.fc-status-panel,
+.fc-mission-card,
+.fc-ap-panel,
+.fc-ap-identity > div,
+.fc-ap-feature-group,
+.fc-ap-mode-slot,
+.fc-ap-status-metric-card,
+.fc-ap-status-sensor,
+.fc-ap-status-readiness-messages {
+    color: var(--fc-theme-text);
+    border-color: var(--fc-theme-border);
+    background: var(--fc-theme-surface);
+}
+
+.fc-command-panel,
+.fc-controller-mission,
+.fc-parameter-identity > div,
+.fc-autotune-hero {
     background: linear-gradient(135deg, #1e2b33, #182127);
 }
 
-:root[data-theme="dark"] .fc-card--mission,
-:root[data-theme="dark"] .fc-parameter-setting--changed,
-:root[data-theme="dark"] .fc-parameter-row--changed {
+.fc-card--mission,
+.fc-parameter-setting--changed,
+.fc-parameter-row--changed,
+.fc-ap-feature-setting--changed {
     background: #393119;
 }
 
-:root[data-theme="dark"] .fc-parameter-view-switch,
-:root[data-theme="dark"] .fc-parameter-categories,
-:root[data-theme="dark"] .fc-parameter-group > header,
-:root[data-theme="dark"] .fc-parameter-table th,
-:root[data-theme="dark"] .fc-map-style-control,
-:root[data-theme="dark"] .fc-unit-switch,
-:root[data-theme="dark"] .fc-inline-field {
+.fc-parameter-view-switch,
+.fc-parameter-categories,
+.fc-parameter-group > header,
+.fc-parameter-table th,
+.fc-map-style-control,
+.fc-unit-switch,
+.fc-inline-field,
+.fc-ap-panel > header,
+.fc-ap-feature-controls,
+.fc-ap-feature-group > header,
+.fc-ap-status-metric-card header {
     color: var(--fc-theme-text);
     border-color: var(--fc-theme-border);
     background: var(--fc-theme-raised);
 }
 
-:root[data-theme="dark"] .fc-parameter-view-switch button.active,
-:root[data-theme="dark"] .fc-map-center-control,
-:root[data-theme="dark"] .fc-minor-view-reset {
+.fc-parameter-view-switch button.active,
+.fc-map-center-control,
+.fc-minor-view-reset {
     color: var(--fc-theme-text);
     border-color: var(--fc-theme-border-strong);
     background: #31414b;
 }
 
-:root[data-theme="dark"] .fc-parameter-categories button,
-:root[data-theme="dark"] .fc-parameter-search,
-:root[data-theme="dark"] .fc-parameter-summary,
-:root[data-theme="dark"] .fc-parameter-identity span,
-:root[data-theme="dark"] .fc-parameter-notice p,
-:root[data-theme="dark"] .fc-parameter-setting__details p,
-:root[data-theme="dark"] .fc-parameter-setting__details small,
-:root[data-theme="dark"] .fc-parameter-category-heading span,
-:root[data-theme="dark"] .fc-parameter-group > header span,
-:root[data-theme="dark"] .fc-parameter-setting__title code,
-:root[data-theme="dark"] .fc-parameter-name code,
-:root[data-theme="dark"] .fc-parameter-name small,
-:root[data-theme="dark"] .fc-card span,
-:root[data-theme="dark"] .fc-command-panel__heading > span:last-child,
-:root[data-theme="dark"] .fc-controller-mission__status > span:last-child,
-:root[data-theme="dark"] .fc-autotune-hero p {
+.fc-parameter-categories button,
+.fc-parameter-search,
+.fc-parameter-summary,
+.fc-parameter-identity span,
+.fc-parameter-notice p,
+.fc-parameter-setting__details p,
+.fc-parameter-setting__details small,
+.fc-parameter-category-heading span,
+.fc-parameter-group > header span,
+.fc-parameter-setting__title code,
+.fc-parameter-name code,
+.fc-parameter-name small,
+.fc-card span,
+.fc-command-panel__heading > span:last-child,
+.fc-controller-mission__status > span:last-child,
+.fc-autotune-hero p {
     color: var(--fc-theme-muted);
 }
 
-:root[data-theme="dark"] .fc-parameter-identity strong,
-:root[data-theme="dark"] .fc-unit-switch {
-    color: var(--fc-theme-text);
-}
-
-:root[data-theme="dark"] .fc-parameter-categories button:hover,
-:root[data-theme="dark"] .fc-parameter-categories button.active {
-    color: #8ed8f5;
+.fc-parameter-categories button:hover,
+.fc-parameter-categories button.active {
+    color: #9ce2fb;
     background: #263f4c;
 }
 
-:root[data-theme="dark"] .fc-parameter-badge--muted {
+.fc-map-attribution,
+.fc-map-style-control,
+.fc-map-center-control,
+.fc-minor-view-reset {
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+}
+
+.fc-map-attribution {
+    color: var(--fc-theme-muted);
+    background: rgba(16, 24, 30, 0.92);
+}
+
+.fc-message-log,
+.fc-parameter-identity strong {
+    color: var(--fc-theme-text);
+}
+
+.fc-message {
+    border-color: var(--fc-theme-border);
+}
+
+.fc-message--severity-0,
+.fc-message--severity-1,
+.fc-message--severity-2,
+.fc-message--severity-3,
+.fc-planning-card__error {
+    color: #ff9ca4;
+}
+
+.fc-action-status {
+    color: var(--fc-theme-success);
+}
+
+.fc-parameter-view-switch button {
+    color: var(--fc-theme-muted);
+}
+
+.fc-parameter-changed--active {
+    color: #ffd477;
+}
+
+.fc-parameter-badge {
+    color: var(--fc-theme-warning-text);
+    background: var(--fc-theme-warning);
+}
+
+.fc-parameter-badge--mapped {
+    color: #ffffff;
+    border-color: var(--fc-theme-accent-strong);
+    background: var(--fc-theme-accent-strong);
+}
+
+.fc-parameter-badge--muted {
     color: #d2dbe0;
     background: #3b4850;
 }
 
-:root[data-theme="dark"] .fc-map-attribution,
-:root[data-theme="dark"] .fc-map-style-control,
-:root[data-theme="dark"] .fc-map-center-control,
-:root[data-theme="dark"] .fc-minor-view-reset {
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+.fc-parameter-number span,
+.fc-parameter-unit,
+.fc-parameter-empty,
+.fc-form-grid label,
+.fc-provider-attribution,
+.fc-stats dt,
+.fc-mission-protocol-details,
+.fc-inav-planning-heading p {
+    color: var(--fc-theme-muted);
 }
 
-@media (max-width: 900px) {
-    .fc-theme-switch > span:first-child,
-    .fc-theme-switch > span:last-child {
-        display: none;
+.fc-stats div,
+.fc-planning-card {
+    color: var(--fc-theme-text);
+    border-color: var(--fc-theme-border);
+    background: var(--fc-theme-surface-alt);
+}
+
+.fc-planning-card--invalid {
+    border-color: var(--fc-theme-danger);
+    background: #3d2025;
+}
+
+.fc-ap-channel-meter__label {
+    color: #ffffff;
+    text-shadow: 0 1px 2px #000000;
+}
+
+.fc-ap-table tbody tr:nth-child(odd) {
+    background: var(--fc-theme-row-odd);
+}
+
+.fc-ap-table tbody tr:nth-child(even) {
+    background: var(--fc-theme-row-even);
+}
+
+.fc-ap-live-value,
+.fc-ap-mode-slot,
+.fc-ap-feature-group,
+.fc-ap-pid-related-settings,
+.fc-ap-status-attitude-values > div,
+.fc-ap-status-state-grid > div,
+.fc-ap-status-readiness-messages,
+.fc-ap-status-sensor {
+    background: var(--fc-theme-input);
+}
+
+.fc-action-status--error {
+    color: #ffd7da;
+    background: #4b2227;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
     }
 }
