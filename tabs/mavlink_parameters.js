@@ -3,17 +3,26 @@
 import GUI from './../js/gui';
 import { mavlinkParameterManager } from './../js/mavlink/services';
 import mavlinkSession from './../js/mavlink/mavlinkSession';
-import {
-  ArduPilotParameterMetadataProvider,
-} from './../js/parameters/ardupilotParameterMetadata';
+import { ardupilotSetupService } from './../js/ardupilot/setupService';
 import {
   buildParameterCatalog,
   matchesSearch,
   parameterView,
   validateParameterValue,
 } from './../js/parameters/ardupilotParameterModel';
+import {
+  arduPilotDisplayMetadata,
+  formatArduPilotDisplayNumber,
+  fromArduPilotDisplayValue,
+  toArduPilotDisplayValue,
+} from './../js/parameters/ardupilotParameterUnits';
+import {
+  DEFAULT_GROUND_CONTROL_UNIT_SYSTEM,
+  GROUND_CONTROL_UNIT_SYSTEMS,
+  normalizeGroundControlUnitSystem,
+} from './../js/gcs/groundControlUnits';
+import store from './../js/store';
 
-const metadataProvider = new ArduPilotParameterMetadataProvider();
 const FLIGHT_PLANNER_OWNED_PARAMETERS = new Set(['MIS_RESTART']);
 
 function isFlightPlannerOwnedParameter(id) {
@@ -45,6 +54,8 @@ const mavlinkParameters = {
   viewMode: 'standard',
   activeCategory: null,
   unsubscribeState: null,
+  unitSystem: DEFAULT_GROUND_CONTROL_UNIT_SYSTEM,
+  rebootPending: false,
 };
 
 mavlinkParameters.initialize = function (callback) {
@@ -53,6 +64,12 @@ mavlinkParameters.initialize = function (callback) {
   }
   import('./mavlink_parameters.html?raw').then(({ default: html }) => {
     GUI.load(html, () => {
+      this.loadStoredUnitSystem();
+      if (ardupilotSetupService.isLoadedForCurrentVehicle()) {
+        const snapshot = ardupilotSetupService.snapshot();
+        this.metadata = snapshot.metadata;
+        this.metadataResult = snapshot.metadataResult;
+      }
       this.bindControls();
       this.unsubscribeState = mavlinkSession.on('state', () => this.renderIdentity());
       this.render();
@@ -64,9 +81,17 @@ mavlinkParameters.initialize = function (callback) {
 mavlinkParameters.bindControls = function () {
   $('#parameterLoad').on('click', () => this.load());
   $('#parameterFilter').on('input', () => this.renderViews());
-  $('#parameterWriteChanged').on('click', () => this.writeChanged());
+  $('#parameterWriteChanged').on('click', () => this.writeChanged(false));
+  $('#parameterWriteReboot').on('click', () => this.writeChanged(true));
   $('#parameterExport').on('click', () => this.exportJson());
   $('#parameterImport').on('click', () => this.importJson());
+  $('#parameterUnits').on('change', (event) => {
+    this.applyUnitSystem(
+      $(event.currentTarget).prop('checked')
+        ? GROUND_CONTROL_UNIT_SYSTEMS.IMPERIAL
+        : GROUND_CONTROL_UNIT_SYSTEMS.METRIC,
+    );
+  });
 
   $('[data-parameter-view]').on('click', (event) => {
     this.viewMode = String($(event.currentTarget).data('parameter-view'));
@@ -82,9 +107,20 @@ mavlinkParameters.bindControls = function () {
   $('#parameterCards, #parameterRows').on('change', '[data-parameter-value]', (event) => {
     const input = $(event.currentTarget);
     const id = String(input.data('parameter-value'));
-    const value = input.attr('type') === 'checkbox'
-      ? (input.prop('checked') ? 1 : 0)
-      : Number(input.val());
+    const view = this.parameterView(id);
+    let value;
+    if (input.attr('type') === 'checkbox') {
+      value = input.prop('checked') ? 1 : 0;
+    } else if (view?.controlKind === 'number' && input.is('input[type="number"]')) {
+      const nativeValue = fromArduPilotDisplayValue(
+        input.val(),
+        view.metadata.units,
+        this.unitSystem,
+      );
+      value = nativeValue == null ? Number.NaN : nativeValue;
+    } else {
+      value = Number(input.val());
+    }
     this.stageValue(id, value);
   });
 
@@ -104,6 +140,32 @@ mavlinkParameters.bindControls = function () {
     const parameter = mavlinkParameterManager.parameters.get(id);
     await this.writeOne(id, this.changed.get(id) ?? parameter?.value);
   });
+};
+
+mavlinkParameters.loadStoredUnitSystem = function () {
+  this.unitSystem = normalizeGroundControlUnitSystem(
+    store.get(
+      'flightCommanderGroundControlUnits',
+      DEFAULT_GROUND_CONTROL_UNIT_SYSTEM,
+    ),
+  );
+  this.syncUnitSwitch();
+};
+
+mavlinkParameters.syncUnitSwitch = function () {
+  const imperial = this.unitSystem === GROUND_CONTROL_UNIT_SYSTEMS.IMPERIAL;
+  $('#parameterUnits')
+    .prop('checked', imperial)
+    .attr('aria-checked', String(imperial));
+};
+
+mavlinkParameters.applyUnitSystem = function (value, persist = true) {
+  this.unitSystem = normalizeGroundControlUnitSystem(value);
+  this.syncUnitSwitch();
+  if (persist) {
+    store.set('flightCommanderGroundControlUnits', this.unitSystem);
+  }
+  this.renderViews();
 };
 
 mavlinkParameters.load = async function () {
@@ -127,16 +189,13 @@ mavlinkParameters.load = async function () {
   $('#parameterMetadataStatus').text('Loading official metadata…');
 
   try {
-    const [parameters, metadataResult] = await Promise.all([
-      mavlinkParameterManager.loadAll({
-        onProgress: ({ received, total }) => {
-          $('#parameterProgress').text(`${received} / ${total || '?'} parameters`);
-        },
-      }),
-      metadataProvider.load(state.vehicleType, {
-        firmwareVersion: state.autopilotVersion?.flight,
-      }),
-    ]);
+    const result = await ardupilotSetupService.ensureLoaded({
+      force: true,
+      onProgress: ({ received, total }) => {
+        $('#parameterProgress').text(`${received} / ${total || '?'} parameters`);
+      },
+    });
+    const { parameters, metadataResult } = result;
 
     this.metadataResult = metadataResult;
     this.metadata = metadataResult.metadata;
@@ -158,6 +217,7 @@ mavlinkParameters.load = async function () {
 };
 
 mavlinkParameters.render = function () {
+  this.syncUnitSwitch();
   this.renderIdentity();
   const count = mavlinkParameterManager.parameters.size;
   $('#parameterProgress').text(count ? `${count} cached controller parameters` : 'No parameters loaded.');
@@ -239,6 +299,33 @@ mavlinkParameters.currentValue = function (id) {
   return this.changed.get(id) ?? mavlinkParameterManager.parameters.get(id)?.value;
 };
 
+mavlinkParameters.displayValueText = function (view, value) {
+  if (view?.controlKind !== 'number') return String(value ?? '');
+  const displayMetadata = arduPilotDisplayMetadata(view.metadata, this.unitSystem);
+  const displayValue = toArduPilotDisplayValue(
+    value,
+    view.metadata.units,
+    this.unitSystem,
+  );
+  const formatted = formatArduPilotDisplayNumber(displayValue);
+  return `${formatted}${displayMetadata.units ? ` ${displayMetadata.units}` : ''}`;
+};
+
+mavlinkParameters.validationMessage = function (view, value, validation) {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) return validation.message;
+  const displayMetadata = arduPilotDisplayMetadata(view.metadata, this.unitSystem);
+  if (view.metadata.min != null && numericValue < view.metadata.min) {
+    return `${view.id} must be at least ${displayMetadata.min}`
+      + `${displayMetadata.units ? ` ${displayMetadata.units}` : ''}.`;
+  }
+  if (view.metadata.max != null && numericValue > view.metadata.max) {
+    return `${view.id} must be no more than ${displayMetadata.max}`
+      + `${displayMetadata.units ? ` ${displayMetadata.units}` : ''}.`;
+  }
+  return validation.message;
+};
+
 mavlinkParameters.stageValue = function (id, value) {
   if (isFlightPlannerOwnedParameter(id)) {
     this.changed.delete(id);
@@ -257,7 +344,7 @@ mavlinkParameters.stageValue = function (id, value) {
   }
   const validation = validateParameterValue(view, value);
   if (!validation.valid) {
-    this.setStatus(validation.message, true);
+    this.setStatus(this.validationMessage(view, value, validation), true);
     this.renderViews();
     return false;
   }
@@ -277,7 +364,13 @@ mavlinkParameters.filteredParameterViews = function () {
   return mavlinkParameterManager.values()
     .filter((parameter) => !isFlightPlannerOwnedParameter(parameter.id))
     .map((parameter) => parameterView(parameter, this.metadata))
-    .filter((view) => matchesSearch(view, query));
+    .filter((view) => (
+      matchesSearch(view, query)
+      || matchesSearch({
+        ...view,
+        metadata: arduPilotDisplayMetadata(view.metadata, this.unitSystem),
+      }, query)
+    ));
 };
 
 mavlinkParameters.renderViews = function () {
@@ -365,6 +458,7 @@ mavlinkParameters.renderGuidedView = function () {
 
 mavlinkParameters.renderParameterSetting = function (view) {
   const currentValue = this.currentValue(view.id);
+  const displayMetadata = arduPilotDisplayMetadata(view.metadata, this.unitSystem);
   const changed = this.changed.has(view.id);
   const setting = $('<article>')
     .addClass('fc-parameter-setting')
@@ -387,13 +481,13 @@ mavlinkParameters.renderParameterSetting = function (view) {
   }
 
   const constraints = [];
-  if (view.metadata.min != null || view.metadata.max != null) {
+  if (displayMetadata.min != null || displayMetadata.max != null) {
     constraints.push(
-      `${view.metadata.min ?? '−∞'} to ${view.metadata.max ?? '∞'}`,
+      `${displayMetadata.min ?? '−∞'} to ${displayMetadata.max ?? '∞'}`,
     );
   }
-  if (view.metadata.increment != null) constraints.push(`step ${view.metadata.increment}`);
-  if (view.metadata.units) constraints.push(view.metadata.units);
+  if (displayMetadata.increment != null) constraints.push(`step ${displayMetadata.increment}`);
+  if (displayMetadata.units) constraints.push(displayMetadata.units);
   if (constraints.length) {
     details.append($('<small>').text(constraints.join(' · ')));
   }
@@ -482,26 +576,36 @@ mavlinkParameters.renderTypedControl = function (view, currentValue) {
     return select;
   }
 
+  const displayMetadata = arduPilotDisplayMetadata(view.metadata, this.unitSystem);
+  const displayValue = toArduPilotDisplayValue(
+    currentValue,
+    view.metadata.units,
+    this.unitSystem,
+  );
   const input = $('<input>')
     .attr({
       type: 'number',
-      step: view.metadata.increment ?? 'any',
+      step: displayMetadata.increment ?? 'any',
       'data-parameter-value': view.id,
     })
     .prop('disabled', disabled)
-    .val(currentValue);
-  if (view.metadata.min != null) input.attr('min', view.metadata.min);
-  if (view.metadata.max != null) input.attr('max', view.metadata.max);
+    .val(formatArduPilotDisplayNumber(displayValue));
+  if (displayMetadata.min != null) input.attr('min', displayMetadata.min);
+  if (displayMetadata.max != null) input.attr('max', displayMetadata.max);
   return $('<label>')
     .addClass('fc-parameter-number')
     .append(input)
-    .append(view.metadata.units ? $('<span>').text(view.metadata.units) : null);
+    .append(displayMetadata.units ? $('<span>').text(displayMetadata.units) : null);
 };
 
 mavlinkParameters.renderRawRows = function () {
   const body = $('#parameterRows').empty();
   for (const view of this.filteredParameterViews()) {
     const currentValue = this.currentValue(view.id);
+    const displayMetadata = arduPilotDisplayMetadata(view.metadata, this.unitSystem);
+    const displayValue = view.controlKind === 'number'
+      ? toArduPilotDisplayValue(currentValue, view.metadata.units, this.unitSystem)
+      : currentValue;
     const changed = this.changed.has(view.id);
     const row = $('<tr>')
       .toggleClass('fc-parameter-row--changed', changed)
@@ -516,17 +620,17 @@ mavlinkParameters.renderRawRows = function () {
     const input = $('<input>')
       .attr({
         type: 'number',
-        step: view.metadata.increment ?? 'any',
+        step: displayMetadata.increment ?? 'any',
         'data-parameter-value': view.id,
       })
       .prop('disabled', view.metadata.readOnly)
-      .val(currentValue);
-    if (view.metadata.min != null) input.attr('min', view.metadata.min);
-    if (view.metadata.max != null) input.attr('max', view.metadata.max);
+      .val(formatArduPilotDisplayNumber(displayValue));
+    if (displayMetadata.min != null) input.attr('min', displayMetadata.min);
+    if (displayMetadata.max != null) input.attr('max', displayMetadata.max);
 
     $('<td>')
       .append(input)
-      .append(view.metadata.units ? $('<span>').addClass('fc-parameter-unit').text(view.metadata.units) : null)
+      .append(displayMetadata.units ? $('<span>').addClass('fc-parameter-unit').text(displayMetadata.units) : null)
       .appendTo(row);
     $('<td>').text(view.type).appendTo(row);
     $('<td>').text(view.index).appendTo(row);
@@ -558,18 +662,22 @@ mavlinkParameters.writeOne = async function (id, value) {
   }
   const validation = validateParameterValue(view, value);
   if (!validation.valid) {
-    this.setStatus(validation.message, true);
+    this.setStatus(this.validationMessage(view, value, validation), true);
     return;
   }
   this.writing = true;
   this.updateControlState();
   try {
     this.setStatus(`Writing ${id} and waiting for controller confirmation…`);
-    const confirmed = await mavlinkParameterManager.set(id, validation.value, {
-      type: view.type,
-    });
+    const [confirmed] = await ardupilotSetupService.writeChanges(
+      new Map([[id, validation.value]]),
+    );
     this.changed.delete(id);
-    this.setStatus(`${id} confirmed by the controller at ${confirmed.value}.`);
+    this.rebootPending ||= Boolean(view.metadata.rebootRequired);
+    this.setStatus(
+      `${id} confirmed by the controller at ${this.displayValueText(view, confirmed.value)}.`
+        + `${this.rebootPending ? ' Save & reboot is available to apply restart-required settings.' : ''}`,
+    );
   } catch (error) {
     this.setStatus(error.message, true);
   } finally {
@@ -579,7 +687,7 @@ mavlinkParameters.writeOne = async function (id, value) {
   }
 };
 
-mavlinkParameters.writeChanged = async function () {
+mavlinkParameters.writeChanged = async function (reboot = false) {
   if (this.loading || this.writing) return;
   const plannerOwned = [...this.changed.keys()]
     .filter((id) => isFlightPlannerOwnedParameter(id));
@@ -587,7 +695,7 @@ mavlinkParameters.writeChanged = async function () {
     this.changed.delete(id);
   }
   const changes = [...this.changed.entries()];
-  if (!changes.length) {
+  if (!changes.length && !(reboot && this.rebootPending)) {
     this.setStatus(
       plannerOwned.length
         ? 'MIS_RESTART is managed only in Flight Planner and was not written.'
@@ -596,6 +704,9 @@ mavlinkParameters.writeChanged = async function () {
     );
     return;
   }
+  if (reboot && !window.confirm(
+    `Save ${changes.length} ArduPilot parameter change(s) and reboot the flight controller? Remove propellers and verify all affected functions after reconnecting.`,
+  )) return;
   this.writing = true;
   this.updateControlState();
   try {
@@ -604,11 +715,22 @@ mavlinkParameters.writeChanged = async function () {
       const view = this.parameterView(id);
       if (!view || view.metadata.readOnly) continue;
       this.setStatus(`Writing ${index + 1} / ${changes.length}: ${id}`);
-      await mavlinkParameterManager.set(id, value, { type: view.type });
+      await ardupilotSetupService.writeChanges(new Map([[id, value]]));
       this.changed.delete(id);
+      this.rebootPending ||= Boolean(view.metadata.rebootRequired);
       this.updateControlState();
     }
-    this.setStatus(`${changes.length} parameter changes were confirmed by the controller.`);
+    if (reboot) {
+      this.setStatus('All parameter changes are confirmed. Sending normal ArduPilot reboot…');
+      await ardupilotSetupService.rebootAutopilot();
+      this.rebootPending = false;
+      this.setStatus('Reboot command sent. Reconnect and verify every affected feature before flight.');
+    } else {
+      this.setStatus(
+        `${changes.length} parameter changes were confirmed by the controller.`
+          + `${this.rebootPending ? ' Save & reboot is available for settings that require restart.' : ''}`,
+      );
+    }
   } catch (error) {
     this.setStatus(`${error.message} Unwritten changes remain staged.`, true);
   } finally {
@@ -634,6 +756,8 @@ mavlinkParameters.exportJson = async function () {
       vehicleType: state.vehicleType,
       vehicleTypeName: state.vehicleTypeName,
       mavlinkSystemId: state.systemId,
+      displayUnitSystem: this.unitSystem,
+      parameterValues: 'controller-native',
       parameters: mavlinkParameterManager.values(),
     };
     const error = await window.electronAPI.writeFile(result.filePath, JSON.stringify(data, null, 2));
@@ -695,6 +819,7 @@ mavlinkParameters.importJson = async function () {
 
 mavlinkParameters.updateControlState = function () {
   const isArduPilot = mavlinkSession.state.firmwareFamily === 'ardupilot';
+  const armed = Boolean(mavlinkSession.state.armed);
   $('#parameterLoad, #parameterImport').prop(
     'disabled',
     !isArduPilot || this.loading || this.writing,
@@ -705,7 +830,15 @@ mavlinkParameters.updateControlState = function () {
   );
   $('#parameterWriteChanged').prop(
     'disabled',
-    !isArduPilot || this.loading || this.writing || !this.changed.size,
+    !isArduPilot || armed || this.loading || this.writing || !this.changed.size,
+  );
+  $('#parameterWriteReboot').prop(
+    'disabled',
+    !isArduPilot
+      || armed
+      || this.loading
+      || this.writing
+      || (!this.changed.size && !this.rebootPending),
   );
   if (this.loading || this.writing) {
     $('#parameterCards button[data-write-parameter], #parameterRows button[data-write-parameter]')

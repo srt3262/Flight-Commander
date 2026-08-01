@@ -1,0 +1,61 @@
+<div class="tab-ardupilot-feature toolbar_fixed_bottom">
+    <div class="content_wrapper">
+        <div class="tab_title" id="apFeatureTitle">ArduPilot Feature</div>
+
+        <section class="fc-ap-identity">
+            <div><span>Firmware</span><strong id="apFeatureFirmware">Waiting…</strong></div>
+            <div><span>Vehicle</span><strong id="apFeatureVehicle">Waiting…</strong></div>
+            <div><span>MAVLink endpoint</span><strong id="apFeatureEndpoint">Waiting…</strong></div>
+        </section>
+
+        <div class="note">
+            <div class="note_spacer">
+                <strong id="apFeatureSummary">Connected-firmware configuration</strong>
+                <p id="apFeatureGuidance"></p>
+            </div>
+        </div>
+
+        <section class="fc-ap-feature-controls">
+            <div class="fc-ap-feature-view-switch" role="tablist" aria-label="Setting detail level">
+                <button type="button" data-ap-feature-view="standard" class="active">Standard</button>
+                <button type="button" data-ap-feature-view="advanced">Advanced</button>
+            </div>
+            <label class="fc-ap-feature-search">
+                Search settings
+                <input id="apFeatureSearch" type="search" placeholder="Name, explanation, or parameter">
+            </label>
+            <label class="fc-unit-switch" for="apFeatureUnits" title="Switch measurements between metric and imperial units">
+                <span>Metric</span>
+                <input id="apFeatureUnits" type="checkbox" role="switch" aria-label="Use imperial ArduPilot setup units">
+                <span class="fc-unit-switch__track" aria-hidden="true"><span class="fc-unit-switch__thumb"></span></span>
+                <span>Imperial</span>
+            </label>
+        </section>
+
+        <section class="fc-ap-panel">
+            <header>
+                <div>
+                    <h2 id="apFeaturePanelTitle">Settings</h2>
+                    <p>Controls come from the parameters reported by this controller.</p>
+                </div>
+                <span id="apFeatureMetadata">Not loaded</span>
+            </header>
+            <div id="apFeatureGroups" class="fc-ap-feature-groups"></div>
+        </section>
+
+        <div class="note fc-ap-feature-caution">
+            <div class="note_spacer">
+                <strong>Before saving</strong>
+                <p id="apFeatureCaution"></p>
+            </div>
+        </div>
+    </div>
+
+    <div class="content_toolbar fc-ap-toolbar">
+        <div class="fc-ap-toolbar__summary" id="apFeatureProgress">Loading settings…</div>
+        <button id="apFeatureRefresh" type="button">Refresh from controller</button>
+        <button id="apFeatureSave" class="fc-button--primary" type="button" disabled>Save changes</button>
+        <button id="apFeatureSaveReboot" type="button" disabled>Save &amp; reboot</button>
+    </div>
+    <div id="apFeatureStatus" class="fc-action-status" role="status" aria-live="polite"></div>
+</div>

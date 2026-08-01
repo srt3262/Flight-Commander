@@ -19,6 +19,10 @@ import * as LCHighlighting from './../js/transpiler/lc_highlighting.js';
 import * as GvarDisplay from './../js/transpiler/gvar_display.js';
 import examples from './../js/transpiler/examples/index.js';
 import settingsCache from './../js/settingsCache.js';
+import {
+    APPLICATION_THEME_EVENT,
+    monacoThemeForApplicationTheme,
+} from './../js/theme.js';
 import * as monaco from 'monaco-editor';
 import tsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker'
 import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker'
@@ -40,6 +44,7 @@ const javascriptProgrammingTab = {
     transpiler: null,
     decompiler: null,
     currentCode: '',
+    themeChangeHandler: null,
 
     // Active LC highlighting state
     lcToLineMapping: {},
@@ -67,7 +72,24 @@ const javascriptProgrammingTab = {
                     self.monaco = monaco;
 
                     // Initialize editor with INAV configuration
-                    self.editor = MonacoLoader.initializeMonacoEditor(monaco, 'monaco-editor');
+                    self.editor = MonacoLoader.initializeMonacoEditor(
+                        monaco,
+                        'monaco-editor',
+                        {
+                            theme: monacoThemeForApplicationTheme(
+                                document.documentElement.getAttribute('data-theme'),
+                            ),
+                        },
+                    );
+                    self.themeChangeHandler = (event) => {
+                        monaco.editor.setTheme(
+                            monacoThemeForApplicationTheme(event?.detail?.theme),
+                        );
+                    };
+                    document.addEventListener(
+                        APPLICATION_THEME_EVENT,
+                        self.themeChangeHandler,
+                    );
 
                     // Add INAV type definitions
                     MonacoLoader.addINAVTypeDefinitions(monaco);
@@ -942,6 +964,13 @@ if (inav.flight.homeDistance > 100) {
 
     cleanup: function (callback) {
         interval.remove('js_programming_lc_highlight');
+        if (this.themeChangeHandler) {
+            document.removeEventListener(
+                APPLICATION_THEME_EVENT,
+                this.themeChangeHandler,
+            );
+            this.themeChangeHandler = null;
+        }
         this.clearActiveHighlighting();
         this.gvarWidgets = GvarDisplay.clearWidgets(
             this.editor,

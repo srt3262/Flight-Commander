@@ -1,0 +1,77 @@
+<div class="tab-ardupilot-modes toolbar_fixed_bottom">
+    <div class="content_wrapper">
+        <div class="tab_title">Modes</div>
+
+        <section class="fc-ap-identity">
+            <div><span>Firmware</span><strong id="apModesFirmware">Waiting…</strong></div>
+            <div><span>Vehicle</span><strong id="apModesVehicle">Waiting…</strong></div>
+            <div><span>MAVLink endpoint</span><strong id="apModesEndpoint">Waiting…</strong></div>
+        </section>
+
+        <div class="note">
+            <div class="note_spacer">
+                <strong>Transmitter-driven setup, with ArduPilot’s native mode model</strong>
+                <p>
+                    Move a switch and Flight Commander detects the channel, like INAV. ArduPilot’s
+                    primary flight-mode channel uses six fixed PWM bands, shown live below; those
+                    boundaries cannot be moved. Auxiliary functions use one RCx_OPTION per channel,
+                    with switch behavior defined by the selected ArduPilot function.
+                </p>
+            </div>
+        </div>
+
+        <section class="fc-ap-panel">
+            <header>
+                <div>
+                    <h2>Primary flight-mode switch</h2>
+                    <p>Select the channel directly or detect it by moving the transmitter switch.</p>
+                </div>
+                <span id="apModesMetadata">Not loaded</span>
+            </header>
+            <div class="fc-ap-mode-channel-row">
+                <label class="fc-ap-field">
+                    <span>Flight-mode channel</span>
+                    <span id="apModeChannelEditor"></span>
+                    <small id="apModeChannelParameter"></small>
+                </label>
+                <button id="apModeDetect" type="button">Detect moved channel</button>
+                <div class="fc-ap-live-value">
+                    <span>Live input</span>
+                    <strong id="apModeLivePwm">-- PWM</strong>
+                </div>
+            </div>
+            <div id="apModeSlots" class="fc-ap-mode-slots"></div>
+        </section>
+
+        <section class="fc-ap-panel">
+            <header>
+                <div>
+                    <h2>Auxiliary channel functions</h2>
+                    <p>Move an auxiliary switch to locate its RC channel, then assign its function.</p>
+                </div>
+                <button id="apAuxDetect" type="button">Detect auxiliary channel</button>
+            </header>
+            <div class="fc-ap-table-wrap">
+                <table class="fc-ap-table fc-ap-aux-table">
+                    <thead>
+                        <tr>
+                            <th>Channel</th>
+                            <th>Live PWM</th>
+                            <th>Function</th>
+                            <th>What this changes</th>
+                        </tr>
+                    </thead>
+                    <tbody id="apAuxRows"></tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <div class="content_toolbar fc-ap-toolbar">
+        <div class="fc-ap-toolbar__summary" id="apModesProgress">Loading mode settings…</div>
+        <button id="apModesRefresh" type="button">Refresh from controller</button>
+        <button id="apModesSave" class="fc-button--primary" type="button" disabled>Save mode changes</button>
+        <button id="apModesSaveReboot" type="button" disabled>Save &amp; reboot</button>
+    </div>
+    <div id="apModesStatus" class="fc-action-status" role="status" aria-live="polite"></div>
+</div>

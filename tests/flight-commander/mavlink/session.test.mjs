@@ -276,6 +276,13 @@ describe("MAVLink state normalization and firmware detection", () => {
         voltage_battery: 25200,
         current_battery: -1,
         battery_remaining: 73,
+        onboard_control_sensors_present: 0x0101002f,
+        onboard_control_sensors_enabled: 0x0101002f,
+        onboard_control_sensors_health: 0x01010027,
+        load: 437,
+        drop_rate_comm: 125,
+        errors_comm: 3,
+        errors_count1: 7,
       },
       header: { systemId: 1, componentId: 1 },
     });
@@ -307,6 +314,13 @@ describe("MAVLink state normalization and firmware detection", () => {
     assert.equal(state.voltage, 25.2);
     assert.equal(state.current, null);
     assert.equal(state.batteryRemaining, 73);
+    assert.equal(state.sensorsPresent, 0x0101002f);
+    assert.equal(state.sensorsEnabled, 0x0101002f);
+    assert.equal(state.sensorsHealthy, 0x01010027);
+    assert.equal(state.systemLoad, 43.7);
+    assert.equal(state.communicationDropRate, 1.25);
+    assert.equal(state.communicationErrors, 3);
+    assert.deepEqual(state.controllerErrorCounts, [7, null, null, null]);
     assert.equal(state.gpsFix, 6);
     assert.equal(state.satellites, null);
     assert.equal(state.hdop, null);

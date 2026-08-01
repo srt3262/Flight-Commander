@@ -1,0 +1,473 @@
+:root[data-theme="light"] {
+    color-scheme: light;
+    --fc-theme-bg: #e8eef2;
+    --fc-theme-content: #ffffff;
+    --fc-theme-surface: #f7f9fb;
+    --fc-theme-raised: #eef3f6;
+    --fc-theme-input: #ffffff;
+    --fc-theme-border: #c8d3da;
+    --fc-theme-border-strong: #aab9c3;
+    --fc-theme-text: #22313b;
+    --fc-theme-muted: #60717c;
+    --fc-theme-nav: #f0f4f7;
+    --fc-theme-nav-raised: #e4ebf0;
+    --fc-theme-log: #e1e8ed;
+    --fc-theme-shadow: rgba(22, 42, 55, 0.16);
+    --fc-theme-accent: #167ca7;
+    --fc-theme-warning: #fff4cf;
+}
+
+:root[data-theme="dark"] {
+    color-scheme: dark;
+    --fc-theme-bg: #10161b;
+    --fc-theme-content: #151c22;
+    --fc-theme-surface: #1c252c;
+    --fc-theme-raised: #25313a;
+    --fc-theme-input: #11181d;
+    --fc-theme-border: #394954;
+    --fc-theme-border-strong: #526570;
+    --fc-theme-text: #e7edf1;
+    --fc-theme-muted: #aab7bf;
+    --fc-theme-nav: #172027;
+    --fc-theme-nav-raised: #202c34;
+    --fc-theme-log: #0d1216;
+    --fc-theme-shadow: rgba(0, 0, 0, 0.42);
+    --fc-theme-accent: #42aedd;
+    --fc-theme-warning: #493a18;
+}
+
+:root[data-theme] body,
+:root[data-theme] #main-wrapper {
+    color: var(--fc-theme-text);
+    background: var(--fc-theme-bg);
+}
+
+:root[data-theme] #content,
+:root[data-theme] #content.logopen,
+:root[data-theme] .data-loading {
+    color: var(--fc-theme-text);
+    background-color: var(--fc-theme-content);
+}
+
+:root[data-theme] a {
+    color: var(--fc-theme-text);
+}
+
+:root[data-theme] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+:root[data-theme] select,
+:root[data-theme] textarea,
+:root[data-theme] button:not(.fc-button--primary) {
+    box-sizing: border-box;
+    border: 1px solid var(--fc-theme-border-strong);
+    background-color: var(--fc-theme-input);
+    color: var(--fc-theme-text);
+}
+
+:root[data-theme] input::placeholder,
+:root[data-theme] textarea::placeholder {
+    color: var(--fc-theme-muted);
+    opacity: 0.85;
+}
+
+:root[data-theme] button:not(:disabled),
+:root[data-theme] select:not(:disabled),
+:root[data-theme] input[type="checkbox"]:not(:disabled),
+:root[data-theme] input[type="radio"]:not(:disabled) {
+    cursor: pointer;
+}
+
+:root[data-theme] .tab_title,
+:root[data-theme] .tab_subtitle {
+    color: var(--fc-theme-text);
+    border-bottom-color: var(--fc-theme-accent);
+}
+
+:root[data-theme] .gui_box,
+:root[data-theme] .grey,
+:root[data-theme] .gui_note,
+:root[data-theme] dialog,
+:root[data-theme] #options-window,
+:root[data-theme] .jBox-content,
+:root[data-theme] .defaults-dialog__content,
+:root[data-theme] .defaults-dialog__wizard {
+    color: var(--fc-theme-text);
+    border-color: var(--fc-theme-border);
+    background-color: var(--fc-theme-surface);
+}
+
+:root[data-theme] .gui_box_titlebar,
+:root[data-theme] .content_toolbar,
+:root[data-theme] .fixed_band,
+:root[data-theme] .subtab__header_label {
+    color: var(--fc-theme-text);
+    border-color: var(--fc-theme-border);
+    background-color: var(--fc-theme-raised);
+}
+
+:root[data-theme] .default_btn a,
+:root[data-theme] .modal__button {
+    color: var(--fc-theme-accent);
+    border-color: var(--fc-theme-accent);
+    background-color: var(--fc-theme-input);
+}
+
+:root[data-theme] .default_btn a:hover,
+:root[data-theme] .modal__button:hover,
+:root[data-theme] .subtab__header_label--current {
+    color: #ffffff !important;
+    background-color: var(--fc-theme-accent);
+}
+
+:root[data-theme] .note {
+    color: var(--fc-theme-text);
+    border-color: #9a7d2e;
+    background-color: var(--fc-theme-warning);
+}
+
+:root[data-theme] .input-unit,
+:root[data-theme] .defaults-dialog__wizard p,
+:root[data-theme] .fc-parameter-unit {
+    color: var(--fc-theme-muted);
+}
+
+/* Always-visible application theme switch. */
+.fc-theme-switch {
+    position: absolute;
+    top: 6px;
+    right: 40px;
+    z-index: 10001;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    min-height: 22px;
+    padding: 2px 7px;
+    border: 1px solid var(--fc-theme-border-strong);
+    border-radius: 999px;
+    background: var(--fc-theme-surface);
+    box-shadow: 0 1px 3px var(--fc-theme-shadow);
+    color: var(--fc-theme-text);
+    font-size: 10px;
+    font-weight: 700;
+    cursor: pointer;
+    user-select: none;
+}
+
+.fc-theme-switch input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+.fc-theme-switch__track {
+    position: relative;
+    width: 30px;
+    height: 16px;
+    flex: 0 0 auto;
+    border: 1px solid var(--fc-theme-border-strong);
+    border-radius: 999px;
+    background: #c9d4da;
+    transition: background-color 150ms ease, border-color 150ms ease;
+}
+
+.fc-theme-switch__thumb {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #ffffff;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.36);
+    transition: transform 150ms ease;
+}
+
+.fc-theme-switch input:checked + .fc-theme-switch__track {
+    border-color: #278eb9;
+    background: #216f94;
+}
+
+.fc-theme-switch input:checked + .fc-theme-switch__track .fc-theme-switch__thumb {
+    transform: translateX(14px);
+}
+
+.fc-theme-switch input:focus-visible + .fc-theme-switch__track {
+    outline: 2px solid var(--fc-theme-accent);
+    outline-offset: 2px;
+}
+
+/* Light theme includes the header, navigation, log, and status chrome. */
+:root[data-theme="light"] .headerbar {
+    border-bottom: 1px solid #c9d5dc;
+    background: linear-gradient(#f8fafb, #dde7ec);
+}
+
+:root[data-theme="light"] #logo {
+    background-image: url("./../../images/flight-commander-wordmark-on-light.svg");
+}
+
+:root[data-theme="light"] #options {
+    background-image: url("./../../images/CF_settings_black.svg");
+}
+
+:root[data-theme="light"] #portsinput .portsinput__top-element--port-override,
+:root[data-theme="light"] .dropdown-dark {
+    border-color: #a9b8c2;
+    background: #ffffff;
+    box-shadow: 0 1px 2px rgba(26, 47, 60, 0.12);
+}
+
+:root[data-theme="light"] #port-override,
+:root[data-theme="light"] .dropdown-dark .dropdown-select {
+    color: #30434f;
+    text-shadow: none;
+}
+
+:root[data-theme="light"] #port-override-option label,
+:root[data-theme="light"] .portsinput__top-element--inline span {
+    color: #334955;
+}
+
+:root[data-theme="light"] .dropdown-dark .dropdown-select > option {
+    color: #22313b;
+    background: #ffffff;
+    text-shadow: none;
+}
+
+:root[data-theme="light"] #sensor-status,
+:root[data-theme="light"] #sensor-status li {
+    border-color: #b8c6cf;
+    background: linear-gradient(#f8fafb, #dce5ea);
+    box-shadow: none;
+    text-shadow: none;
+}
+
+:root[data-theme="light"] .tab_container,
+:root[data-theme="light"] #tabs .group-items {
+    background-color: var(--fc-theme-nav);
+}
+
+:root[data-theme="light"] #tabs .group-header {
+    border-color: #d4dde3;
+    background-color: var(--fc-theme-nav-raised);
+}
+
+:root[data-theme="light"] #tabs li,
+:root[data-theme="light"] #tabs .nav-group {
+    border-color: #d2dce2;
+}
+
+:root[data-theme="light"] #tabs li a,
+:root[data-theme="light"] #tabs .group-title,
+:root[data-theme="light"] #tabs .chevron {
+    color: #3e535f;
+    text-shadow: none;
+    border-top-color: rgba(255, 255, 255, 0.8);
+}
+
+:root[data-theme="light"] #tabs li a:hover {
+    color: #1f303a;
+    background-color: #dbe5ea;
+}
+
+:root[data-theme="light"] #tabs li.active a {
+    color: #ffffff;
+    background-color: #167ca7;
+}
+
+:root[data-theme="light"] #log {
+    color: #344954;
+    background: var(--fc-theme-log);
+}
+
+:root[data-theme="light"] #status-bar {
+    color: #273943;
+    border-color: #aab9c3;
+    background: #d5dfe5;
+}
+
+/* Dark theme surfaces for the legacy INAV tabs and Flight Commander views. */
+:root[data-theme="dark"] .headerbar {
+    border-bottom: 1px solid #080b0d;
+    background: linear-gradient(#222b31, #11171b);
+}
+
+:root[data-theme="dark"] .tab_container,
+:root[data-theme="dark"] #tabs .group-items {
+    background-color: var(--fc-theme-nav);
+}
+
+:root[data-theme="dark"] #tabs .group-header {
+    background-color: var(--fc-theme-nav-raised);
+}
+
+:root[data-theme="dark"] #log {
+    background: var(--fc-theme-log);
+}
+
+:root[data-theme="dark"] #status-bar {
+    color: var(--fc-theme-text);
+    border-color: #3c4a53;
+    background: #222c33;
+}
+
+:root[data-theme="dark"] .tab-landing .content_top {
+    background-color: #17232a;
+}
+
+:root[data-theme="dark"] .tab-landing .flightCommanderLogo {
+    background-image: url("./../../images/flight-commander-wordmark.svg");
+}
+
+:root[data-theme="dark"] .tab-landing .flightCommanderTagline,
+:root[data-theme="dark"] .tab-landing .content_mid {
+    color: var(--fc-theme-text);
+}
+
+:root[data-theme="dark"] .tab-landing .content_mid {
+    background-color: var(--fc-theme-content);
+}
+
+:root[data-theme="dark"] table,
+:root[data-theme="dark"] thead,
+:root[data-theme="dark"] tbody,
+:root[data-theme="dark"] tr,
+:root[data-theme="dark"] td,
+:root[data-theme="dark"] th {
+    color: var(--fc-theme-text);
+    border-color: var(--fc-theme-border) !important;
+}
+
+:root[data-theme="dark"] #content table:not(.fc-parameter-table) th,
+:root[data-theme="dark"] #content table:not(.fc-parameter-table) .head,
+:root[data-theme="dark"] #content .head {
+    background-color: var(--fc-theme-raised) !important;
+}
+
+:root[data-theme="dark"] #content table:not(.fc-parameter-table) td,
+:root[data-theme="dark"] #content table:not(.fc-parameter-table) tr,
+:root[data-theme="dark"] #content .block,
+:root[data-theme="dark"] #content .section,
+:root[data-theme="dark"] #content .settings {
+    border-color: var(--fc-theme-border) !important;
+}
+
+:root[data-theme="dark"] .batteryProfileHighlightActive,
+:root[data-theme="dark"] .controlProfileHighlightActive {
+    color: #f4f7f9;
+    background-color: #344652 !important;
+}
+
+:root[data-theme="dark"] .defaults_btn--not-recommended a {
+    color: #e8d99f;
+    border-color: #7b6c3d;
+    background: repeating-linear-gradient(
+        45deg,
+        #453b20 0,
+        #453b20 10px,
+        #2a2d2d 10px,
+        #2a2d2d 20px
+    );
+}
+
+:root[data-theme="dark"] .fc-toolbar,
+:root[data-theme="dark"] .fc-command-panel,
+:root[data-theme="dark"] .fc-controller-mission,
+:root[data-theme="dark"] .fc-card,
+:root[data-theme="dark"] .fc-parameter-identity > div,
+:root[data-theme="dark"] .fc-parameter-notice,
+:root[data-theme="dark"] .fc-parameter-group,
+:root[data-theme="dark"] .fc-parameter-table,
+:root[data-theme="dark"] .fc-autotune-hero,
+:root[data-theme="dark"] .fc-status-panel,
+:root[data-theme="dark"] .fc-mission-card {
+    color: var(--fc-theme-text);
+    border-color: var(--fc-theme-border);
+    background: var(--fc-theme-surface);
+}
+
+:root[data-theme="dark"] .fc-command-panel,
+:root[data-theme="dark"] .fc-controller-mission,
+:root[data-theme="dark"] .fc-parameter-identity > div,
+:root[data-theme="dark"] .fc-autotune-hero {
+    background: linear-gradient(135deg, #1e2b33, #182127);
+}
+
+:root[data-theme="dark"] .fc-card--mission,
+:root[data-theme="dark"] .fc-parameter-setting--changed,
+:root[data-theme="dark"] .fc-parameter-row--changed {
+    background: #393119;
+}
+
+:root[data-theme="dark"] .fc-parameter-view-switch,
+:root[data-theme="dark"] .fc-parameter-categories,
+:root[data-theme="dark"] .fc-parameter-group > header,
+:root[data-theme="dark"] .fc-parameter-table th,
+:root[data-theme="dark"] .fc-map-style-control,
+:root[data-theme="dark"] .fc-unit-switch,
+:root[data-theme="dark"] .fc-inline-field {
+    color: var(--fc-theme-text);
+    border-color: var(--fc-theme-border);
+    background: var(--fc-theme-raised);
+}
+
+:root[data-theme="dark"] .fc-parameter-view-switch button.active,
+:root[data-theme="dark"] .fc-map-center-control,
+:root[data-theme="dark"] .fc-minor-view-reset {
+    color: var(--fc-theme-text);
+    border-color: var(--fc-theme-border-strong);
+    background: #31414b;
+}
+
+:root[data-theme="dark"] .fc-parameter-categories button,
+:root[data-theme="dark"] .fc-parameter-search,
+:root[data-theme="dark"] .fc-parameter-summary,
+:root[data-theme="dark"] .fc-parameter-identity span,
+:root[data-theme="dark"] .fc-parameter-notice p,
+:root[data-theme="dark"] .fc-parameter-setting__details p,
+:root[data-theme="dark"] .fc-parameter-setting__details small,
+:root[data-theme="dark"] .fc-parameter-category-heading span,
+:root[data-theme="dark"] .fc-parameter-group > header span,
+:root[data-theme="dark"] .fc-parameter-setting__title code,
+:root[data-theme="dark"] .fc-parameter-name code,
+:root[data-theme="dark"] .fc-parameter-name small,
+:root[data-theme="dark"] .fc-card span,
+:root[data-theme="dark"] .fc-command-panel__heading > span:last-child,
+:root[data-theme="dark"] .fc-controller-mission__status > span:last-child,
+:root[data-theme="dark"] .fc-autotune-hero p {
+    color: var(--fc-theme-muted);
+}
+
+:root[data-theme="dark"] .fc-parameter-identity strong,
+:root[data-theme="dark"] .fc-unit-switch {
+    color: var(--fc-theme-text);
+}
+
+:root[data-theme="dark"] .fc-parameter-categories button:hover,
+:root[data-theme="dark"] .fc-parameter-categories button.active {
+    color: #8ed8f5;
+    background: #263f4c;
+}
+
+:root[data-theme="dark"] .fc-parameter-badge--muted {
+    color: #d2dbe0;
+    background: #3b4850;
+}
+
+:root[data-theme="dark"] .fc-map-attribution,
+:root[data-theme="dark"] .fc-map-style-control,
+:root[data-theme="dark"] .fc-map-center-control,
+:root[data-theme="dark"] .fc-minor-view-reset {
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+}
+
+@media (max-width: 900px) {
+    .fc-theme-switch > span:first-child,
+    .fc-theme-switch > span:last-child {
+        display: none;
+    }
+}

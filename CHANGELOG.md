@@ -1,5 +1,33 @@
 # Changelog
 
+## 1.7.0
+
+- Added a complete INAV-style ArduPilot navigation tree with dedicated Status,
+  Ports, Receiver, Modes, PID Tuning, Configuration, Motors & Outputs, Safety
+  & Failsafe, Sensors & Calibration, GPS & Navigation, Power & Battery, OSD &
+  Notifications, Logging, Mission, and All Parameters pages.
+- Added a live preflight Status page showing attitude, arming and flight mode,
+  SYS_STATUS sensor health, receiver channels, RSSI, GPS, battery, controller
+  load, communication health, uptime, and recent pre-arm/autopilot messages.
+- Mirrored familiar INAV interactions where ArduPilot supports them: UART
+  function/protocol selection, live receiver endpoint capture, moved-switch RC
+  channel detection, fixed six-position mode visualization, auxiliary function
+  assignment, and an axis/control-loop P/I/D/feed-forward tuning matrix.
+- Made every feature page discover only parameters reported by the connected
+  vehicle. Standard and Advanced views show official explanations, exact
+  parameter IDs, choices, bitmasks, limits, units, and reboot requirements;
+  All Parameters remains the complete firmware-specific fallback.
+- Added guarded Save and Save & Reboot actions throughout ArduPilot
+  configuration. Confirmed writes are tracked individually, armed vehicles are
+  refused, and only a normal autopilot reboot (MAV_CMD 246, param1 1) is sent
+  after every requested write succeeds.
+- Added a persistent whole-application light/dark theme and synchronized
+  metric/imperial ArduPilot display units. Controller values and JSON backups
+  remain in native units.
+- Added conservative INAV 9.1 EZ Tune presets for 10, 12, 15, and 17-inch
+  multirotors, with progressively lower response/bandwidth for larger props and
+  explicit generated roll P/I/D/feed-forward values.
+
 ## 1.5.1
 
 - Added first-time ArduPilot installation from a running INAV controller or

@@ -199,6 +199,13 @@ export function createInitialMavlinkState() {
     voltage: null,
     current: null,
     batteryRemaining: null,
+    sensorsPresent: null,
+    sensorsEnabled: null,
+    sensorsHealthy: null,
+    systemLoad: null,
+    communicationDropRate: null,
+    communicationErrors: null,
+    controllerErrorCounts: [],
     gpsFix: 0,
     satellites: 0,
     hdop: null,
@@ -491,6 +498,7 @@ export class MavlinkSession {
       ...this.state,
       statusText: this.state.statusText.map((entry) => ({ ...entry })),
       rcChannels: [...this.state.rcChannels],
+      controllerErrorCounts: [...this.state.controllerErrorCounts],
       autopilotVersion: cloneAutopilotVersion(this.state.autopilotVersion),
     };
   }
@@ -652,6 +660,45 @@ export class MavlinkSession {
           current == null || current === -1 ? null : current / 100;
         this.state.batteryRemaining =
           remaining == null || remaining === -1 ? null : remaining;
+        const sensorMask = (camel, snake) => {
+          const value = numeric(field(data, camel, snake));
+          return value == null ? null : Math.max(0, Math.floor(value));
+        };
+        this.state.sensorsPresent = sensorMask(
+          "onboardControlSensorsPresent",
+          "onboard_control_sensors_present",
+        );
+        this.state.sensorsEnabled = sensorMask(
+          "onboardControlSensorsEnabled",
+          "onboard_control_sensors_enabled",
+        );
+        this.state.sensorsHealthy = sensorMask(
+          "onboardControlSensorsHealth",
+          "onboard_control_sensors_health",
+        );
+        const load = numeric(field(data, "load"));
+        this.state.systemLoad =
+          load == null || load === 65535 ? null : load / 10;
+        const dropRate = numeric(
+          field(data, "dropRateComm", "drop_rate_comm"),
+        );
+        this.state.communicationDropRate =
+          dropRate == null || dropRate === 65535 ? null : dropRate / 100;
+        const errorsComm = numeric(
+          field(data, "errorsComm", "errors_comm"),
+        );
+        this.state.communicationErrors =
+          errorsComm == null || errorsComm === 65535 ? null : errorsComm;
+        this.state.controllerErrorCounts = Array.from(
+          { length: 4 },
+          (_unused, index) => numeric(
+            field(
+              data,
+              `errorsCount${index + 1}`,
+              `errors_count${index + 1}`,
+            ),
+          ),
+        );
         break;
       }
       case "VfrHud":

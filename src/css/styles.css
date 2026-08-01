@@ -38,3 +38,5 @@
 @import 'tabs/setup.css';
 @import 'tabs/sitl.css';
 @import 'groundstation.css';
+@import 'ardupilot_setup.css';
+@import 'theme.css';

@@ -1069,7 +1069,7 @@ var SerialBackend = (function () {
                     : 'MAVLink';
             $('#logo .firmware_version').text(`${firmwareName} / ${nextState.vehicleTypeName}`);
 
-            const setupLink = $('#tabs ul.mode-mavlink .tab_mavlink_parameters a');
+            const setupLink = $('#tabs ul.mode-mavlink .fc-mavlink-setup-fallback a');
             if (nextState.firmwareFamily === 'ardupilot') {
                 setupLink
                     .text('ArduPilot Setup')
@@ -1313,7 +1313,7 @@ var SerialBackend = (function () {
             $('.mode-connected, .mode-mavlink, .mode-telemetry').hide();
             $('.mode-disconnected').show();
             $('body').removeClass('fc-controller-ardupilot fc-controller-inav-mavlink');
-            $('#tabs ul.mode-mavlink .tab_mavlink_parameters a')
+            $('#tabs ul.mode-mavlink .fc-mavlink-setup-fallback a')
                 .text('Vehicle Setup')
                 .attr('title', 'Vehicle Setup');
 

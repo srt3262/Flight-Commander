@@ -582,6 +582,10 @@ if (rendererCss.includes(".inavLogo{")) {
 }
 for (const selector of [
   ".fc-unit-switch",
+  ".fc-theme-switch",
+  ".fc-ap-status-primary",
+  ".fc-ap-feature-setting",
+  ".fc-ap-pid-table",
   ".fc-minor-view-layer",
   ".fc-minor-view-window",
   ".fc-minor-view-handle",
@@ -591,15 +595,39 @@ for (const selector of [
   }
 }
 
-const rendererText = rendererFiles
-  .map((path) => readFileSync(path, "utf8"))
-  .join("\n");
+const rendererText = [
+  rendererEntryHtml,
+  ...rendererFiles.map((path) => readFileSync(path, "utf8")),
+].join("\n");
 for (const marker of [
   "flightDataMap",
   "flightDataHud",
   "flightDataMinorDragHandle",
   "Reset minor view",
   "flightCommanderGroundControlUnits",
+  "flightCommanderTheme",
+  "flight-commander-theme-change",
+  "Use dark application theme",
+  "Use imperial ArduPilot setup units",
+  "Use imperial ArduPilot status units",
+  "controller-native",
+  "tab_ardupilot_status",
+  "tab_ardupilot_pid_tuning",
+  "tab_ardupilot_logging",
+  "INAV-style preflight overview",
+  "Detect moved channel",
+  "Start endpoint capture",
+  "Save &amp; reboot",
+  "Sending normal ArduPilot reboot",
+  "Disarm the vehicle before rebooting the flight controller",
+  "Official metadata is unavailable",
+  "onboard_control_sensors_health",
+  'Multirotor with 10" propellers',
+  'Multirotor with 12" propellers',
+  'Multirotor with 15" propellers',
+  'Multirotor with 17" propellers',
+  "generated roll P/I/D/FF",
+  "ez_snappiness",
   "flightCommanderGroundControlMinorPosition",
   "miles per hour",
   "#31523b",

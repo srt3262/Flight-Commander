@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html i18n_lang="currentLanguage">
+<html i18n_lang="currentLanguage" data-theme="dark">
 
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
@@ -34,6 +34,19 @@
                     <div class="firmware_version"></div>
                 </div>
             </div>
+            <label id="applicationThemeControl" class="fc-theme-switch" for="applicationTheme" title="Switch the entire application between light and dark themes">
+                <span>Light</span>
+                <input
+                    id="applicationTheme"
+                    type="checkbox"
+                    role="switch"
+                    aria-label="Use dark application theme"
+                >
+                <span class="fc-theme-switch__track" aria-hidden="true">
+                    <span class="fc-theme-switch__thumb"></span>
+                </span>
+                <span>Dark</span>
+            </label>
             <a id="options" href="#" data-i18n_title="options_title"></a>
 
             <div id="port-picker">
@@ -428,14 +441,113 @@
                     <li class="tab_flight_data fc-primary-navigation">
                         <a href="#" class="tabicon ic_setup" title="Ground Control — live telemetry and vehicle commands">Ground Control</a>
                     </li>
-                    <li class="tab_flight_planner">
-                        <a href="#" class="tabicon ic_mission" title="Flight Planner">Flight Planner</a>
-                    </li>
-                    <li class="tab_mavlink_parameters">
+                    <li class="tab_mavlink_parameters fc-mavlink-setup-fallback">
                         <a href="#" class="tabicon ic_config" title="Vehicle Setup">Vehicle Setup</a>
                     </li>
-                    <li class="tab_autotune">
-                        <a href="#" class="tabicon ic_pid" title="Autotune">Autotune</a>
+
+                    <li class="nav-group fc-ardupilot-navigation">
+                        <div class="group-header active" role="button" tabindex="0" aria-expanded="true">
+                            <span class="group-title">Setup &amp; Configuration</span>
+                            <span class="chevron">▸</span>
+                        </div>
+                        <ul class="group-items expanded">
+                            <li class="tab_ardupilot_status">
+                                <a href="#" class="tabicon ic_data" title="ArduPilot Status">Status</a>
+                            </li>
+                            <li class="tab_ardupilot_setup">
+                                <a href="#" class="tabicon ic_setup" title="ArduPilot Setup">Setup</a>
+                            </li>
+                            <li class="tab_ardupilot_ports">
+                                <a href="#" class="tabicon ic_ports" title="ArduPilot Ports">Ports</a>
+                            </li>
+                            <li class="tab_ardupilot_configuration">
+                                <a href="#" class="tabicon ic_config" title="ArduPilot Vehicle Configuration">Configuration</a>
+                            </li>
+                            <li class="tab_ardupilot_power">
+                                <a href="#" class="tabicon ic_adjust" title="ArduPilot Power and Battery">Power &amp; Battery</a>
+                            </li>
+                        </ul>
+                    </li>
+
+                    <li class="nav-group fc-ardupilot-navigation">
+                        <div class="group-header active" role="button" tabindex="0" aria-expanded="true">
+                            <span class="group-title">Flight Control</span>
+                            <span class="chevron">▸</span>
+                        </div>
+                        <ul class="group-items expanded">
+                            <li class="tab_ardupilot_receiver">
+                                <a href="#" class="tabicon ic_rx" title="ArduPilot Receiver">Receiver</a>
+                            </li>
+                            <li class="tab_ardupilot_modes">
+                                <a href="#" class="tabicon ic_modes" title="ArduPilot Modes">Modes</a>
+                            </li>
+                            <li class="tab_ardupilot_outputs">
+                                <a href="#" class="tabicon ic_motor" title="ArduPilot Motors and Outputs">Motors &amp; Outputs</a>
+                            </li>
+                            <li class="tab_ardupilot_failsafe">
+                                <a href="#" class="tabicon ic_failsafe" title="ArduPilot Safety and Failsafe">Safety &amp; Failsafe</a>
+                            </li>
+                        </ul>
+                    </li>
+
+                    <li class="nav-group fc-ardupilot-navigation">
+                        <div class="group-header active" role="button" tabindex="0" aria-expanded="true">
+                            <span class="group-title">Tuning</span>
+                            <span class="chevron">▸</span>
+                        </div>
+                        <ul class="group-items expanded">
+                            <li class="tab_ardupilot_pid_tuning">
+                                <a href="#" class="tabicon ic_pid" title="ArduPilot PID Tuning">PID Tuning</a>
+                            </li>
+                            <li class="tab_autotune">
+                                <a href="#" class="tabicon ic_pid" title="Autotune">Autotune</a>
+                            </li>
+                        </ul>
+                    </li>
+
+                    <li class="nav-group fc-ardupilot-navigation">
+                        <div class="group-header active" role="button" tabindex="0" aria-expanded="true">
+                            <span class="group-title">Sensors &amp; Navigation</span>
+                            <span class="chevron">▸</span>
+                        </div>
+                        <ul class="group-items expanded">
+                            <li class="tab_ardupilot_sensors">
+                                <a href="#" class="tabicon ic_sensors" title="ArduPilot Sensors and Calibration">Sensors &amp; Calibration</a>
+                            </li>
+                            <li class="tab_ardupilot_gps_navigation">
+                                <a href="#" class="tabicon ic_gps" title="ArduPilot GPS and Navigation">GPS &amp; Navigation</a>
+                            </li>
+                            <li class="tab_flight_planner">
+                                <a href="#" class="tabicon ic_mission" title="Flight Planner">Flight Planner</a>
+                            </li>
+                        </ul>
+                    </li>
+
+                    <li class="nav-group fc-ardupilot-navigation">
+                        <div class="group-header active" role="button" tabindex="0" aria-expanded="true">
+                            <span class="group-title">Display &amp; Data</span>
+                            <span class="chevron">▸</span>
+                        </div>
+                        <ul class="group-items expanded">
+                            <li class="tab_ardupilot_osd">
+                                <a href="#" class="tabicon ic_osd" title="ArduPilot OSD and Notifications">OSD &amp; Notifications</a>
+                            </li>
+                            <li class="tab_ardupilot_logging">
+                                <a href="#" class="tabicon ic_log" title="ArduPilot Logging">Logging</a>
+                            </li>
+                        </ul>
+                    </li>
+
+                    <li class="nav-group fc-ardupilot-navigation">
+                        <div class="group-header active" role="button" tabindex="0" aria-expanded="true">
+                            <span class="group-title">Tools</span>
+                            <span class="chevron">▸</span>
+                        </div>
+                        <ul class="group-items expanded">
+                            <li class="tab_mavlink_parameters">
+                                <a href="#" class="tabicon ic_config" title="All ArduPilot Parameters">All Parameters</a>
+                            </li>
+                        </ul>
                     </li>
                 </ul>
                 <ul class="mode-telemetry" style="display: none;">

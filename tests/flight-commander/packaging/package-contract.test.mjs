@@ -33,6 +33,22 @@ const landingCss = readFileSync(
   resolve(projectRoot, "src/css/tabs/landing.css"),
   "utf8",
 );
+const themeCss = readFileSync(
+  resolve(projectRoot, "src/css/theme.css"),
+  "utf8",
+);
+const rendererEntry = readFileSync(
+  resolve(projectRoot, "index.html"),
+  "utf8",
+);
+const parameterHtml = readFileSync(
+  resolve(projectRoot, "tabs/mavlink_parameters.html"),
+  "utf8",
+);
+const presetSource = readFileSync(
+  resolve(projectRoot, "js/presets/inavMultirotorPresets.js"),
+  "utf8",
+);
 const welcomeWordmark = readFileSync(
   resolve(projectRoot, "images/flight-commander-wordmark-on-light.svg"),
   "utf8",
@@ -125,12 +141,38 @@ test("Windows verification follows the active renderer graph and rejects leftove
   assert.match(packageVerifier, /flightDataMinorDragHandle/);
   assert.match(packageVerifier, /Reset minor view/);
   assert.match(packageVerifier, /flightCommanderGroundControlUnits/);
+  assert.match(packageVerifier, /flightCommanderTheme/);
+  assert.match(packageVerifier, /flight-commander-theme-change/);
+  assert.match(packageVerifier, /Use dark application theme/);
+  assert.match(packageVerifier, /Use imperial ArduPilot setup units/);
+  assert.match(packageVerifier, /Use imperial ArduPilot status units/);
+  assert.match(packageVerifier, /controller-native/);
+  assert.match(packageVerifier, /tab_ardupilot_status/);
+  assert.match(packageVerifier, /tab_ardupilot_pid_tuning/);
+  assert.match(packageVerifier, /INAV-style preflight overview/);
+  assert.match(packageVerifier, /Detect moved channel/);
+  assert.match(packageVerifier, /Start endpoint capture/);
+  assert.match(packageVerifier, /Save &amp; reboot/);
+  assert.match(packageVerifier, /Sending normal ArduPilot reboot/);
+  assert.match(packageVerifier, /onboard_control_sensors_health/);
+  for (const propInches of [10, 12, 15, 17]) {
+    assert.match(
+      packageVerifier,
+      new RegExp(`Multirotor with ${propInches}.*propellers`),
+    );
+  }
+  assert.match(packageVerifier, /generated roll P\/I\/D\/FF/);
+  assert.match(packageVerifier, /ez_snappiness/);
   assert.match(packageVerifier, /flightCommanderGroundControlMinorPosition/);
   assert.match(packageVerifier, /miles per hour/);
   assert.match(packageVerifier, /#31523b/);
   assert.match(packageVerifier, /#172a20/);
   for (const selector of [
     "fc-unit-switch",
+    "fc-theme-switch",
+    "fc-ap-status-primary",
+    "fc-ap-feature-setting",
+    "fc-ap-pid-table",
     "fc-minor-view-layer",
     "fc-minor-view-window",
     "fc-minor-view-handle",
@@ -139,8 +181,29 @@ test("Windows verification follows the active renderer graph and rejects leftove
   }
 });
 
+test("application preference controls are global, persistent, and release-packaged", () => {
+  assert.match(rendererEntry, /<html[^>]+data-theme="dark"/);
+  assert.match(rendererEntry, /id="applicationTheme"/);
+  assert.match(rendererEntry, /Use dark application theme/);
+  assert.match(parameterHtml, /id="parameterUnits"/);
+  assert.match(parameterHtml, /Use imperial ArduPilot setup units/);
+  assert.match(themeCss, /:root\[data-theme="light"\]/);
+  assert.match(themeCss, /:root\[data-theme="dark"\]/);
+  assert.match(themeCss, /\.fc-theme-switch/);
+  assert.match(themeCss, /\.tab-landing \.flightCommanderLogo/);
+});
+
+test("all requested large-prop INAV presets are wired into the release source", () => {
+  for (const propInches of [10, 12, 15, 17]) {
+    assert.match(presetSource, new RegExp(`propInches:\\s*${propInches}`));
+  }
+  assert.match(presetSource, /Mirrors INAV 9\.1's flight\/ez_tune\.c generator/);
+  assert.match(presetSource, /setting\("ez_enabled", "ON"\)/);
+  assert.match(presetSource, /setting\("ez_snappiness", profile\.snappiness\)/);
+});
+
 test("landing page reports the current Flight Commander release", () => {
-  assert.match(landingHtml, />Flight Commander 1\.5\.1</);
+  assert.match(landingHtml, />Flight Commander 1\.7\.0</);
 });
 
 test("canonical Flight Commander visual assets match the verified 1.3.5 identity", () => {

@@ -23,6 +23,11 @@ import { SITLProcess } from './sitl';
 import settingsCache from './settingsCache';
 import store from './store';
 import periodicStatusUpdater from './periodicStatusUpdater';
+import {
+    APPLICATION_THEMES,
+    applyApplicationTheme,
+    initializeApplicationTheme,
+} from './theme';
 
 // "Preload" tabs
 import landingTab from './../tabs/landing';
@@ -54,10 +59,27 @@ import searchTab from './../tabs/search';
 import flightDataTab from './../tabs/flight_data';
 import flightPlannerTab from './../tabs/flight_planner';
 import mavlinkParametersTab from './../tabs/mavlink_parameters';
+import ardupilotSetupTab from './../tabs/ardupilot_setup';
+import ardupilotStatusTab from './../tabs/ardupilot_status';
+import ardupilotPortsTab from './../tabs/ardupilot_ports';
+import ardupilotReceiverTab from './../tabs/ardupilot_receiver';
+import ardupilotModesTab from './../tabs/ardupilot_modes';
+import ardupilotPidTuningTab from './../tabs/ardupilot_pid_tuning';
+import {
+    ardupilotConfigurationTab,
+    ardupilotFailsafeTab,
+    ardupilotGpsNavigationTab,
+    ardupilotLoggingTab,
+    ardupilotOsdTab,
+    ardupilotOutputsTab,
+    ardupilotPowerTab,
+    ardupilotSensorsTab,
+} from './../tabs/ardupilot_feature';
 import autotuneTab from './../tabs/autotune';
 import dialog from './dialog'
 
 window.$ = $;
+let applicationTheme = initializeApplicationTheme(store);
 
 // Set how the units render on the configurator only
 $(function() {
@@ -85,6 +107,23 @@ $(function() {
         globalSettings.assistnowOfflineData = store.get('assistnow_offline_data', []);
         globalSettings.assistnowOfflineDate = store.get('assistnow_offline_date', 0);
         updateProfilesHighlightColours();
+
+        const syncApplicationThemeSwitch = () => {
+            const dark = applicationTheme === APPLICATION_THEMES.DARK;
+            $('#applicationTheme')
+                .prop('checked', dark)
+                .attr('aria-checked', String(dark));
+        };
+        syncApplicationThemeSwitch();
+        $('#applicationTheme').on('change', function () {
+            applicationTheme = applyApplicationTheme(
+                $(this).prop('checked')
+                    ? APPLICATION_THEMES.DARK
+                    : APPLICATION_THEMES.LIGHT,
+                { storeApi: store, persist: true },
+            );
+            syncApplicationThemeSwitch();
+        });
 
         var cliAutocomplete = store.get('cli_autocomplete', true);
         globalSettings.cliAutocomplete = cliAutocomplete;
@@ -296,6 +335,48 @@ $(function() {
                             break;
                         case 'mavlink_parameters':
                             mavlinkParametersTab.initialize(content_ready);
+                            break;
+                        case 'ardupilot_setup':
+                            ardupilotSetupTab.initialize(content_ready);
+                            break;
+                        case 'ardupilot_status':
+                            ardupilotStatusTab.initialize(content_ready);
+                            break;
+                        case 'ardupilot_ports':
+                            ardupilotPortsTab.initialize(content_ready);
+                            break;
+                        case 'ardupilot_receiver':
+                            ardupilotReceiverTab.initialize(content_ready);
+                            break;
+                        case 'ardupilot_modes':
+                            ardupilotModesTab.initialize(content_ready);
+                            break;
+                        case 'ardupilot_configuration':
+                            ardupilotConfigurationTab.initialize(content_ready);
+                            break;
+                        case 'ardupilot_outputs':
+                            ardupilotOutputsTab.initialize(content_ready);
+                            break;
+                        case 'ardupilot_failsafe':
+                            ardupilotFailsafeTab.initialize(content_ready);
+                            break;
+                        case 'ardupilot_sensors':
+                            ardupilotSensorsTab.initialize(content_ready);
+                            break;
+                        case 'ardupilot_gps_navigation':
+                            ardupilotGpsNavigationTab.initialize(content_ready);
+                            break;
+                        case 'ardupilot_power':
+                            ardupilotPowerTab.initialize(content_ready);
+                            break;
+                        case 'ardupilot_osd':
+                            ardupilotOsdTab.initialize(content_ready);
+                            break;
+                        case 'ardupilot_logging':
+                            ardupilotLoggingTab.initialize(content_ready);
+                            break;
+                        case 'ardupilot_pid_tuning':
+                            ardupilotPidTuningTab.initialize(content_ready);
                             break;
                         case 'autotune':
                             autotuneTab.initialize(content_ready);

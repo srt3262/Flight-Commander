@@ -1,5 +1,7 @@
 'use strict';
 
+import { INAV_LARGE_MULTIROTOR_PRESETS } from './presets/inavMultirotorPresets.js';
+
 var defaultsDialogData = [
     {
         "title": 'Mini Quad with 3" propellers',
@@ -370,6 +372,7 @@ var defaultsDialogData = [
             }
         ]
     },
+    ...INAV_LARGE_MULTIROTOR_PRESETS,
     {
         "title": 'Airplane with a Tail',
         "notRecommended": false,

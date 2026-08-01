@@ -44,10 +44,24 @@
                     <button id="parameterLoad" class="fc-button--primary" type="button">
                         Download from controller
                     </button>
-                    <button id="parameterWriteChanged" type="button">Write changed</button>
+                    <button id="parameterWriteChanged" type="button">Save changes</button>
+                    <button id="parameterWriteReboot" type="button">Save &amp; reboot</button>
                     <button id="parameterExport" type="button">Export JSON backup</button>
                     <button id="parameterImport" type="button">Import JSON backup</button>
                 </div>
+                <label class="fc-unit-switch fc-parameter-unit-switch" for="parameterUnits" title="Switch ArduPilot parameter displays between metric and imperial units">
+                    <span>Metric</span>
+                    <input
+                        id="parameterUnits"
+                        type="checkbox"
+                        role="switch"
+                        aria-label="Use imperial ArduPilot setup units"
+                    >
+                    <span class="fc-unit-switch__track" aria-hidden="true">
+                        <span class="fc-unit-switch__thumb"></span>
+                    </span>
+                    <span>Imperial</span>
+                </label>
                 <label class="fc-parameter-search">
                     Search settings
                     <input id="parameterFilter" type="search" placeholder="Name, description, or value">

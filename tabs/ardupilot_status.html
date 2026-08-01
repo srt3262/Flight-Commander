@@ -1,0 +1,138 @@
+<div class="tab-ardupilot-status">
+    <div class="content_wrapper">
+        <div class="tab_title">Status</div>
+
+        <section class="fc-ap-identity">
+            <div><span>Firmware</span><strong id="apStatusFirmware">Waiting…</strong></div>
+            <div><span>Vehicle</span><strong id="apStatusVehicle">Waiting…</strong></div>
+            <div><span>MAVLink endpoint</span><strong id="apStatusEndpoint">Waiting…</strong></div>
+        </section>
+
+        <div class="note">
+            <div class="note_spacer">
+                <strong>INAV-style preflight overview</strong>
+                <p>
+                    Confirm attitude, arming state, sensor health, receiver input, GPS, and power
+                    before changing configuration or fitting propellers. Values below are live
+                    MAVLink reports from the connected ArduPilot controller; no parameters are
+                    changed on this page.
+                </p>
+            </div>
+        </div>
+
+        <section class="fc-ap-status-controls">
+            <button id="apStatusRefreshStreams" type="button">Refresh telemetry streams</button>
+            <button id="apStatusZeroHeading" type="button">Zero displayed heading</button>
+            <label class="fc-unit-switch" for="apStatusUnits" title="Switch live status measurements between metric and imperial units">
+                <span>Metric</span>
+                <input id="apStatusUnits" type="checkbox" role="switch" aria-label="Use imperial ArduPilot status units">
+                <span class="fc-unit-switch__track" aria-hidden="true"><span class="fc-unit-switch__thumb"></span></span>
+                <span>Imperial</span>
+            </label>
+        </section>
+
+        <div class="fc-ap-status-primary">
+            <section class="fc-ap-panel fc-ap-status-attitude-panel">
+                <header>
+                    <div>
+                        <h2>Live attitude</h2>
+                        <p>Verify that the horizon follows the physical controller in the correct direction.</p>
+                    </div>
+                    <span id="apStatusAttitudeFreshness">Waiting for ATTITUDE</span>
+                </header>
+                <div class="fc-ap-status-attitude">
+                    <canvas id="apStatusAttitudeCanvas" aria-label="Live aircraft attitude"></canvas>
+                    <div class="fc-ap-status-attitude-values">
+                        <div><span>Roll</span><strong id="apStatusRoll">--</strong></div>
+                        <div><span>Pitch</span><strong id="apStatusPitch">--</strong></div>
+                        <div><span>Heading</span><strong id="apStatusHeading">--</strong></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="fc-ap-panel fc-ap-status-readiness-panel">
+                <header>
+                    <div>
+                        <h2>Vehicle readiness</h2>
+                        <p>Current mode, arming state, controller state, and link condition.</p>
+                    </div>
+                </header>
+                <div class="fc-ap-status-state-grid">
+                    <div><span>Arming</span><strong id="apStatusArmState" class="fc-ap-status-pill">DISARMED</strong></div>
+                    <div><span>Flight mode</span><strong id="apStatusMode">--</strong></div>
+                    <div><span>Autopilot state</span><strong id="apStatusSystemState">--</strong></div>
+                    <div><span>Telemetry link</span><strong id="apStatusLinkState" class="fc-ap-status-pill">WAITING</strong></div>
+                </div>
+                <div class="fc-ap-status-readiness-messages">
+                    <h3>Recent pre-arm and health messages</h3>
+                    <ul id="apStatusReadinessMessages"></ul>
+                </div>
+            </section>
+        </div>
+
+        <section class="fc-ap-status-metrics" aria-label="Live controller data">
+            <article class="fc-ap-status-metric-card">
+                <header><h2>Power</h2><span>SYS_STATUS</span></header>
+                <dl>
+                    <dt>Voltage</dt><dd id="apStatusVoltage">--</dd>
+                    <dt>Current</dt><dd id="apStatusCurrent">--</dd>
+                    <dt>Power</dt><dd id="apStatusPower">--</dd>
+                    <dt>Battery remaining</dt><dd id="apStatusBatteryRemaining">--</dd>
+                </dl>
+            </article>
+            <article class="fc-ap-status-metric-card">
+                <header><h2>GPS</h2><span>GPS_RAW_INT</span></header>
+                <dl>
+                    <dt>Fix</dt><dd id="apStatusGpsFix">--</dd>
+                    <dt>Satellites</dt><dd id="apStatusSatellites">--</dd>
+                    <dt>HDOP</dt><dd id="apStatusHdop">--</dd>
+                    <dt>Position</dt><dd id="apStatusPosition">--</dd>
+                    <dt>Relative altitude</dt><dd id="apStatusAltitude">--</dd>
+                </dl>
+            </article>
+            <article class="fc-ap-status-metric-card">
+                <header><h2>Receiver</h2><span>RC_CHANNELS</span></header>
+                <dl>
+                    <dt>RSSI</dt><dd id="apStatusRssi">--</dd>
+                    <dt>Live channels</dt><dd id="apStatusChannelCount">--</dd>
+                    <dt>Ground speed</dt><dd id="apStatusGroundSpeed">--</dd>
+                </dl>
+                <div id="apStatusReceiverBars" class="fc-ap-status-receiver-bars"></div>
+            </article>
+            <article class="fc-ap-status-metric-card">
+                <header><h2>Controller</h2><span>System health</span></header>
+                <dl>
+                    <dt>Uptime</dt><dd id="apStatusUptime">--</dd>
+                    <dt>Processor load</dt><dd id="apStatusLoad">--</dd>
+                    <dt>Telemetry drops</dt><dd id="apStatusDropRate">--</dd>
+                    <dt>Communication errors</dt><dd id="apStatusCommErrors">--</dd>
+                    <dt>Detected reboots</dt><dd id="apStatusBootGeneration">0</dd>
+                </dl>
+            </article>
+        </section>
+
+        <section class="fc-ap-panel">
+            <header>
+                <div>
+                    <h2>Sensor and pre-arm health</h2>
+                    <p>Present, enabled, and healthy flags reported through MAVLink SYS_STATUS.</p>
+                </div>
+                <span id="apStatusSensorSummary">Waiting for sensor health</span>
+            </header>
+            <div id="apStatusSensors" class="fc-ap-status-sensor-grid"></div>
+        </section>
+
+        <section class="fc-ap-panel">
+            <header>
+                <div>
+                    <h2>Recent autopilot messages</h2>
+                    <p>ArduPilot reports calibration, pre-arm, failsafe, and system details here.</p>
+                </div>
+                <span id="apStatusMessageCount">0 messages</span>
+            </header>
+            <div id="apStatusMessages" class="fc-ap-status-message-log"></div>
+        </section>
+
+        <div id="apStatusActionStatus" class="fc-action-status" role="status" aria-live="polite"></div>
+    </div>
+</div>

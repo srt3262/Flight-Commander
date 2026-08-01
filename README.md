@@ -7,7 +7,7 @@ Flight Commander is a desktop flight-controller configurator, mission planner,
 and ground control station for INAV and ArduPilot aircraft. It combines the
 complete INAV Configurator workflow with a MAVLink Ground Control view,
 ArduPilot parameters, controller-aware mission handling, terrain-assisted
-planning, and selected Cube/Pixhawk firmware workflows.
+planning, and controller-aware firmware workflows.
 
 > **Source provenance:** version 1.3.6 is a reconstructed source release. It was
 > rebuilt from INAV Configurator 9.1.1 and a verified Flight Commander 1.3.5
@@ -25,6 +25,19 @@ planning, and selected Cube/Pixhawk firmware workflows.
 - Built-in online ASTER terrain through OpenTopoData with no API key, plus
   optional Google Elevation and local GIS sources.
 - ArduPilot parameter download, search, editing, comparison, and verified write.
+- INAV-style ArduPilot navigation with live Status, Ports, Receiver, Modes,
+  PID Tuning, Configuration, Motors & Outputs, Safety & Failsafe, Sensors,
+  GPS & Navigation, Power, OSD, Logging, Mission, and All Parameters pages.
+  Controls are discovered from the connected firmware and show official
+  explanations, exact parameter names, limits, choices, and restart needs.
+- Guarded Save and Save & Reboot on ArduPilot configuration pages. Parameter
+  readback must confirm before a normal reboot is sent, and both operations are
+  refused while the vehicle is armed.
+- Persistent light and dark themes, plus synchronized metric or imperial
+  displays in Ground Control and ArduPilot setup. Controller writes and JSON
+  backups remain in the flight controller's native parameter units.
+- INAV 10, 12, 15, and 17-inch multirotor presets with prop-size-tuned EZ Tune
+  baselines and explicit generated P/I/D/FF values.
 - Controller-aware autotune and operational controls.
 - INAV firmware flashing, first-time ArduPilot installation through STM32 DFU,
   and board-ID-checked APJ updates through the PX4FMU serial bootloader.
@@ -134,6 +147,8 @@ aircraft:
 4. Keep an independent and tested recovery path.
 
 The software is provided without warranty under the GNU General Public License.
+Large-prop presets are safe starting points, not a substitute for reviewing
+motor, propeller, frame, filter, and Blackbox behavior on the actual aircraft.
 
 ## Contributing
 

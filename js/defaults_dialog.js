@@ -336,7 +336,14 @@ var defaultsDialog = (function () {
                     $element.addClass("defaults_btn--not-recommended");
                 }
 
-                $element.find("a").html(preset.title);
+                let $link = $element.find("a").text(preset.title);
+                if (preset.description) {
+                    $link.append(
+                        $("<span>")
+                            .addClass("defaults-preset-description")
+                            .text(preset.description)
+                    );
+                }
                 $element.data("index", i).on('click', privateScope.onPresetClick)
                 $element.appendTo($place);
             }
