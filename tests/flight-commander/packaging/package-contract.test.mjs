@@ -64,6 +64,9 @@ const pidTuningCss = readFileSync(
 const manifest = JSON.parse(
   readFileSync(resolve(projectRoot, "manifest.json"), "utf8"),
 );
+const packageManifest = JSON.parse(
+  readFileSync(resolve(projectRoot, "package.json"), "utf8"),
+);
 const linuxDesktop = readFileSync(
   resolve(projectRoot, "assets/linux/flight-commander.desktop"),
   "utf8",
@@ -170,6 +173,7 @@ test("Windows verification follows the active renderer graph and rejects leftove
   for (const selector of [
     "fc-unit-switch",
     "fc-theme-switch",
+    "fc-ap-editor-page",
     "fc-ap-status-primary",
     "fc-ap-feature-setting",
     "fc-ap-pid-table",
@@ -203,7 +207,12 @@ test("all requested large-prop INAV presets are wired into the release source", 
 });
 
 test("landing page reports the current Flight Commander release", () => {
-  assert.match(landingHtml, />Flight Commander 1\.7\.0</);
+  assert.equal(packageManifest.version, "1.7.1");
+  assert.equal(manifest.version, packageManifest.version);
+  assert.match(
+    landingHtml,
+    new RegExp(`>Flight Commander ${packageManifest.version.replaceAll(".", "\\.")}<`),
+  );
 });
 
 test("canonical Flight Commander visual assets match the verified 1.3.5 identity", () => {

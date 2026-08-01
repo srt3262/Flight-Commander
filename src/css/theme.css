@@ -131,11 +131,16 @@
 }
 
 /* Always-visible application theme switch. */
+.headerbar {
+    position: relative;
+}
+
 .fc-theme-switch {
     position: absolute;
-    top: 6px;
+    top: 4px;
     right: 40px;
     z-index: 10001;
+    box-sizing: border-box;
     display: inline-flex;
     align-items: center;
     gap: 5px;
@@ -150,6 +155,11 @@
     font-weight: 700;
     cursor: pointer;
     user-select: none;
+}
+
+/* Keep the connection control in its own lane below the utility controls. */
+.headerbar .connect_controls {
+    top: 34px;
 }
 
 .fc-theme-switch input {

@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.7.1
+
+- Fixed the ArduPilot Save, Save & Reboot, and refresh footer covering
+  configuration fields. All six dedicated editor layouts now reserve a stable
+  footer below an independently scrollable settings pane, so every parameter
+  remains reachable at full-screen and minimum supported window sizes.
+- Hid empty action-status rows and kept active save/reboot status messages in
+  normal page flow instead of layering them over configuration content.
+- Moved the connection control into a separate header lane below the global
+  light/dark theme switch, preventing the theme control from obscuring Connect
+  or Disconnect.
+- Added source and packaged-renderer layout contracts for the reserved
+  ArduPilot footer and separated header controls.
+
 ## 1.7.0
 
 - Added a complete INAV-style ArduPilot navigation tree with dedicated Status,

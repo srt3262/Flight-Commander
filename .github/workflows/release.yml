@@ -26,7 +26,7 @@ jobs:
         github.event_name == 'workflow_dispatch' ||
         (
           github.event_name == 'push' &&
-          github.event.head_commit.message == 'Publish Flight Commander 1.7.0 release'
+          github.event.head_commit.message == 'Publish Flight Commander 1.7.1 release'
         )
       )
     runs-on: windows-latest
@@ -382,42 +382,24 @@ jobs:
 
           $notesPath = Join-Path $env:RUNNER_TEMP 'flight-commander-release-notes.md'
           @"
-          Flight Commander $version introduces a complete INAV-style ArduPilot
-          setup tree. A new live Status page presents attitude, arming and mode,
-          sensor/pre-arm health, receiver input, GPS, power, controller load,
-          and recent autopilot messages. Dedicated Ports, Receiver, and Modes
-          pages provide familiar UART assignment, live RC endpoint capture,
-          and moved-switch channel detection while writing ArduPilot-native
-          SERIALx, RCx, FLTMODEx/MODEx, and RCx_OPTION parameters.
+          Flight Commander $version fixes the two layout collisions reported in
+          the v1.7.0 setup interface.
 
-          Configuration, Motors & Outputs, Safety & Failsafe, Sensors &
-          Calibration, GPS & Navigation, Power & Battery, OSD & Notifications,
-          and Logging pages are generated from the parameters actually exposed
-          by the connected firmware. Standard/Advanced views, search, exact
-          parameter IDs, official ArduPilot explanations, choices, limits,
-          units, and reboot-required labels remain visible. PID Tuning uses an
-          INAV-familiar P/I/D/feed-forward matrix discovered from each vehicle's
-          actual control loops, plus related filters and limits.
+          The ArduPilot Refresh, Save changes, and Save & reboot bar now owns a
+          reserved footer below an independently scrollable settings pane. It
+          no longer overlays configuration fields, and every setting remains
+          reachable while the controls stay visible. Empty status rows collapse;
+          real write/reboot status remains in normal layout flow beneath the
+          action bar.
 
-          Every ArduPilot configuration page now has guarded Save and Save &
-          Reboot actions. Writes and normal MAV_CMD 246/param1=1 reboots are
-          refused while armed, controller confirmations are required in order,
-          and a failed write can never trigger the requested reboot.
+          The application theme switch and Connect/Disconnect control now use
+          separate header lanes, so neither control can cover the other.
 
-          The release also adds a persistent light/dark theme for the complete
-          application and synchronized metric/imperial displays for Ground
-          Control and ArduPilot setup. Display edits are converted back to
-          controller-native units before MAVLink validation and writes; JSON
-          backups remain explicitly controller-native.
-
-          INAV multirotor defaults now include conservative 10, 12, 15, and
-          17-inch prop presets generated through the INAV 9.1 EZ Tune model,
-          with progressively lower bandwidth and response for larger props and
-          explicit generated roll P/I/D/FF values.
-
-          The v1.5.1 first-install safeguards remain intact: INAV-to-ArduPilot
-          migration uses a full-chip erase and verified official with-bootloader
-          HEX, while later APJ updates retain PX4 bootloader board-ID checks.
+          The complete v1.7.0 feature set remains intact, including the
+          INAV-style ArduPilot setup tree and Status page, parameter explanations,
+          guarded native Save & Reboot workflow, metric/imperial setup units,
+          whole-app themes, large-prop INAV presets, and verified ArduPilot
+          first-install/update paths.
 
           The archive also passed the complete repository source tests,
           packaged-application verification, clean ZIP extraction, and

@@ -583,6 +583,7 @@ if (rendererCss.includes(".inavLogo{")) {
 for (const selector of [
   ".fc-unit-switch",
   ".fc-theme-switch",
+  ".fc-ap-editor-page",
   ".fc-ap-status-primary",
   ".fc-ap-feature-setting",
   ".fc-ap-pid-table",
@@ -593,6 +594,40 @@ for (const selector of [
   if (ruleDeclarations(rendererCss, selector).length === 0) {
     fail(`the active renderer CSS does not contain ${selector}`);
   }
+}
+
+const ardupilotEditorDeclarations = ruleDeclarations(
+  rendererCss,
+  ".fc-ap-editor-page",
+);
+if (
+  !ardupilotEditorDeclarations.some((declaration) =>
+    /(?:^|;)display:flex(?:;|$)/.test(declaration.replace(/\s+/g, "")),
+  )
+) {
+  fail("ArduPilot editor pages do not reserve a flex-layout footer");
+}
+const ardupilotFooterDeclarations = ruleDeclarations(
+  rendererCss,
+  ".fc-ap-editor-page>.fc-ap-toolbar",
+);
+if (
+  !ardupilotFooterDeclarations.some((declaration) =>
+    /(?:^|;)position:static(?:;|$)/.test(declaration.replace(/\s+/g, "")),
+  )
+) {
+  fail("the ArduPilot action footer is still positioned over settings");
+}
+const connectionLaneDeclarations = ruleDeclarations(
+  rendererCss,
+  ".headerbar .connect_controls",
+);
+if (
+  !connectionLaneDeclarations.some((declaration) =>
+    /(?:^|;)top:34px(?:;|$)/.test(declaration.replace(/\s+/g, "")),
+  )
+) {
+  fail("the theme and connection controls do not use separate header lanes");
 }
 
 const rendererText = [

@@ -2,6 +2,47 @@
     display: none;
 }
 
+/*
+ * ArduPilot editors use a reserved footer rather than the legacy absolute
+ * toolbar. This keeps every setting reachable while the action buttons stay
+ * visible, including when a page is taller than the content viewport.
+ */
+.fc-ap-editor-page {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    position: relative;
+}
+
+.fc-ap-editor-page > .content_wrapper {
+    flex: 1 1 auto;
+    height: auto;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+.fc-ap-editor-page > .fc-ap-toolbar {
+    position: static;
+    bottom: auto;
+    flex: 0 0 auto;
+}
+
+.fc-ap-editor-page > .fc-action-status {
+    box-sizing: border-box;
+    flex: 0 0 auto;
+    min-height: 0;
+    padding: 6px 10px;
+    border-top: 1px solid var(--fc-theme-border, #ccd5da);
+    background: var(--fc-theme-surface, #f7f9fa);
+}
+
+.fc-ap-editor-page > .fc-action-status:empty {
+    display: none;
+}
+
 body.fc-controller-ardupilot .fc-ardupilot-navigation {
     display: block;
 }
@@ -456,12 +497,14 @@ body.fc-controller-ardupilot .fc-mavlink-setup-fallback {
     display: flex;
     align-items: center;
     justify-content: flex-end;
+    flex-wrap: wrap;
     gap: 8px;
 }
 
 .fc-ap-toolbar__summary {
+    flex: 1 1 240px;
+    min-width: 0;
     overflow: hidden;
-    margin-right: auto;
     color: var(--fc-theme-muted, #657680);
     text-overflow: ellipsis;
     white-space: nowrap;
