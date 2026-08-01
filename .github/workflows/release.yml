@@ -26,7 +26,7 @@ jobs:
         github.event_name == 'workflow_dispatch' ||
         (
           github.event_name == 'push' &&
-          github.event.head_commit.message == 'Publish Flight Commander 1.8.0 release'
+          github.event.head_commit.message == 'Publish Flight Commander 1.8.1 release'
         )
       )
     runs-on: windows-latest
@@ -382,32 +382,22 @@ jobs:
 
           $notesPath = Join-Path $env:RUNNER_TEMP 'flight-commander-release-notes.md'
           @"
-          Flight Commander $version makes the complete application dark-only
-          and applies an audited high-contrast theme across every active INAV,
-          ArduPilot, firmware, mission, tuning, dialog, table, and status
-          surface. The retired light/dark switch is no longer packaged.
+          Flight Commander $version fixes the remaining dark-theme profile
+          fields. Battery-profile and control-profile settings no longer inherit
+          INAV's pale inline highlight colors; each now uses a distinct dark,
+          high-contrast foreground, background, and border. This covers Motors
+          IDLE power, Throttle scale, and every other setting discovered as a
+          profile parameter across the configurator.
 
-          First-connection INAV preset application is now a bounded sequential
-          transaction. Controller operations settle on success, retry
-          exhaustion, or timeout; failures release the blocking progress screen
-          and offer recovery; and success requires EEPROM save plus an
-          applied_defaults read-back.
+          Mixer and Outputs now share one image-bound motor-number renderer.
+          Quad X and Quad Plus labels 1-4 use percentage positions inside the
+          SVG preview, so they remain visible at both tab sizes and no longer
+          depend on cached-image load timing or stale pixel measurements.
 
-          ArduPilot setup now presents familiar INAV-style guided controls for
-          Configuration, Motors & Outputs, Safety & Failsafe, Sensors, GPS &
-          Navigation, Power, OSD, Logging, and PID Tuning. Each available
-          control resolves against parameters actually reported by the vehicle,
-          exposes the exact native parameter and metadata, and retains
-          ArduPilot Extras and All Parameters as complete native fallbacks.
-
-          Returning a PX4-bootloader ArduPilot controller to INAV now carries
-          the detected board identity into the INAV flasher, requires STM32 ROM
-          DFU and full-chip erase, and avoids sending INAV CLI commands to a
-          running ArduPilot serial port.
-
-          The v1.7.1 reserved ArduPilot action footer, guarded Save & Reboot,
-          metric/imperial setup units, large-prop INAV presets, and verified
-          ArduPilot installation/update paths remain intact.
+          The v1.8.0 dark-only interface, bounded first-connection presets,
+          INAV-style ArduPilot setup, native parameter fallback, guarded Save &
+          Reboot, large-prop INAV presets, and ArduPilot-to-INAV ROM-DFU handoff
+          remain intact.
 
           The archive also passed the complete repository source tests,
           packaged-application verification, clean ZIP extraction, and

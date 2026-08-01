@@ -14,6 +14,7 @@ import interval from './../js/intervals';
 import ServoMixRule from './../js/servoMixRule';
 import MotorMixRule from './../js/motorMixRule';
 import BitHelper from './../js/bitHelper';
+import { renderMotorNumberLabels } from './../js/motorPreview';
 
 const mixerTab = {};
 
@@ -438,65 +439,13 @@ mixerTab.initialize = function (callback, scrollPosition) {
 
 
     function labelMotorNumbers() {
+        const rules = currentMixerPreset.id == loadedMixerPresetID
+            ? FC.MOTOR_RULES.get()
+            : currentMixerPreset.motorMixer;
+        const $preview = $('#motor-mixer-preview-img')
+            .closest('.mixer-preview-image-numbers');
 
-        let index = 0;
-        var rules;
-
-        if (currentMixerPreset.id == loadedMixerPresetID) {
-            rules = FC.MOTOR_RULES.get();
-        } else {
-            rules = currentMixerPreset.motorMixer;
-        }
-
-        if (currentMixerPreset.image != 'quad_x' && currentMixerPreset.image != 'quad_p') {
-            for (let i = 1; i < 5; i++) {
-                $("#motorNumber"+i).css("visibility", "hidden");
-            }
-        }
-
-        const $img = $("#motor-mixer-preview-img");
-        const imgHeight = $img.height();
-
-        // Skip positioning if image hasn't loaded yet (height would be 0)
-        if (imgHeight === 0) {
-            return;
-        }
-
-        for (const i in rules) {
-            if (rules.hasOwnProperty(i)) {
-                const rule = rules[i];
-                index++;
-
-                if (currentMixerPreset.image != 'quad_x' && currentMixerPreset.image != 'quad_p') {
-                    continue;
-                }
-
-                let top_px = 28;
-                let left_px = 28;
-
-                const roll = rule.getRoll();
-                const pitch = rule.getPitch();
-
-                if (Math.abs(roll) < 0.1) {
-                    // Center horizontally (Plus: front/rear motors)
-                    left_px = ($img.width() - 14) / 2;
-                } else if (roll < -0.5) {
-                    left_px = $img.width() - 42;
-                }
-
-                if (Math.abs(pitch) < 0.1) {
-                    // Center vertically (Plus: left/right motors)
-                    top_px = (imgHeight - 14) / 2;
-                } else if (pitch > 0.5) {
-                    top_px = imgHeight - 44;
-                }
-
-                $("#motorNumber"+index).css("left", left_px + "px");
-                $("#motorNumber"+index).css("top", top_px + "px");
-                $("#motorNumber"+index).removeClass("is-hidden");
-                $("#motorNumber"+index).css("visibility", "visible");
-            }
-        }
+        renderMotorNumberLabels($preview, currentMixerPreset.image, rules);
     }
 
 
@@ -879,16 +828,8 @@ mixerTab.initialize = function (callback, scrollPosition) {
             const isReversed = motorDirectionCheckbox.val() == 1 && (FC.MIXER_CONFIG.platformType == PLATFORM.MULTIROTOR || FC.MIXER_CONFIG.platformType == PLATFORM.TRICOPTER);
 
             import(`./../resources/motor_order/${currentMixerPreset.image}${isReversed ? "_reverse" : ""}.svg`).then(({default: path}) => {
-                const $img = $('.mixerPreview img');
-                $img.attr('src', path);
-                // Wait for image to load before positioning motor numbers
-                $img.off('load.motorNumbers').on('load.motorNumbers', function() {
-                    labelMotorNumbers();
-                });
-                // If image is already cached, load event won't fire, so check complete
-                if ($img[0].complete) {
-                    labelMotorNumbers();
-                }
+                $('#motor-mixer-preview-img').attr('src', path);
+                labelMotorNumbers();
             });
 
             renderServoOutputImage();

@@ -170,6 +170,9 @@ test("Windows verification follows the active renderer graph and rejects leftove
   assert.match(packageVerifier, /miles per hour/);
   assert.match(packageVerifier, /#31523b/);
   assert.match(packageVerifier, /#172a20/);
+  assert.match(packageVerifier, /data-motor-number-layout/);
+  assert.match(packageVerifier, /batteryProfileHighlightActive/);
+  assert.match(packageVerifier, /controlProfileHighlightActive/);
   for (const selector of [
     "fc-unit-switch",
     "fc-ap-editor-page",
@@ -179,6 +182,9 @@ test("Windows verification follows the active renderer graph and rejects leftove
     "fc-minor-view-layer",
     "fc-minor-view-window",
     "fc-minor-view-handle",
+    "mixer-preview-image-numbers \\.motorNumber",
+    "batteryProfileHighlightActive",
+    "controlProfileHighlightActive",
   ]) {
     assert.match(packageVerifier, new RegExp(selector));
   }
@@ -224,7 +230,7 @@ test("all requested large-prop INAV presets are wired into the release source", 
 });
 
 test("landing page reports the current Flight Commander release", () => {
-  assert.equal(packageManifest.version, "1.8.0");
+  assert.equal(packageManifest.version, "1.8.1");
   assert.equal(manifest.version, packageManifest.version);
   assert.match(
     landingHtml,

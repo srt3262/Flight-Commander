@@ -29,6 +29,8 @@
     --fc-theme-danger: #d85b66;
     --fc-theme-row-even: #202a31;
     --fc-theme-row-odd: #182128;
+    --fc-theme-profile-battery: #40371c;
+    --fc-theme-profile-control: #17384a;
 }
 
 html,
@@ -608,10 +610,41 @@ progress::-webkit-progress-bar,
     color: var(--fc-theme-text);
 }
 
-.batteryProfileHighlightActive,
+.batteryProfileHighlightActive {
+    color: #fff4c7 !important;
+    border-color: #9d8137 !important;
+    background-color: var(--fc-theme-profile-battery) !important;
+}
+
 .controlProfileHighlightActive {
-    color: #f4f7f9;
-    background-color: #344652 !important;
+    color: #eef9ff !important;
+    border-color: #4a91b2 !important;
+    background-color: var(--fc-theme-profile-control) !important;
+}
+
+.mixer-preview-image-numbers .motorNumber {
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    box-sizing: border-box;
+    color: #ffffff !important;
+    border: 2px solid var(--fc-theme-accent);
+    border-radius: 50%;
+    background: #10181e;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+    font-family: 'open_sansbold', Arial, sans-serif;
+    font-size: 12px;
+    line-height: 1;
+    text-shadow: 0 1px 2px #000000;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+}
+
+.mixer-preview-image-numbers .motorNumber.is-hidden {
+    display: none;
 }
 
 .tab-pid_tuning .expo-chart {

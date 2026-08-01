@@ -106,14 +106,30 @@ var Settings = (function () {
                 }
             }
 
-            if (globalSettings.showProfileParameters) {
-                if (FC.isBatteryProfileParameter(settingName)) {
-                    input.css("background-color","#fef2d5");
-                }
+            const isBatteryProfileParameter = FC.isBatteryProfileParameter(settingName);
+            const isControlProfileParameter = FC.isControlProfileParameter(settingName);
 
-                if (FC.isControlProfileParameter(settingName)) {
-                    input.css("background-color","#d5ebfe");
-                }
+            // Profile identity used to be applied as an inline light-theme
+            // background. Inline colors bypass the app-wide dark stylesheet
+            // and can leave nearly white text on a pale field. Keep identity
+            // class-based so the active visual system owns foreground,
+            // background, border, disabled, and focus contrast together.
+            input.css('background-color', '');
+            input.removeClass([
+                'batteryProfileHighlight',
+                'batteryProfileHighlightActive',
+                'controlProfileHighlight',
+                'controlProfileHighlightActive',
+            ].join(' '));
+
+            if (isBatteryProfileParameter) {
+                input.addClass(globalSettings.showProfileParameters
+                    ? 'batteryProfileHighlightActive'
+                    : 'batteryProfileHighlight');
+            } else if (isControlProfileParameter) {
+                input.addClass(globalSettings.showProfileParameters
+                    ? 'controlProfileHighlightActive'
+                    : 'controlProfileHighlight');
             }
 
             return mspHelper.getSetting(settingName).then(function (s) {

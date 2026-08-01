@@ -15,10 +15,10 @@
 }
 
 .tab-motors .mixerPreview img {
-    width: 120px;
-    height: 120px;
-    margin-top: 18px;
-    margin-left: 10px;
+    display: block;
+    width: 100%;
+    height: 100%;
+    margin: 0;
 }
 
 .tab-motors .plot_control {
@@ -476,5 +476,8 @@
 }
 
 .tab-motors .mixer-preview-image-numbers {
-    width: fit-content;
+    position: relative;
+    width: 120px;
+    height: 120px;
+    margin: 18px auto 0;
 }

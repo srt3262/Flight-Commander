@@ -13,6 +13,7 @@ import features from './../js/feature_framework';
 import { mixer, PLATFORM } from './../js/model';
 import timeout from './../js/timeouts';
 import interval from './../js/intervals';
+import { renderMotorNumberLabels } from './../js/motorPreview';
 
 const outputsTab = {
     allowTestMode: false,
@@ -251,10 +252,11 @@ outputsTab.initialize = function (callback) {
         const isMotorInverted = self.motorDirectionInverted;
         const isReversed = isMotorInverted && (FC.MIXER_CONFIG.platformType == PLATFORM.MULTIROTOR || FC.MIXER_CONFIG.platformType == PLATFORM.TRICOPTER);
 
-        import(`./../resources/motor_order/${mixer.getById(val).image}${isReversed ? "_reverse" : ""}.svg`).then(({default: path}) => {
-            $('.mixerPreview img').attr('src', path);
+        const mixerPreset = mixer.getById(val);
+        import(`./../resources/motor_order/${mixerPreset.image}${isReversed ? "_reverse" : ""}.svg`).then(({default: path}) => {
+            $('#motor-mixer-preview-img').attr('src', path);
+            labelMotorNumbers(mixerPreset);
         });
-        labelMotorNumbers();
     }
 
     function process_servos() {
@@ -716,35 +718,10 @@ outputsTab.initialize = function (callback) {
         GUI.content_ready(callback);
     }
 
-   function labelMotorNumbers() {
-
-       if (mixer.getById(FC.MIXER_CONFIG.appliedMixerPreset).image != 'quad_x') {
-           return;
-       }
-
-
-        let index = 0;
-        var rules = FC.MOTOR_RULES.get();
-
-        for (const i in rules) {
-            if (rules.hasOwnProperty(i)) {
-                const rule = rules[i];
-                index++;
-
-                let top_px = 30;
-                let left_px = 28;
-                if (rule.getRoll() < -0.5) {
-                  left_px = $("#motor-mixer-preview-img").width() - 20;
-                }
-
-                if (rule.getPitch() > 0.5) {
-                  top_px = $("#motor-mixer-preview-img").height() - 20;
-                }
-                $("#motorNumber"+index).css("left", left_px + "px");
-                $("#motorNumber"+index).css("top", top_px + "px");
-                $("#motorNumber"+index).css("visibility", "visible");
-            }
-        }
+   function labelMotorNumbers(mixerPreset = mixer.getById(FC.MIXER_CONFIG.appliedMixerPreset)) {
+        const $preview = $('#motor-mixer-preview-img')
+            .closest('.mixer-preview-image-numbers');
+        renderMotorNumberLabels($preview, mixerPreset?.image, FC.MOTOR_RULES.get());
     }
 
 

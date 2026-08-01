@@ -125,13 +125,18 @@
     position: relative;
 }
 
+.mixer-preview-image-numbers {
+    position: relative;
+}
+
 .motorNumber {
     position: absolute;
     font-size: 1.4em;
 }
 
-.mixer-preview-image-numbers {
-    width: fit-content;
+.tab-mixer .mixer-preview-image-numbers {
+    width: 175px;
+    height: 175px;
 }
 
 /* Motor Wizard Styles */

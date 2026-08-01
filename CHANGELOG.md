@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.8.1
+
+- Replaced inherited pale inline battery/control-profile field colors with
+  dark, high-contrast profile classes. Motors IDLE power, Throttle scale, and
+  all other dynamically discovered profile settings now preserve visible text,
+  borders, disabled states, and focus treatment throughout the app.
+- Restored motor numbers 1-4 to the Quad X and Quad Plus diagrams in both Mixer
+  and Outputs. Both tabs now use the same image-bound percentage layout, which
+  is independent of SVG cache/load timing and remains aligned at each preview
+  size.
+- Added source and packaged-renderer regression gates for the profile colors,
+  motor-label component, both tab integrations, and exact motor positions.
+
 ## 1.8.0
 
 - Removed the light/dark selector and made Flight Commander dark-only. The

@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const source = (path) => readFileSync(resolve(projectRoot, path), "utf8");
 const theme = source("src/css/theme.css");
+const settings = source("js/settings.js");
 
 function luminance(hex) {
   const channels = [1, 3, 5]
@@ -45,12 +46,16 @@ test("dark palette maintains readable body, secondary, disabled, warning, and ac
   const warning = variable("--fc-theme-warning");
   const warningText = variable("--fc-theme-warning-text");
   const action = variable("--fc-theme-accent-strong");
+  const batteryProfile = variable("--fc-theme-profile-battery");
+  const controlProfile = variable("--fc-theme-profile-control");
 
   assert.ok(contrast(text, content) >= 7);
   assert.ok(contrast(muted, surface) >= 4.5);
   assert.ok(contrast(disabledText, disabled) >= 4.5);
   assert.ok(contrast(warningText, warning) >= 4.5);
   assert.ok(contrast("#ffffff", action) >= 4.5);
+  assert.ok(contrast("#fff4c7", batteryProfile) >= 4.5);
+  assert.ok(contrast("#eef9ff", controlProfile) >= 4.5);
 });
 
 test("contrast scrub explicitly covers every active configuration family", () => {
@@ -95,4 +100,18 @@ test("disabled fields, zebra rows, PID panels, and preset modal cannot fall back
   assert.match(theme, /\.tab-ports table tbody tr:nth-child\(even\)[\s\S]*?background-color:\s*var\(--fc-theme-row-even\)\s*!important/);
   assert.match(theme, /\.tab-pid_tuning \.pid-sliders-axis\[style\][\s\S]*?background-color:\s*#1d403b\s*!important/);
   assert.match(theme, /\.jBox-container[\s\S]*?background-color:\s*var\(--fc-theme-surface\)/);
+});
+
+test("battery and control profile fields use dark classes instead of inline light colors", () => {
+  assert.doesNotMatch(settings, /#fef2d5|#d5ebfe/i);
+  assert.match(settings, /batteryProfileHighlightActive/);
+  assert.match(settings, /controlProfileHighlightActive/);
+  assert.match(
+    theme,
+    /\.batteryProfileHighlightActive\s*\{[^}]*color:[^;]+!important;[^}]*background-color:\s*var\(--fc-theme-profile-battery\)\s*!important;/s,
+  );
+  assert.match(
+    theme,
+    /\.controlProfileHighlightActive\s*\{[^}]*color:[^;]+!important;[^}]*background-color:\s*var\(--fc-theme-profile-control\)\s*!important;/s,
+  );
 });

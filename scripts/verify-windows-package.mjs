@@ -585,6 +585,9 @@ for (const selector of [
   ".fc-minor-view-layer",
   ".fc-minor-view-window",
   ".fc-minor-view-handle",
+  ".mixer-preview-image-numbers .motorNumber",
+  ".batteryProfileHighlightActive",
+  ".controlProfileHighlightActive",
 ]) {
   if (ruleDeclarations(rendererCss, selector).length === 0) {
     fail(`the active renderer CSS does not contain ${selector}`);
@@ -679,6 +682,9 @@ for (const marker of [
   "MAVLINK_SESSION_DETACHED",
   "MAVLink host timer",
   "supported controls unlock after identification and safety checks",
+  "data-motor-number-layout",
+  "batteryProfileHighlightActive",
+  "controlProfileHighlightActive",
 ]) {
   if (!rendererText.includes(marker)) {
     fail(`the active renderer does not contain ${marker}`);
