@@ -33,8 +33,8 @@ firmwareInfo.render = function () {
   $("#firmwareInfoVersion").text(displayedVersion);
   $("#firmwareInfoCompatibility").text(
     isFork
-      ? `INAV ${identity.compatibleInavVersion} compatibility`
-      : `INAV ${FC.CONFIG.flightControllerVersion}`,
+      ? `Upstream protocol: INAV ${identity.compatibleInavVersion}`
+      : `Official INAV ${FC.CONFIG.flightControllerVersion}`,
   );
   $("#firmwareInfoTarget").text(FC.CONFIG.target || FC.CONFIG.boardIdentifier || "Unknown");
   $("#firmwareInfoSchema").text(
@@ -48,7 +48,7 @@ firmwareInfo.render = function () {
     ? identity.protocolSupported
       ? `Flight Commander Firmware ${displayedVersion} is identified through the versioned FCFW extension. Only explicitly advertised capabilities are enabled.`
       : identity.probeError
-    : "Standard INAV is connected. All INAV configuration and Ground Control functions remain available; Flight Commander Firmware-only capabilities are locked.";
+    : "Official INAV is connected in compatibility mode. INAV configuration remains available; Flight Commander Ground Control commands and all fork-only capabilities are disabled.";
   $("#firmwareInfoSummary")
     .text(summary)
     .toggleClass("fc-action-status--error", isFork && !identity.protocolSupported);

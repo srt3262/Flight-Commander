@@ -11,8 +11,10 @@ import flightCommanderIconDataUrl from '../../images/flight_commander_256.png';
 import tcp from './tcp';
 import udp from './udp';
 import serial from './serial';
+import rtkBaseSerial from './rtkBaseSerial';
 import child_process from './child_process';
 import { registerMavlinkIpc } from './mavlink';
+import { NtripClient } from './ntripClient';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const flightCommanderIcon = nativeImage.createFromDataURL(
@@ -37,6 +39,23 @@ function getSitlBasePath() {
   }
 }
 
+const FLIGHT_COMMANDER_FIRMWARE_FILENAME =
+  /^Flight-Commander-Firmware-\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?-(?:MICOAIR743|MICROAIR743)(?:-BENCH-ONLY)?\.hex$/i;
+
+function getFlightCommanderFirmwareBasePath() {
+  return app.isPackaged
+    ? path.join(process.resourcesPath, 'firmware')
+    : path.join(app.getAppPath(), 'resources', 'firmware');
+}
+
+function resolveBundledFlightCommanderFirmware(filename) {
+  const basename = path.basename(String(filename ?? ''));
+  if (basename !== filename || !FLIGHT_COMMANDER_FIRMWARE_FILENAME.test(basename)) {
+    throw new Error('Invalid bundled Flight Commander Firmware filename.');
+  }
+  return path.join(getFlightCommanderFirmwareBasePath(), basename);
+}
+
 const usbBootloaderIds =  [
   { vendorId: 1155, productId: 57105}, 
   { vendorId: 11836, productId: 57105}
@@ -52,6 +71,13 @@ let bluetoothDeviceChooser = null;
 let btDeviceList = null;
 let selectBluetoothCallback = null;
 let mavlinkIpc = null;
+const ntripClient = new NtripClient({
+  emit(type, payload) {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send(`ntrip${type[0].toUpperCase()}${type.slice(1)}`, payload);
+    }
+  },
+});
 
 const store = new Store();
 
@@ -266,6 +292,8 @@ app.on('before-quit', async () => {
   mavlinkIpc = null;
   await tcp.close();
   await serial.close();
+  await rtkBaseSerial.close();
+  await ntripClient.close();
   child_process.stop();
 });
 
@@ -373,6 +401,9 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle('serialConnect', (_event, path, options) => {
+    if (rtkBaseSerial.getActivePath() === path) {
+      return { error: true, msg: 'That serial port is already connected as the USB RTK base.' };
+    }
     return serial.connect(path, options, mainWindow);
   });
 
@@ -383,6 +414,43 @@ app.whenReady().then(() => {
   ipcMain.handle('serialClose', (_event, connectionId) => {
     return serial.close(connectionId);
   });
+
+  ipcMain.handle('rtkBaseConnect', (_event, path, options) => {
+    if (serial.getActivePath() === path) {
+      return { error: true, msg: 'That serial port is already connected to the flight controller.' };
+    }
+    return rtkBaseSerial.connect(path, options, mainWindow);
+  });
+
+  ipcMain.handle('rtkBaseSend', (_event, data, connectionId) => {
+    return rtkBaseSerial.send(data, connectionId);
+  });
+
+  ipcMain.handle('rtkBaseClose', (_event, connectionId) => {
+    return rtkBaseSerial.close(connectionId);
+  });
+
+  ipcMain.handle('ntripConnect', async (_event, settings) => {
+    try {
+      return await ntripClient.connect(settings);
+    } catch (error) {
+      return { error: true, msg: error?.message || String(error) };
+    }
+  });
+
+  ipcMain.handle('ntripListMountpoints', async (_event, settings) => {
+    try {
+      return { error: false, sourcetable: await ntripClient.fetchSourcetable(settings) };
+    } catch (error) {
+      return { error: true, msg: error?.message || String(error) };
+    }
+  });
+
+  ipcMain.handle('ntripSendGga', (_event, sentence) => {
+    return ntripClient.sendGga(sentence);
+  });
+
+  ipcMain.handle('ntripClose', () => ntripClient.close());
 
   ipcMain.handle('udpConnect', (_event, ip, port) => {
     return udp.connect(ip, port, mainWindow);
@@ -427,6 +495,25 @@ app.whenReady().then(() => {
         resolve({error: err});
       }
     });
+  });
+
+  ipcMain.handle('listBundledFlightCommanderFirmware', async () => {
+    try {
+      const files = await readdir(getFlightCommanderFirmwareBasePath());
+      return files.filter((file) => FLIGHT_COMMANDER_FIRMWARE_FILENAME.test(file));
+    } catch (error) {
+      if (error?.code === 'ENOENT') return [];
+      throw error;
+    }
+  });
+
+  ipcMain.handle('readBundledFlightCommanderFirmware', async (_event, filename) => {
+    try {
+      const data = await readFile(resolveBundledFlightCommanderFirmware(filename), 'utf8');
+      return { error: false, data };
+    } catch (error) {
+      return { error: String(error?.message ?? error) };
+    }
   });
 
   ipcMain.handle('chmod', (_event, pathName, mode) => {

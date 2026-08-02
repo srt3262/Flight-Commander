@@ -1,5 +1,73 @@
 # Changelog
 
+## 2.0.2
+
+- Merged RTK setup into Ground Control below the live map, HUD, telemetry, and
+  mission status so aircraft operation and correction setup now share one
+  workspace. Ground Control remains available with the aircraft disconnected
+  so a USB base can be surveyed before the aircraft is powered.
+- Replaced the overlapping draggable minor view with persistent side-by-side
+  map and HUD panes. Either pane can be made the major view without obscuring
+  the other, and the compact telemetry grid fits immediately beneath both.
+- Added guided RTK workflows for direct NTRIP-to-aircraft corrections, a local
+  survey-in base, and a survey-in base whose position is refined with NTRIP.
+  Each workflow presents only the relevant stages, recommends safe defaults,
+  and continuously identifies the next action.
+- Rebuilt compass calibration around the sensors that Flight Commander
+  Firmware actually reports. Calibration now creates a control and coefficient
+  readout for every connected enabled onboard, external/UART GPS-module, and
+  DroneCAN compass, then reloads both legacy and extended calibration data when
+  the shared rotation run finishes.
+- Removed compass calibration from GPS setup and added regression and packaged
+  application checks for the new Ground Control, RTK, and calibration layouts.
+- Ships a separately downloadable v2.0.2 firmware package containing the
+  unchanged, compatible Flight Commander Firmware 2.0.1 MICOAIR743 bench-only
+  image under its truthful embedded version. This release changes the
+  Configurator only.
+
+## 2.0.1
+
+- Added a dedicated RTK Base workspace with an independent USB serial link,
+  u-blox F9 survey-in and fixed-position setup, live receiver/survey status,
+  RTCM3 validation, and capability-gated correction forwarding to every
+  enabled UART and DroneCAN aircraft receiver.
+- Added a native NTRIP client with NTRIP v2 and common v1/ICY stream support,
+  live sourcetable discovery, a no-fee RTCM3 filter, an RTK2go public-caster
+  preset, authenticated mountpoints, optional certificate-verified TLS, and
+  VRS GGA reporting. Caster passwords remain memory-only.
+- Added a drone-off base workflow which surveys the USB F9 first, verifies the
+  caster before changing receiver mode, averages a consecutive RTK Fixed
+  sample window, returns the F9 to fixed local-base mode, and forwards only
+  fresh RTCM after the aircraft later connects over MAVLink or wired MSP.
+- Bundled the matching MICOAIR743 firmware with the Configurator so automatic
+  target detection always produces a selectable Flight Commander image even
+  when no online release catalog is reachable.
+- Enabled Blackbox-to-SD logging by default and advertised implemented
+  multirotor AutoTune, mission streaming, and mission resume capabilities.
+- Added aligned, configurable DroneCAN GPS controls and independent UART/CAN
+  RTK status while preserving selectable primary-receiver roles.
+- Added a capability-gated heading manager for the onboard compass, an
+  external-I²C compass carried by a UART GPS module, a selected DroneCAN
+  compass, and dual-GNSS moving-baseline yaw. Enabled sources use a unique
+  priority order for authority/failover and independent weights for fusion;
+  stale, uncalibrated, inaccurate, geometrically invalid, or disagreeing
+  inputs are excluded automatically.
+- Added DroneCAN compass and relative-heading discovery, fixed/automatic node
+  assignment in Ports and GPS, u-blox `NAV-RELPOSNED` and DroneCAN
+  `RelPosHeading` status, RTK-Fixed and baseline-length guards, per-source
+  installation offsets, and live fused-heading diagnostics.
+- Extended compass calibration to every enabled physical heading sensor in a
+  single disarmed rotation run. Onboard and external-I²C GPS-module compasses
+  retain independent coefficients; DroneCAN hard-iron offsets and per-axis
+  gains are persisted against the emitting node ID. Live status exposes
+  calibrating, required, failed, and calibrated states, and uncalibrated
+  sources are excluded from fusion.
+- Made Flight Planner inputs and summaries honor metric/imperial preferences
+  while retaining SI mission storage, and constrained the map to the visible
+  application viewport instead of stretching with the settings sidebar.
+- Removed remaining INAV product labeling from Flight Commander connection
+  identity while retaining explicit Official INAV compatibility labeling.
+
 ## 2.0.0
 
 - Removed ArduPilot flashing, configuration, parameter, mission, command, and

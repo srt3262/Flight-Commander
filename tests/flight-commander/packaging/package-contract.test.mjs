@@ -37,6 +37,62 @@ const mainProcess = readFileSync(
   resolve(projectRoot, "js/main/main.js"),
   "utf8",
 );
+const preloadProcess = readFileSync(
+  resolve(projectRoot, "js/main/preload.js"),
+  "utf8",
+);
+const ntripClientSource = readFileSync(
+  resolve(projectRoot, "js/main/ntripClient.js"),
+  "utf8",
+);
+const rtkBaseHtml = readFileSync(
+  resolve(projectRoot, "tabs/rtk_base.html"),
+  "utf8",
+);
+const rtkBaseSource = readFileSync(
+  resolve(projectRoot, "tabs/rtk_base.js"),
+  "utf8",
+);
+const gpsHtml = readFileSync(
+  resolve(projectRoot, "tabs/gps.html"),
+  "utf8",
+);
+const gpsSource = readFileSync(
+  resolve(projectRoot, "tabs/gps.js"),
+  "utf8",
+);
+const calibrationHtml = readFileSync(
+  resolve(projectRoot, "tabs/calibration.html"),
+  "utf8",
+);
+const calibrationSource = readFileSync(
+  resolve(projectRoot, "tabs/calibration.js"),
+  "utf8",
+);
+const compassCalibrationSource = readFileSync(
+  resolve(projectRoot, "js/flightCommander/compassCalibration.js"),
+  "utf8",
+);
+const groundControlHtml = readFileSync(
+  resolve(projectRoot, "tabs/flight_data.html"),
+  "utf8",
+);
+const groundControlSource = readFileSync(
+  resolve(projectRoot, "tabs/flight_data.js"),
+  "utf8",
+);
+const headingFusionSource = readFileSync(
+  resolve(projectRoot, "js/flightCommander/headingFusion.js"),
+  "utf8",
+);
+const portsHtml = readFileSync(
+  resolve(projectRoot, "tabs/ports.html"),
+  "utf8",
+);
+const portsSource = readFileSync(
+  resolve(projectRoot, "tabs/ports.js"),
+  "utf8",
+);
 const mainCss = readFileSync(
   resolve(projectRoot, "src/css/main.css"),
   "utf8",
@@ -98,6 +154,10 @@ const packageManifest = JSON.parse(
 const linuxDesktop = readFileSync(
   resolve(projectRoot, "assets/linux/flight-commander.desktop"),
   "utf8",
+);
+const bundledFirmwarePath = resolve(
+  projectRoot,
+  `resources/firmware/Flight-Commander-Firmware-${packageManifest.flightCommander.bundledFirmwareVersion}-MICOAIR743-BENCH-ONLY.hex`,
 );
 
 function fileSha256(path) {
@@ -171,8 +231,8 @@ test("Windows verification follows the active renderer graph and rejects leftove
   assert.match(packageVerifier, /MAVLINK_SESSION_DETACHED/);
   assert.match(packageVerifier, /MAVLink host timer/);
   assert.match(packageVerifier, /Auto protocol \(selected baud\)/);
-  assert.match(packageVerifier, /flightDataMinorDragHandle/);
-  assert.match(packageVerifier, /Reset minor view/);
+  assert.match(packageVerifier, /flightDataMapPane/);
+  assert.match(packageVerifier, /Make HUD major/);
   assert.match(packageVerifier, /flightCommanderGroundControlUnits/);
   assert.match(packageVerifier, /flightCommanderTheme/);
   assert.match(packageVerifier, /flight-commander-theme-change/);
@@ -184,10 +244,17 @@ test("Windows verification follows the active renderer graph and rejects leftove
   assert.match(packageVerifier, /MICOAIR743/);
   assert.match(packageVerifier, /MICROAIR743/);
   assert.match(packageVerifier, /Firmware Capabilities/);
-  assert.match(packageVerifier, /Standard INAV is connected/);
+  assert.match(packageVerifier, /Official INAV is connected in compatibility mode/);
   assert.match(packageVerifier, /Multirotor AutoTune/);
   assert.match(packageVerifier, /Terrain-relative waypoints/);
   assert.match(packageVerifier, /Mission streaming/);
+  assert.match(packageVerifier, /RTK2go public caster/);
+  assert.match(packageVerifier, /Start NTRIP refinement/);
+  assert.match(packageVerifier, /ntripListMountpoints/);
+  assert.match(
+    packageVerifier,
+    /NTRIP FlightCommander\/\$\{sourcePackage\.version\}/,
+  );
   assert.match(packageVerifier, /ArduPilot support has been removed/);
   for (const propInches of [10, 12, 15, 17]) {
     assert.match(
@@ -217,15 +284,69 @@ test("Windows verification follows the active renderer graph and rejects leftove
   assert.match(packageVerifier, /batteryProfileHighlightActive/);
   assert.match(packageVerifier, /controlProfileHighlightActive/);
   for (const selector of [
-    "fc-minor-view-layer",
-    "fc-minor-view-window",
-    "fc-minor-view-handle",
+    "fc-flight-visuals",
+    "fc-live-pane",
+    "compass-calibration-card",
+    "rtk-workflow-option",
     "mixer-preview-image-numbers \\.motorNumber",
     "batteryProfileHighlightActive",
     "controlProfileHighlightActive",
   ]) {
     assert.match(packageVerifier, new RegExp(selector));
   }
+});
+
+test("native NTRIP and drone-off RTK base setup are release surfaces", () => {
+  assert.doesNotMatch(rendererEntry, /tab_rtk_base/);
+  assert.match(groundControlHtml, /id="flightDataRtkMount"/);
+  assert.match(groundControlSource, /rtkBasePanel\.mount/);
+  assert.match(rtkBaseHtml, /Direct NTRIP → Aircraft/);
+  assert.match(rtkBaseHtml, /Survey-in USB Base → Aircraft/);
+  assert.match(rtkBaseHtml, /NTRIP-refined USB Base → Aircraft/);
+  assert.match(rtkBaseHtml, /RTK2go public caster/);
+  assert.match(rtkBaseHtml, /Load streams/);
+  assert.match(rtkBaseHtml, /aircraft may remain powered off/i);
+  assert.match(rtkBaseHtml, /Finalize refined fixed base/);
+  assert.match(rtkBaseSource, /beginNtripSurveyRefinement/);
+  assert.match(rtkBaseSource, /finalizeNtripRefinedBase/);
+  assert.match(mainProcess, /ntripListMountpoints/);
+  assert.match(preloadProcess, /ntripListMountpoints/);
+  assert.match(
+    ntripClientSource,
+    new RegExp(
+      `NTRIP FlightCommander/${packageManifest.version.replaceAll(".", "\\.")}`,
+    ),
+  );
+  assert.match(ntripClientSource, /SOURCETABLE/);
+});
+
+test("weighted heading fusion and moving-baseline setup are release surfaces", () => {
+  for (const sourceIndex of [0, 1, 2, 3]) {
+    assert.match(gpsHtml, new RegExp(`headingSourceEnabled${sourceIndex}`));
+    assert.match(gpsHtml, new RegExp(`headingSourcePriority${sourceIndex}`));
+    assert.match(gpsHtml, new RegExp(`headingSourceWeight${sourceIndex}`));
+  }
+  assert.match(gpsHtml, /UART GPS-module compass/);
+  assert.match(gpsHtml, /DroneCAN GPS-module compass/);
+  assert.match(gpsHtml, /Moving-baseline GNSS yaw/);
+  assert.doesNotMatch(gpsHtml, /id="headingCalibrateMag"/);
+  assert.match(gpsHtml, /Calibration tab after reboot/);
+  assert.match(calibrationHtml, /id="compassCalibrationList"/);
+  assert.match(calibrationSource, /MSP_MAG_CALIBRATION/);
+  assert.match(calibrationSource, /loadFlightCommanderHeadingConfig/);
+  assert.match(calibrationSource, /loadFlightCommanderHeadingStatus/);
+  assert.match(compassCalibrationSource, /HEADING_SOURCE_DRONECAN_MAG/);
+  assert.match(compassCalibrationSource, /External \/ UART GPS-module compass/);
+  assert.match(headingFusionSource, /calibrationFailedMask/);
+  assert.match(headingFusionSource, /HEADING_CONFIG_SCHEMA = 2/);
+  assert.match(headingFusionSource, /dronecanMagCalibrationNodeId/);
+  assert.match(gpsHtml, /does not infer yaw from two ordinary latitude\/longitude fixes/);
+  assert.match(gpsSource, /loadFlightCommanderHeadingStatus/);
+  assert.match(gpsSource, /encodeHeadingConfig/);
+  assert.match(portsHtml, /id="dronecanMagNode"/);
+  assert.match(portsSource, /RELATIVE_HEADING:\s*1 << 4/);
+  assert.match(firmwareInfoHtml, /data-fc-feature="headingFusion"/);
+  assert.match(firmwareInfoHtml, /data-fc-feature="movingBaselineYaw"/);
 });
 
 test("application remains dark-only", () => {
@@ -242,6 +363,13 @@ test("application remains dark-only", () => {
 });
 
 test("firmware selection, identity, and feature gates are packaged together", () => {
+  assert.equal(packageManifest.flightCommander.bundledFirmwareVersion, "2.0.1");
+  assert.equal(existsSync(bundledFirmwarePath), true);
+  assert.ok(readFileSync(bundledFirmwarePath).length > 1024 * 1024);
+  assert.equal(
+    fileSha256(bundledFirmwarePath),
+    "d49316e3d7d2a0a8cda70e02e916cab63458a5cd1013a91e20545c5dbbc21aab",
+  );
   assert.deepEqual(
     [...firmwareFlasherHtml.matchAll(/<option value="([^"]+)">(?:Flight Commander Firmware|Official INAV Firmware)<\/option>/g)]
       .map((match) => match[1]),
@@ -261,10 +389,15 @@ test("firmware selection, identity, and feature gates are packaged together", ()
   assert.match(firmwareIdentitySource, /retryCounter: 0/);
   assert.match(firmwareCatalogSource, /MICOAIR743/);
   assert.match(firmwareCatalogSource, /MICROAIR743/);
+  assert.match(packageVerifier, /intelHexPayload/);
+  assert.match(packageVerifier, /the packaged firmware differs from the verified source firmware image/);
   assert.match(firmwareInfoHtml, /Firmware Capabilities/);
   assert.match(firmwareInfoHtml, /data-fc-feature="multirotorAutotune"/);
   assert.match(firmwareInfoHtml, /data-fc-feature="terrainWaypoints"/);
   assert.match(firmwareInfoHtml, /data-fc-feature="missionStreaming"/);
+  assert.match(firmwareInfoHtml, /data-fc-feature="gcsRtkBase"/);
+  assert.match(firmwareInfoHtml, /data-fc-feature="headingFusion"/);
+  assert.match(firmwareInfoHtml, /data-fc-feature="movingBaselineYaw"/);
 });
 
 test("retired ArduPilot implementation files are absent", () => {
@@ -295,7 +428,7 @@ test("all requested large-prop INAV presets are wired into the release source", 
 });
 
 test("landing page reports the current Flight Commander release", () => {
-  assert.equal(packageManifest.version, "2.0.0");
+  assert.equal(packageManifest.version, "2.0.2");
   assert.equal(manifest.version, packageManifest.version);
   assert.match(
     landingHtml,
@@ -309,6 +442,37 @@ test("guarded push publication is tied to the current release version", () => {
     new RegExp(
       `github\\.event\\.head_commit\\.message == 'Publish Flight Commander ${packageManifest.version.replaceAll(".", "\\.")} release'`,
     ),
+  );
+});
+
+test("coordinated releases publish Windows, source, and firmware downloads", () => {
+  assert.match(
+    releaseWorkflow,
+    /Flight-Commander-Configurator-Windows-x64-v\$version\.zip/,
+  );
+  assert.match(
+    releaseWorkflow,
+    /Flight-Commander-Configurator-Source-v\$version\.zip/,
+  );
+  assert.match(
+    releaseWorkflow,
+    /Flight-Commander-Firmware-Package-v\$version-MICOAIR743-BENCH-ONLY\.zip/,
+  );
+  assert.match(
+    releaseWorkflow,
+    /Flight-Commander-Firmware-\$firmwareVersion-MICOAIR743-BENCH-ONLY\.hex/,
+  );
+  assert.match(releaseWorkflow, /git archive --format=zip/);
+  assert.match(releaseWorkflow, /schemaVersion = 3/);
+  assert.match(releaseWorkflow, /assets\.firmware/);
+  assert.match(releaseWorkflow, /Expected four candidate files/);
+  assert.match(
+    releaseWorkflow,
+    /gh release create \$tag \$windowsArchivePath \$sourceArchivePath \$firmwarePath/,
+  );
+  assert.match(
+    releaseWorkflow,
+    /Expected exactly three published release assets/,
   );
 });
 

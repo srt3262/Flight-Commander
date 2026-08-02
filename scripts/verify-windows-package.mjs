@@ -182,6 +182,31 @@ function sha256(bytes) {
   return createHash("sha256").update(bytes).digest("hex");
 }
 
+function intelHexPayload(path) {
+  const chunks = [];
+  const lines = readFileSync(path, "ascii").split(/\r?\n/);
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index].trim();
+    if (!line) continue;
+    if (!/^:[0-9A-F]+$/i.test(line) || line.length % 2 !== 1) {
+      fail(`bundled firmware has invalid Intel HEX text on line ${index + 1}`);
+    }
+    const record = Buffer.from(line.slice(1), "hex");
+    const byteCount = record[0];
+    if (record.length !== byteCount + 5) {
+      fail(`bundled firmware has an invalid record length on line ${index + 1}`);
+    }
+    const checksum = record.reduce((sum, byte) => (sum + byte) & 0xff, 0);
+    if (checksum !== 0) {
+      fail(`bundled firmware has an invalid checksum on line ${index + 1}`);
+    }
+    const recordType = record[3];
+    if (recordType === 0) chunks.push(record.subarray(4, 4 + byteCount));
+    if (recordType === 1) break;
+  }
+  return Buffer.concat(chunks);
+}
+
 function icoImages(bytes) {
   if (
     bytes.length < 6 ||
@@ -448,6 +473,41 @@ for (const field of ["name", "productName", "version"]) {
   }
 }
 
+const bundledFirmwareVersion =
+  sourcePackage.flightCommander?.bundledFirmwareVersion;
+if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(bundledFirmwareVersion)) {
+  fail("package.json does not declare a valid bundled firmware version");
+}
+const firmwareFilename =
+  `Flight-Commander-Firmware-${bundledFirmwareVersion}-MICOAIR743-BENCH-ONLY.hex`;
+const sourceFirmwarePath = join(projectRoot, "resources", "firmware", firmwareFilename);
+const packagedFirmwareDirectory = join(packageDirectory, "resources", "firmware");
+if (!existsSync(sourceFirmwarePath) || !existsSync(packagedFirmwareDirectory)) {
+  fail("the matching bundled Flight Commander firmware directory is missing");
+}
+const packagedFirmwareFiles = readdirSync(packagedFirmwareDirectory)
+  .filter((name) => extname(name).toLowerCase() === ".hex");
+if (
+  packagedFirmwareFiles.length !== 1 ||
+  packagedFirmwareFiles[0] !== firmwareFilename
+) {
+  fail(
+    `expected exactly the matching ${firmwareFilename} firmware image in the package`,
+  );
+}
+const packagedFirmwarePath = join(packagedFirmwareDirectory, firmwareFilename);
+const sourceFirmware = readFileSync(sourceFirmwarePath);
+const packagedFirmware = readFileSync(packagedFirmwarePath);
+if (sha256(packagedFirmware) !== sha256(sourceFirmware)) {
+  fail("the packaged firmware differs from the verified source firmware image");
+}
+const firmwarePayload = intelHexPayload(packagedFirmwarePath);
+for (const identity of ["FCFW", "Flight Commander Firmware", bundledFirmwareVersion]) {
+  if (!firmwarePayload.includes(Buffer.from(identity, "ascii"))) {
+    fail(`the bundled firmware does not contain the ${identity} identity`);
+  }
+}
+
 const applicationFiles = filesBelow(appDirectory);
 for (const requiredSuffix of [
   join(".vite", "build", "main.js"),
@@ -499,6 +559,16 @@ if (
 ) {
   fail(
     "the compiled main process does not contain bounded, connection-scoped serial lifecycle handling",
+  );
+}
+if (
+  !compiledMain.includes(`NTRIP FlightCommander/${sourcePackage.version}`) ||
+  !compiledMain.includes("ntripListMountpoints") ||
+  !compiledMain.includes("NTRIP sourcetable") ||
+  !compiledMain.includes("rtkBaseConnect")
+) {
+  fail(
+    "the compiled main process does not contain native NTRIP and USB RTK-base services",
   );
 }
 
@@ -579,12 +649,14 @@ for (const selector of [
   ".fc-firmware-identity",
   ".fc-firmware-feature",
   ".fc-firmware-feature--enabled",
-  ".fc-minor-view-layer",
-  ".fc-minor-view-window",
-  ".fc-minor-view-handle",
+  ".fc-flight-visuals",
+  ".fc-live-pane",
+  ".compass-calibration-card",
+  ".rtk-workflow-option",
   ".mixer-preview-image-numbers .motorNumber",
   ".batteryProfileHighlightActive",
   ".controlProfileHighlightActive",
+  ".heading-calibration-location",
 ]) {
   if (ruleDeclarations(rendererCss, selector).length === 0) {
     fail(`the active renderer CSS does not contain ${selector}`);
@@ -640,8 +712,9 @@ for (const contract of [
 for (const marker of [
   "flightDataMap",
   "flightDataHud",
-  "flightDataMinorDragHandle",
-  "Reset minor view",
+  "flightDataMapPane",
+  "flightDataHudPane",
+  "Make HUD major",
   "flightCommanderGroundControlUnits",
   "flightCommanderTheme",
   "flight-commander-theme-change",
@@ -651,7 +724,6 @@ for (const marker of [
   'Multirotor with 17" propellers',
   "generated roll P/I/D/FF",
   "ez_snappiness",
-  "flightCommanderGroundControlMinorPosition",
   "miles per hour",
   "#31523b",
   "#172a20",
@@ -696,10 +768,20 @@ for (const marker of [
   "MICROAIR743",
   "Select Flight Commander Firmware before flashing it",
   "Firmware Capabilities",
-  "Standard INAV is connected",
+  "Official INAV is connected in compatibility mode",
   "Multirotor AutoTune",
   "Terrain-relative waypoints",
   "Mission streaming",
+  "Direct NTRIP → Aircraft",
+  "Survey-in USB Base → Aircraft",
+  "NTRIP-refined USB Base → Aircraft",
+  "RTK2go public caster",
+  "Load streams",
+  "Start NTRIP refinement",
+  "Finalize refined fixed base",
+  "Calibrate this compass",
+  "External / UART GPS-module compass",
+  "Aircraft standby",
   "Capability bitmap",
   "ArduPilot support has been removed",
   "nav_fw_pos_z_ff",
@@ -712,6 +794,10 @@ for (const marker of [
   }
 }
 for (const retiredRuntime of [
+  "flightCommanderGroundControlMinorPosition",
+  "flightDataMinorDragHandle",
+  "Reset minor view",
+  "Drag to move",
   "Restoring the selected control profile",
   "Selecting control profile 2",
   "Selecting control profile 3",
@@ -774,6 +860,8 @@ console.log(
       rendererBundles: rendererFiles.length,
       rendererStylesheets: rendererStylesheets.length,
       serialBindings: serialBindings.length,
+      bundledFirmware: firmwareFilename,
+      bundledFirmwareSha256: sha256(packagedFirmware),
       packageDirectory,
     },
     null,

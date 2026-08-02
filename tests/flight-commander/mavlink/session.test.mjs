@@ -2,11 +2,13 @@ import assert from "node:assert/strict";
 import { afterEach, describe, test } from "node:test";
 
 import {
+  FIRMWARE_FAMILY_FLIGHT_COMMANDER,
   FIRMWARE_FAMILY_INAV,
   FIRMWARE_FAMILY_UNSUPPORTED,
   MAV_MODE_FLAG_SAFETY_ARMED,
   MavlinkSession,
 } from "../../../js/mavlink/mavlinkSession.js";
+import { FLIGHT_COMMANDER_CAPABILITIES } from "../../../js/flightCommander/firmwareIdentity.js";
 import { MavlinkIpcCodec } from "../../../js/main/mavlink.js";
 import {
   canonicalMessageName,
@@ -384,6 +386,42 @@ describe("MAVLink state normalization and firmware detection", () => {
     session.handleMessage(heartbeat({ autopilot: 0 }));
     assert.equal(session.state.firmwareFamily, FIRMWARE_FAMILY_INAV);
     assert.equal(session.state.firmwareFamilySource, "heartbeat");
+  });
+
+  test("promotes an INAV-compatible heartbeat to Flight Commander only after FCFW capability identity", () => {
+    const { session } = createAttachedSession();
+    session.handleMessage(heartbeat({ autopilot: 0 }));
+    assert.equal(session.state.firmwareFamily, FIRMWARE_FAMILY_INAV);
+
+    const capabilities =
+      FLIGHT_COMMANDER_CAPABILITIES.NATIVE_GCS_COMMANDS |
+      FLIGHT_COMMANDER_CAPABILITIES.TERRAIN_WAYPOINTS |
+      FLIGHT_COMMANDER_CAPABILITIES.PHOTO_TRIGGERS;
+    session.handleMessage({
+      messageName: "AUTOPILOT_VERSION",
+      header: { sysid: 1, compid: 1 },
+      data: {
+        capabilities: "0",
+        flightSwVersion: 0x020000ff,
+        flightCustomVersion: [
+          0x46,
+          0x43,
+          0x46,
+          0x57,
+          capabilities & 0xff,
+          (capabilities >>> 8) & 0xff,
+          (capabilities >>> 16) & 0xff,
+          (capabilities >>> 24) & 0xff,
+        ],
+      },
+    });
+
+    assert.equal(
+      session.state.firmwareFamily,
+      FIRMWARE_FAMILY_FLIGHT_COMMANDER,
+    );
+    assert.equal(session.state.firmwareFamilySource, "autopilot-version");
+    assert.equal(session.state.flightCommanderCapabilities, capabilities);
   });
 
   test("publishes the validated connection before firmware state updates", () => {

@@ -11,7 +11,8 @@ MWNP.WPTYPE = {
     SET_POI:            5,
     JUMP:               6,
     SET_HEAD:           7,
-    LAND:               8
+    LAND:               8,
+    FLIGHT_COMMANDER_CAMERA_TRIGGER_DISTANCE: 9
 };
 
 MWNP.P3 = {

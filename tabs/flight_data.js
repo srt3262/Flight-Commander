@@ -47,6 +47,7 @@ import MSPCodes from './../js/msp/MSPCodes';
 import store from './../js/store';
 import normalizeInavTelemetry from './../js/telemetry/inavTelemetry';
 import normalizeLtmTelemetry from './../js/telemetry/ltmTelemetry';
+import rtkBasePanel from './rtk_base';
 
 const GPS_FIX_NAMES = {
   0: 'No GPS',
@@ -82,6 +83,10 @@ const MSP_TELEMETRY_CODES = [
   MSPCodes.MSPV2_INAV_STATUS,
   MSPCodes.MSP_ACTIVEBOXES,
 ];
+
+function isSupportedMissionFamily(family) {
+  return family === 'flight-commander' || family === 'inav';
+}
 
 function format(value, decimals, suffix = '') {
   return Number.isFinite(value) ? `${value.toFixed(decimals)}${suffix}` : '--';
@@ -183,9 +188,22 @@ flightData.initialize = function (callback) {
       this.bindControls();
       this.configureProtocol();
       this.setupHud();
-      GUI.content_ready(callback);
-      setTimeout(() => this.map?.updateSize(), 0);
-      this.loadVehicleMission();
+      rtkBasePanel.mount('#flightDataRtkMount').then(() => {
+        if (!isCurrentInitialization()) return;
+        GUI.content_ready(callback);
+        setTimeout(() => this.map?.updateSize(), 0);
+        this.loadVehicleMission();
+      }).catch((error) => {
+        if (!isCurrentInitialization()) return;
+        $('#flightDataRtkMount')
+          .empty()
+          .append($('<div>')
+            .addClass('rtk-base-error')
+            .text(`RTK correction setup could not load: ${error?.message || error}`));
+        GUI.content_ready(callback);
+        setTimeout(() => this.map?.updateSize(), 0);
+        this.loadVehicleMission();
+      });
     });
   }).catch((error) => {
     if (!isCurrentInitialization()) return;
@@ -350,6 +368,21 @@ flightData.configureProtocol = function () {
     }
   });
 
+  if (!this.protocol || !CONFIGURATOR.connectionValid) {
+    this.setCommandButtonsDisabled(true);
+    $('.fc-command-deck').addClass('is-hidden');
+    $('#flightDataCommandCapability').text(
+      'Connect an aircraft to use vehicle commands. RTK base and NTRIP setup remain available offline.',
+    );
+    this.appendLocalMessage(
+      'Offline setup mode. Scroll to RTK correction setup to configure NTRIP or survey a USB base with the aircraft powered off.',
+    );
+    this.render(this.currentState());
+    return;
+  }
+
+  $('.fc-command-deck').removeClass('is-hidden');
+
   if (this.protocol === 'mavlink') {
     const initialState = mavlinkSession.snapshot();
     this.mavlinkWasConnected = Boolean(initialState.connected);
@@ -395,9 +428,9 @@ flightData.configureProtocol = function () {
   if (this.protocol === 'ltm') {
     this.setCommandButtonsDisabled(true);
     $('#flightDataCommandCapability').text(
-      'LTM provides live telemetry only. Reconnect through MAVLink to send INAV commands.',
+      'LTM provides live telemetry only. Reconnect to Flight Commander Firmware through MAVLink to send commands.',
     );
-    this.appendLocalMessage('INAV LTM telemetry connected in read-only mode.');
+    this.appendLocalMessage('LTM telemetry connected in read-only compatibility mode.');
     interval.add('flight-data-ltm-refresh', () => {
       this.render(normalizeLtmTelemetry(ltmDecoder.get(), ltmDecoder.isReceiving()));
     }, 200, true);
@@ -406,10 +439,10 @@ flightData.configureProtocol = function () {
 
   this.setCommandButtonsDisabled(true);
   $('#flightDataCommandCapability').text(
-    'MSP is the wired INAV setup and persistent mission-storage link. '
+    'MSP is the wired Flight Commander setup and persistent mission-storage link. '
     + 'Connect through MAVLink telemetry for airborne commands.',
   );
-  this.appendLocalMessage('INAV/MSP wired setup link connected; airborne commands require MAVLink.');
+  this.appendLocalMessage('Flight Commander MSP setup link connected; airborne commands require MAVLink.');
   interval.add('flight-data-msp-refresh', () => this.pollInavTelemetry(), 400, true);
   this.render(this.currentState());
 };
@@ -462,32 +495,11 @@ flightData.pollInavTelemetry = function () {
 };
 
 flightData.bindControls = function () {
-  $('<button>')
-    .attr({
-      id: 'flightDataConfirmSingleInav',
-      type: 'button',
-      'aria-describedby': 'flightDataCommandCapability',
-    })
-    .text('Confirm exactly one INAV aircraft on this link')
-    .hide()
-    .on('click', () => {
-      try {
-        mavlinkCommandRouter.acknowledgeSingleInavAircraft(true);
-        this.setActionStatus(
-          'Single-aircraft INAV link confirmed for this connection. Do not connect another INAV aircraft to the same MAVLink transport.',
-        );
-        this.updateActionAvailability(this.currentState());
-      } catch (error) {
-        this.setActionStatus(error.message, true);
-      }
-    })
-    .insertAfter('#flightDataCommandCapability');
-
   $('#flightDataSetMode').on('click', () => this.runVehicleAction(
     'Changing flight mode',
     () => mavlinkCommandRouter.setMode(String($('#flightDataMode').val())),
     'Flight mode change confirmed by the vehicle.',
-    'The selected INAV AUX flight-mode request is now being transmitted continuously.',
+    'The selected Flight Commander AUX flight-mode request is now being transmitted continuously.',
   ));
 
   $('#flightDataArm').on('click', () => {
@@ -504,19 +516,19 @@ flightData.bindControls = function () {
     'Starting the stored mission',
     () => mavlinkCommandRouter.startMission(),
     'Mission start confirmed or accepted by the vehicle.',
-    'The INAV NAV WP AUX request is now being transmitted continuously.',
+    'The Flight Commander NAV WP AUX request is now being transmitted continuously.',
   ));
   $('#flightDataTakeoff').on('click', () => this.runVehicleAction(
     'Sending takeoff / launch command',
     () => mavlinkCommandRouter.takeoff(Number($('#flightDataTakeoffAltitude').val())),
     'Takeoff / launch confirmed or accepted by the vehicle.',
-    'The INAV NAV LAUNCH AUX request is now being transmitted continuously.',
+    'The Flight Commander NAV LAUNCH AUX request is now being transmitted continuously.',
   ));
   $('#flightDataRtl').on('click', () => this.runVehicleAction(
     'Commanding return to launch',
     () => mavlinkCommandRouter.returnToLaunch(),
     'Return-to-launch mode confirmed by the vehicle.',
-    'The INAV NAV RTH AUX request is now being transmitted continuously.',
+    'The Flight Commander NAV RTH AUX request is now being transmitted continuously.',
   ));
   $('#flightDataLand').on('click', () => this.runVehicleAction(
     'Commanding land',
@@ -563,7 +575,7 @@ flightData.runVehicleAction = async function (
     const result = await action();
     this.setActionStatus(
       result?.confirmed === false
-        ? `${unconfirmedMessage ?? 'The INAV AUX request is being transmitted.'} ${result.warning ?? 'Verify the displayed mode and aircraft response.'}`
+        ? `${unconfirmedMessage ?? 'The Flight Commander AUX request is being transmitted.'} ${result.warning ?? 'Verify the displayed mode and aircraft response.'}`
         : successMessage,
     );
   } catch (error) {
@@ -601,7 +613,7 @@ flightData.renderResumeCheckpoint = function (
     const total = Number(checkpoint.missionTotal)
       || Number(snapshot.registration?.itemCount)
       || 0;
-    const type = 'Estimated INAV checkpoint';
+    const type = 'Estimated navigation checkpoint';
     $('#flightDataResumeStatus').text(
       `${type}: item ${checkpoint.sequence + 1}${total ? ` / ${total}` : ''} saved when ${checkpoint.fromMode} changed to ${checkpoint.returnMode}.`,
     );
@@ -653,7 +665,7 @@ flightData.resumeInterruptedMission = async function () {
       ? ' The aircraft is disarmed; arm and launch it before the selected mission can execute.'
       : '';
     this.setActionStatus(
-      `INAV resume selection was confirmed from estimated original item ${result.originalSequence + 1}. `
+      `Flight Commander resume selection was confirmed from estimated original item ${result.originalSequence + 1}. `
       + 'The remaining suffix is active for this power cycle; the persistent MSP mission was not changed.'
       + executionNotice,
     );
@@ -670,16 +682,9 @@ flightData.updateActionAvailability = function (state) {
     && state.connected
     && !state.linkLost
   );
-  const isInavMavlink = this.protocol === 'mavlink' && state.firmwareFamily === 'inav';
-  const guardAcknowledged = mavlinkCommandRouter.hasSingleInavAircraftAcknowledgement();
   $('#flightDataConfirmSingleInav')
-    .toggle(isInavMavlink)
-    .prop('disabled', guardAcknowledged)
-    .text(
-      guardAcknowledged
-        ? 'Single-aircraft INAV link confirmed'
-        : 'Confirm exactly one INAV aircraft on this link',
-    );
+    .hide()
+    .prop('disabled', true);
   let capabilities;
   if (this.protocol === 'mavlink') {
     capabilities = linkReady
@@ -701,8 +706,18 @@ flightData.updateActionAvailability = function (state) {
       canTakeoff: false,
       canRtl: false,
       canLand: false,
-      reason: 'MSP is the wired INAV setup and persistent mission-storage link. '
+      reason: 'MSP is the wired Flight Commander setup and persistent mission-storage link. '
         + 'Connect through MAVLink telemetry for airborne commands.',
+    };
+  } else if (this.protocol === 'ltm') {
+    capabilities = {
+      canArm: false,
+      canSetMode: false,
+      canStartMission: false,
+      canTakeoff: false,
+      canRtl: false,
+      canLand: false,
+      reason: 'LTM provides live telemetry only. Reconnect to Flight Commander Firmware through MAVLink to send commands.',
     };
   } else {
     capabilities = {
@@ -712,7 +727,7 @@ flightData.updateActionAvailability = function (state) {
       canTakeoff: false,
       canRtl: false,
       canLand: false,
-      reason: 'LTM provides live telemetry only. Reconnect through MAVLink to send INAV commands.',
+      reason: 'Connect an aircraft to use vehicle commands. RTK correction setup is available below while offline.',
     };
   }
   $('#flightDataMode, #flightDataSetMode').prop(
@@ -746,24 +761,35 @@ flightData.currentState = function () {
 };
 
 flightData.render = function (state) {
-  const protocolLabel = this.protocol === 'mavlink'
-    ? state.firmwareFamily === 'inav'
-      ? 'MAVLink · INAV'
+  const offline = !this.protocol || !CONFIGURATOR.connectionValid;
+  const protocolLabel = offline
+    ? 'Offline RTK setup'
+    : this.protocol === 'mavlink'
+    ? state.firmwareFamily === 'flight-commander'
+      ? 'MAVLink · Flight Commander'
+      : state.firmwareFamily === 'inav'
+        ? 'MAVLink · Official INAV (commands disabled)'
       : state.firmwareFamily === 'unsupported'
         ? 'MAVLink · unsupported firmware'
-        : 'MAVLink · detecting INAV-compatible firmware'
+        : 'MAVLink · detecting firmware'
     : this.protocol === 'ltm'
-      ? 'INAV / LTM'
-      : 'INAV / MSP wired';
+      ? 'Flight Commander-compatible LTM'
+      : 'Flight Commander MSP wired';
   $('#flightDataVehicle').text(
-    state.connected
-      ? `${state.firmwareFamily === 'inav' ? 'INAV' : 'Unsupported firmware'} · ${state.vehicleTypeName}`
+    offline
+      ? 'Aircraft not connected · RTK setup available below'
+      : state.connected
+      ? `${state.firmwareFamily === 'flight-commander'
+        ? 'Flight Commander Firmware'
+        : state.firmwareFamily === 'inav'
+          ? 'Official INAV'
+          : 'Unsupported firmware'} · ${state.vehicleTypeName}`
       : 'Waiting for vehicle',
   );
   $('#flightDataProtocol').text(protocolLabel);
   $('#flightDataLink')
-    .text(state.linkLost || !state.connected ? 'LINK LOST' : 'LINK')
-    .toggleClass('fc-pill--alert', state.linkLost || !state.connected);
+    .text(offline ? 'OFFLINE' : state.linkLost || !state.connected ? 'LINK LOST' : 'LINK')
+    .toggleClass('fc-pill--alert', !offline && (state.linkLost || !state.connected));
   $('#flightDataArmed')
     .text(state.armed ? 'ARMED' : 'DISARMED')
     .toggleClass('fc-pill--alert', state.armed);
@@ -818,7 +844,7 @@ flightData.render = function (state) {
   $('#flightDataLongitude').text(format(state.longitude, 7));
   this.hud?.render(state);
   let displayState = state;
-  if (this.protocol === 'mavlink' && state.firmwareFamily === 'inav') {
+  if (this.protocol === 'mavlink' && isSupportedMissionFamily(state.firmwareFamily)) {
     const estimate = estimateInavMissionProgress({
       mission: this.mission,
       latitude: state.latitude,
@@ -957,11 +983,11 @@ flightData.loadVehicleMission = async function () {
         )
         : mavlinkSession.snapshot();
       if (!attachmentIsCurrent()) return;
-      if (state.firmwareFamily !== 'inav') {
+      if (!isSupportedMissionFamily(state.firmwareFamily)) {
         throw new Error(
           state.firmwareFamily === 'unsupported'
-            ? 'ArduPilot mission download has been removed. Connect an INAV-compatible controller.'
-            : 'Mission download is waiting for INAV-compatible firmware identification.',
+            ? 'ArduPilot mission download has been removed. Connect Flight Commander Firmware or official INAV.'
+            : 'Mission download is waiting for supported firmware identification.',
         );
       }
       mission = await mavlinkMissionManager.download(
@@ -1073,6 +1099,7 @@ flightData.cleanup = function (callback) {
   this.hud?.destroy();
   this.hud = null;
   this.hudLoadToken += 1;
+  rtkBasePanel.cleanup();
   interval.remove('flight-data-msp-refresh');
   interval.remove('flight-data-ltm-refresh');
   this.map?.setTarget(undefined);

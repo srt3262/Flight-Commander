@@ -11,7 +11,11 @@ export default {
     asar: false,
     icon: "images/flight-commander",
     appCopyright: "Copyright © 2026 Flight Commander contributors",
-    extraResource: ["resources/public/sitl", "assets/linux/45-inav.rules"],
+    extraResource: [
+      "resources/public/sitl",
+      "resources/firmware",
+      "assets/linux/45-inav.rules",
+    ],
   },
   rebuildConfig: {
     // Native modules (serialport, usb) ship with prebuilt binaries for each platform.
@@ -193,7 +197,7 @@ export default {
         shortName: "FlightCommander",
         exe: "flight-commander",
         description:
-          "Unified INAV configurator and MAVLink ground control station.",
+          "Flight Commander configurator, mission planner, firmware flasher, and ground control station.",
         programFilesFolderName: "flight-commander",
         shortcutFolderName: "Flight Commander",
         manufacturer: "Flight Commander contributors",
@@ -248,7 +252,7 @@ export default {
           categories: ["Utility"],
           icon: "./images/flight_commander_128.png",
           description:
-            "Unified INAV configurator and MAVLink ground control station.",
+            "Flight Commander configurator, mission planner, firmware flasher, and ground control station.",
           homepage: "https://github.com/srt3262/Flight-Commander",
           scripts: {
             postinst: "./assets/linux/postinst",
@@ -267,7 +271,7 @@ export default {
           categories: ["Utility"],
           icon: "./images/flight_commander_128.png",
           description:
-            "Unified INAV configurator and MAVLink ground control station.",
+            "Flight Commander configurator, mission planner, firmware flasher, and ground control station.",
           homepage: "https://github.com/srt3262/Flight-Commander",
           scripts: {
             post: "./assets/linux/postinst",

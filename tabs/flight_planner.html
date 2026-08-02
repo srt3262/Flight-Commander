@@ -44,27 +44,28 @@
                     <h3>Survey grid</h3>
                     <div class="fc-form-grid">
                         <label>Angle (°)<input id="plannerAngle" type="number" value="0" step="1"></label>
-                        <label>Line spacing (m)<input id="plannerSpacing" type="number" value="25" min="0.1" step="0.1"></label>
-                        <label>Altitude (m)<input id="plannerAltitude" type="number" value="60" step="1"></label>
-                        <label>Overshoot (m)<input id="plannerOvershoot" type="number" value="5" min="0" step="1"></label>
-                        <label>Turnaround (m)<input id="plannerTurnaround" type="number" value="10" min="0" step="1"></label>
-                        <label>Photo spacing / trigger distance (m)<input id="plannerTriggerDistance" type="number" value="0" min="0" step="0.1"></label>
+                        <label>Line spacing (<span class="planner-distance-unit">m</span>)<input id="plannerSpacing" type="number" value="25" min="0.1" step="0.1"></label>
+                        <label>Altitude (<span class="planner-distance-unit">m</span>)<input id="plannerAltitude" type="number" value="60" step="1"></label>
+                        <label>Overshoot (<span class="planner-distance-unit">m</span>)<input id="plannerOvershoot" type="number" value="5" min="0" step="1"></label>
+                        <label>Turnaround (<span class="planner-distance-unit">m</span>)<input id="plannerTurnaround" type="number" value="10" min="0" step="1"></label>
+                        <label>Photo spacing / trigger distance (<span class="planner-distance-unit">m</span>)<input id="plannerTriggerDistance" type="number" value="0" min="0" max="327.67" step="0.01"></label>
                         <label>Photo command target
                             <select id="plannerCameraCommandMode">
-                                <option value="auto" selected>Automatic — INAV-compatible navigation only</option>
+                                <option value="auto" selected>Automatic — use detected Flight Commander support</option>
+                                <option value="flight-commander">Flight Commander — MAVLink camera triggers</option>
                                 <option value="navigation-only">Navigation only — estimate photos, no trigger command</option>
                             </select>
                         </label>
                     </div>
                     <div id="plannerCameraCommandHelp" class="fc-provider-attribution">
-                        Photo spacing is used to estimate image count. INAV-compatible missions remain
-                        navigation only because distance-camera command 206 is not supported losslessly.
+                        Flight Commander Firmware can execute distance-camera command 206 through a
+                        MAVLink camera or companion. Official INAV missions remain navigation only.
                     </div>
                 </section>
                 <section class="fc-panel">
                     <h3>Mission behavior</h3>
                     <div class="fc-form-grid">
-                        <label>Cruise speed (m/s) — all standard waypoint legs
+                        <label>Cruise speed (<span class="planner-speed-unit">m/s</span>) — all standard waypoint legs
                             <input id="plannerCruiseSpeed" type="number" value="0" min="0" max="327.67" step="0.1">
                         </label>
                         <label>After final mission item
@@ -134,8 +135,8 @@
                             </select>
                         </label>
                         <label id="plannerGoogleKeyRow">Google API key<input id="plannerGoogleKey" type="password" autocomplete="off"></label>
-                        <label>Clearance AGL (m)<input id="plannerClearance" type="number" value="60" step="1"></label>
-                        <label>Terrain sample spacing (m)<input id="plannerTerrainSpacing" type="number" value="30" min="1" step="1"></label>
+                        <label>Clearance AGL (<span class="planner-distance-unit">m</span>)<input id="plannerClearance" type="number" value="60" step="1"></label>
+                        <label>Terrain sample spacing (<span class="planner-distance-unit">m</span>)<input id="plannerTerrainSpacing" type="number" value="30" min="1" step="1"></label>
                         <label>Altitude reference
                             <select id="plannerAltitudeReference">
                                 <option value="relative-home">Relative to home</option>
@@ -172,7 +173,7 @@
                             <th>Command</th>
                             <th>Latitude</th>
                             <th>Longitude</th>
-                            <th>Altitude</th>
+                            <th>Altitude (<span class="planner-distance-unit">m</span>)</th>
                             <th>Protocol details</th>
                             <th></th>
                         </tr>
@@ -233,7 +234,7 @@
         <section class="fc-panel fc-inav-planning-panel" aria-labelledby="plannerGeozoneHeading">
             <div class="fc-inav-planning-heading">
                 <div>
-                    <h3 id="plannerGeozoneHeading">INAV geozones</h3>
+                    <h3 id="plannerGeozoneHeading">Geozones</h3>
                     <p>
                         Define inclusive or exclusive circular and polygon fences. Polygon vertices must be
                         counter-clockwise and may not cross.
@@ -254,7 +255,7 @@
             <div id="plannerGeozoneValidation" class="fc-action-status"></div>
             <p class="fc-provider-attribution">
                 Safe-home usage mode, fence response distances, radio failsafe, battery failsafe, and
-                telemetry-loss behavior remain in their native INAV configurator settings.
+                telemetry-loss behavior remain in their corresponding Flight Commander settings.
             </p>
         </section>
         <div id="plannerStatus" class="fc-action-status"></div>

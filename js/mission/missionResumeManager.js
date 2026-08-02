@@ -26,6 +26,7 @@ const RETURN_MODES = new Set([
   "SMART RTL",
   "AUTO RTL",
 ]);
+const FLIGHT_COMMANDER_FIRMWARE_FAMILY = "flight-commander";
 
 export const RESUME_STATUS = Object.freeze({
   IDLE: "idle",
@@ -166,10 +167,10 @@ function firmwareFamilyFrom(state) {
   const family = String(state?.firmwareFamily ?? "")
     .trim()
     .toLowerCase();
-  if (family !== "inav") {
+  if (family !== FLIGHT_COMMANDER_FIRMWARE_FAMILY) {
     throw resumeError(
       "FIRMWARE_UNKNOWN",
-      "Mission resume is available only for an identified INAV-compatible controller.",
+      "Mission resume is available only for identified Flight Commander Firmware.",
     );
   }
   return family;
@@ -642,8 +643,8 @@ export class MissionResumeManager {
     }
 
     if (
-      String(state.firmwareFamily ?? "").toLowerCase() === "inav" &&
-      this.registration?.firmwareFamily === "inav" &&
+      String(state.firmwareFamily ?? "").toLowerCase() === FLIGHT_COMMANDER_FIRMWARE_FAMILY &&
+      this.registration?.firmwareFamily === FLIGHT_COMMANDER_FIRMWARE_FAMILY &&
       finiteInteger(state.systemId) === this.registration.systemId
     ) {
       const estimate = estimateInavMissionProgress({
@@ -669,18 +670,18 @@ export class MissionResumeManager {
     const state = {
       ...stateSnapshot(this.session),
       ...value,
-      firmwareFamily: "inav",
+      firmwareFamily: FLIGHT_COMMANDER_FIRMWARE_FAMILY,
     };
     if (
       Array.isArray(value.mission) &&
       value.mission.length > 0 &&
       (!this.registration ||
-        this.registration.firmwareFamily !== "inav" ||
+        this.registration.firmwareFamily !== FLIGHT_COMMANDER_FIRMWARE_FAMILY ||
         value.mission !== this.lastInavMissionReference)
     ) {
       this.registerMission(value.mission, {
         state,
-        firmwareFamily: "inav",
+        firmwareFamily: FLIGHT_COMMANDER_FIRMWARE_FAMILY,
         source: value.source ?? "inav-ground-control",
         missionReference: value.mission,
       });
@@ -967,13 +968,13 @@ export class MissionResumeManager {
       );
     }
     if (
-      checkpoint.firmwareFamily === "inav" &&
+      checkpoint.firmwareFamily === FLIGHT_COMMANDER_FIRMWARE_FAMILY &&
       capabilities.canAbortMissionResume !== true
     ) {
       throw resumeError(
         "RESUME_ABORT_UNAVAILABLE",
         capabilities.missionResumeAbortReason ??
-          "INAV mission resume requires a confirmed RTH or non-mission mode that can replace a failed NAV WP override.",
+          "Flight Commander mission resume requires a confirmed RTH or non-mission mode that can replace a failed NAV WP override.",
       );
     }
     return capabilities;
@@ -983,14 +984,15 @@ export class MissionResumeManager {
     try {
       const validated = this.validateCheckpoint(options);
       if (
-        validated.checkpoint.firmwareFamily === "inav" &&
+        validated.checkpoint.firmwareFamily === FLIGHT_COMMANDER_FIRMWARE_FAMILY &&
+        this.commandRouter?.capabilities?.().canSetMissionCurrent !== true &&
         (this.normalizeInavMission(validated.mission),
         !inavResumeSuffix(validated.mission, validated.checkpoint.sequence))
       ) {
         return {
           available: false,
           reason:
-            "The estimated INAV checkpoint cannot be resumed safely: the remaining mission must contain only waypoints and an optional final RTL.",
+            "The estimated Flight Commander checkpoint cannot be resumed safely: the remaining mission must contain only waypoints and an optional final RTL.",
           checkpoint: validated.checkpoint,
         };
       }
@@ -1086,6 +1088,13 @@ export class MissionResumeManager {
     this.emitUpdate("resume-verifying");
     try {
       const mission = await this.downloadAndVerifyRegisteredMission(validated);
+      if (
+        validated.checkpoint.firmwareFamily === FLIGHT_COMMANDER_FIRMWARE_FAMILY
+        && this.commandRouter?.capabilities?.().canSetMissionCurrent === true
+        && typeof this.missionManager?.setCurrent === 'function'
+      ) {
+        return await this.resumeFlightCommanderNative(validated, mission, options);
+      }
       return await this.resumeInav(validated, mission, options);
     } catch (error) {
       if (error?.clearCheckpoint) {
@@ -1109,13 +1118,13 @@ export class MissionResumeManager {
     if (normalized.length !== mission.length) {
       throw resumeError(
         "INAV_MISSION_UNSUPPORTED",
-        "INAV resume refuses to omit unsupported active mission items.",
+        "Flight Commander resume refuses to omit unsupported active mission items.",
       );
     }
     if (canonicalMission(normalized) !== canonicalMission(mission)) {
       throw resumeError(
         "INAV_MISSION_NORMALIZATION_LOSS",
-        "INAV resume refuses to alter the mission because its active items cannot be represented losslessly by the INAV MAVLink mission profile.",
+        "Flight Commander resume refuses to alter the mission because its active items cannot be represented losslessly by the compatible MAVLink mission profile.",
       );
     }
     return normalized;
@@ -1158,7 +1167,7 @@ export class MissionResumeManager {
     ) {
       throw resumeError(
         "MISSION_SERVICE_UNAVAILABLE",
-        "INAV mission resume requires MAVLink mission upload and download services.",
+        "Flight Commander mission resume requires MAVLink mission upload and download services.",
       );
     }
     const normalized = this.normalizeInavMission(mission);
@@ -1193,6 +1202,71 @@ export class MissionResumeManager {
     }
   }
 
+  async resumeFlightCommanderNative(validated, mission, options = {}) {
+    const checkpoint = cloneCheckpoint(validated.checkpoint);
+    this.validateCommandCapability(checkpoint);
+    this.message = `Selecting Flight Commander mission item ${checkpoint.sequence + 1}…`;
+    this.emitUpdate('native-resume-selecting');
+    let currentSelected = false;
+    try {
+      await this.missionManager.setCurrent(checkpoint.sequence, options);
+      currentSelected = true;
+      const commandResult = await this.commandRouter.startMission({
+        ...options,
+        checkpoint,
+      });
+      if (commandResult?.confirmed !== true) {
+        throw resumeError(
+          'MISSION_RESUME_START_UNCONFIRMED',
+          'Flight Commander did not uniquely confirm NAV WP after selecting the saved mission item.',
+        );
+      }
+      const executionPending = stateSnapshot(this.session).armed === false;
+      this.activeCheckpoint = null;
+      this.status = RESUME_STATUS.RESUMED;
+      this.message = executionPending
+        ? `Flight Commander mission item ${checkpoint.sequence + 1} selected; arm/launch is required before execution.`
+        : `Flight Commander mission resumed from item ${checkpoint.sequence + 1}.`;
+      this.lastError = null;
+      const result = {
+        ok: true,
+        firmwareFamily: FLIGHT_COMMANDER_FIRMWARE_FAMILY,
+        exact: true,
+        estimated: Boolean(checkpoint.estimated),
+        executionPending,
+        originalSequence: checkpoint.sequence,
+        resumedSequence: checkpoint.sequence,
+        remainingItems: mission.length - checkpoint.sequence,
+        persistentMissionChanged: false,
+        checkpoint,
+        commandResult,
+      };
+      this.emitUpdate('resume-succeeded', { result });
+      return result;
+    } catch (error) {
+      if (currentSelected) {
+        try {
+          const abortResult = await this.commandRouter.abortMissionResume({
+            ...options,
+            checkpoint,
+            cause: error,
+          });
+          if (abortResult?.confirmed === true) {
+            await this.missionManager.setCurrent(0, options);
+          }
+        } catch {
+          // The original error below remains authoritative; the caller is told
+          // that mission start was not confirmed and must inspect vehicle mode.
+        }
+      }
+      throw resumeError(
+        'MISSION_RESUME_FAILED',
+        `Flight Commander native mission resume failed. ${error.message}`,
+        { cause: error },
+      );
+    }
+  }
+
   async resumeInav(validated, mission, options) {
     const checkpoint = cloneCheckpoint(validated.checkpoint);
     const originalMission = this.normalizeInavMission(mission);
@@ -1200,17 +1274,17 @@ export class MissionResumeManager {
     if (!suffix) {
       throw resumeError(
         "INAV_SUFFIX_UNSAFE",
-        "The estimated INAV checkpoint cannot be resumed safely: the remaining mission must contain only waypoints and an optional final RTL.",
+        "The estimated Flight Commander checkpoint cannot be resumed safely: the remaining mission must contain only waypoints and an optional final RTL.",
       );
     }
     if (typeof this.commandRouter?.startMission !== "function") {
       throw resumeError(
         "RESUME_COMMAND_UNAVAILABLE",
-        "The INAV mission-start command service is unavailable.",
+        "The Flight Commander mission-start command service is unavailable.",
       );
     }
     this.validateCommandCapability(checkpoint);
-    this.message = `Writing and verifying ${suffix.length} remaining INAV mission items in active RAM…`;
+    this.message = `Writing and verifying ${suffix.length} remaining Flight Commander mission items in active RAM…`;
     this.emitUpdate("inav-suffix-uploading");
     let transferStarted = false;
     let suffixWritten = false;
@@ -1229,24 +1303,24 @@ export class MissionResumeManager {
       if (commandResult?.confirmed !== true) {
         throw resumeError(
           "INAV_RESUME_START_UNCONFIRMED",
-          "INAV did not uniquely confirm NAV WP after the remaining mission was written.",
+          "Flight Commander Firmware did not uniquely confirm NAV WP after the remaining mission was written.",
         );
       }
       const executionPending = stateSnapshot(this.session).armed === false;
       this.activeCheckpoint = null;
       this.registerMission(suffixReadback, {
         state: stateSnapshot(this.session),
-        firmwareFamily: "inav",
+        firmwareFamily: FLIGHT_COMMANDER_FIRMWARE_FAMILY,
         source: "inav-resumed-suffix",
       });
       this.status = RESUME_STATUS.RESUMED;
       this.message = executionPending
-        ? `INAV remaining mission selected from estimated original item ${checkpoint.sequence + 1}; arm/launch is required before mission execution.`
-        : `INAV mission resumed from estimated original item ${checkpoint.sequence + 1}.`;
+        ? `Flight Commander remaining mission selected from estimated original item ${checkpoint.sequence + 1}; arm/launch is required before mission execution.`
+        : `Flight Commander mission resumed from estimated original item ${checkpoint.sequence + 1}.`;
       this.lastError = null;
       const result = {
         ok: true,
-        firmwareFamily: "inav",
+        firmwareFamily: FLIGHT_COMMANDER_FIRMWARE_FAMILY,
         exact: false,
         estimated: true,
         executionPending,
@@ -1267,7 +1341,7 @@ export class MissionResumeManager {
         try {
           if (typeof this.commandRouter?.abortMissionResume !== "function") {
             throw new Error(
-              "The INAV mission-resume abort service is unavailable.",
+              "The Flight Commander mission-resume abort service is unavailable.",
             );
           }
           abortResult = await this.commandRouter.abortMissionResume({
@@ -1290,7 +1364,7 @@ export class MissionResumeManager {
           }
           throw resumeError(
             "INAV_RESUME_ABORT_UNCONFIRMED",
-            "INAV mission start failed and a safe non-mission/RTH command state could not be confirmed. The original mission was not restored because doing so could start it unexpectedly.",
+            "Flight Commander mission start failed and a safe non-mission/RTH command state could not be confirmed. The original mission was not restored because doing so could start it unexpectedly.",
             {
               cause: error,
               clearCheckpoint: true,
@@ -1313,8 +1387,8 @@ export class MissionResumeManager {
             : "INAV_RESUME_TRANSFER_FAILED"
           : "INAV_RESUME_RESTORE_FAILED",
         restored.restored
-          ? `INAV remaining-mission ${failurePoint} failed; the original active mission was restored. ${error.message}`
-          : `INAV remaining-mission ${failurePoint} failed and the original active mission could not be restored. ${error.message}`,
+          ? `Flight Commander remaining-mission ${failurePoint} failed; the original active mission was restored. ${error.message}`
+          : `Flight Commander remaining-mission ${failurePoint} failed and the original active mission could not be restored. ${error.message}`,
         {
           cause: error,
           clearCheckpoint: !restored.restored,

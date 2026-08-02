@@ -22,11 +22,14 @@ export const MAV_DATA_STREAM_ALL = 0;
 
 export const FIRMWARE_FAMILY_UNKNOWN = "unknown";
 export const FIRMWARE_FAMILY_INAV = "inav";
+export const FIRMWARE_FAMILY_FLIGHT_COMMANDER = "flight-commander";
 export const FIRMWARE_FAMILY_UNSUPPORTED = "unsupported";
 
 const FIRMWARE_FAMILIES = new Set([
   FIRMWARE_FAMILY_INAV,
+  FIRMWARE_FAMILY_FLIGHT_COMMANDER,
 ]);
+const FLIGHT_COMMANDER_MAVLINK_SIGNATURE = Object.freeze([70, 67, 70, 87]);
 const COMMAND_ACK_NAMES = new Set(["COMMAND_ACK", "CommandAck"]);
 const PARAM_VALUE_NAMES = new Set(["PARAM_VALUE", "ParamValue"]);
 const MISSION_CURRENT_NAMES = new Set(["MISSION_CURRENT", "MissionCurrent"]);
@@ -173,6 +176,7 @@ export function createInitialMavlinkState() {
     autopilotName: "Unknown",
     firmwareFamily: FIRMWARE_FAMILY_UNKNOWN,
     firmwareFamilySource: "unresolved",
+    flightCommanderCapabilities: 0,
     vehicleType: null,
     vehicleTypeName: "Unknown",
     armed: false,
@@ -919,7 +923,10 @@ export class MavlinkSession {
       this.emit("connected", this.snapshot());
       this.startFirmwareDetection();
       this.requestDataStreams(5).catch(() => {});
-      if (this.state.autopilot === MAV_AUTOPILOT_ARDUPILOTMEGA) {
+      if (
+        this.state.autopilot === MAV_AUTOPILOT_GENERIC ||
+        this.state.autopilot === MAV_AUTOPILOT_ARDUPILOTMEGA
+      ) {
         this.requestAutopilotVersion().catch(() => {});
       }
       this.requestMessageInterval(242, 1).catch(() => {});
@@ -1057,6 +1064,23 @@ export class MavlinkSession {
       osCustomVersionHex: bytesToHex(osCustomVersion),
       receivedAt: this.now(),
     };
+
+    const isFlightCommander = FLIGHT_COMMANDER_MAVLINK_SIGNATURE.every(
+      (byte, index) => flightCustomVersion[index] === byte,
+    );
+    if (isFlightCommander && flightCustomVersion.length >= 8) {
+      this.state.flightCommanderCapabilities = (
+        flightCustomVersion[4] |
+        (flightCustomVersion[5] << 8) |
+        (flightCustomVersion[6] << 16) |
+        (flightCustomVersion[7] << 24)
+      ) >>> 0;
+      this.stopFirmwareDetection();
+      this.setFirmwareFamily(
+        FIRMWARE_FAMILY_FLIGHT_COMMANDER,
+        "autopilot-version",
+      );
+    }
   }
 
   setFirmwareFamilyOverride(family) {

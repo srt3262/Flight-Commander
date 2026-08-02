@@ -844,45 +844,70 @@ var SerialBackend = (function () {
                 GUI.log(i18n.getMessage('apiVersionReceived', [FC.CONFIG.apiVersion]));
 
                 MSP.send_message(MSPCodes.MSP_FC_VARIANT, false, false, function () {
-                    if (FC.CONFIG.flightControllerIdentifier == 'INAV') {
+                    const reportedVariant = FC.CONFIG.flightControllerIdentifier;
+                    if (reportedVariant === 'INAV' || reportedVariant === 'FCFW') {
                         MSP.send_message(MSPCodes.MSP_FC_VERSION, false, false, function () {
-
-                            GUI.log(i18n.getMessage('fcInfoReceived', [FC.CONFIG.flightControllerIdentifier, FC.CONFIG.flightControllerVersion]));
-                            if (semver.gte(FC.CONFIG.flightControllerVersion, CONFIGURATOR.minfirmwareVersionAccepted) && semver.lt(FC.CONFIG.flightControllerVersion, CONFIGURATOR.maxFirmwareVersionAccepted)) {
-                                if (CONFIGURATOR.connection.type == ConnectionType.BLE && semver.lt(FC.CONFIG.flightControllerVersion, "5.0.0")) {  
-                                    privateScope.onBleNotSupported();
-                                } else {
-                                    probeFlightCommanderFirmware({
-                                        MSP,
-                                        MSPCodes,
-                                        compatibleInavVersion: FC.CONFIG.flightControllerVersion,
-                                    }).then(function(identity) {
-                                        applyFirmwareIdentity(FC, identity);
-                                        if (identity.family === FIRMWARE_FAMILY_FLIGHT_COMMANDER) {
-                                            GUI.log(
-                                                `Flight Commander Firmware ${identity.firmwareVersion ?? 'unknown'} ` +
-                                                `(INAV ${identity.compatibleInavVersion} compatibility, ` +
-                                                `capabilities 0x${identity.capabilities.toString(16).padStart(8, '0')}).`,
-                                            );
-                                        } else if (identity.probeError) {
-                                            GUI.log(
-                                                `<span style="color: #d98f00">Flight Commander identity probe was invalid; ` +
-                                                `fork-only features remain disabled: ${$('<div>').text(identity.probeError).html()}</span>`,
-                                            );
-                                        } else {
-                                            GUI.log('Standard INAV firmware detected; Flight Commander firmware features are disabled.');
-                                        }
-                                        mspHelper.getCraftName(function(name) {
-                                            if (name) {
-                                                FC.CONFIG.name = name;
-                                            }
-                                            privateScope.onValidFirmware();
-                                        });
-                                    });
+                            const reportedVersion = FC.CONFIG.flightControllerVersion;
+                            GUI.log(i18n.getMessage('fcInfoReceived', [reportedVariant, reportedVersion]));
+                            probeFlightCommanderFirmware({
+                                MSP,
+                                MSPCodes,
+                                compatibleInavVersion: reportedVariant === 'INAV'
+                                    ? reportedVersion
+                                    : '0.0.0',
+                            }).then(function(identity) {
+                                if (
+                                    reportedVariant === 'FCFW'
+                                    && (
+                                        identity.family !== FIRMWARE_FAMILY_FLIGHT_COMMANDER
+                                        || identity.protocolSupported !== true
+                                    )
+                                ) {
+                                    GUI.log(
+                                        '<span style="color: #d98f00">Flight Commander Firmware did not provide a supported FCFW identity contract.</span>',
+                                    );
+                                    privateScope.onInvalidFirmwareVariant();
+                                    return;
                                 }
-                            } else  {
-                                privateScope.onInvalidFirmwareVersion();
-                            }
+
+                                applyFirmwareIdentity(FC, identity);
+                                const compatibilityVersion = FC.CONFIG.flightControllerVersion;
+                                if (
+                                    !semver.gte(compatibilityVersion, CONFIGURATOR.minfirmwareVersionAccepted)
+                                    || !semver.lt(compatibilityVersion, CONFIGURATOR.maxFirmwareVersionAccepted)
+                                ) {
+                                    privateScope.onInvalidFirmwareVersion();
+                                    return;
+                                }
+                                if (
+                                    CONFIGURATOR.connection.type === ConnectionType.BLE
+                                    && semver.lt(compatibilityVersion, '5.0.0')
+                                ) {
+                                    privateScope.onBleNotSupported();
+                                    return;
+                                }
+
+                                if (identity.family === FIRMWARE_FAMILY_FLIGHT_COMMANDER) {
+                                    GUI.log(
+                                        `Flight Commander Firmware ${identity.firmwareVersion ?? 'unknown'} ` +
+                                        `(INAV ${identity.compatibleInavVersion} protocol compatibility, ` +
+                                        `capabilities 0x${identity.capabilities.toString(16).padStart(8, '0')}).`,
+                                    );
+                                } else if (identity.probeError) {
+                                    GUI.log(
+                                        `<span style="color: #d98f00">Flight Commander identity probe was invalid; ` +
+                                        `fork-only features remain disabled: ${$('<div>').text(identity.probeError).html()}</span>`,
+                                    );
+                                } else {
+                                    GUI.log('Official INAV firmware detected; Flight Commander firmware features are disabled.');
+                                }
+                                mspHelper.getCraftName(function(name) {
+                                    if (name) {
+                                        FC.CONFIG.name = name;
+                                    }
+                                    privateScope.onValidFirmware();
+                                });
+                            });
                         });
                     } else {
                         privateScope.onInvalidFirmwareVariant();

@@ -4,18 +4,22 @@
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](LICENSE)
 
 Flight Commander is a desktop flight-controller configurator, mission planner,
-firmware flasher, and ground control station for official INAV and Flight
-Commander Firmware aircraft. It combines the complete INAV Configurator
-workflow with MAVLink Ground Control, terrain-assisted planning, automatic
-target detection, and capability-gated extensions for the maintained firmware
-fork.
+firmware flasher, and ground control station centered on Flight Commander
+Firmware. It is a maintained, independently versioned fork—not an INAV skin.
+It retains an explicit official-INAV compatibility mode while Flight Commander
+owns the product identity, release contract, capability protocol, and new
+feature development.
 
-> **Source provenance:** version 1.3.6 is a reconstructed source release. It was
-> rebuilt from INAV Configurator 9.1.1 and a verified Flight Commander 1.3.5
-> production runtime; it is not represented as the unavailable exact historical
-> 1.3.5 source tree. See [Reconstruction and provenance](docs/RECONSTRUCTION.md).
+> **Source provenance:** the repository history includes a reconstructed 1.3.6
+> source baseline built from INAV Configurator 9.1.1 and a verified Flight
+> Commander 1.3.5 runtime. Version 2 begins the coordinated Flight Commander
+> Firmware and Configurator release train. See
+> [Reconstruction and provenance](docs/RECONSTRUCTION.md).
 
 ## Highlights
+
+- A coordinated major-version contract: Configurator and firmware minors may
+  differ, but a major transition releases both products together at `X.0.0`.
 
 - Full inherited INAV configuration over the wired MSP setup link.
 - Ground Control with satellite mapping, a live attitude HUD, telemetry,
@@ -28,6 +32,28 @@ fork.
 - Versioned Flight Commander Firmware identity over MSPv2. Fork-only features
   remain disabled unless the connected firmware advertises the corresponding
   capability bit.
+- Concurrent UART u-blox and DroneCAN GPS/RTK configuration. Both receivers
+  remain active, each reports independent RTK state, either can be selected as
+  navigation primary, and RTCM corrections are sent to every enabled path.
+- Weighted heading fusion across the onboard compass, an external-I²C
+  compass on a UART GPS module, a selected DroneCAN compass, and validated
+  dual-GNSS moving-baseline yaw. Priority controls authority and failover;
+  weight controls contribution among healthy sources. One disarmed calibration
+  run solves each physical compass independently and binds CAN calibration to
+  the emitting node ID. See
+  [Heading fusion and moving-baseline yaw](docs/HEADING_FUSION.md).
+- An independent USB RTK Base workspace for u-blox F9 survey-in/fixed-base
+  setup, RTCM3 monitoring, and correction forwarding. Its built-in NTRIP v2
+  client supports direct caster-to-aircraft corrections or a guarded
+  NTRIP-assisted RTK Fixed position capture before the receiver is switched
+  into local fixed-base mode.
+  See [USB RTK base and NTRIP](docs/RTK_BASE_NTRIP.md).
+- DroneCAN node discovery and typed configuration for GNSS/RTK, compass,
+  relative-heading, and battery services, with explicit
+  disabled/automatic/fixed-node choices and CAN bitrate controls in Ports.
+- Capability-gated terrain-following mission upload and distance-based MAVLink
+  camera triggering for Flight Commander Firmware. Official INAV remains
+  navigation-only for those fork extensions.
 - One application-wide high-contrast dark theme, with synchronized metric or
   imperial Ground Control displays.
 - INAV 10, 12, 15, and 17-inch multirotor presets with prop-size-tuned EZ Tune
@@ -49,9 +75,11 @@ assumed to exist on another.
 
 | Controller and link | Configuration | Missions and planning | Live Ground Control |
 | --- | --- | --- | --- |
-| **INAV / Flight Commander Firmware over MSP** | Full INAV-compatible configuration and persistent settings; Flight Commander Firmware identity and advertised capabilities are also shown | Native mission and planning-data read/write, including INAV-specific mission items, safe homes, fixed-wing approaches, and geozones | Wired telemetry is available; airborne commands require a MAVLink link |
-| **INAV / Flight Commander Firmware over MAVLink** | Not a replacement for the wired MSP setup link | Only the stock INAV MAVLink mission subset is accepted losslessly; unsupported commands are rejected | Telemetry and explicitly configured AUX-backed commands; command use requires a matching profile captured over MSP and confirmation that exactly one aircraft is on the link |
-| **INAV over LTM** | None | None | Read-only telemetry |
+| **Flight Commander Firmware over MSP** | Full persistent configuration, including UART GPS, DroneCAN nodes, primary-GPS selection, and advertised capability status | Native mission and planning-data read/write, including safe homes, approaches, geozones, terrain profiles, and supported photo actions | Wired telemetry is available; airborne commands require a MAVLink link |
+| **Flight Commander Firmware over MAVLink** | Not a replacement for the wired MSP setup link | The lossless navigation subset plus advertised Flight Commander terrain and photo extensions | Telemetry and native Ground Control commands; command use requires the advertised capability, a matching profile captured over MSP, and confirmation that exactly one aircraft is on the link |
+| **Official INAV over MSP** | Full compatible configuration and persistent settings | Native INAV-compatible mission and planning-data read/write | Wired telemetry is available; Flight Commander-only controls remain disabled |
+| **Official INAV over MAVLink** | Not a replacement for the wired MSP setup link | Lossless navigation-only mission subset; Flight Commander terrain/photo extensions are rejected | Telemetry only in Flight Commander; Ground Control commands are disabled |
+| **LTM** | None | None | Read-only telemetry |
 | **Other firmware over MAVLink** | Unsupported | Disabled | Telemetry may identify the vehicle, but configuration, missions, and commands remain blocked |
 
 INAV-compatible interruption checkpoints are position-estimated, and the
@@ -92,9 +120,17 @@ vehicle commands stay disabled until a non-GCS autopilot heartbeat is received.
 ## Install
 
 The validated publication target for the reconstructed release is **Windows
-x64**. Download a ZIP from
-[GitHub Releases](https://github.com/srt3262/Flight-Commander/releases), extract
-it into a new folder, and run `flight-commander.exe`.
+x64**. Every Configurator release publishes two explicit downloads on
+[GitHub Releases](https://github.com/srt3262/Flight-Commander/releases):
+
+- `Flight-Commander-Configurator-Windows-x64-vX.Y.Z.zip` is the portable
+  Windows application. Extract it into a new folder and run
+  `flight-commander.exe`.
+- `Flight-Commander-Configurator-Source-vX.Y.Z.zip` is the matching source from
+  the exact commit used to build and verify that Windows archive.
+
+When a firmware release requires Configurator changes, both Configurator
+downloads are mandatory companion assets for the coordinated release.
 
 Unless a release is explicitly marked as code-signed, Windows SmartScreen may
 show an unknown-publisher warning. Publishing a binary on GitHub does not itself

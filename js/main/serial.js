@@ -57,6 +57,12 @@ const serial = {
     _id: 1,
     _openGeneration: 0,
 
+    getActivePath: function() {
+        return this._serialport && this._connectionId
+            ? this._serialport.path
+            : null;
+    },
+
     connect: async function(path, options, window) {
         const openGeneration = ++this._openGeneration;
         // Clean up any existing serial port to prevent handle leaks

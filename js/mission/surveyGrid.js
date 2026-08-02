@@ -4,6 +4,7 @@ const EARTH_RADIUS_M = 6378137;
 
 export const MAV_CMD_NAV_WAYPOINT = 16;
 export const MAV_CMD_DO_SET_CAM_TRIGG_DIST = 206;
+export const MAV_FRAME_MISSION = 2;
 export const MAV_FRAME_GLOBAL_RELATIVE_ALT_INT = 6;
 
 export function normalizeCoordinate(coordinate) {
@@ -286,7 +287,7 @@ function navWaypoint(point, altitude, options = {}) {
 
 function cameraTriggerCommand(distanceM, point, altitude, options = {}) {
   return {
-    frame: options.frame ?? MAV_FRAME_GLOBAL_RELATIVE_ALT_INT,
+    frame: MAV_FRAME_MISSION,
     command: MAV_CMD_DO_SET_CAM_TRIGG_DIST,
     autocontinue: true,
     param1: distanceM,

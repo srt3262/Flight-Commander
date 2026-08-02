@@ -1,6 +1,6 @@
-# INAV Configurator MapProxy setup
+# Flight Commander MapProxy setup
 
-There are several different approaches to setting up MapProxy service. All that iNav needs is a 
+There are several different approaches to setting up a MapProxy service. Flight Commander needs a
 working MapProxy WMS URL and the name of the layer that you want to use for caching
 
 ## Generic MapProxy Installation Guides
@@ -105,7 +105,7 @@ https://hub.docker.com/r/yagajs/mapproxy/ Docker image
     ```
 1. Test your MapProxy instance using web browser on host, you should see a demo link
     http://192.168.145.20/inavmapproxy/
-1. Open iNav Configurator, connect to your flight controller
+1. Open Flight Commander and connect to your flight controller
 1. In upper right corner click on Application Options (gears icon)
 1. For MapProxy URL use:
     http://192.168.145.20/inavmapproxy/service?
@@ -347,7 +347,7 @@ format=%(asctime)s - %(name)s - %(levelname)s - %(message)s
 3. **Verify**: Open your browser and navigate to the demo page:
    http://localhost:8080/demo/
 
-### 5. iNav Configurator Settings
+### 5. Flight Commander settings
 1. In the upper right corner click on **Application Options** (gears icon).
 2. For **Map Provider** select:
    `MapProxy`

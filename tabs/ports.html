@@ -22,6 +22,82 @@
                 <tbody>
                 </tbody>
             </table>
+            <section id="flightCommanderRtkPorts" class="fc-panel is-hidden">
+                <h3>Flight Commander RTK routing</h3>
+                <p>
+                    For a UART RTK receiver, select <strong>GPS / RTK GPS (UART)</strong> on the
+                    receiver UART and <strong>MAVLink / RTK corrections</strong> on the telemetry-radio
+                    UART. Flight Commander routes incoming RTCM3 corrections without blocking the
+                    flight loop. A DroneCAN RTK receiver is configured independently below. Both GPS
+                    links remain active, either receiver can be selected as the navigation primary,
+                    and RTCM corrections are forwarded to both enabled receivers.
+                </p>
+            </section>
+            <section id="flightCommanderDronecan" class="fc-panel is-hidden">
+                <div class="fc-dronecan-heading">
+                    <div>
+                        <h3>Flight Commander DroneCAN</h3>
+                        <p id="dronecanBusStatus">Waiting for bus status…</p>
+                    </div>
+                    <button id="dronecanRefresh" type="button">Refresh nodes</button>
+                </div>
+                <div class="fc-dronecan-grid">
+                    <label>
+                        Flight controller node ID
+                        <input id="dronecanNodeId" type="number" min="1" max="127" step="1">
+                    </label>
+                    <label>
+                        CAN bitrate
+                        <select id="dronecanBitrate">
+                            <option value="0">125 kbit/s</option>
+                            <option value="1">250 kbit/s</option>
+                            <option value="2">500 kbit/s</option>
+                            <option value="3">1000 kbit/s</option>
+                        </select>
+                    </label>
+                    <label>
+                        DroneCAN GPS / RTK node
+                        <select id="dronecanGpsNode"></select>
+                    </label>
+                    <label>
+                        Primary navigation GPS
+                        <select id="dronecanGpsPrimary">
+                            <option value="0">UART GPS</option>
+                            <option value="1">DroneCAN GPS</option>
+                        </select>
+                    </label>
+                    <label>
+                        Battery monitor node
+                        <select id="dronecanBatteryNode"></select>
+                    </label>
+                    <label>
+                        Compass node
+                        <select id="dronecanMagNode"></select>
+                    </label>
+                </div>
+                <p>
+                    Every CAN node must use the same bitrate. Node ID and bitrate changes take effect
+                    after the controller reboots. Install 120 Ω termination at each physical end of
+                    the CAN bus unless the connected hardware explicitly provides it. Primary
+                    selection changes which solution feeds navigation; it does not stop the other
+                    receiver. GPS and battery roles can be disabled, selected automatically, or bound
+                    to a fixed discovered node. Compass and relative-heading services are reported
+                    separately so a combined GPS/compass node can own both roles. Both GPS links
+                    retain independent RTK status for dual-GNSS moving-baseline yaw use.
+                </p>
+                <table id="dronecanNodes" class="spacebottom">
+                    <thead>
+                        <tr>
+                            <td>Node</td>
+                            <td>Recognized services</td>
+                            <td>Health</td>
+                            <td>Last seen</td>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+                <p id="dronecanNoNodes">No DroneCAN nodes have been detected yet.</p>
+            </section>
             <div class="clear-both"></div>
         </div>
         <div class="note require-upgrade">
@@ -66,4 +142,3 @@
 <div id="mspWarningContent" class="is-hidden">
     <p data-i18n="portsMSPWarning"></p>
 </div>
-

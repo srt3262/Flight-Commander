@@ -4,12 +4,19 @@ import { normalizeMissionForInavMsp } from "./inavMissionCodec.js";
 
 const MAV_CMD_NAV_WAYPOINT = 16;
 const MAV_CMD_NAV_RETURN_TO_LAUNCH = 20;
+const MAV_CMD_DO_SET_CAM_TRIGG_DIST = 206;
+const MAV_FRAME_GLOBAL = 0;
 const MAV_FRAME_MISSION = 2;
 const MAV_FRAME_GLOBAL_RELATIVE_ALT = 3;
+const MAV_FRAME_GLOBAL_INT = 5;
 const MAV_FRAME_GLOBAL_RELATIVE_ALT_INT = 6;
 const INAV_MAVLINK_SUPPORTED_COMMAND_SET = new Set([
   MAV_CMD_NAV_WAYPOINT,
   MAV_CMD_NAV_RETURN_TO_LAUNCH,
+]);
+const FLIGHT_COMMANDER_MAVLINK_SUPPORTED_COMMAND_SET = new Set([
+  ...INAV_MAVLINK_SUPPORTED_COMMAND_SET,
+  MAV_CMD_DO_SET_CAM_TRIGG_DIST,
 ]);
 const INAV_INSERTED_SEGMENT_FIELD = "flightCommanderInavSegmentIndex";
 const MISSION_PARAMETER_FIELDS = Object.freeze([
@@ -49,10 +56,17 @@ function normalizeFirmwareProfile(options = {}) {
   if (["inav", "inav-mavlink", "inav/mavlink"].includes(normalized)) {
     return "inav";
   }
+  if (
+    ["flight-commander", "flightcommander", "fcfw"].includes(normalized)
+  ) {
+    return "flight-commander";
+  }
   throw new Error(`Unsupported firmware profile "${profile}".`);
 }
 
-function validateInavMavlinkRepresentation(mission) {
+function validateInavMavlinkRepresentation(mission, profile) {
+  const profileLabel =
+    profile === "flight-commander" ? "Flight Commander" : "Official INAV";
   mission.forEach((item, index) => {
     const metadata = item?.metadata;
     const rawMetadataKey = Object.keys(metadata ?? {}).find(
@@ -60,35 +74,54 @@ function validateInavMavlinkRepresentation(mission) {
     );
     if (rawMetadataKey) {
       throw new Error(
-        `INAV MAVLink cannot losslessly write mission item ${index + 1} ` +
+        `${profileLabel} MAVLink cannot losslessly write mission item ${index + 1} ` +
           `because it contains raw INAV metadata (${rawMetadataKey}). ` +
           "Use wired MSP to preserve the complete mission.",
       );
     }
     const command = missionCommand(item, MAV_CMD_NAV_WAYPOINT);
+    const photoTrigger =
+      profile === "flight-commander" &&
+      command === MAV_CMD_DO_SET_CAM_TRIGG_DIST;
     for (const field of MISSION_PARAMETER_FIELDS) {
       const value = item?.[field];
       if (value == null || value === "") continue;
       const number = Number(value);
+      if (photoTrigger && field === "param1") {
+        if (!Number.isFinite(number) || number < 0 || number > 327.67) {
+          throw new Error(
+            `Flight Commander mission item ${index + 1} camera trigger distance ` +
+              `must be between 0 and 327.67 m; received ${value}.`,
+          );
+        }
+        continue;
+      }
       if (Number.isFinite(number) && number !== 0) {
         throw new Error(
-          `INAV MAVLink mission item ${index + 1} command ${command} ` +
-            `has nonzero ${field} ${number}, which stock INAV cannot preserve. ` +
-            "Set it to zero or use wired MSP.",
+          `${profileLabel} MAVLink mission item ${index + 1} command ${command} ` +
+            `has nonzero ${field} ${number}, which this mission command cannot preserve. ` +
+            "Set it to zero and try again.",
         );
       }
     }
     const allowedFrames =
-      command === MAV_CMD_NAV_RETURN_TO_LAUNCH
+      command === MAV_CMD_NAV_RETURN_TO_LAUNCH || photoTrigger
         ? [MAV_FRAME_MISSION]
-        : [MAV_FRAME_GLOBAL_RELATIVE_ALT, MAV_FRAME_GLOBAL_RELATIVE_ALT_INT];
+        : profile === "flight-commander"
+          ? [
+              MAV_FRAME_GLOBAL,
+              MAV_FRAME_GLOBAL_RELATIVE_ALT,
+              MAV_FRAME_GLOBAL_INT,
+              MAV_FRAME_GLOBAL_RELATIVE_ALT_INT,
+            ]
+          : [MAV_FRAME_GLOBAL_RELATIVE_ALT, MAV_FRAME_GLOBAL_RELATIVE_ALT_INT];
     if (
       item?.frame != null &&
       item.frame !== "" &&
       !allowedFrames.includes(Number(item.frame))
     ) {
       throw new Error(
-        `INAV MAVLink mission item ${index + 1} command ${command} ` +
+        `${profileLabel} MAVLink mission item ${index + 1} command ${command} ` +
           `requires frame ${allowedFrames.join(" or ")}; received ${item.frame}. ` +
           "Correct the frame or use wired MSP.",
       );
@@ -102,7 +135,7 @@ function validateInavMavlinkRepresentation(mission) {
         String(value).trim() === "1";
       if (!enabled) {
         throw new Error(
-          `INAV MAVLink mission item ${index + 1} requires ` +
+          `${profileLabel} MAVLink mission item ${index + 1} requires ` +
             "autocontinue=true. Correct the item or use wired MSP.",
         );
       }
@@ -119,35 +152,56 @@ export function filterExpectedMissionForProtocol(
     throw new TypeError("Expected mission must be an array.");
   }
   const normalizedProtocol = normalizeProtocol(protocol);
-  normalizeFirmwareProfile(options);
+  const profile = normalizeFirmwareProfile(options);
   if (normalizedProtocol === "msp") {
-    return normalizeMissionForInavMsp(mission);
+    return normalizeMissionForInavMsp(mission, {
+      allowFlightCommanderPhotoTriggers: profile === "flight-commander",
+    });
   }
+  const supportedCommands =
+    profile === "flight-commander"
+      ? FLIGHT_COMMANDER_MAVLINK_SUPPORTED_COMMAND_SET
+      : INAV_MAVLINK_SUPPORTED_COMMAND_SET;
+  const profileLabel =
+    profile === "flight-commander" ? "Flight Commander" : "Official INAV";
   mission.forEach((item, index) => {
     const command = missionCommand(item, MAV_CMD_NAV_WAYPOINT);
-    if (!INAV_MAVLINK_SUPPORTED_COMMAND_SET.has(command)) {
+    if (!supportedCommands.has(command)) {
       throw new Error(
-        `INAV MAVLink mission item ${index + 1} uses unsupported ` +
-          `command ${command}. Use wired MSP to preserve and write ` +
-          "the complete mission.",
+        `${profileLabel} MAVLink mission item ${index + 1} uses unsupported ` +
+          `command ${command}.`,
       );
     }
   });
-  validateInavMavlinkRepresentation(mission);
+  validateInavMavlinkRepresentation(mission, profile);
   return mission.map((item) => {
     const command = missionCommand(item, MAV_CMD_NAV_WAYPOINT);
+    const photoTrigger =
+      profile === "flight-commander" &&
+      command === MAV_CMD_DO_SET_CAM_TRIGG_DIST;
+    const absoluteWaypoint =
+      profile === "flight-commander" &&
+      command === MAV_CMD_NAV_WAYPOINT &&
+      [MAV_FRAME_GLOBAL, MAV_FRAME_GLOBAL_INT].includes(Number(item.frame));
     return {
       ...item,
       command,
-      param1: 0,
+      param1: photoTrigger
+        ? Math.round(Number(item.param1 ?? 0) * 100) / 100
+        : 0,
       param2: 0,
       param3: 0,
       param4: 0,
       frame:
-        command === MAV_CMD_NAV_RETURN_TO_LAUNCH
+        command === MAV_CMD_NAV_RETURN_TO_LAUNCH || photoTrigger
           ? MAV_FRAME_MISSION
+          : absoluteWaypoint
+            ? MAV_FRAME_GLOBAL
           : MAV_FRAME_GLOBAL_RELATIVE_ALT,
       autocontinue: true,
+      ...(photoTrigger
+        ? { latitude: 0, longitude: 0, altitude: 0 }
+        : {}),
     };
   });
 }

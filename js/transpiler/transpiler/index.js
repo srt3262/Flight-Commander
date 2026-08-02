@@ -560,7 +560,7 @@ class Transpiler {
     }
     
     output += '#\n';
-    output += '# Paste these commands into INAV Configurator CLI\n';
+    output += '# Paste these commands into Flight Commander CLI (or a compatible INAV CLI)\n';
     output += '# then type: save\n';
     output += '\n';
     

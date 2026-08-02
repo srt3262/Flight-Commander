@@ -1,0 +1,267 @@
+<section id="flightDataRtk" class="tab-rtk-base fc-rtk-setup" data-rtk-workflow="direct-ntrip" aria-labelledby="rtkSetupTitle">
+    <div class="rtk-base-heading">
+        <div>
+            <span class="rtk-base-eyebrow">Corrections</span>
+            <h2 id="rtkSetupTitle">RTK correction setup</h2>
+            <p>Choose what equipment and correction source you have. Flight Commander will show only the settings and next action needed for that path.</p>
+        </div>
+        <span class="rtk-base-offline-badge">Aircraft may be off during base setup</span>
+    </div>
+
+    <div class="rtk-workflow-picker" role="group" aria-label="Choose an RTK correction workflow">
+        <button type="button" class="rtk-workflow-option" data-rtk-workflow-choice="direct-ntrip" aria-pressed="true">
+            <span class="rtk-workflow-option__number">1</span>
+            <strong>Direct NTRIP → Aircraft</strong>
+            <span>No local base receiver. Internet corrections go straight to the aircraft.</span>
+        </button>
+        <button type="button" class="rtk-workflow-option" data-rtk-workflow-choice="survey-base" aria-pressed="false">
+            <span class="rtk-workflow-option__number">2</span>
+            <strong>Survey-in USB Base → Aircraft</strong>
+            <span>A local u-blox F9 surveys its position and supplies corrections.</span>
+        </button>
+        <button type="button" class="rtk-workflow-option" data-rtk-workflow-choice="refined-base" aria-pressed="false">
+            <span class="rtk-workflow-option__number">3</span>
+            <strong>NTRIP-refined USB Base → Aircraft</strong>
+            <span>NTRIP refines the F9 position; the finalized local base then supplies corrections.</span>
+        </button>
+    </div>
+
+    <section class="rtk-workflow-guide" aria-live="polite">
+        <div class="rtk-workflow-guide__summary">
+            <span>Selected setup</span>
+            <strong id="rtkWorkflowTitle">Direct NTRIP → Aircraft</strong>
+            <p id="rtkWorkflowSummary"></p>
+        </div>
+        <ol id="rtkWorkflowSteps" class="rtk-workflow-steps"></ol>
+        <div id="rtkWorkflowNext" class="rtk-workflow-next" data-tone="next">
+            <span>Recommended next action</span>
+            <strong id="rtkWorkflowNextTitle">Choose and connect an NTRIP stream</strong>
+            <p id="rtkWorkflowNextDetail"></p>
+        </div>
+    </section>
+
+    <div class="rtk-base-layout">
+        <section class="gui_box grey rtk-base-card" data-rtk-workflows="survey-base refined-base">
+            <div class="gui_box_titlebar">
+                <div class="spacer_box_title"><span class="rtk-step-badge">A</span> Connect the USB base receiver</div>
+            </div>
+            <div class="spacer_box rtk-base-form">
+                <p class="rtk-base-card-intro">Connect the base through its own USB or USB-to-UART port. This is independent from the aircraft connection.</p>
+                <div class="rtk-base-fields">
+                    <label class="rtk-field rtk-field--wide">
+                        <span>USB serial device</span>
+                        <span class="rtk-base-inline">
+                            <select id="rtkBasePort"></select>
+                            <button id="rtkBaseRefreshPorts" type="button">Refresh devices</button>
+                        </span>
+                    </label>
+                    <label class="rtk-field">
+                        <span>Baud rate</span>
+                        <select id="rtkBaseBaud">
+                            <option value="38400">38400</option>
+                            <option value="57600">57600</option>
+                            <option value="115200">115200</option>
+                            <option value="230400">230400</option>
+                            <option value="460800">460800</option>
+                            <option value="921600">921600</option>
+                        </select>
+                    </label>
+                    <label class="rtk-field">
+                        <span>Receiver type</span>
+                        <select id="rtkBaseProfile">
+                            <option value="ublox-f9">u-blox F9 (configure + RTCM)</option>
+                            <option value="raw-rtcm">Already configured RTCM receiver</option>
+                        </select>
+                    </label>
+                </div>
+                <div class="rtk-base-actions">
+                    <button id="rtkBaseConnect" class="rtk-action-primary" type="button">Connect USB base</button>
+                    <button id="rtkBaseDisconnect" type="button">Disconnect USB base</button>
+                </div>
+                <p id="rtkBaseConnectionStatus" class="rtk-base-status-line">Not connected</p>
+            </div>
+        </section>
+
+        <section id="rtkBaseUbloxSetup" class="gui_box grey rtk-base-card" data-rtk-workflows="survey-base refined-base">
+            <div class="gui_box_titlebar">
+                <div class="spacer_box_title"><span class="rtk-step-badge">B</span> Survey the base position</div>
+            </div>
+            <div class="spacer_box rtk-base-form">
+                <p class="rtk-base-card-intro">Put the antenna on a stable point with a clear sky view. Do not move it after starting survey-in.</p>
+                <div class="rtk-base-fields">
+                    <label class="rtk-field">
+                        <span>Position method</span>
+                        <select id="rtkBaseMode">
+                            <option value="survey-in">Survey-in (recommended)</option>
+                            <option value="fixed">Enter surveyed fixed position</option>
+                        </select>
+                    </label>
+                    <span class="rtk-field rtk-field--status">
+                        <span>Current survey state</span>
+                        <strong id="rtkBaseSurveyState">No status</strong>
+                    </span>
+                </div>
+                <div id="rtkBaseSurveyFields" class="rtk-base-fields">
+                    <label class="rtk-field">
+                        <span>Minimum survey time</span>
+                        <span class="rtk-input-with-unit"><input id="rtkBaseSurveyDuration" type="number" min="1" max="86400" step="1"><span>seconds</span></span>
+                    </label>
+                    <label class="rtk-field">
+                        <span>Required position accuracy</span>
+                        <span class="rtk-input-with-unit"><input id="rtkBaseSurveyAccuracy" type="number" min="0.0001" max="100" step="0.01"><span>m</span></span>
+                    </label>
+                </div>
+                <div id="rtkBaseFixedFields" class="rtk-base-fields is-hidden">
+                    <label class="rtk-field"><span>Latitude</span><input id="rtkBaseLatitude" type="number" min="-90" max="90" step="0.000000001"></label>
+                    <label class="rtk-field"><span>Longitude</span><input id="rtkBaseLongitude" type="number" min="-180" max="180" step="0.000000001"></label>
+                    <label class="rtk-field"><span>WGS84 ellipsoid height</span><span class="rtk-input-with-unit"><input id="rtkBaseHeight" type="number" min="-1000" max="20000" step="0.0001"><span>m</span></span></label>
+                    <label class="rtk-field"><span>Surveyed position accuracy</span><span class="rtk-input-with-unit"><input id="rtkBaseFixedAccuracy" type="number" min="0.0001" max="100" step="0.0001"><span>m</span></span></label>
+                    <p class="rtk-base-warning rtk-field--wide">Use antenna-reference-point coordinates and WGS84 ellipsoid height—not map elevation or mean-sea-level altitude.</p>
+                </div>
+                <details class="rtk-advanced">
+                    <summary>Advanced RTCM output settings</summary>
+                    <fieldset class="rtk-base-constellations">
+                        <legend>RTCM MSM7 messages</legend>
+                        <label><input id="rtkBaseGps" type="checkbox"> GPS 1077</label>
+                        <label><input id="rtkBaseGlonass" type="checkbox"> GLONASS 1087 / 1230</label>
+                        <label><input id="rtkBaseGalileo" type="checkbox"> Galileo 1097</label>
+                        <label><input id="rtkBaseBeidou" type="checkbox"> BeiDou 1127</label>
+                    </fieldset>
+                    <label class="rtk-base-checkbox">
+                        <input id="rtkBasePersist" type="checkbox">
+                        <span>Persist configuration in receiver BBR/flash</span>
+                    </label>
+                    <p class="rtk-base-note">RTCM 1005 is emitted every five navigation epochs. MSM7 observations are emitted every epoch; GLONASS bias 1230 every ten epochs.</p>
+                </details>
+                <button id="rtkBaseApply" class="rtk-action-primary" type="button">Apply survey-in configuration</button>
+                <dl class="rtk-base-status-grid rtk-base-status-grid--compact">
+                    <div><dt>Elapsed</dt><dd id="rtkBaseSurveyElapsed">--</dd></div>
+                    <div><dt>Mean accuracy</dt><dd id="rtkBaseSurveyMeanAccuracy">--</dd></div>
+                    <div><dt>Observations</dt><dd id="rtkBaseSurveyObservations">--</dd></div>
+                </dl>
+            </div>
+        </section>
+
+        <section class="gui_box grey rtk-base-card" data-rtk-workflows="direct-ntrip refined-base">
+            <div class="gui_box_titlebar">
+                <div class="spacer_box_title"><span class="rtk-step-badge">C</span> Connect an NTRIP caster</div>
+            </div>
+            <div class="spacer_box rtk-base-form">
+                <p class="rtk-base-card-intro" data-rtk-workflows="direct-ntrip">Choose a nearby RTCM3 stream. Corrections will route directly to the aircraft when its link is available.</p>
+                <p class="rtk-base-card-intro" data-rtk-workflows="refined-base">Choose a nearby RTCM3 stream to refine the completed USB-base survey. The aircraft may remain powered off.</p>
+                <div class="rtk-base-fields">
+                    <label class="rtk-field">
+                        <span>Caster service</span>
+                        <select id="rtkNtripProvider">
+                            <option value="custom">Custom / regional caster</option>
+                            <option value="rtk2go">RTK2go public caster</option>
+                        </select>
+                    </label>
+                    <label class="rtk-field"><span>Caster host</span><input id="rtkNtripHost" type="text" placeholder="caster.example.com" autocomplete="off"></label>
+                    <label class="rtk-field"><span>Port</span><input id="rtkNtripPort" type="number" min="1" max="65535" step="1"></label>
+                    <label class="rtk-field"><span>Username / email</span><input id="rtkNtripUsername" type="text" autocomplete="username"></label>
+                    <label class="rtk-field"><span>Password (not saved)</span><input id="rtkNtripPassword" type="password" autocomplete="current-password"></label>
+                    <label class="rtk-field rtk-field--wide">
+                        <span>Available RTCM3 streams</span>
+                        <span class="rtk-base-inline">
+                            <select id="rtkNtripMountpointList" disabled><option value="">Load the caster streams first</option></select>
+                            <button id="rtkNtripLoadMountpoints" type="button">Load streams</button>
+                        </span>
+                    </label>
+                </div>
+                <label class="rtk-base-checkbox"><input id="rtkNtripFreeOnly" type="checkbox" checked><span>Show only streams marked no-fee</span></label>
+                <p id="rtkNtripProviderHelp" class="rtk-base-note"></p>
+                <details class="rtk-advanced">
+                    <summary>Advanced NTRIP settings</summary>
+                    <div class="rtk-base-fields">
+                        <label class="rtk-field"><span>Mountpoint (manual)</span><input id="rtkNtripMountpoint" type="text" placeholder="MOUNTPOINT" autocomplete="off"></label>
+                        <label class="rtk-field rtk-base-checkbox"><input id="rtkNtripTls" type="checkbox"><span>Use TLS and verify certificate</span></label>
+                        <label class="rtk-field">
+                            <span>RTCM destination</span>
+                            <select id="rtkNtripDestination">
+                                <option value="aircraft">Aircraft rovers (direct NTRIP)</option>
+                                <option value="usb-base">USB F9 positioning receiver</option>
+                            </select>
+                        </label>
+                        <label class="rtk-field">
+                            <span>Periodic GGA position</span>
+                            <select id="rtkNtripGgaSource">
+                                <option value="none">None (static mountpoint)</option>
+                                <option value="aircraft">Aircraft position</option>
+                                <option value="usb-base">USB F9 receiver position</option>
+                                <option value="manual">Manual position</option>
+                            </select>
+                        </label>
+                    </div>
+                    <div id="rtkNtripManualGga" class="rtk-base-fields is-hidden">
+                        <label class="rtk-field"><span>GGA latitude</span><input id="rtkNtripLatitude" type="number" min="-90" max="90" step="0.0000001"></label>
+                        <label class="rtk-field"><span>GGA longitude</span><input id="rtkNtripLongitude" type="number" min="-180" max="180" step="0.0000001"></label>
+                        <label class="rtk-field"><span>GGA MSL altitude</span><span class="rtk-input-with-unit"><input id="rtkNtripAltitude" type="number" min="-1000" max="20000" step="0.1"><span>m</span></span></label>
+                    </div>
+                    <p class="rtk-base-warning">Without TLS, credentials and correction data are sent unencrypted.</p>
+                </details>
+                <div class="rtk-base-actions">
+                    <button id="rtkNtripConnect" class="rtk-action-primary" type="button">Connect NTRIP to aircraft</button>
+                    <button id="rtkNtripDisconnect" type="button">Disconnect NTRIP</button>
+                    <button id="rtkBaseCaptureFixed" data-rtk-workflows="refined-base" type="button">Finalize refined fixed base</button>
+                </div>
+                <p id="rtkNtripStatus" class="rtk-base-status-line">Not connected</p>
+                <div data-rtk-workflows="refined-base">
+                    <dl class="rtk-base-status-grid rtk-base-status-grid--compact">
+                        <div><dt>Refinement</dt><dd id="rtkRefinementPhase">Idle</dd></div>
+                        <div><dt>RTK Fixed samples</dt><dd id="rtkRefinementSamples">0 / 10</dd></div>
+                        <div><dt>Position stability</dt><dd id="rtkRefinementStability">--</dd></div>
+                    </dl>
+                </div>
+            </div>
+        </section>
+
+        <section class="gui_box grey rtk-base-card">
+            <div class="gui_box_titlebar">
+                <div class="spacer_box_title"><span class="rtk-step-badge">✓</span> Correction route and health</div>
+            </div>
+            <div class="spacer_box rtk-base-form">
+                <div class="rtk-route-summary">
+                    <span>Current route</span>
+                    <strong id="rtkBaseRoute">Waiting for a correction source</strong>
+                </div>
+                <label class="rtk-base-checkbox rtk-forward-toggle"><input id="rtkBaseForward" type="checkbox"><span>Forward validated corrections to the aircraft</span></label>
+                <div class="rtk-health-counters">
+                    <div><span>Valid RTCM frames</span><strong id="rtkBaseFrames">0</strong></div>
+                    <div><span>Forwarded frames / packets</span><strong id="rtkBaseForwarded">0 / 0</strong></div>
+                    <div><span>Forwarded bytes</span><strong id="rtkBaseForwardedBytes">0</strong></div>
+                    <div><span>Queued while aircraft is off</span><strong id="rtkBaseStandby">0</strong></div>
+                </div>
+                <p id="rtkBaseForwardError" class="rtk-base-error is-hidden"></p>
+                <details class="rtk-advanced">
+                    <summary>Advanced routing and diagnostics</summary>
+                    <label class="rtk-field rtk-base-source-select">
+                        <span>Active correction source</span>
+                        <select id="rtkCorrectionSource"><option value="usb-base">Local USB base</option><option value="ntrip">NTRIP caster</option></select>
+                    </label>
+                    <dl class="rtk-base-status-grid">
+                        <div><dt>Last RTCM type</dt><dd id="rtkBaseMessageType">--</dd></div>
+                        <div><dt>Dropped / oversized</dt><dd id="rtkBaseDropped">0 / 0</dd></div>
+                        <div><dt>Queued frames</dt><dd id="rtkBaseQueued">0</dd></div>
+                        <div><dt>Parser errors (RTCM / UBX)</dt><dd id="rtkBaseParserErrors">0 / 0</dd></div>
+                    </dl>
+                </details>
+            </div>
+        </section>
+
+        <section class="gui_box grey rtk-base-card">
+            <div class="gui_box_titlebar"><div class="spacer_box_title">Receiver details</div></div>
+            <div class="spacer_box">
+                <dl class="rtk-base-status-grid rtk-base-status-grid--details">
+                    <div><dt>Receiver</dt><dd id="rtkBaseReceiver">Not identified</dd></div>
+                    <div><dt>Software / protocol</dt><dd id="rtkBaseVersion">--</dd></div>
+                    <div><dt>USB bytes received</dt><dd id="rtkBaseSerialBytes">0</dd></div>
+                    <div><dt>Position / carrier solution</dt><dd id="rtkBaseReceiverPosition">--</dd></div>
+                    <div><dt>NTRIP stream</dt><dd id="rtkNtripStreamStats">0 bytes / 0 RTCM frames</dd></div>
+                    <div><dt>NTRIP injected into USB F9</dt><dd id="rtkNtripBaseStats">0 frames / 0 drops</dd></div>
+                    <div><dt>Last configuration</dt><dd id="rtkBaseLastConfiguration">None this session</dd></div>
+                </dl>
+            </div>
+        </section>
+    </div>
+</section>

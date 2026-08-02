@@ -189,3 +189,207 @@
 .tab-calibration .acc tr td:nth-child(1){
     width: 34%;
     }
+
+.tab-calibration .calibration-layout {
+    display: grid;
+    grid-template-columns: minmax(620px, 1.75fr) minmax(360px, 1fr);
+    align-items: start;
+    gap: 14px;
+}
+
+.tab-calibration .calibration-accelerometer,
+.tab-calibration .calibration-secondary {
+    min-width: 0;
+}
+
+.tab-calibration .calibration-secondary {
+    display: grid;
+    gap: 12px;
+}
+
+.tab-calibration .calibration-secondary > .gui_box,
+.tab-calibration .calibration-accelerometer > .gui_box {
+    width: 100%;
+    min-width: 0;
+    margin: 0;
+    box-sizing: border-box;
+}
+
+.compass-calibration-intro,
+.compass-calibration-note {
+    margin: 0 0 9px;
+    line-height: 1.45;
+}
+
+.compass-calibration-note {
+    padding: 8px 10px;
+    border-left: 3px solid #37a8db;
+    background: rgba(55, 168, 219, 0.1);
+}
+
+.compass-calibration-summary {
+    margin-bottom: 9px;
+    padding: 8px 10px;
+    border-left: 3px solid #37a8db;
+    background: rgba(55, 168, 219, 0.08);
+    line-height: 1.4;
+}
+
+.compass-calibration-summary.is-ready {
+    border-left-color: #45bb77;
+    background: rgba(69, 187, 119, 0.1);
+}
+
+.compass-calibration-summary.is-warning {
+    border-left-color: #dca22a;
+    background: rgba(220, 162, 42, 0.1);
+}
+
+.compass-calibration-summary.is-error {
+    border-left-color: #e26464;
+    background: rgba(226, 100, 100, 0.1);
+}
+
+.compass-calibration-summary.is-working {
+    border-left-color: #4eb3df;
+    background: rgba(78, 179, 223, 0.12);
+}
+
+.compass-calibration-list {
+    display: grid;
+    gap: 9px;
+}
+
+.compass-calibration-card {
+    display: grid;
+    gap: 8px;
+    padding: 10px;
+    border: 1px solid rgba(153, 178, 190, 0.35);
+    border-radius: 6px;
+    background: rgba(24, 46, 58, 0.18);
+}
+
+.compass-calibration-card__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.compass-calibration-card__header > div {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.compass-calibration-card__header > div > span {
+    color: #9eb4bf;
+    font-size: 11px;
+    line-height: 1.35;
+}
+
+.compass-state {
+    flex: 0 0 auto;
+    padding: 4px 7px;
+    border-radius: 999px;
+    background: rgba(153, 178, 190, 0.15);
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.compass-state--ready {
+    background: rgba(69, 187, 119, 0.16);
+    color: #70daa0;
+}
+
+.compass-state--warning {
+    background: rgba(220, 162, 42, 0.16);
+    color: #f0c45e;
+}
+
+.compass-state--error {
+    background: rgba(226, 100, 100, 0.16);
+    color: #f38b8b;
+}
+
+.compass-state--working {
+    background: rgba(78, 179, 223, 0.16);
+    color: #75cef3;
+}
+
+.compass-value-grid {
+    display: grid;
+    gap: 5px;
+}
+
+.compass-value-row {
+    display: grid;
+    grid-template-columns: 44px repeat(3, minmax(48px, 1fr)) 55px;
+    align-items: center;
+    gap: 5px;
+}
+
+.compass-value-row > span:first-child {
+    color: #9eb4bf;
+    font-size: 10px;
+    font-weight: 650;
+}
+
+.compass-axis-value {
+    display: flex;
+    min-width: 0;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 4px;
+    padding: 5px 6px;
+    border: 1px solid rgba(153, 178, 190, 0.25);
+    border-radius: 4px;
+}
+
+.compass-axis-value small,
+.compass-value-unit {
+    color: #87a0ad;
+    font-size: 9px;
+}
+
+.compass-card-meta {
+    margin: 0;
+    color: #93aab6;
+    font-size: 10px;
+}
+
+.compass-calibrate-button {
+    min-height: 32px;
+    border-color: #2386b4 !important;
+    background: linear-gradient(#43b0df, #278db9) !important;
+    color: #ffffff !important;
+    font-weight: 700;
+}
+
+.compass-calibrate-button:disabled {
+    opacity: 0.5;
+}
+
+@media (max-width: 1250px) {
+    .tab-calibration .calibration-layout {
+        grid-template-columns: minmax(560px, 1.45fr) minmax(330px, 1fr);
+    }
+}
+
+@media (max-width: 980px) {
+    .tab-calibration .calibration-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 560px) {
+    .compass-value-row {
+        grid-template-columns: repeat(3, minmax(48px, 1fr));
+    }
+
+    .compass-value-row > span:first-child,
+    .compass-value-unit {
+        grid-column: 1 / -1;
+    }
+}

@@ -1,11 +1,11 @@
 {
     "manifest_version": 2,
     "minimum_chrome_version": "38",
-    "version": "2.0.0",
+    "version": "2.0.2",
     "author": "Flight Commander contributors",
     "name": "Flight Commander",
     "short_name": "Flight Commander",
-    "description": "Unified INAV configurator and MAVLink ground control station",
+    "description": "Flight Commander configurator, mission planner, firmware flasher, and ground control station",
 
     "offline_enabled": true,
 

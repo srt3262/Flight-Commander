@@ -56,6 +56,55 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return handler;
   },
   offSerialClose: (handler) => ipcRenderer.removeListener('serialClose', handler),
+  rtkBaseConnect: (path, options) => ipcRenderer.invoke('rtkBaseConnect', path, options),
+  rtkBaseSend: (data, connectionId) => ipcRenderer.invoke('rtkBaseSend', data, connectionId),
+  rtkBaseClose: (connectionId) => ipcRenderer.invoke('rtkBaseClose', connectionId),
+  onRtkBaseData: (callback) => {
+    const handler = (_event, envelope) => callback(envelope);
+    ipcRenderer.on('rtkBaseData', handler);
+    return handler;
+  },
+  offRtkBaseData: (handler) => ipcRenderer.removeListener('rtkBaseData', handler),
+  onRtkBaseError: (callback) => {
+    const handler = (_event, envelope) => callback(envelope);
+    ipcRenderer.on('rtkBaseError', handler);
+    return handler;
+  },
+  offRtkBaseError: (handler) => ipcRenderer.removeListener('rtkBaseError', handler),
+  onRtkBaseClose: (callback) => {
+    const handler = (_event, envelope) => callback(envelope);
+    ipcRenderer.on('rtkBaseClose', handler);
+    return handler;
+  },
+  offRtkBaseClose: (handler) => ipcRenderer.removeListener('rtkBaseClose', handler),
+  ntripConnect: (settings) => ipcRenderer.invoke('ntripConnect', settings),
+  ntripListMountpoints: (settings) => ipcRenderer.invoke('ntripListMountpoints', settings),
+  ntripSendGga: (sentence) => ipcRenderer.invoke('ntripSendGga', sentence),
+  ntripClose: () => ipcRenderer.invoke('ntripClose'),
+  onNtripData: (callback) => {
+    const handler = (_event, data) => callback(data);
+    ipcRenderer.on('ntripData', handler);
+    return handler;
+  },
+  offNtripData: (handler) => ipcRenderer.removeListener('ntripData', handler),
+  onNtripStatus: (callback) => {
+    const handler = (_event, status) => callback(status);
+    ipcRenderer.on('ntripStatus', handler);
+    return handler;
+  },
+  offNtripStatus: (handler) => ipcRenderer.removeListener('ntripStatus', handler),
+  onNtripError: (callback) => {
+    const handler = (_event, error) => callback(error);
+    ipcRenderer.on('ntripError', handler);
+    return handler;
+  },
+  offNtripError: (handler) => ipcRenderer.removeListener('ntripError', handler),
+  onNtripClose: (callback) => {
+    const handler = (_event, status) => callback(status);
+    ipcRenderer.on('ntripClose', handler);
+    return handler;
+  },
+  offNtripClose: (handler) => ipcRenderer.removeListener('ntripClose', handler),
   udpConnect: (ip, port) => ipcRenderer.invoke('udpConnect', ip, port),
   udpClose: () => ipcRenderer.invoke('udpClose'),
   udpSend: (data) => ipcRenderer.invoke('udpSend', data),
@@ -85,6 +134,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   writeFile: (filename, data) => ipcRenderer.invoke('writeFile', filename, data),
   appendFile: (filename, data) => ipcRenderer.invoke('appendFile', filename, data),
   readFile: (filename, encoding = 'utf8') => ipcRenderer.invoke('readFile', filename, encoding),
+  listBundledFlightCommanderFirmware: () => (
+    ipcRenderer.invoke('listBundledFlightCommanderFirmware')
+  ),
+  readBundledFlightCommanderFirmware: (filename) => (
+    ipcRenderer.invoke('readBundledFlightCommanderFirmware', filename)
+  ),
   rm: (path) => ipcRenderer.invoke('rm', path),
   chmod: (path, mode) => ipcRenderer.invoke('chmod', path, mode),
   getBackupDir: () => ipcRenderer.invoke('getBackupDir'),

@@ -8,21 +8,61 @@ import FC from './../js/fc';
 import i18n from './../js/localization';
 import serialPortHelper from './../js/serialPortHelper';
 import jBox from 'jbox';
+import { firmwareFeatureSupport } from './../js/flightCommander/firmwareIdentity';
+import { encodeDronecanConfig } from './../js/flightCommander/dualGps';
 
 const portsTab = {};
+
+const DRONECAN_NODE_CAPABILITIES = Object.freeze({
+    GNSS: 1 << 0,
+    RTCM: 1 << 1,
+    BATTERY: 1 << 2,
+    MAGNETOMETER: 1 << 3,
+    RELATIVE_HEADING: 1 << 4,
+});
+
+const DRONECAN_STATE_NAMES = Object.freeze([
+    'Starting',
+    'Online',
+    'Bus off',
+    'Unavailable'
+]);
 
 portsTab.initialize = function (callback) {
 
     var columns = ['data', 'logging', 'sensors', 'telemetry', 'rx', 'peripherals'];
     var mspWarningModal;
+    const firmwareIdentity = FC.CONFIG.firmwareIdentity;
+    const supportsRtkUart = firmwareFeatureSupport(firmwareIdentity, 'rtkGpsUart').enabled;
+    const supportsDronecanConfig = firmwareFeatureSupport(firmwareIdentity, 'dronecanNodeConfig').enabled;
 
     if (GUI.active_tab !== this) {
         GUI.active_tab = this;
     }
 
     mspHelper.loadSerialPorts(function () {
-        import('./ports.html?raw').then(({default: html}) => GUI.load(html, on_tab_loaded_handler));
+        if (supportsDronecanConfig) {
+            mspHelper.loadDronecanConfig(function () {
+                mspHelper.loadDronecanNodes(loadHtml);
+            });
+        } else {
+            loadHtml();
+        }
     });
+
+    function loadHtml() {
+        import('./ports.html?raw').then(({default: html}) => GUI.load(html, on_tab_loaded_handler));
+    }
+
+    function ruleDisplayName(rule) {
+        if (supportsRtkUart && rule.name === 'GPS') {
+            return 'GPS / RTK GPS (UART)';
+        }
+        if (supportsRtkUart && rule.name === 'TELEMETRY_MAVLINK') {
+            return 'MAVLink / RTK corrections';
+        }
+        return rule.displayName;
+    }
 
     function checkMSPPortCount(excludeCheckbox) {
         let mspCount = 0;
@@ -124,7 +164,7 @@ portsTab.initialize = function (callback) {
                         var select_e;
                         if (column !== 'telemetry' && column !== 'peripherals' && column !== 'sensors') {
                             var checkboxId = 'functionCheckbox-' + portIndex + '-' + columnIndex + '-' + i;
-                            functions_e.prepend('<span class="function"><input type="checkbox" class="togglemedium" id="' + checkboxId + '" value="' + functionName + '" /><label for="' + checkboxId + '"> ' + functionRule.displayName + '</label></span>');
+                            functions_e.prepend('<span class="function"><input type="checkbox" class="togglemedium" id="' + checkboxId + '" value="' + functionName + '" /><label for="' + checkboxId + '"> ' + ruleDisplayName(functionRule) + '</label></span>');
 
                             if (serialPort.functions.indexOf(functionName) >= 0) {
                                 var checkbox_e = functions_e.find('#' + checkboxId);
@@ -148,7 +188,7 @@ portsTab.initialize = function (callback) {
                                 var disabledText = i18n.getMessage('portsTelemetryDisabled');
                                 select_e.append('<option value="">' + disabledText + '</option>');
                             }
-                            select_e.append('<option value="' + functionName + '">' + functionRule.displayName + '</option>');
+                            select_e.append('<option value="' + functionName + '">' + ruleDisplayName(functionRule) + '</option>');
 
                             if (serialPort.functions.indexOf(functionName) >= 0) {
                                 select_e.val(functionName);
@@ -216,9 +256,11 @@ portsTab.initialize = function (callback) {
 
     function on_tab_loaded_handler() {
 
-       i18n.localize();;
+        i18n.localize();;
 
         update_ui();
+        $('#flightCommanderRtkPorts').toggleClass('is-hidden', !supportsRtkUart);
+        renderDronecanUi();
 
         // Initialize the MSP warning modal
         mspWarningModal = new jBox('Modal', {
@@ -237,11 +279,124 @@ portsTab.initialize = function (callback) {
         }
 
         $('a.save').on('click', on_save_handler);
+        $('#dronecanRefresh').on('click', function (event) {
+            event.preventDefault();
+            const $button = $(this).prop('disabled', true);
+            mspHelper.loadDronecanNodes(function () {
+                renderDronecanUi();
+                $button.prop('disabled', false);
+            });
+        });
 
         GUI.content_ready(callback);
     }
 
+    function describeNodeCapabilities(capabilities) {
+        const names = [];
+        if (capabilities & DRONECAN_NODE_CAPABILITIES.GNSS) names.push('GPS');
+        if (capabilities & DRONECAN_NODE_CAPABILITIES.RTCM) names.push('RTCM');
+        if (capabilities & DRONECAN_NODE_CAPABILITIES.BATTERY) names.push('Battery');
+        if (capabilities & DRONECAN_NODE_CAPABILITIES.MAGNETOMETER) names.push('Compass');
+        if (capabilities & DRONECAN_NODE_CAPABILITIES.RELATIVE_HEADING) names.push('Relative heading');
+        return names.length ? names.join(', ') : 'Node status only';
+    }
+
+    function populateNodeSelect(selector, requiredCapability, selectedNodeId, options = {}) {
+        const $select = $(selector).empty();
+        if (options.allowDisabled) {
+            $select.append('<option value="255">Disabled</option>');
+        }
+        $select.append('<option value="0">Automatic</option>');
+        let selectedWasDiscovered = selectedNodeId === 0 ||
+            (options.allowDisabled && selectedNodeId === 255);
+        for (const node of FC.DRONECAN_STATUS.nodes) {
+            if ((node.capabilities & requiredCapability) !== requiredCapability) continue;
+            $select.append(
+                $('<option/>')
+                    .val(node.nodeId)
+                    .text(`Node ${node.nodeId} · ${describeNodeCapabilities(node.capabilities)}`),
+            );
+            if (node.nodeId === selectedNodeId) selectedWasDiscovered = true;
+        }
+        if (!selectedWasDiscovered) {
+            $select.append(
+                $('<option/>')
+                    .val(selectedNodeId)
+                    .text(`Node ${selectedNodeId} · configured, not currently detected`),
+            );
+        }
+        $select.val(String(selectedNodeId));
+    }
+
+    function renderDronecanUi() {
+        const $panel = $('#flightCommanderDronecan');
+        $panel.toggleClass('is-hidden', !supportsDronecanConfig);
+        if (!supportsDronecanConfig) return;
+
+        $('#dronecanNodeId').val(FC.DRONECAN_CONFIG.nodeId);
+        $('#dronecanBitrate').val(FC.DRONECAN_CONFIG.bitrate);
+        $('#dronecanGpsPrimary').val(String(FC.DRONECAN_CONFIG.primaryGpsSource));
+        populateNodeSelect(
+            '#dronecanGpsNode',
+            DRONECAN_NODE_CAPABILITIES.GNSS,
+            FC.DRONECAN_CONFIG.gpsNodeId,
+            { allowDisabled: true },
+        );
+        populateNodeSelect(
+            '#dronecanBatteryNode',
+            DRONECAN_NODE_CAPABILITIES.BATTERY,
+            FC.DRONECAN_CONFIG.batteryNodeId,
+            { allowDisabled: true },
+        );
+        populateNodeSelect(
+            '#dronecanMagNode',
+            DRONECAN_NODE_CAPABILITIES.MAGNETOMETER,
+            FC.DRONECAN_CONFIG.magNodeId,
+            { allowDisabled: true },
+        );
+
+        const stateName = DRONECAN_STATE_NAMES[FC.DRONECAN_STATUS.state] ?? 'Unknown';
+        $('#dronecanBusStatus').text(
+            `${stateName} · ${FC.DRONECAN_STATUS.bitrateKbps || '--'} kbit/s · ` +
+            `${FC.DRONECAN_STATUS.nodes.length} node(s)`,
+        );
+
+        const $rows = $('#dronecanNodes tbody').empty();
+        for (const node of FC.DRONECAN_STATUS.nodes) {
+            $('<tr/>')
+                .append($('<td/>').text(node.nodeId))
+                .append($('<td/>').text(describeNodeCapabilities(node.capabilities)))
+                .append($('<td/>').text(node.health === 0 ? 'OK' : `Health ${node.health}`))
+                .append($('<td/>').text(`${node.ageSeconds} s`))
+                .appendTo($rows);
+        }
+        $('#dronecanNoNodes').toggle(FC.DRONECAN_STATUS.nodes.length === 0);
+    }
+
+    function collectDronecanConfig() {
+        const nodeId = Number.parseInt($('#dronecanNodeId').val(), 10);
+        if (!Number.isInteger(nodeId) || nodeId < 1 || nodeId > 127) {
+            throw new RangeError('The Flight Commander DroneCAN node ID must be between 1 and 127.');
+        }
+        FC.DRONECAN_CONFIG.nodeId = nodeId;
+        FC.DRONECAN_CONFIG.bitrate = Number.parseInt($('#dronecanBitrate').val(), 10);
+        FC.DRONECAN_CONFIG.gpsNodeId = Number.parseInt($('#dronecanGpsNode').val(), 10);
+        FC.DRONECAN_CONFIG.batteryNodeId = Number.parseInt($('#dronecanBatteryNode').val(), 10);
+        FC.DRONECAN_CONFIG.magNodeId = Number.parseInt($('#dronecanMagNode').val(), 10);
+        FC.DRONECAN_CONFIG.primaryGpsSource = Number.parseInt($('#dronecanGpsPrimary').val(), 10);
+        encodeDronecanConfig(FC.DRONECAN_CONFIG);
+    }
+
    function on_save_handler() {
+
+        if (supportsDronecanConfig) {
+            try {
+                collectDronecanConfig();
+            } catch (error) {
+                GUI.log(`<span class="error">${$('<div>').text(error.message).html()}</span>`);
+                return;
+            }
+        }
 
         //Clear ports of any previous for serials different than USB VCP
         FC.SERIAL_CONFIG.ports = FC.SERIAL_CONFIG.ports.filter(item => item.identifier == 20)
@@ -286,7 +441,15 @@ portsTab.initialize = function (callback) {
             FC.SERIAL_CONFIG.ports.push(serialPort);
         });
 
-        mspHelper.saveSerialPorts(save_to_eeprom);
+        mspHelper.saveSerialPorts(save_dronecan_config);
+
+        function save_dronecan_config() {
+            if (!supportsDronecanConfig) {
+                save_to_eeprom();
+                return;
+            }
+            mspHelper.saveDronecanConfig(save_to_eeprom);
+        }
 
         function save_to_eeprom() {
             MSP.send_message(MSPCodes.MSP_EEPROM_WRITE, false, false, on_saved_handler);

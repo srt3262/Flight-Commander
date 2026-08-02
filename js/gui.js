@@ -19,6 +19,7 @@ var GUI_control = function () {
         'landing',
         'firmware_flasher',
         'flight_planner',
+        'flight_data',
         'sitl',
         'help'
     ];

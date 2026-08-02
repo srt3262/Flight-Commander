@@ -88,6 +88,12 @@ var FC = {
     EZ_TUNE: null,
     FLIGHT_MODES: null,
     GEOZONES: null,
+    DRONECAN_CONFIG: null,
+    DRONECAN_STATUS: null,
+    RTK_STATUS: null,
+    DUAL_GPS_STATUS: null,
+    HEADING_CONFIG: null,
+    HEADING_STATUS: null,
 
     restartRequired: false,
     MAX_SERVO_RATE: 125,
@@ -131,6 +137,7 @@ var FC = {
             apiVersion: "0.0.0",
             flightControllerIdentifier: '',
             flightControllerVersion: '',
+            reportedFirmwareVersion: '',
             firmwareFamily: 'inav',
             firmwareIdentity: null,
             flightCommanderFirmware: null,
@@ -246,6 +253,77 @@ var FC = {
             gpsBaudRate: 0,
             gpsPassthroughBaudRate: 0,
             cliBaudRate: 0
+        };
+
+        this.DRONECAN_CONFIG = {
+            nodeId: 10,
+            bitrate: 3,
+            gpsNodeId: 255,
+            batteryNodeId: 255,
+            primaryGpsSource: 0,
+            magNodeId: 255
+        };
+
+        this.DRONECAN_STATUS = {
+            state: 0,
+            bitrateKbps: 0,
+            nodes: []
+        };
+
+        this.RTK_STATUS = {
+            transport: 0,
+            fixType: 0,
+            pendingBytes: 0,
+            receivedPackets: 0,
+            completedMessages: 0,
+            injectedBytes: 0,
+            invalidPackets: 0,
+            incompleteMessages: 0,
+            queueDrops: 0
+        };
+
+        this.DUAL_GPS_STATUS = {
+            primarySource: 0,
+            uartEnabled: false,
+            uartHealthy: false,
+            uartRtk: false,
+            uartProvider: 0,
+            uartFixType: 0,
+            uartSatellites: 0,
+            uartLatitude: 0,
+            uartLongitude: 0,
+            uartAltitudeCm: 0,
+            dronecanEnabled: false,
+            dronecanHealthy: false,
+            dronecanRtk: false,
+            dronecanNodeId: 0,
+            dronecanFixType: 0,
+            dronecanSatellites: 0,
+            dronecanLatitude: 0,
+            dronecanLongitude: 0,
+            dronecanAltitudeCm: 0,
+            dronecanAgeMs: 0xffffffff,
+            baselineHeadingCentidegrees: 0,
+            baselineDistanceCm: 0
+        };
+
+        this.HEADING_CONFIG = null;
+        this.HEADING_STATUS = {
+            healthyMask: 0,
+            activeMask: 0,
+            rejectedMask: 0,
+            calibratedMask: 0,
+            calibratingMask: 0,
+            calibrationFailedMask: 0,
+            anchorSource: 255,
+            baselineProvider: 0,
+            baselineFixed: false,
+            baselineNodeId: 0,
+            fusedHeadingCentidegrees: 0,
+            baselineHeadingCentidegrees: 0,
+            baselineDistanceCm: 0,
+            baselineAccuracyCentidegrees: 0,
+            sources: []
         };
 
         this.SENSOR_DATA = {

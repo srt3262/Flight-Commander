@@ -17,36 +17,37 @@
         <div class="wrap">
           <h2>Configure and fly from one application</h2>
           <div>
-            Configure INAV aircraft through the wired MSP connection, then use
-            MAVLink telemetry for airborne ground control on compatible INAV
-            and Flight Commander Firmware targets. Monitor live telemetry,
-            send supported commands, and plan missions without changing
-            applications.
+            Configure Flight Commander aircraft through the wired MSP
+            connection, then use MAVLink telemetry for airborne ground control.
+            Monitor live telemetry, send supported commands, and plan missions
+            without changing applications. Official INAV remains available as
+            an explicitly identified compatibility mode.
           </div>
           <h2 style="margin-top: 1em">Mission and mapping tools</h2>
           <div>
             Build waypoint missions, generate survey grids from polygons, apply
             terrain-following altitudes, and transfer active missions over
-            MAVLink. Wired MSP remains available for persistent INAV mission
-            storage and configuration.
+            MAVLink. Wired MSP remains available for persistent mission storage
+            and configuration.
           </div>
         </div>
       </div>
       <div class="column half text2">
         <div class="wrap">
-          <h2>Flight Commander 2.0.0</h2>
+          <h2>Flight Commander 2.0.2</h2>
           <div>
-            Built from the verified INAV Configurator 9.1.1 source base.
-            Version 2.0.0 supports two firmware families: official INAV and
-            Flight Commander Firmware. The flasher keeps automatic target
-            detection, offers either family for the detected hardware, and
-            validates the selected family and target again before writing.
+            Flight Commander 2.0.2 combines Ground Control and guided RTK setup
+            in one workspace, keeps its map and HUD side by side, and discovers
+            every connected enabled compass in Calibration. The flasher keeps
+            automatic target detection, offers either firmware family for the
+            detected hardware, and validates the selected family and target
+            again before writing.
             Connected Flight Commander Firmware is identified through the
             versioned <code>FCFW</code> extension; fork-only features remain
             disabled unless the firmware explicitly advertises their
-            capability. Stock INAV retains its complete configurator, presets,
-            mission planning, and MAVLink Ground Control behavior. ArduPilot
-            configuration, mission, command, parameter, and flashing support
+            capability. Official INAV retains compatible configuration and
+            navigation-only mission tools; Ground Control commands and all
+            Flight Commander-only features remain disabled. ArduPilot support
             has been removed.
           </div>
           <h2 style="margin-top: 1em">Open-source foundations</h2>

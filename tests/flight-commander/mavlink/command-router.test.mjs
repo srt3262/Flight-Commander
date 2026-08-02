@@ -6,6 +6,7 @@ import {
   InavMavlinkProfileStore,
   MavlinkCommandRouter,
 } from "../../../js/gcs/mavlinkCommandRouter.js";
+import { FLIGHT_COMMANDER_CAPABILITIES } from "../../../js/flightCommander/firmwareIdentity.js";
 
 function fakeUnsupportedSession(overrides = {}) {
   const { state: stateOverrides = {}, ...methodOverrides } = overrides;
@@ -157,8 +158,34 @@ describe("unsupported firmware command gates", () => {
     assert.equal(router.capabilities().canSetMode, false);
     assert.throws(
       () => router.setMode("AUTO"),
-      /firmware family is identified/,
+      /Flight Commander Firmware is identified/,
     );
+  });
+
+  test("keeps all command controls disabled for official INAV", () => {
+    const session = fakeUnsupportedSession({
+      state: {
+        firmwareFamily: "inav",
+        systemId: 9,
+      },
+    });
+    const router = new MavlinkCommandRouter(session, {
+      profileStore: {
+        resolve() {
+          return {
+            status: "resolved",
+            profile: inavProfile(),
+            profiles: [inavProfile()],
+            reason: "",
+          };
+        },
+      },
+    });
+    assert.equal(router.capabilities().canArm, false);
+    assert.match(router.capabilities().reason, /disabled for official INAV/);
+    assert.throws(() => router.setMode("NAV WP"), /disabled for official INAV/);
+    assert.throws(() => router.setArmed(true), /disabled for official INAV/);
+    assert.deepEqual(session.calls, []);
   });
 
   test("an application transition failure remains blocked after the transient block clears", () => {
@@ -183,7 +210,7 @@ describe("unsupported firmware command gates", () => {
   });
 });
 
-describe("INAV command routing", () => {
+describe("Flight Commander command routing", () => {
   test("default override timers retain the Chromium host receiver", () => {
     const originalSetInterval = globalThis.setInterval;
     const originalClearInterval = globalThis.clearInterval;
@@ -221,13 +248,14 @@ describe("INAV command routing", () => {
     }
   });
 
-  test("requires single-aircraft acknowledgement and a matching cached profile", async () => {
+  test("requires the firmware capability and a matching cached profile", async () => {
     const sent = [];
     const session = {
       state: {
         connected: true,
         linkLost: false,
-        firmwareFamily: "inav",
+        firmwareFamily: "flight-commander",
+        flightCommanderCapabilities: FLIGHT_COMMANDER_CAPABILITIES.NATIVE_GCS_COMMANDS,
         systemId: 9,
         componentId: 1,
         protocolVersion: 2,
@@ -275,9 +303,6 @@ describe("INAV command routing", () => {
       },
     });
 
-    assert.equal(router.capabilities().canArm, false);
-    assert.match(router.capabilities().reason, /exactly one INAV aircraft/);
-    router.acknowledgeSingleInavAircraft(true);
     assert.equal(router.capabilities().canArm, true);
     assert.equal(router.capabilities().canStartMission, true);
     assert.equal(router.capabilities().canTakeoff, true);
@@ -292,7 +317,6 @@ describe("INAV command routing", () => {
     );
 
     router.stop();
-    assert.equal(router.hasSingleInavAircraftAcknowledgement(), false);
     assert.equal(adapters.at(-1).commandStreamEnabled, false);
   });
 
@@ -301,7 +325,8 @@ describe("INAV command routing", () => {
       state: {
         connected: true,
         linkLost: false,
-        firmwareFamily: "inav",
+        firmwareFamily: "flight-commander",
+        flightCommanderCapabilities: FLIGHT_COMMANDER_CAPABILITIES.NATIVE_GCS_COMMANDS,
         systemId: 9,
       },
     };
@@ -317,7 +342,6 @@ describe("INAV command routing", () => {
         },
       },
     });
-    router.acknowledgeSingleInavAircraft(true);
     assert.equal(router.capabilities().canSetMode, false);
     assert.throws(() => router.setMode("NAV WP"), /Multiple profiles/);
   });

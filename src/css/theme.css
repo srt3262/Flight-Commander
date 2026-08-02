@@ -871,7 +871,7 @@ progress::-webkit-progress-bar,
 
 .fc-parameter-view-switch button.active,
 .fc-map-center-control,
-.fc-minor-view-reset {
+.fc-rtk-jump {
     color: var(--fc-theme-text);
     border-color: var(--fc-theme-border-strong);
     background: #31414b;
@@ -905,7 +905,7 @@ progress::-webkit-progress-bar,
 .fc-map-attribution,
 .fc-map-style-control,
 .fc-map-center-control,
-.fc-minor-view-reset {
+.fc-rtk-jump {
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
 }
 

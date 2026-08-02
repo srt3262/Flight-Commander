@@ -1,8 +1,8 @@
 {
   "name": "flight-commander",
   "productName": "Flight Commander",
-  "description": "Unified INAV configurator and MAVLink ground control station.",
-  "version": "2.0.0",
+  "description": "Flight Commander configurator, mission planner, firmware flasher, and ground control station.",
+  "version": "2.0.2",
   "packageManager": "yarn@1.22.22",
   "main": ".vite/build/main.js",
   "type": "module",
@@ -12,7 +12,7 @@
     "make": "electron-forge make",
     "publish": "electron-forge publish",
     "lint": "echo \"No linting configured\"",
-    "test": "node tests/transpiler/run_all_tests.cjs && node scripts/run-node-tests.mjs",
+    "test": "node scripts/check-flight-commander-version.mjs && node tests/transpiler/run_all_tests.cjs && node scripts/run-node-tests.mjs",
     "test:flight-commander": "node scripts/run-node-tests.mjs --flight-commander",
     "package:windows": "node scripts/clean-vite-output.mjs && electron-forge package --platform=win32 --arch=x64",
     "verify:windows": "node scripts/verify-windows-package.mjs"
@@ -33,6 +33,8 @@
   "flightCommander": {
     "inavConfiguratorBase": "9.1.1",
     "inavConfiguratorCommit": "4c343e38aba4ef655afd88e8339ef21d0c3c53ac",
+    "firmwareMajor": 2,
+    "bundledFirmwareVersion": "2.0.1",
     "reconstructionRelease": true,
     "binaryOracleVersion": "1.3.5"
   },

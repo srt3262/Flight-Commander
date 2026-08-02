@@ -1,25 +1,103 @@
-.fc-flight-map-panel {
+.tab-flight-data {
+    box-sizing: border-box;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+.tab-flight-data .content_wrapper {
     display: flex;
-    min-height: 420px;
+    width: 100%;
+    min-height: 100%;
     flex-direction: column;
+    gap: 9px;
+    box-sizing: border-box;
+    padding: 12px;
+}
+
+.tab-flight-data .tab_title,
+.tab-flight-data .fc-toolbar,
+.tab-flight-data .fc-command-panel,
+.tab-flight-data .fc-status-panel {
+    margin: 0;
+}
+
+.tab-flight-data .tab_title {
+    height: 24px;
+    line-height: 24px;
+}
+
+.tab-flight-data .fc-toolbar {
+    min-width: 0;
+    padding: 8px 10px;
+}
+
+.fc-command-deck {
+    display: grid;
+    grid-template-columns: minmax(0, 1.55fr) minmax(330px, 0.9fr);
+    gap: 8px;
+    min-width: 0;
+}
+
+.tab-flight-data .fc-command-panel {
+    flex-direction: row;
+    align-items: center;
+    min-width: 0;
+    padding: 8px 10px;
+    gap: 10px;
+}
+
+.tab-flight-data .fc-command-panel__heading {
+    flex: 0 1 230px;
+    min-width: 165px;
+    max-width: 42%;
+}
+
+.tab-flight-data .fc-command-panel__heading > span,
+.tab-flight-data .fc-command-panel__heading strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tab-flight-data .fc-command-panel__actions {
+    flex: 1 1 auto;
+    min-width: 0;
+    gap: 6px;
+}
+
+.tab-flight-data .fc-command-panel--vehicle .fc-command-panel__actions {
+    justify-content: flex-end;
+}
+
+.tab-flight-data .fc-command-panel--resume .fc-command-panel__heading {
+    flex-basis: 210px;
+}
+
+.fc-flight-workspace {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 8px;
 }
 
 .fc-flight-view-toolbar {
     position: relative;
-    z-index: 30;
+    z-index: 2;
     display: flex;
+    min-height: 38px;
     align-items: center;
     justify-content: flex-end;
     flex-wrap: wrap;
     gap: 7px;
-    min-height: 38px;
-    margin-bottom: 7px;
 }
 
 .fc-flight-view-toolbar .fc-map-style-control,
 .fc-flight-view-toolbar .fc-map-center-control,
-.fc-flight-view-toolbar .fc-minor-view-reset,
-.fc-flight-view-toolbar .fc-unit-switch {
+.fc-flight-view-toolbar .fc-unit-switch,
+.fc-primary-view-control,
+.fc-rtk-jump {
     position: static;
     inset: auto;
     min-height: 34px;
@@ -101,9 +179,9 @@
 }
 
 .fc-flight-view-toolbar .fc-map-center-control,
-.fc-flight-view-toolbar .fc-minor-view-reset,
-.fc-primary-view-control {
-    padding: 5px 11px;
+.fc-primary-view-control,
+.fc-rtk-jump {
+    padding: 6px 11px;
     border: 1px solid #aebdc6;
     border-radius: 5px;
     background: linear-gradient(#ffffff, #e8eef2);
@@ -113,7 +191,7 @@
 }
 
 .fc-primary-view-control {
-    min-width: 104px;
+    min-width: 126px;
     border-color: #2386b4;
     background: linear-gradient(#43b0df, #278db9);
     color: #ffffff;
@@ -125,22 +203,72 @@
     background: linear-gradient(#54bce7, #2383ad);
 }
 
+.fc-rtk-jump {
+    display: inline-flex;
+    align-items: center;
+    text-decoration: none;
+}
+
 .fc-flight-visuals {
-    position: relative;
-    flex: 1 1 auto;
-    min-height: 420px;
+    display: grid;
+    grid-template-columns: minmax(250px, 0.8fr) minmax(430px, 1.8fr);
+    gap: 8px;
+    min-width: 0;
+}
+
+.fc-flight-visuals[data-primary="map"] .fc-live-pane--hud {
+    order: 1;
+}
+
+.fc-flight-visuals[data-primary="map"] .fc-live-pane--map {
+    order: 2;
+}
+
+.fc-flight-visuals[data-primary="hud"] .fc-live-pane--map {
+    order: 1;
+}
+
+.fc-flight-visuals[data-primary="hud"] .fc-live-pane--hud {
+    order: 2;
+}
+
+.fc-live-pane {
+    display: flex;
+    height: clamp(315px, 43vh, 485px);
+    min-width: 0;
+    flex-direction: column;
+    box-sizing: border-box;
     overflow: hidden;
     border: 1px solid #b8c5cd;
     border-radius: 7px;
     background: #07131b;
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
-    isolation: isolate;
+}
+
+.fc-live-pane__heading {
+    display: flex;
+    min-height: 29px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 4px 9px;
+    box-sizing: border-box;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    background: linear-gradient(#304b5b, #1a3342);
+    color: #ffffff;
+}
+
+.fc-live-pane__heading span {
+    color: #bcd2de;
+    font-size: 0.86em;
 }
 
 .fc-map-surface,
 .fc-hud-surface {
-    position: absolute;
-    inset: 0;
+    position: relative;
+    min-width: 0;
+    min-height: 0;
+    flex: 1 1 auto;
     box-sizing: border-box;
     overflow: hidden;
 }
@@ -154,7 +282,6 @@
     height: 100%;
     min-height: 0;
     border: 0;
-    border-radius: inherit;
 }
 
 .fc-hud-surface {
@@ -168,278 +295,37 @@
     height: 100%;
 }
 
-.fc-flight-visuals > .fc-map-surface,
-.fc-flight-visuals > .fc-hud-surface {
-    z-index: 1;
-    width: auto;
-    height: auto;
-    border: 0;
-    border-radius: 0;
-    box-shadow: none;
-}
-
-.fc-minor-view-layer {
-    position: absolute;
-    inset: 0;
-    z-index: 20;
-    overflow: hidden;
-    pointer-events: none;
-}
-
-.fc-minor-view-window {
-    position: absolute;
-    right: 12px;
-    bottom: 12px;
-    display: flex;
-    width: clamp(270px, 33%, 410px);
-    height: clamp(218px, 48%, 305px);
-    flex-direction: column;
-    box-sizing: border-box;
-    overflow: hidden;
-    border: 2px solid rgba(255, 255, 255, 0.94);
-    border-radius: 7px;
-    background: #07131b;
-    box-shadow:
-        0 5px 18px rgba(0, 0, 0, 0.48),
-        0 0 0 1px rgba(14, 35, 47, 0.76);
-    pointer-events: auto;
-    will-change: left, top;
-}
-
-.fc-minor-view-window.fc-minor-view-window--dragging {
-    box-shadow:
-        0 9px 25px rgba(0, 0, 0, 0.58),
-        0 0 0 2px #43b0df;
-}
-
-.fc-minor-view-handle {
-    display: flex;
-    min-height: 28px;
-    align-items: center;
-    justify-content: space-between;
-    gap: 7px;
-    padding: 4px 8px;
-    border: 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.25);
-    border-radius: 0;
-    background: linear-gradient(#304b5b, #1a3342);
-    color: #ffffff;
-    font: inherit;
-    text-align: left;
-    cursor: grab;
-    touch-action: none;
-    user-select: none;
-}
-
-.fc-minor-view-handle:active,
-.fc-minor-view-window--dragging .fc-minor-view-handle {
-    cursor: grabbing;
-}
-
-.fc-minor-view-handle:focus-visible {
-    outline: 2px solid #65c8ef;
-    outline-offset: -3px;
-}
-
-.fc-minor-view-handle > span:last-child {
-    color: #c6d8e2;
-    font-size: 0.86em;
-    font-weight: 500;
-}
-
-.fc-minor-view-handle__grip {
-    color: #9fd9ef;
-    font-size: 1.1em;
-    letter-spacing: -0.25em;
-}
-
-.fc-minor-view-content {
-    position: relative;
-    min-height: 0;
-    flex: 1 1 auto;
-    overflow: hidden;
-}
-
-.fc-minor-view-content > .fc-map-surface,
-.fc-minor-view-content > .fc-hud-surface {
-    z-index: 1;
-    width: auto;
-    height: auto;
-    border: 0;
-    border-radius: 0;
-    box-shadow: none;
-}
-
-.fc-minor-view-content .fc-map-attribution {
-    max-width: calc(100% - 12px);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-@media (max-width: 1180px) {
-    .fc-minor-view-window {
-        width: clamp(245px, 36%, 360px);
-        height: clamp(203px, 47%, 273px);
-    }
-}
-
-@media (max-width: 700px) {
-    .fc-flight-view-toolbar {
-        justify-content: flex-start;
-    }
-
-    .fc-flight-visuals {
-        min-height: 360px;
-    }
-
-    .fc-minor-view-window {
-        width: min(58%, 285px);
-        min-width: 215px;
-        height: 203px;
-        right: 8px;
-        bottom: 8px;
-    }
-}
-
-/*
- * Ground Control is an operating surface, so its primary map/HUD and all
- * telemetry values must remain visible together.  The tab owns the available
- * content height; only the message log scrolls as new status text arrives.
- */
-.tab-flight-data {
-    box-sizing: border-box;
-    width: 100%;
-    height: 100%;
-    min-height: 0;
-    overflow: hidden;
-}
-
-.tab-flight-data .content_wrapper {
-    display: grid;
-    grid-template-rows: auto auto auto minmax(0, 1fr) auto auto;
-    gap: 8px;
-    box-sizing: border-box;
-    width: 100%;
-    height: 100%;
-    min-height: 0;
-    padding: 12px;
-    overflow: hidden;
-}
-
-.tab-flight-data .tab_title,
-.tab-flight-data .fc-toolbar,
-.tab-flight-data .fc-command-panel,
-.tab-flight-data .fc-status-panel {
-    margin: 0;
-}
-
-.tab-flight-data .tab_title {
-    height: 24px;
-    margin: 0;
-    line-height: 24px;
-}
-
-.tab-flight-data .fc-toolbar {
-    min-width: 0;
-    padding: 8px 10px;
-}
-
-.fc-command-deck {
-    display: grid;
-    grid-template-columns: minmax(0, 1.55fr) minmax(350px, 0.9fr);
-    gap: 8px;
-    min-width: 0;
-    min-height: 0;
-}
-
-.tab-flight-data .fc-command-panel {
-    flex-direction: row;
-    align-items: center;
-    min-width: 0;
-    padding: 8px 10px;
-    gap: 10px;
-}
-
-.tab-flight-data .fc-command-panel__heading {
-    flex: 0 1 230px;
-    min-width: 165px;
-    max-width: 42%;
-}
-
-.tab-flight-data .fc-command-panel__heading > span,
-.tab-flight-data .fc-command-panel__heading strong {
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.tab-flight-data .fc-command-panel__actions {
-    flex: 1 1 auto;
-    min-width: 0;
-    gap: 6px;
-}
-
-.tab-flight-data .fc-command-panel--vehicle .fc-command-panel__actions {
-    justify-content: flex-end;
-}
-
-.tab-flight-data .fc-command-panel--resume .fc-command-panel__heading {
-    flex-basis: 210px;
-}
-
-.tab-flight-data .fc-flight-layout {
-    position: relative;
-    grid-template-columns: minmax(370px, 0.92fr) minmax(460px, 1.72fr);
-    gap: 10px;
-    width: 100%;
-    height: 100%;
-    min-width: 0;
-    min-height: 0;
-    overflow: hidden;
-}
-
 .tab-flight-data .fc-telemetry-grid {
-    grid-template-columns: repeat(3, minmax(100px, 1fr));
-    grid-template-rows: repeat(5, minmax(0, 1fr));
+    display: grid;
+    grid-template-columns: repeat(8, minmax(90px, 1fr));
     gap: 6px;
-    align-content: stretch;
     width: 100%;
-    height: 100%;
     min-width: 0;
-    min-height: 0;
 }
 
 .tab-flight-data .fc-card {
     box-sizing: border-box;
     min-width: 0;
-    min-height: 0;
-    padding: 7px 8px;
+    min-height: 54px;
+    padding: 6px 8px;
     overflow: hidden;
 }
 
 .tab-flight-data .fc-card span {
+    display: block;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    font-size: 10px;
 }
 
 .tab-flight-data .fc-card strong {
+    display: block;
     margin-top: 3px;
     overflow-wrap: anywhere;
     white-space: normal;
-    line-height: 1.15;
-    font-size: clamp(12px, 1vw, 16px);
-}
-
-.tab-flight-data .fc-flight-map-panel,
-.tab-flight-data .fc-flight-visuals {
-    height: 100%;
-    min-width: 0;
-    min-height: 0;
-}
-
-.tab-flight-data .fc-flight-map-panel {
-    overflow: hidden;
+    line-height: 1.12;
+    font-size: clamp(12px, 0.9vw, 15px);
 }
 
 .tab-flight-data .fc-status-panel {
@@ -449,7 +335,6 @@
     gap: 8px;
     box-sizing: border-box;
     min-width: 0;
-    min-height: 0;
     max-height: 72px;
     padding: 6px 8px;
     overflow: hidden;
@@ -468,9 +353,13 @@
 .tab-flight-data .fc-action-status {
     box-sizing: border-box;
     min-height: 18px;
-    max-height: 36px;
     padding: 2px 0;
-    overflow: auto;
+}
+
+.fc-rtk-mount {
+    min-width: 0;
+    padding-top: 5px;
+    scroll-margin-top: 10px;
 }
 
 #showlog.fc-ground-control-locked {
@@ -479,28 +368,40 @@
     opacity: 0.55;
 }
 
-@media (max-width: 1180px) {
+@media (max-width: 1250px) {
     .fc-command-deck {
-        grid-template-columns: minmax(0, 1.65fr) minmax(320px, 0.9fr);
+        grid-template-columns: minmax(0, 1.55fr) minmax(300px, 0.9fr);
     }
 
-    .tab-flight-data .fc-flight-layout {
-        grid-template-columns: minmax(330px, 0.95fr) minmax(410px, 1.55fr);
+    .fc-flight-visuals {
+        grid-template-columns: minmax(235px, 0.8fr) minmax(370px, 1.55fr);
+    }
+
+    .tab-flight-data .fc-telemetry-grid {
+        grid-template-columns: repeat(5, minmax(100px, 1fr));
     }
 }
 
-@media (max-width: 1050px) {
+@media (max-width: 900px) {
     .fc-command-deck {
-        grid-template-columns: minmax(0, 1.7fr) minmax(300px, 0.95fr);
+        grid-template-columns: 1fr;
     }
 
-    .tab-flight-data .fc-flight-layout {
-        grid-template-columns: minmax(315px, 0.92fr) minmax(390px, 1.5fr);
-        gap: 7px;
+    .fc-flight-visuals {
+        grid-template-columns: 1fr;
     }
 
-    .tab-flight-data .fc-card {
-        padding-inline: 6px;
+    .fc-flight-visuals .fc-live-pane[data-role="major"] {
+        order: 1;
+    }
+
+    .fc-flight-visuals .fc-live-pane[data-role="minor"] {
+        order: 2;
+        height: 300px;
+    }
+
+    .tab-flight-data .fc-telemetry-grid {
+        grid-template-columns: repeat(3, minmax(100px, 1fr));
     }
 }
 
@@ -530,58 +431,13 @@
         padding: 5px 7px;
     }
 
-    .tab-flight-data .fc-command-panel__heading {
-        flex-basis: 190px;
-        min-width: 145px;
-    }
-
-    .tab-flight-data .fc-command-panel__heading > span {
-        display: -webkit-box;
-        overflow: hidden;
-        -webkit-box-orient: vertical;
-        -webkit-line-clamp: 2;
-    }
-
     .tab-flight-data #flightDataResumeDetail,
     .tab-flight-data .fc-eyebrow {
         display: none;
     }
 
-    .tab-flight-data .fc-command-panel__actions {
-        gap: 4px;
-    }
-
-    .tab-flight-data .fc-inline-field {
-        min-height: 30px;
-        padding-inline: 6px;
-    }
-
-    .tab-flight-data .fc-flight-view-toolbar {
-        min-height: 30px;
-        margin-bottom: 4px;
-        gap: 5px;
-    }
-
-    .tab-flight-data .fc-flight-view-toolbar .fc-map-style-control,
-    .tab-flight-data .fc-flight-view-toolbar .fc-map-center-control,
-    .tab-flight-data .fc-flight-view-toolbar .fc-minor-view-reset,
-    .tab-flight-data .fc-flight-view-toolbar .fc-unit-switch,
-    .tab-flight-data .fc-primary-view-control {
-        min-height: 30px;
-        padding-block: 3px;
-    }
-
-    .tab-flight-data .fc-card {
-        padding: 5px 7px;
-    }
-
-    .tab-flight-data .fc-card span {
-        font-size: 10px;
-    }
-
-    .tab-flight-data .fc-card strong {
-        margin-top: 2px;
-        font-size: clamp(12px, 1vw, 14px);
+    .fc-live-pane {
+        height: clamp(300px, 42vh, 430px);
     }
 
     .tab-flight-data .fc-status-panel {
@@ -592,24 +448,19 @@
     .tab-flight-data .fc-message-log {
         max-height: 38px;
     }
-
-    .tab-flight-data .fc-action-status {
-        max-height: 28px;
-        font-size: 11px;
-    }
 }
 
-/*
- * Below the supported 1024 x 720 operating window, preserving readable
- * instruments takes priority over clipping controls.  The normal desktop
- * layouts above remain scroll-free.
- */
-@media (max-width: 900px), (max-height: 640px) {
-    .tab-flight-data,
-    .tab-flight-data .content_wrapper {
-        height: auto;
-        min-height: 100%;
-        overflow-y: auto;
+@media (max-width: 620px) {
+    .fc-flight-view-toolbar {
+        justify-content: flex-start;
+    }
+
+    .tab-flight-data .fc-telemetry-grid {
+        grid-template-columns: repeat(2, minmax(100px, 1fr));
+    }
+
+    .tab-flight-data .fc-status-panel {
+        grid-template-columns: 1fr;
     }
 }
 

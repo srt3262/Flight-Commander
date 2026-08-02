@@ -1,4 +1,4 @@
-# INAV Configurator — udev rules for flight controller USB devices
+# Flight Commander — udev rules for supported flight controller USB devices
 #
 # Install:
 #   sudo cp 45-inav.rules /etc/udev/rules.d/

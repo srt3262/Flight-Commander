@@ -79,6 +79,51 @@ export function flightCommanderReleaseDescriptors(releases = []) {
   );
 }
 
+export function bundledFlightCommanderDescriptors(filenames = []) {
+  return filenames
+    .map((file) => {
+      const parsed = parseFlightCommanderFirmwareFilename(file);
+      if (!parsed) return null;
+      return Object.freeze({
+        releaseUrl: "",
+        name: `Flight Commander Firmware ${parsed.version}`,
+        version: parsed.version,
+        tag: parsed.version,
+        url: "",
+        file,
+        target_id: parsed.target_id,
+        target: parsed.target,
+        date: "Included with this Configurator",
+        notes: parsed.benchOnly
+          ? "Included propellers-off bench image. Review the release checklist before flashing."
+          : "Included and verified with this Configurator release.",
+        status: parsed.benchOnly ? "bundled bench-only" : "bundled",
+        benchOnly: parsed.benchOnly,
+        bundled: true,
+        digest: null,
+      });
+    })
+    .filter(Boolean)
+    .sort((left, right) =>
+      right.version.localeCompare(left.version, undefined, { numeric: true }),
+    );
+}
+
+export function mergeFlightCommanderDescriptors(...collections) {
+  const merged = [];
+  const seen = new Set();
+  for (const descriptor of collections.flat()) {
+    if (!descriptor) continue;
+    const key = `${normalizeFirmwareTarget(descriptor.target_id)}:${descriptor.version}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    merged.push(descriptor);
+  }
+  return merged.sort((left, right) =>
+    right.version.localeCompare(left.version, undefined, { numeric: true }),
+  );
+}
+
 export function catalogByTarget(descriptors = []) {
   const catalog = Object.fromEntries(
     FLIGHT_COMMANDER_FIRMWARE_TARGETS.map(({ id }) => [id, []]),

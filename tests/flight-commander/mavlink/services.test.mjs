@@ -181,6 +181,31 @@ describe("MavlinkMissionManager", () => {
       /unsupported command 206/,
     );
     assert.equal(inav.sent.length, 0);
+
+    const flightCommander = new FakeSession((messageName, payload, source) => {
+      if (messageName === "MissionCount") {
+        source.message("MissionRequest", { seq: 0, missionType: 0 });
+      } else if (messageName === "MissionItem") {
+        source.message("MissionAck", { type: 0, missionType: 0 });
+      }
+    });
+    flightCommander.state.firmwareFamily = "flight-commander";
+    const flightCommanderManager = new MavlinkMissionManager(
+      flightCommander,
+      referencedTimerOptions,
+    );
+    await flightCommanderManager.upload(
+      [{ command: 206, frame: 2, param1: 15.25 }],
+      { timeoutMs: 100, initialRetries: 0 },
+    );
+    const photoItem = flightCommander.sent.find(
+      ({ messageName }) => messageName === "MissionItem",
+    );
+    assert.equal(photoItem.payload.command, 206);
+    assert.equal(photoItem.payload.frame, 2);
+    assert.equal(photoItem.payload.param1, 15.25);
+    assert.equal(photoItem.payload.x, 0);
+    assert.equal(photoItem.payload.y, 0);
   });
 
   test("clear verifies a zero-item readback and timeout removes listeners", async () => {

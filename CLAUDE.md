@@ -1,10 +1,10 @@
-# INAV Configurator - Developer Guide
+# Flight Commander - Developer Guide
 
 > **Maintainers:** Update this file when making architectural changes or adding major features.
 
 ## Overview
 
-INAV Configurator is a cross-platform Electron desktop application for configuring INAV flight controllers. It supports multirotors, fixed-wing aircraft, rovers, and boats.
+Flight Commander is a cross-platform Electron application for configuring Flight Commander Firmware, planning missions, flashing supported firmware, and operating its Ground Control interface. The project is a maintained fork of INAV Configurator and retains an explicit official-INAV compatibility mode.
 
 **Tech Stack:** Electron + Vite + jQuery + i18next
 
@@ -19,7 +19,7 @@ yarn make       # Build distributable packages
 ## Directory Structure
 
 ```
-inav-configurator/
+Flight-Commander/
 ├── js/                     # Main application source
 │   ├── configurator_main.js    # Renderer entry point (initializes UI)
 │   ├── fc.js                   # Flight controller state model

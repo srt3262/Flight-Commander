@@ -22,6 +22,16 @@ import mspDeduplicationQueue from './mspDeduplicationQueue';
 import mspStatistics from './mspStatistics';
 import settingsCache from './../settingsCache';
 import {Geozone, GeozoneVertex, GeozoneShapes } from './../geozone';
+import {
+    decodeDronecanConfig,
+    decodeDualGpsStatus,
+    encodeDronecanConfig,
+} from './../flightCommander/dualGps';
+import {
+    decodeHeadingConfig,
+    decodeHeadingStatus,
+    encodeHeadingConfig,
+} from './../flightCommander/headingFusion';
 
 var mspHelper = (function () {
     var self = {};
@@ -765,6 +775,81 @@ var mspHelper = (function () {
             case MSPCodes.MSP2_FLIGHT_COMMANDER_INFO:
                 // Parsed by the optional identity probe after this common MSP
                 // dispatcher releases the matching callback.
+                break;
+
+            case MSPCodes.MSP2_FLIGHT_COMMANDER_RTK_STATUS:
+                if (data.byteLength >= 28) {
+                    FC.RTK_STATUS.transport = data.getUint8(offset++);
+                    FC.RTK_STATUS.fixType = data.getUint8(offset++);
+                    FC.RTK_STATUS.pendingBytes = data.getUint16(offset, true);
+                    offset += 2;
+                    FC.RTK_STATUS.receivedPackets = data.getUint32(offset, true);
+                    offset += 4;
+                    FC.RTK_STATUS.completedMessages = data.getUint32(offset, true);
+                    offset += 4;
+                    FC.RTK_STATUS.injectedBytes = data.getUint32(offset, true);
+                    offset += 4;
+                    FC.RTK_STATUS.invalidPackets = data.getUint32(offset, true);
+                    offset += 4;
+                    FC.RTK_STATUS.incompleteMessages = data.getUint32(offset, true);
+                    offset += 4;
+                    FC.RTK_STATUS.queueDrops = data.getUint32(offset, true);
+                }
+                break;
+
+            case MSPCodes.MSP2_FLIGHT_COMMANDER_DUAL_GPS_STATUS:
+                if (data.byteLength >= 40) {
+                    Object.assign(FC.DUAL_GPS_STATUS, decodeDualGpsStatus(data));
+                }
+                break;
+
+            case MSPCodes.MSP2_FLIGHT_COMMANDER_RTCM_DATA:
+                // The empty ACK confirms that this correction fragment was
+                // accepted by Flight Commander Firmware.
+                break;
+
+            case MSPCodes.MSP2_FLIGHT_COMMANDER_DRONECAN_CONFIG:
+                if (data.byteLength >= 4) {
+                    Object.assign(FC.DRONECAN_CONFIG, decodeDronecanConfig(data));
+                }
+                break;
+
+            case MSPCodes.MSP2_FLIGHT_COMMANDER_DRONECAN_NODES:
+                FC.DRONECAN_STATUS.state = data.byteLength >= 1 ? data.getUint8(0) : 0;
+                FC.DRONECAN_STATUS.bitrateKbps = data.byteLength >= 3
+                    ? data.getUint16(1, true)
+                    : 0;
+                FC.DRONECAN_STATUS.nodes = [];
+                if (data.byteLength >= 4) {
+                    const nodeCount = data.getUint8(3);
+                    offset = 4;
+                    for (let i = 0; i < nodeCount && offset + 7 <= data.byteLength; i += 1) {
+                        FC.DRONECAN_STATUS.nodes.push({
+                            nodeId: data.getUint8(offset),
+                            health: data.getUint8(offset + 1),
+                            mode: data.getUint8(offset + 2),
+                            ageSeconds: data.getUint16(offset + 3, true),
+                            capabilities: data.getUint16(offset + 5, true)
+                        });
+                        offset += 7;
+                    }
+                }
+                break;
+
+            case MSPCodes.MSP2_FLIGHT_COMMANDER_HEADING_CONFIG:
+                FC.HEADING_CONFIG = decodeHeadingConfig(data);
+                break;
+
+            case MSPCodes.MSP2_FLIGHT_COMMANDER_HEADING_STATUS:
+                Object.assign(FC.HEADING_STATUS, decodeHeadingStatus(data));
+                break;
+
+            case MSPCodes.MSP2_FLIGHT_COMMANDER_SET_HEADING_CONFIG:
+                console.log('Flight Commander heading configuration saved');
+                break;
+
+            case MSPCodes.MSP2_FLIGHT_COMMANDER_SET_DRONECAN_CONFIG:
+                console.log('Flight Commander DroneCAN config saved');
                 break;
 
             case MSPCodes.MSP_BUILD_INFO:
@@ -1767,6 +1852,14 @@ var mspHelper = (function () {
                 buffer.push(BitHelper.specificByte(FC.FEATURES, 1));
                 buffer.push(BitHelper.specificByte(FC.FEATURES, 2));
                 buffer.push(BitHelper.specificByte(FC.FEATURES, 3));
+                break;
+
+            case MSPCodes.MSP2_FLIGHT_COMMANDER_SET_DRONECAN_CONFIG:
+                buffer.push(...encodeDronecanConfig(FC.DRONECAN_CONFIG));
+                break;
+
+            case MSPCodes.MSP2_FLIGHT_COMMANDER_SET_HEADING_CONFIG:
+                buffer.push(...encodeHeadingConfig(FC.HEADING_CONFIG, FC.DRONECAN_CONFIG));
                 break;
 
             case MSPCodes.MSP_SET_BOARD_ALIGNMENT:
@@ -3661,6 +3754,48 @@ var mspHelper = (function () {
 
     self.saveSerialPorts = function (callback) {
         MSP.send_message(MSPCodes.MSP2_SET_CF_SERIAL_CONFIG, mspHelper.crunch(MSPCodes.MSP2_SET_CF_SERIAL_CONFIG), false, callback);
+    };
+
+    self.loadFlightCommanderRtkStatus = function (callback) {
+        MSP.send_message(MSPCodes.MSP2_FLIGHT_COMMANDER_RTK_STATUS, false, false, callback);
+    };
+
+    self.loadFlightCommanderDualGpsStatus = function (callback) {
+        MSP.send_message(MSPCodes.MSP2_FLIGHT_COMMANDER_DUAL_GPS_STATUS, false, false, callback);
+    };
+
+    self.loadDronecanConfig = function (callback) {
+        MSP.send_message(MSPCodes.MSP2_FLIGHT_COMMANDER_DRONECAN_CONFIG, false, false, callback);
+    };
+
+    self.loadDronecanNodes = function (callback) {
+        MSP.send_message(MSPCodes.MSP2_FLIGHT_COMMANDER_DRONECAN_NODES, false, false, callback);
+    };
+
+    self.saveDronecanConfig = function (callback) {
+        MSP.send_message(
+            MSPCodes.MSP2_FLIGHT_COMMANDER_SET_DRONECAN_CONFIG,
+            mspHelper.crunch(MSPCodes.MSP2_FLIGHT_COMMANDER_SET_DRONECAN_CONFIG),
+            false,
+            callback,
+        );
+    };
+
+    self.loadFlightCommanderHeadingConfig = function (callback) {
+        MSP.send_message(MSPCodes.MSP2_FLIGHT_COMMANDER_HEADING_CONFIG, false, false, callback);
+    };
+
+    self.loadFlightCommanderHeadingStatus = function (callback) {
+        MSP.send_message(MSPCodes.MSP2_FLIGHT_COMMANDER_HEADING_STATUS, false, false, callback);
+    };
+
+    self.saveFlightCommanderHeadingConfig = function (callback) {
+        MSP.send_message(
+            MSPCodes.MSP2_FLIGHT_COMMANDER_SET_HEADING_CONFIG,
+            mspHelper.crunch(MSPCodes.MSP2_FLIGHT_COMMANDER_SET_HEADING_CONFIG),
+            false,
+            callback,
+        );
     };
 
     self.sendUbloxCommand = function (ubloxData, callback) {

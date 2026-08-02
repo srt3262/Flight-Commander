@@ -198,9 +198,9 @@ export function appendCompletionAction(mission, action) {
   return result;
 }
 
-export function compileInavMspMission(mission, behavior = {}) {
+export function compileInavMspMission(mission, behavior = {}, options = {}) {
   const normalized = normalizeMissionBehavior(behavior);
-  encodeInavMissionItems(mission);
+  encodeInavMissionItems(mission, options);
   const segments = new Set(
     mission
       .map((item) => Number(item?.metadata?.inavMultiMissionIndex))

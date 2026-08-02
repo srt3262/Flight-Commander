@@ -33,10 +33,29 @@ import jBox from 'jbox';
 import SerialBackend from '../js/serial_backend';
 import ublox from '../js/ublox/UBLOX';
 import dialog from '../js/dialog';
+import { firmwareFeatureSupport } from '../js/flightCommander/firmwareIdentity';
+import {
+    DRONECAN_NODE_ID_DISABLED,
+    encodeDronecanConfig,
+} from '../js/flightCommander/dualGps';
+import {
+    EXTERNAL_MAG_HARDWARE,
+    HEADING_SOURCE_COUNT,
+    HEADING_SOURCE_LABELS,
+    HEADING_SOURCE_MOVING_BASELINE,
+    encodeHeadingConfig,
+} from '../js/flightCommander/headingFusion';
 
 
 const gpsTab = {};
 gpsTab.initialize = function (callback) {
+
+    const firmwareIdentity = FC.CONFIG.firmwareIdentity;
+    const supportsRtkUart = firmwareFeatureSupport(firmwareIdentity, 'rtkGpsUart').enabled;
+    const supportsDronecanGps = firmwareFeatureSupport(firmwareIdentity, 'dronecanGps').enabled;
+    const supportsDronecanConfig = firmwareFeatureSupport(firmwareIdentity, 'dronecanNodeConfig').enabled;
+    const supportsHeadingFusion = firmwareFeatureSupport(firmwareIdentity, 'headingFusion').enabled;
+    const supportsMovingBaseline = firmwareFeatureSupport(firmwareIdentity, 'movingBaselineYaw').enabled;
 
     if (GUI.active_tab !== this) {
         GUI.active_tab = this;
@@ -73,6 +92,12 @@ gpsTab.initialize = function (callback) {
         mspHelper.loadSerialPorts,
         mspHelper.loadMiscV2
     ];
+    if (supportsDronecanConfig) {
+        loadChain.push(mspHelper.loadDronecanConfig, mspHelper.loadDronecanNodes);
+    }
+    if (supportsHeadingFusion) {
+        loadChain.push(mspHelper.loadFlightCommanderHeadingConfig);
+    }
 
     loadChainer.setChain(loadChain);
     loadChainer.setExitPoint(load_html);
@@ -84,8 +109,14 @@ gpsTab.initialize = function (callback) {
         mspHelper.saveMiscV2,
         mspHelper.saveSerialPorts,
         saveSettings,
-        mspHelper.saveToEeprom
     ];
+    if (supportsDronecanConfig) {
+        saveChain.push(mspHelper.saveDronecanConfig);
+    }
+    if (supportsHeadingFusion) {
+        saveChain.push(mspHelper.saveFlightCommanderHeadingConfig);
+    }
+    saveChain.push(mspHelper.saveToEeprom);
 
     function saveSettings(onComplete) {
         Settings.saveInputs(onComplete);
@@ -140,6 +171,7 @@ gpsTab.initialize = function (callback) {
         i18n.localize();
 
         var fcFeatures = FC.getFeatures();
+        const supportsRtkStatus = supportsRtkUart || supportsDronecanGps;
 
         features.updateUI($('.tab-gps'), FC.FEATURES);
 
@@ -194,6 +226,215 @@ gpsTab.initialize = function (callback) {
 
         gps_protocol_e.val(FC.MISC.gps_type);
         gps_protocol_e.trigger('change');
+        $('#flightCommanderRtkStatus').toggleClass('is-hidden', !supportsRtkStatus);
+        $('#flightCommanderDualGpsStatus').toggleClass('is-hidden', !supportsDronecanGps);
+        $('#flightCommanderDualGpsNote').toggleClass('is-hidden', !supportsDronecanGps);
+        $('#flightCommanderDronecanGpsConfig').toggleClass('is-hidden', !supportsDronecanConfig);
+        $('#flightCommanderHeadingConfig').toggleClass('is-hidden', !supportsHeadingFusion);
+        $('#movingBaselineConfig').toggleClass('is-hidden', !supportsMovingBaseline);
+
+        function describeDronecanNode(node) {
+            const capabilities = [];
+            if ((node.capabilities & (1 << 0)) !== 0) capabilities.push('GPS / RTK');
+            if ((node.capabilities & (1 << 3)) !== 0) capabilities.push('compass');
+            if ((node.capabilities & (1 << 4)) !== 0) capabilities.push('relative heading');
+            return `Node ${node.nodeId} · ${capabilities.join(' + ') || 'status only'}`;
+        }
+
+        function populateDronecanNodeSelect(selector, configuredNodeId, capabilityMask, automaticLabel) {
+            const $select = $(selector).empty()
+                .append('<option value="255">Disabled</option>')
+                .append($('<option/>').val(0).text(automaticLabel));
+            let configuredNodeFound = configuredNodeId === 0 || configuredNodeId === DRONECAN_NODE_ID_DISABLED;
+            for (const node of FC.DRONECAN_STATUS.nodes) {
+                if ((node.capabilities & capabilityMask) === 0) continue;
+                $('<option/>').val(node.nodeId).text(describeDronecanNode(node)).appendTo($select);
+                if (node.nodeId === configuredNodeId) configuredNodeFound = true;
+            }
+            if (!configuredNodeFound) {
+                $('<option/>')
+                    .val(configuredNodeId)
+                    .text(`Node ${configuredNodeId} · configured, not currently detected`)
+                    .appendTo($select);
+            }
+            $select.val(String(configuredNodeId));
+        }
+
+        function renderDronecanGpsConfig() {
+            if (!supportsDronecanConfig) return;
+
+            $('#gpsDronecanControllerNodeId').val(FC.DRONECAN_CONFIG.nodeId);
+            $('#gpsDronecanBitrate').val(String(FC.DRONECAN_CONFIG.bitrate));
+            $('#gpsPrimarySource').val(String(FC.DRONECAN_CONFIG.primaryGpsSource));
+
+            populateDronecanNodeSelect(
+                '#gpsDronecanNode',
+                FC.DRONECAN_CONFIG.gpsNodeId,
+                1 << 0,
+                'Automatic GPS selection',
+            );
+            populateDronecanNodeSelect(
+                '#gpsDronecanMagNode',
+                FC.DRONECAN_CONFIG.magNodeId,
+                1 << 3,
+                'Automatic compass selection',
+            );
+
+            const stateNames = ['Starting', 'Online', 'Bus off', 'Unavailable'];
+            $('#gpsDronecanBusStatus').text(
+                `${stateNames[FC.DRONECAN_STATUS.state] ?? 'Unknown'} · ` +
+                `${FC.DRONECAN_STATUS.bitrateKbps || '--'} kbit/s · ` +
+                `${FC.DRONECAN_STATUS.nodes.length} node(s) detected`,
+            );
+        }
+
+        function collectDronecanGpsConfig() {
+            FC.DRONECAN_CONFIG.nodeId = Number.parseInt($('#gpsDronecanControllerNodeId').val(), 10);
+            FC.DRONECAN_CONFIG.bitrate = Number.parseInt($('#gpsDronecanBitrate').val(), 10);
+            FC.DRONECAN_CONFIG.gpsNodeId = Number.parseInt($('#gpsDronecanNode').val(), 10);
+            FC.DRONECAN_CONFIG.primaryGpsSource = Number.parseInt($('#gpsPrimarySource').val(), 10);
+            FC.DRONECAN_CONFIG.magNodeId = Number.parseInt($('#gpsDronecanMagNode').val(), 10);
+            encodeDronecanConfig(FC.DRONECAN_CONFIG);
+        }
+
+        function renderHeadingConfig() {
+            if (!supportsHeadingFusion || !FC.HEADING_CONFIG) return;
+
+            for (let sourceIndex = 0; sourceIndex < HEADING_SOURCE_COUNT; sourceIndex += 1) {
+                const source = FC.HEADING_CONFIG.sources[sourceIndex];
+                const $priority = $(`#headingSourcePriority${sourceIndex}`).empty();
+                for (let priority = 1; priority <= HEADING_SOURCE_COUNT; priority += 1) {
+                    $('<option/>').val(priority).text(priority).appendTo($priority);
+                }
+                $(`#headingSourceEnabled${sourceIndex}`).prop('checked', source.enabled);
+                $priority.val(String(source.priority));
+                $(`#headingSourceWeight${sourceIndex}`).val(source.weight);
+                $(`#headingSourceYaw${sourceIndex}`).val((source.yawOffsetCentidegrees / 100).toFixed(2));
+            }
+
+            const $hardware = $('#externalMagHardware').empty();
+            for (const hardware of EXTERNAL_MAG_HARDWARE) {
+                $('<option/>').val(hardware.value).text(hardware.label).appendTo($hardware);
+            }
+            $hardware.val(String(FC.HEADING_CONFIG.externalMagHardware));
+
+            const externalAlignment = FC.HEADING_CONFIG.externalMagAlignmentDecidegrees;
+            $('#externalMagRoll').val((externalAlignment[0] / 10).toFixed(1));
+            $('#externalMagPitch').val((externalAlignment[1] / 10).toFixed(1));
+            $('#externalMagYaw').val((externalAlignment[2] / 10).toFixed(1));
+
+            const dronecanAlignment = FC.HEADING_CONFIG.dronecanMagAlignmentDecidegrees;
+            $('#dronecanMagRoll').val((dronecanAlignment[0] / 10).toFixed(1));
+            $('#dronecanMagPitch').val((dronecanAlignment[1] / 10).toFixed(1));
+            $('#dronecanMagYaw').val((dronecanAlignment[2] / 10).toFixed(1));
+
+            $('#movingBaselineEnabled').prop('checked', FC.HEADING_CONFIG.movingBaselineEnabled);
+            $('#movingBaselineProvider').val(String(FC.HEADING_CONFIG.movingBaselineProvider));
+            $('#movingBaselineLength').val((FC.HEADING_CONFIG.expectedBaselineCm / 100).toFixed(2));
+            $('#movingBaselineTolerance').val((FC.HEADING_CONFIG.baselineToleranceCm / 100).toFixed(2));
+            $('#movingBaselineAccuracy').val((FC.HEADING_CONFIG.maxHeadingAccuracyCentidegrees / 100).toFixed(2));
+            $('#movingBaselineFixedOnly').prop('checked', FC.HEADING_CONFIG.movingBaselineFixedOnly);
+            $('#headingSourceTimeout').val(FC.HEADING_CONFIG.sourceTimeoutMs);
+            $('#headingMaxDisagreement').val((FC.HEADING_CONFIG.maxDisagreementCentidegrees / 100).toFixed(2));
+
+            if (!supportsMovingBaseline) {
+                $('#headingSourceEnabled3, #movingBaselineEnabled, #movingBaselineProvider, #movingBaselineLength, #movingBaselineTolerance, #movingBaselineAccuracy, #movingBaselineFixedOnly')
+                    .prop('disabled', true);
+            }
+        }
+
+        function collectHeadingConfig() {
+            const config = FC.HEADING_CONFIG;
+            for (let sourceIndex = 0; sourceIndex < HEADING_SOURCE_COUNT; sourceIndex += 1) {
+                config.sources[sourceIndex].enabled = $(`#headingSourceEnabled${sourceIndex}`).prop('checked');
+                config.sources[sourceIndex].priority = Number.parseInt($(`#headingSourcePriority${sourceIndex}`).val(), 10);
+                config.sources[sourceIndex].weight = Number.parseInt($(`#headingSourceWeight${sourceIndex}`).val(), 10);
+                config.sources[sourceIndex].yawOffsetCentidegrees = Math.round(Number.parseFloat($(`#headingSourceYaw${sourceIndex}`).val()) * 100);
+            }
+
+            config.externalMagHardware = Number.parseInt($('#externalMagHardware').val(), 10);
+            config.externalMagAlignmentDecidegrees = [
+                $('#externalMagRoll'),
+                $('#externalMagPitch'),
+                $('#externalMagYaw'),
+            ].map(($input) => Math.round(Number.parseFloat($input.val()) * 10));
+            config.dronecanMagAlignmentDecidegrees = [
+                $('#dronecanMagRoll'),
+                $('#dronecanMagPitch'),
+                $('#dronecanMagYaw'),
+            ].map(($input) => Math.round(Number.parseFloat($input.val()) * 10));
+
+            config.movingBaselineEnabled = supportsMovingBaseline && $('#movingBaselineEnabled').prop('checked');
+            config.sources[HEADING_SOURCE_MOVING_BASELINE].enabled = config.movingBaselineEnabled;
+            config.movingBaselineProvider = Number.parseInt($('#movingBaselineProvider').val(), 10);
+            config.expectedBaselineCm = Math.round(Number.parseFloat($('#movingBaselineLength').val()) * 100);
+            config.baselineToleranceCm = Math.round(Number.parseFloat($('#movingBaselineTolerance').val()) * 100);
+            config.maxHeadingAccuracyCentidegrees = Math.round(Number.parseFloat($('#movingBaselineAccuracy').val()) * 100);
+            config.movingBaselineFixedOnly = $('#movingBaselineFixedOnly').prop('checked');
+            config.sourceTimeoutMs = Number.parseInt($('#headingSourceTimeout').val(), 10);
+            config.maxDisagreementCentidegrees = Math.round(Number.parseFloat($('#headingMaxDisagreement').val()) * 100);
+
+            encodeHeadingConfig(config, FC.DRONECAN_CONFIG);
+        }
+
+        function updateHeadingUi() {
+            const status = FC.HEADING_STATUS;
+            const hasFusedHeading = status.activeMask !== 0;
+            $('#headingFusedValue').text(
+                hasFusedHeading ? `${(status.fusedHeadingCentidegrees / 100).toFixed(2)}°` : 'No valid source',
+            );
+            $('#headingAnchorValue').text(
+                status.anchorSource < HEADING_SOURCE_COUNT
+                    ? `Primary authority: ${HEADING_SOURCE_LABELS[status.anchorSource]}`
+                    : 'No primary authority',
+            );
+
+            for (let sourceIndex = 0; sourceIndex < HEADING_SOURCE_COUNT; sourceIndex += 1) {
+                const source = status.sources[sourceIndex];
+                const sourceConfig = FC.HEADING_CONFIG?.sources?.[sourceIndex];
+                const $row = $(`[data-heading-source="${sourceIndex}"]`)
+                    .removeClass('heading-source-active heading-source-rejected');
+                let label = 'Unavailable / stale';
+                if (!sourceConfig?.enabled) {
+                    label = 'Disabled';
+                } else if (sourceIndex < HEADING_SOURCE_MOVING_BASELINE && source?.calibrating) {
+                    label = 'Calibrating · rotate aircraft';
+                } else if (sourceIndex < HEADING_SOURCE_MOVING_BASELINE && source?.calibrationFailed) {
+                    label = 'Calibration failed';
+                    $row.addClass('heading-source-rejected');
+                } else if (sourceIndex < HEADING_SOURCE_MOVING_BASELINE && !source?.calibrated) {
+                    label = 'Calibration required';
+                } else if (source?.rejected) {
+                    label = `Rejected · ${(source.headingCentidegrees / 100).toFixed(2)}°`;
+                    $row.addClass('heading-source-rejected');
+                } else if (source?.active) {
+                    label = `Active · ${(source.headingCentidegrees / 100).toFixed(2)}° · Q${source.quality}%`;
+                    $row.addClass('heading-source-active');
+                } else if (source?.healthy) {
+                    label = `Healthy standby · ${(source.headingCentidegrees / 100).toFixed(2)}°`;
+                }
+                if (source && source.ageMs !== 0xffff) {
+                    label += ` · ${source.ageMs} ms`;
+                }
+                $(`#headingSourceStatus${sourceIndex}`).text(label);
+            }
+
+        }
+
+        renderDronecanGpsConfig();
+        renderHeadingConfig();
+        $('#headingSourceEnabled3, #movingBaselineEnabled').on('change.gpsTab', function () {
+            const enabled = $(this).prop('checked');
+            $('#headingSourceEnabled3, #movingBaselineEnabled').prop('checked', enabled);
+        });
+        $('#gpsDronecanRefresh').on('click.gpsTab', function (event) {
+            event.preventDefault();
+            const $button = $(this).prop('disabled', true);
+            mspHelper.loadDronecanNodes(function () {
+                renderDronecanGpsConfig();
+                $button.prop('disabled', false);
+            });
+        });
 
         var gps_ubx_sbas_e = $('#gps_ubx_sbas');
         for (let i = 0; i < gpsSbas.length; i++) {
@@ -471,7 +712,11 @@ gpsTab.initialize = function (callback) {
             let lon = FC.GPS_DATA.lon / 10000000;
 
             let gpsFixType = i18n.getMessage('gpsFixNone');
-            if (FC.GPS_DATA.fix >= 2) {
+            if (FC.GPS_DATA.fix === 4) {
+                gpsFixType = 'RTK Fixed';
+            } else if (FC.GPS_DATA.fix === 3) {
+                gpsFixType = 'RTK Float';
+            } else if (FC.GPS_DATA.fix >= 2) {
                 gpsFixType = i18n.getMessage('gpsFix3D');
             } else if (FC.GPS_DATA.fix >= 1) {
                 gpsFixType = i18n.getMessage('gpsFix2D');
@@ -600,6 +845,59 @@ gpsTab.initialize = function (callback) {
             }
         }
 
+        function updateRtkUi() {
+            const transportNames = ['Inactive', 'UART GPS', 'DroneCAN GPS', 'UART + DroneCAN GPS'];
+            const fixNames = ['No fix', '2D', '3D', 'RTK Float', 'RTK Fixed'];
+            const status = FC.RTK_STATUS;
+            $('#rtkTransport').text(transportNames[status.transport] ?? `Unknown (${status.transport})`);
+            $('#rtkFix').text(fixNames[status.fixType] ?? `Unknown (${status.fixType})`);
+            $('#rtkPendingBytes').text(status.pendingBytes);
+            $('#rtkPackets').text(status.receivedPackets);
+            $('#rtkMessages').text(status.completedMessages);
+            $('#rtkInjectedBytes').text(status.injectedBytes);
+            $('#rtkErrors').text(status.invalidPackets + status.incompleteMessages);
+            $('#rtkQueueDrops').text(status.queueDrops);
+        }
+
+        function updateDualGpsUi() {
+            const fixNames = ['No fix', '2D', '3D', 'RTK Float', 'RTK Fixed'];
+            const providerNames = ['u-blox UART', 'MSP', 'Fake'];
+            const status = FC.DUAL_GPS_STATUS;
+            $('#uartGpsRole').text(status.primarySource === 0 ? '· Primary' : '· Active alternate');
+            $('#dronecanGpsRole').text(status.primarySource === 1 ? '· Primary' : '· Active alternate');
+            $('#uartGpsState').text(
+                !status.uartEnabled
+                    ? 'Not configured'
+                    : status.uartHealthy ? 'Healthy' : 'Waiting for UART data',
+            );
+            $('#uartGpsProvider').text(providerNames[status.uartProvider] ?? `Provider ${status.uartProvider}`);
+            $('#uartGpsFix').text(fixNames[status.uartFixType] ?? `Fix ${status.uartFixType}`);
+            $('#uartGpsSatellites').text(status.uartSatellites);
+            $('#uartGpsPosition').text(
+                `${(status.uartLatitude / 1e7).toFixed(7)}, ${(status.uartLongitude / 1e7).toFixed(7)}`,
+            );
+
+            $('#dronecanGpsState').text(
+                !status.dronecanEnabled
+                    ? 'Disabled in Ports'
+                    : status.dronecanHealthy ? 'Healthy' : 'Waiting for DroneCAN data',
+            );
+            $('#dronecanGpsNode').text(status.dronecanNodeId || '--');
+            $('#dronecanGpsFix').text(fixNames[status.dronecanFixType] ?? `Fix ${status.dronecanFixType}`);
+            $('#dronecanGpsSatellites').text(status.dronecanSatellites);
+            $('#dronecanGpsPosition').text(
+                `${(status.dronecanLatitude / 1e7).toFixed(7)}, ${(status.dronecanLongitude / 1e7).toFixed(7)}`,
+            );
+            $('#dronecanGpsAge').text(
+                status.dronecanAgeMs === 0xffffffff ? 'Never' : `${status.dronecanAgeMs} ms`,
+            );
+            $('#dualGpsBaseline').text(
+                status.baselineDistanceCm > 0
+                    ? `${(status.baselineHeadingCentidegrees / 100).toFixed(2)}° · ${(status.baselineDistanceCm / 100).toFixed(2)} m`
+                    : 'No valid relative-heading solution',
+            );
+        }
+
         /*
          * enable data pulling
          * GPS is usually refreshed at 5Hz, there is no reason to pull it much more often, really...
@@ -614,6 +912,24 @@ gpsTab.initialize = function (callback) {
             get_raw_gps_data();
 
         }, 200);
+
+        if (supportsRtkStatus) {
+            interval.add('flight_commander_rtk_pull', function () {
+                mspHelper.loadFlightCommanderRtkStatus(updateRtkUi);
+            }, 1000, true);
+        }
+
+        if (supportsDronecanGps) {
+            interval.add('flight_commander_dual_gps_pull', function () {
+                mspHelper.loadFlightCommanderDualGpsStatus(updateDualGpsUi);
+            }, 1000, true);
+        }
+
+        if (supportsHeadingFusion) {
+            interval.add('flight_commander_heading_pull', function () {
+                mspHelper.loadFlightCommanderHeadingStatus(updateHeadingUi);
+            }, 500, true);
+        }
 
 
         if (semver.gte(FC.CONFIG.flightControllerVersion, "8.0.0")) {
@@ -630,6 +946,17 @@ gpsTab.initialize = function (callback) {
         }
 
         $('a.save').on('click.gpsTab', function () {
+            try {
+                if (supportsDronecanConfig) {
+                    collectDronecanGpsConfig();
+                }
+                if (supportsHeadingFusion) {
+                    collectHeadingConfig();
+                }
+            } catch (error) {
+                GUI.log(`<span class="error">${$('<div>').text(error.message).html()}</span>`);
+                return;
+            }
             serialPortHelper.set($port.val(), 'GPS', $baud.val());
             features.reset();
             features.fromUI($('.tab-gps'));
@@ -706,6 +1033,8 @@ gpsTab.cleanup = function (callback) {
     $('#gps_preset_mode').off('.gpsTab');
     $('#gps_apply_optimal').off('.gpsTab');
     $('#center_button').off('.gpsTab');
+    $('#gpsDronecanRefresh').off('.gpsTab');
+    $('#headingSourceEnabled3, #movingBaselineEnabled').off('.gpsTab');
     $('a.save').off('.gpsTab');
     $('a.loadAssistnowOnline').off('.gpsTab');
     $('a.loadAssistnowOffline').off('.gpsTab');

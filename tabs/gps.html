@@ -14,32 +14,35 @@
                             <label for="feature-7"><span data-i18n="featureGPS"></span></label>
                             <div for="feature-7" class="helpicon cf_tip" data-i18n_title="featureGPSTip"></div>
                         </div>
-                        <div class="select">
+                        <div class="select gps-setting-row gps-serial-transport">
                             <select id="gps_port" class="gps_port"></select>
                             <label for="gps_port"><span data-i18n="gpsPort"></span></label>
                         </div>
-                        <div class="select">
+                        <div class="select gps-setting-row gps-serial-transport">
                             <select id="gps_baud" class="gps_baud"></select>
                             <label for="gps_baud"><span data-i18n="gpsBaud"></span></label>
                         </div>
-                        <div class="select">
+                        <div class="select gps-setting-row">
                             <select id="gps_protocol" class="gps_protocol">
                                 <!-- list generated here -->
                             </select>
                             <label for="gps_protocol"><span data-i18n="configurationGPSProtocol"></span></label>
                         </div>
-                        <div class="select">
+                        <div id="flightCommanderDualGpsNote" class="flight-commander-transport-note is-hidden">
+                            UART and DroneCAN GPS receivers can run at the same time. Select either one as the navigation primary below; the other stays active, and both can receive RTK corrections and report RTK Float or RTK Fixed independently.
+                        </div>
+                        <div class="select gps-setting-row">
                             <select id="gps_ubx_sbas" class="gps_ubx_sbas">
                                 <!-- list generated here -->
                             </select>
                             <label for="gps_ubx_sbas"><span data-i18n="configurationGPSubxSbas"></span></label>
                         </div>
-                        <div class="number is-hidden">
+                        <div class="number gps-setting-row is-hidden">
                             <input type="number" id="mag_declination" name="mag_declination" step="0.1" min="-180" max="180" />
                             <label for="mag_declination"><span data-i18n="configurationMagDeclination"></span></label>
                         </div>
                         <!-- GPS Optimization Preset -->
-                        <div class="select">
+                        <div class="select gps-setting-row">
                             <select id="gps_preset_mode">
                                 <option value="auto">Auto-detect GPS Type</option>
                                 <option value="manual" selected>Manual Settings</option>
@@ -66,7 +69,7 @@
                             <ul id="preset_details" style="margin: 5px 0; padding-left: 20px;"></ul>
                         </div>
                         <!-- GPS Update Rate -->
-                        <div class="number">
+                        <div class="number gps-setting-row">
                             <input type="number" id="gps_ublox_nav_hz" data-setting="gps_ublox_nav_hz" step="1" min="5" max="20" />
                             <label for="gps_ublox_nav_hz">
                                 <span data-i18n="gpsUpdateRate">GPS Update Rate (Hz)</span>
@@ -85,15 +88,178 @@
                             <input type="checkbox" id="gps_use_glonass" class="toggle update_preview preset-controlled" data-setting="gps_ublox_use_glonass">
                             <label for="gps_use_glonass"><span data-i18n="configurationGPSUseGlonass"></span></label>
                         </div>
-                        <div class="number">
+                        <div class="number gps-setting-row">
                             <input type="number" id="tzOffset" data-setting="tz_offset" data-unit="tzmins" data-setting-multiplier="1" step="1" min="-1440" max="1440" />
                             <label for="tzOffset"><span data-i18n="tzOffset"></span></label>
                             <div for="tzOffset" class="helpicon cf_tip" data-i18n_title="tzOffsetHelp"></div>
                         </div>
-                        <div class="select">
+                        <div class="select gps-setting-row">
                             <select id="tzAutomaticDST" data-setting="tz_automatic_dst"></select>
                             <label for="tzAutomaticDST"><span data-i18n="tzAutomaticDST"></span></label>
                             <div for="tzAutomaticDST" class="helpicon cf_tip" data-i18n_title="tzAutomaticDSTHelp"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="flightCommanderDronecanGpsConfig" class="gui_box grey is-hidden">
+                    <div class="gui_box_titlebar">
+                        <div class="spacer_box_title">DroneCAN GPS / RTK configuration</div>
+                    </div>
+                    <div class="spacer_box">
+                        <div class="gps-can-heading">
+                            <p id="gpsDronecanBusStatus">Waiting for DroneCAN bus status…</p>
+                            <button id="gpsDronecanRefresh" type="button">Refresh CAN nodes</button>
+                        </div>
+                        <div class="gps-can-grid">
+                            <label for="gpsDronecanControllerNodeId">
+                                <span>Flight controller CAN node ID</span>
+                                <input id="gpsDronecanControllerNodeId" type="number" min="1" max="127" step="1">
+                            </label>
+                            <label for="gpsDronecanBitrate">
+                                <span>CAN bitrate</span>
+                                <select id="gpsDronecanBitrate">
+                                    <option value="0">125 kbit/s</option>
+                                    <option value="1">250 kbit/s</option>
+                                    <option value="2">500 kbit/s</option>
+                                    <option value="3">1000 kbit/s</option>
+                                </select>
+                            </label>
+                            <label for="gpsDronecanNode">
+                                <span>DroneCAN GPS / RTK node</span>
+                                <select id="gpsDronecanNode"></select>
+                            </label>
+                            <label for="gpsPrimarySource">
+                                <span>Primary navigation GPS</span>
+                                <select id="gpsPrimarySource">
+                                    <option value="0">UART GPS</option>
+                                    <option value="1">DroneCAN GPS</option>
+                                </select>
+                            </label>
+                            <label for="gpsDronecanMagNode">
+                                <span>DroneCAN compass node</span>
+                                <select id="gpsDronecanMagNode"></select>
+                            </label>
+                        </div>
+                        <p class="gps-can-note">
+                            UART and DroneCAN receivers remain active together. Either can be the
+                            navigation primary, and both retain independent RTK Float/Fixed state and
+                            receive RTCM corrections. Battery-node assignments remain available in Ports.
+                        </p>
+                    </div>
+                </div>
+
+                <div id="flightCommanderHeadingConfig" class="gui_box grey is-hidden">
+                    <div class="gui_box_titlebar">
+                        <div class="spacer_box_title">Flight Commander heading sources</div>
+                    </div>
+                    <div class="spacer_box heading-fusion-config">
+                        <p class="heading-fusion-intro">
+                            Priority 1 is the primary authority and disagreement anchor. All healthy enabled sources
+                            inside the disagreement limit contribute according to weight; invalid or stale sources are
+                            removed automatically and the next priority becomes primary. Enabled sources must use
+                            unique priorities, and each enabled magnetic compass must be calibrated before it contributes.
+                        </p>
+                        <div class="heading-live-summary">
+                            <strong>Fused heading:</strong> <span id="headingFusedValue">Waiting for data…</span>
+                            <span id="headingAnchorValue"></span>
+                        </div>
+                        <p class="heading-calibration-location">
+                            Configure and save heading sources here. Calibration buttons and per-compass values are shown
+                            automatically in the Calibration tab after reboot.
+                        </p>
+                        <div class="heading-source-table-wrap">
+                            <table class="cf_table heading-source-table">
+                                <thead>
+                                    <tr>
+                                        <th>Heading source</th>
+                                        <th>Enabled</th>
+                                        <th>Priority<br><small>1 = primary</small></th>
+                                        <th>Weight</th>
+                                        <th>Yaw offset</th>
+                                        <th>Live state</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr data-heading-source="0">
+                                        <td>Onboard IST8310 compass</td>
+                                        <td><input id="headingSourceEnabled0" type="checkbox"></td>
+                                        <td><select id="headingSourcePriority0"></select></td>
+                                        <td><input id="headingSourceWeight0" type="number" min="0" max="100" step="1"></td>
+                                        <td><input id="headingSourceYaw0" type="number" min="-180" max="180" step="0.01"> °</td>
+                                        <td id="headingSourceStatus0">Waiting</td>
+                                    </tr>
+                                    <tr data-heading-source="1">
+                                        <td>UART GPS-module compass <small>(external I²C1)</small></td>
+                                        <td><input id="headingSourceEnabled1" type="checkbox"></td>
+                                        <td><select id="headingSourcePriority1"></select></td>
+                                        <td><input id="headingSourceWeight1" type="number" min="0" max="100" step="1"></td>
+                                        <td><input id="headingSourceYaw1" type="number" min="-180" max="180" step="0.01"> °</td>
+                                        <td id="headingSourceStatus1">Waiting</td>
+                                    </tr>
+                                    <tr data-heading-source="2">
+                                        <td>DroneCAN GPS-module compass</td>
+                                        <td><input id="headingSourceEnabled2" type="checkbox"></td>
+                                        <td><select id="headingSourcePriority2"></select></td>
+                                        <td><input id="headingSourceWeight2" type="number" min="0" max="100" step="1"></td>
+                                        <td><input id="headingSourceYaw2" type="number" min="-180" max="180" step="0.01"> °</td>
+                                        <td id="headingSourceStatus2">Waiting</td>
+                                    </tr>
+                                    <tr data-heading-source="3">
+                                        <td>Moving-baseline GNSS yaw</td>
+                                        <td><input id="headingSourceEnabled3" type="checkbox"></td>
+                                        <td><select id="headingSourcePriority3"></select></td>
+                                        <td><input id="headingSourceWeight3" type="number" min="0" max="100" step="1"></td>
+                                        <td><input id="headingSourceYaw3" type="number" min="-180" max="180" step="0.01"> °</td>
+                                        <td id="headingSourceStatus3">Waiting</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="heading-config-sections">
+                            <fieldset>
+                                <legend>UART GPS-module compass</legend>
+                                <label><span>Compass hardware</span><select id="externalMagHardware"></select></label>
+                                <div class="heading-axis-grid">
+                                    <label><span>Roll alignment</span><input id="externalMagRoll" type="number" min="-180" max="360" step="0.1"> °</label>
+                                    <label><span>Pitch alignment</span><input id="externalMagPitch" type="number" min="-180" max="360" step="0.1"> °</label>
+                                    <label><span>Yaw alignment</span><input id="externalMagYaw" type="number" min="-180" max="360" step="0.1"> °</label>
+                                </div>
+                                <p>The GPS UART carries GNSS data; its compass uses the module cable's SDA/SCL wires on the flight controller's external I²C1 connector. Enabling or changing this source requires Save and Reboot, followed by compass calibration.</p>
+                            </fieldset>
+
+                            <fieldset>
+                                <legend>DroneCAN compass mounting</legend>
+                                <div class="heading-axis-grid">
+                                    <label><span>Roll alignment</span><input id="dronecanMagRoll" type="number" min="-180" max="360" step="0.1"> °</label>
+                                    <label><span>Pitch alignment</span><input id="dronecanMagPitch" type="number" min="-180" max="360" step="0.1"> °</label>
+                                    <label><span>Yaw alignment</span><input id="dronecanMagYaw" type="number" min="-180" max="360" step="0.1"> °</label>
+                                </div>
+                                <p>DroneCAN MagneticFieldStrength2 is body-frame data. Use these values only when the module's published mounting orientation is not aligned with the aircraft. Flight Commander applies its own per-node hard-iron offset and per-axis gain calibration before this mounting rotation.</p>
+                            </fieldset>
+
+                            <fieldset id="movingBaselineConfig">
+                                <legend>Moving-baseline yaw</legend>
+                                <label><span>Enable relative heading</span><input id="movingBaselineEnabled" type="checkbox"></label>
+                                <label><span>Relative-heading input</span>
+                                    <select id="movingBaselineProvider">
+                                        <option value="0">Automatic (best valid input)</option>
+                                        <option value="1">UART u-blox RELPOSNED</option>
+                                        <option value="2">DroneCAN RelPosHeading</option>
+                                    </select>
+                                </label>
+                                <label><span>Expected antenna separation</span><input id="movingBaselineLength" type="number" min="0.30" max="10" step="0.01"> m</label>
+                                <label><span>Allowed length error</span><input id="movingBaselineTolerance" type="number" min="0.01" max="9.99" step="0.01"> m</label>
+                                <label><span>Maximum heading accuracy</span><input id="movingBaselineAccuracy" type="number" min="0.10" max="45" step="0.01"> °</label>
+                                <label><span>Require RTK Fixed</span><input id="movingBaselineFixedOnly" type="checkbox"></label>
+                                <p>Both GNSS units must be configured as a real moving-base pair and the rover must emit a relative-heading solution. Flight Commander does not infer yaw from two ordinary latitude/longitude fixes.</p>
+                            </fieldset>
+
+                            <fieldset>
+                                <legend>Fusion guards</legend>
+                                <label><span>Source timeout</span><input id="headingSourceTimeout" type="number" min="100" max="5000" step="50"> ms</label>
+                                <label><span>Maximum source disagreement</span><input id="headingMaxDisagreement" type="number" min="5" max="90" step="0.5"> °</label>
+                            </fieldset>
                         </div>
                     </div>
                 </div>
@@ -171,6 +337,52 @@
                                 <td class="timeouts">0</td>
                             </tr>
                         </table>
+                    </div>
+                </div>
+                <div id="flightCommanderRtkStatus" class="gui_box grey is-hidden">
+                    <div class="gui_box_titlebar">
+                        <div class="spacer_box_title">Flight Commander RTK</div>
+                    </div>
+                    <div class="spacer_box">
+                        <table class="cf_table flight-commander-rtk-status">
+                            <tr><td>GPS transport</td><td id="rtkTransport">Inactive</td></tr>
+                            <tr><td>RTK fix</td><td id="rtkFix">No fix</td></tr>
+                            <tr><td>Queued correction bytes</td><td id="rtkPendingBytes">0</td></tr>
+                            <tr><td>RTCM packets received</td><td id="rtkPackets">0</td></tr>
+                            <tr><td>RTCM messages completed</td><td id="rtkMessages">0</td></tr>
+                            <tr><td>Bytes injected</td><td id="rtkInjectedBytes">0</td></tr>
+                            <tr><td>Invalid/incomplete messages</td><td id="rtkErrors">0</td></tr>
+                            <tr class="noboarder"><td>Queue drops</td><td id="rtkQueueDrops">0</td></tr>
+                        </table>
+                    </div>
+                </div>
+                <div id="flightCommanderDualGpsStatus" class="gui_box grey is-hidden">
+                    <div class="gui_box_titlebar">
+                        <div class="spacer_box_title">Flight Commander dual GPS</div>
+                    </div>
+                    <div class="spacer_box dual-gps-status-grid">
+                        <section>
+                            <h4>UART GPS <span id="uartGpsRole"></span></h4>
+                            <dl>
+                                <div><dt>State</dt><dd id="uartGpsState">No current data</dd></div>
+                                <div><dt>Provider</dt><dd id="uartGpsProvider">u-blox UART</dd></div>
+                                <div><dt>Fix</dt><dd id="uartGpsFix">No fix</dd></div>
+                                <div><dt>Satellites</dt><dd id="uartGpsSatellites">0</dd></div>
+                                <div><dt>Position</dt><dd id="uartGpsPosition">0.0000000, 0.0000000</dd></div>
+                            </dl>
+                        </section>
+                        <section>
+                            <h4>DroneCAN GPS <span id="dronecanGpsRole"></span></h4>
+                            <dl>
+                                <div><dt>State</dt><dd id="dronecanGpsState">Disabled in Ports</dd></div>
+                                <div><dt>Node</dt><dd id="dronecanGpsNode">--</dd></div>
+                                <div><dt>Fix</dt><dd id="dronecanGpsFix">No fix</dd></div>
+                                <div><dt>Satellites</dt><dd id="dronecanGpsSatellites">0</dd></div>
+                                <div><dt>Position</dt><dd id="dronecanGpsPosition">0.0000000, 0.0000000</dd></div>
+                                <div><dt>Data age</dt><dd id="dronecanGpsAge">Never</dd></div>
+                            </dl>
+                        </section>
+                        <div class="dual-gps-baseline"><strong>Dual-GPS baseline:</strong> <span id="dualGpsBaseline">No valid relative-heading solution</span></div>
                     </div>
                 </div>
                 <div class="gui_box grey adsb_info_block">

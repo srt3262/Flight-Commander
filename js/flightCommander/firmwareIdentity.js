@@ -12,6 +12,16 @@ export const FLIGHT_COMMANDER_CAPABILITIES = Object.freeze({
   MULTIROTOR_AUTOTUNE: 1 << 0,
   TERRAIN_WAYPOINTS: 1 << 1,
   MISSION_STREAMING: 1 << 2,
+  RTK_GPS_UART: 1 << 3,
+  DRONECAN: 1 << 4,
+  DRONECAN_GPS: 1 << 5,
+  NATIVE_GCS_COMMANDS: 1 << 6,
+  PHOTO_TRIGGERS: 1 << 7,
+  DRONECAN_NODE_CONFIG: 1 << 8,
+  MISSION_RESUME: 1 << 9,
+  GCS_RTK_BASE: 1 << 10,
+  HEADING_FUSION: 1 << 11,
+  MOVING_BASELINE_YAW: 1 << 12,
 });
 
 export const FLIGHT_COMMANDER_FEATURES = Object.freeze({
@@ -29,6 +39,56 @@ export const FLIGHT_COMMANDER_FEATURES = Object.freeze({
     capability: FLIGHT_COMMANDER_CAPABILITIES.MISSION_STREAMING,
     capabilityName: "MISSION_STREAMING",
     label: "Mission streaming",
+  }),
+  rtkGpsUart: Object.freeze({
+    capability: FLIGHT_COMMANDER_CAPABILITIES.RTK_GPS_UART,
+    capabilityName: "RTK_GPS_UART",
+    label: "UART RTK corrections",
+  }),
+  dronecan: Object.freeze({
+    capability: FLIGHT_COMMANDER_CAPABILITIES.DRONECAN,
+    capabilityName: "DRONECAN",
+    label: "DroneCAN bus",
+  }),
+  dronecanGps: Object.freeze({
+    capability: FLIGHT_COMMANDER_CAPABILITIES.DRONECAN_GPS,
+    capabilityName: "DRONECAN_GPS",
+    label: "Concurrent selectable-primary DroneCAN GPS and RTK",
+  }),
+  nativeGcsCommands: Object.freeze({
+    capability: FLIGHT_COMMANDER_CAPABILITIES.NATIVE_GCS_COMMANDS,
+    capabilityName: "NATIVE_GCS_COMMANDS",
+    label: "Native Ground Control commands",
+  }),
+  photoTriggers: Object.freeze({
+    capability: FLIGHT_COMMANDER_CAPABILITIES.PHOTO_TRIGGERS,
+    capabilityName: "PHOTO_TRIGGERS",
+    label: "MAVLink mission photo triggers",
+  }),
+  dronecanNodeConfig: Object.freeze({
+    capability: FLIGHT_COMMANDER_CAPABILITIES.DRONECAN_NODE_CONFIG,
+    capabilityName: "DRONECAN_NODE_CONFIG",
+    label: "DroneCAN node configuration",
+  }),
+  missionResume: Object.freeze({
+    capability: FLIGHT_COMMANDER_CAPABILITIES.MISSION_RESUME,
+    capabilityName: "MISSION_RESUME",
+    label: "Mission resume",
+  }),
+  gcsRtkBase: Object.freeze({
+    capability: FLIGHT_COMMANDER_CAPABILITIES.GCS_RTK_BASE,
+    capabilityName: "GCS_RTK_BASE",
+    label: "USB RTK base-station bridge",
+  }),
+  headingFusion: Object.freeze({
+    capability: FLIGHT_COMMANDER_CAPABILITIES.HEADING_FUSION,
+    capabilityName: "HEADING_FUSION",
+    label: "Weighted compass and heading-source fusion",
+  }),
+  movingBaselineYaw: Object.freeze({
+    capability: FLIGHT_COMMANDER_CAPABILITIES.MOVING_BASELINE_YAW,
+    capabilityName: "MOVING_BASELINE_YAW",
+    label: "Dual-GNSS moving-baseline yaw",
   }),
 });
 
@@ -87,7 +147,7 @@ export function createInavFirmwareIdentity(
 ) {
   return immutableIdentity({
     family: FIRMWARE_FAMILY_INAV,
-    displayName: "INAV",
+    displayName: "Official INAV",
     detected: false,
     protocolSupported: false,
     schemaVersion: null,
@@ -211,6 +271,14 @@ export function applyFirmwareIdentity(FC, identity) {
   FC.CONFIG.firmwareIdentity = identity;
   FC.CONFIG.flightCommanderFirmware =
     identity.family === FIRMWARE_FAMILY_FLIGHT_COMMANDER ? identity : null;
+  if (identity.family === FIRMWARE_FAMILY_FLIGHT_COMMANDER) {
+    FC.CONFIG.reportedFirmwareVersion = FC.CONFIG.flightControllerVersion;
+    // The inherited configurator surfaces use this value for INAV protocol and
+    // settings-schema routing. Product/version UI must use firmwareVersion.
+    FC.CONFIG.flightControllerVersion = identity.compatibleInavVersion;
+  } else {
+    FC.CONFIG.reportedFirmwareVersion = FC.CONFIG.flightControllerVersion;
+  }
   return identity;
 }
 

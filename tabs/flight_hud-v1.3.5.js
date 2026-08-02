@@ -7,7 +7,6 @@ import {
 } from './../js/gcs/groundControlUnits.js';
 
 const STORAGE_KEY = 'flightCommanderGroundControlPrimaryView';
-const MINOR_POSITION_STORAGE_KEY = 'flightCommanderGroundControlMinorPosition';
 const PRIMARY_VIEWS = new Set(['map', 'hud']);
 const DEG_TO_RAD = Math.PI / 180;
 
@@ -566,60 +565,10 @@ function writePrimaryView(storage, value) {
 }
 
 export function normalizeMinorViewPosition(value) {
-    let parsed = value;
-    if (typeof parsed === 'string') {
-        try {
-            parsed = JSON.parse(parsed);
-        } catch {
-            return null;
-        }
-    }
-    if (!parsed || typeof parsed !== 'object') return null;
-    const x = finite(parsed.x);
-    const y = finite(parsed.y);
-    if (x === null || y === null) return null;
-    return {
-        x: clamp(x, 0, 1),
-        y: clamp(y, 0, 1),
-    };
-}
-
-function readMinorViewPosition(storage) {
-    try {
-        return normalizeMinorViewPosition(
-            storage?.getItem(MINOR_POSITION_STORAGE_KEY),
-        );
-    } catch {
-        return null;
-    }
-}
-
-function writeMinorViewPosition(storage, value) {
-    try {
-        storage?.setItem(MINOR_POSITION_STORAGE_KEY, JSON.stringify(value));
-    } catch {
-        // A denied storage write should not stop direct manipulation.
-    }
-}
-
-function clearMinorViewPosition(storage) {
-    try {
-        if (typeof storage?.removeItem === 'function') {
-            storage.removeItem(MINOR_POSITION_STORAGE_KEY);
-        } else {
-            storage?.setItem(MINOR_POSITION_STORAGE_KEY, '');
-        }
-    } catch {
-        // Resetting the live position still succeeds if persistence is denied.
-    }
-}
-
-function elementSize(rect, axis) {
-    const direct = finite(rect?.[axis]);
-    if (direct !== null) return Math.max(0, direct);
-    const start = finite(rect?.[axis === 'width' ? 'left' : 'top']);
-    const end = finite(rect?.[axis === 'width' ? 'right' : 'bottom']);
-    return start === null || end === null ? 0 : Math.max(0, end - start);
+    // Retained as a compatibility export for extensions built against 2.0.1.
+    // Ground Control 2.0.2 no longer uses a movable overlay.
+    void value;
+    return null;
 }
 
 export function createGroundControlHud({
@@ -632,18 +581,15 @@ export function createGroundControlHud({
     const visuals = document.getElementById('flightDataVisuals');
     const surface = document.getElementById('flightDataHud');
     const mapSurface = document.getElementById('flightDataMapSurface');
+    const mapPane = document.getElementById('flightDataMapPane');
+    const hudPane = document.getElementById('flightDataHudPane');
+    const mapRole = document.getElementById('flightDataMapRole');
+    const hudRole = document.getElementById('flightDataHudRole');
     const canvas = document.getElementById('flightDataHudCanvas');
     const button = document.getElementById('flightDataPrimaryView');
-    const floatingLayer = document.getElementById('flightDataFloatingLayer');
-    const minorWindow = document.getElementById('flightDataMinorWindow');
-    const minorContent = document.getElementById('flightDataMinorContent');
-    const dragHandle = document.getElementById('flightDataMinorDragHandle');
-    const minorTitle = document.getElementById('flightDataMinorViewTitle');
-    const resetButton = document.getElementById('flightDataResetMinorView');
     if (
         !workspace || !visuals || !surface || !mapSurface || !canvas || !button
-        || !floatingLayer || !minorWindow || !minorContent || !dragHandle
-        || !minorTitle || !resetButton
+        || !mapPane || !hudPane || !mapRole || !hudRole
     ) {
         throw new Error('Ground Control HUD elements are unavailable.');
     }
@@ -660,65 +606,12 @@ export function createGroundControlHud({
     let lastState = normalizeHudState(typeof getState === 'function' ? getState() : {});
     let lastLiveState = lastState.connected && !lastState.linkLost ? lastState : null;
     let primaryView = readPrimaryView(preferenceStorage);
-    let minorPosition = readMinorViewPosition(preferenceStorage);
     let displayUnitSystem = normalizeGroundControlUnitSystem(unitSystem);
-    let dragState = null;
     const timeouts = new Set();
     let animationFrame = null;
 
-    const travelBounds = () => {
-        const layerRect = floatingLayer.getBoundingClientRect();
-        const windowRect = minorWindow.getBoundingClientRect();
-        return {
-            layerRect,
-            windowRect,
-            maxX: Math.max(
-                0,
-                elementSize(layerRect, 'width') - elementSize(windowRect, 'width'),
-            ),
-            maxY: Math.max(
-                0,
-                elementSize(layerRect, 'height') - elementSize(windowRect, 'height'),
-            ),
-        };
-    };
-
-    const applyMinorPosition = () => {
-        if (!minorPosition) {
-            minorWindow.style.left = '';
-            minorWindow.style.top = '';
-            minorWindow.style.right = '';
-            minorWindow.style.bottom = '';
-            resetButton.disabled = true;
-            return;
-        }
-        const { maxX, maxY } = travelBounds();
-        minorWindow.style.left = `${Math.round(minorPosition.x * maxX)}px`;
-        minorWindow.style.top = `${Math.round(minorPosition.y * maxY)}px`;
-        minorWindow.style.right = 'auto';
-        minorWindow.style.bottom = 'auto';
-        resetButton.disabled = false;
-    };
-
-    const setMinorPositionPixels = (left, top, persist = false) => {
-        const { maxX, maxY } = travelBounds();
-        const clampedLeft = clamp(finite(left) ?? 0, 0, maxX);
-        const clampedTop = clamp(finite(top) ?? 0, 0, maxY);
-        minorPosition = {
-            x: maxX > 0 ? clampedLeft / maxX : 0,
-            y: maxY > 0 ? clampedTop / maxY : 0,
-        };
-        minorWindow.style.left = `${Math.round(clampedLeft)}px`;
-        minorWindow.style.top = `${Math.round(clampedTop)}px`;
-        minorWindow.style.right = 'auto';
-        minorWindow.style.bottom = 'auto';
-        resetButton.disabled = false;
-        if (persist) writeMinorViewPosition(preferenceStorage, minorPosition);
-    };
-
     const updateSizes = () => {
         if (destroyed) return;
-        applyMinorPosition();
         drawGroundControlHud(canvas, lastState, displayUnitSystem);
         if (typeof onLayoutChange === 'function') onLayoutChange(primaryView);
     };
@@ -738,29 +631,19 @@ export function createGroundControlHud({
 
     const applyPrimaryView = (value, persist = true) => {
         primaryView = PRIMARY_VIEWS.has(value) ? value : 'map';
-        const primarySurface = primaryView === 'map' ? mapSurface : surface;
-        const minorSurface = primaryView === 'map' ? surface : mapSurface;
-        visuals.appendChild(primarySurface);
-        minorContent.appendChild(minorSurface);
         visuals.dataset.primary = primaryView;
-        const minorView = primaryView === 'map' ? 'hud' : 'map';
-        floatingLayer.dataset.minor = minorView;
-        minorWindow.dataset.view = minorView;
-        minorTitle.textContent = minorView === 'map' ? 'Live map' : 'Live HUD';
-        minorWindow.setAttribute(
-            'aria-label',
-            `Movable live ${minorView === 'map' ? 'map' : 'HUD'} view`,
-        );
-        dragHandle.setAttribute(
-            'aria-label',
-            `Move the minor live ${minorView === 'map' ? 'map' : 'HUD'} view. Drag or use the arrow keys.`,
-        );
         const hudPrimary = primaryView === 'hud';
+        mapPane.dataset.role = hudPrimary ? 'minor' : 'major';
+        hudPane.dataset.role = hudPrimary ? 'major' : 'minor';
+        mapRole.textContent = hudPrimary ? 'Minor view' : 'Major view';
+        hudRole.textContent = hudPrimary ? 'Major view' : 'Minor view';
+        mapPane.setAttribute('aria-label', `${hudPrimary ? 'Minor' : 'Major'} live map view`);
+        hudPane.setAttribute('aria-label', `${hudPrimary ? 'Major' : 'Minor'} live flight HUD view`);
         button.setAttribute('aria-pressed', String(hudPrimary));
-        button.textContent = hudPrimary ? 'Expand map' : 'Expand HUD';
+        button.textContent = hudPrimary ? 'Make map major' : 'Make HUD major';
         button.title = hudPrimary
-            ? 'Make the live map the primary view'
-            : 'Make the live HUD the primary view';
+            ? 'Make the live map the larger view'
+            : 'Make the live HUD the larger view';
         if (persist) writePrimaryView(preferenceStorage, primaryView);
         scheduleSizeUpdate();
     };
@@ -790,97 +673,7 @@ export function createGroundControlHud({
         drawGroundControlHud(canvas, lastState, displayUnitSystem);
     };
 
-    const resetMinorPosition = () => {
-        minorPosition = null;
-        clearMinorViewPosition(preferenceStorage);
-        applyMinorPosition();
-        scheduleSizeUpdate();
-    };
-
-    const beginDrag = (event) => {
-        if (destroyed || event?.isPrimary === false) return;
-        if (Number.isFinite(event?.button) && event.button !== 0) return;
-        const { layerRect, windowRect } = travelBounds();
-        dragState = {
-            pointerId: event?.pointerId,
-            startX: finite(event?.clientX) ?? 0,
-            startY: finite(event?.clientY) ?? 0,
-            startLeft: (finite(windowRect?.left) ?? 0) - (finite(layerRect?.left) ?? 0),
-            startTop: (finite(windowRect?.top) ?? 0) - (finite(layerRect?.top) ?? 0),
-        };
-        dragHandle.setPointerCapture?.(event.pointerId);
-        minorWindow.classList.add('fc-minor-view-window--dragging');
-        event?.preventDefault?.();
-    };
-
-    const moveDrag = (event) => {
-        if (!dragState) return;
-        if (
-            dragState.pointerId !== undefined
-            && event?.pointerId !== undefined
-            && event.pointerId !== dragState.pointerId
-        ) return;
-        const clientX = finite(event?.clientX) ?? dragState.startX;
-        const clientY = finite(event?.clientY) ?? dragState.startY;
-        setMinorPositionPixels(
-            dragState.startLeft + clientX - dragState.startX,
-            dragState.startTop + clientY - dragState.startY,
-        );
-        event?.preventDefault?.();
-    };
-
-    const finishDrag = (event) => {
-        if (!dragState) return;
-        if (
-            dragState.pointerId !== undefined
-            && event?.pointerId !== undefined
-            && event.pointerId !== dragState.pointerId
-        ) return;
-        const pointerId = dragState.pointerId;
-        dragState = null;
-        minorWindow.classList.remove('fc-minor-view-window--dragging');
-        if (minorPosition) writeMinorViewPosition(preferenceStorage, minorPosition);
-        if (
-            pointerId !== undefined
-            && dragHandle.hasPointerCapture?.(pointerId)
-        ) {
-            dragHandle.releasePointerCapture(pointerId);
-        }
-        scheduleSizeUpdate();
-        event?.preventDefault?.();
-    };
-
-    const moveWithKeyboard = (event) => {
-        const direction = {
-            ArrowLeft: [-1, 0],
-            ArrowRight: [1, 0],
-            ArrowUp: [0, -1],
-            ArrowDown: [0, 1],
-        }[event?.key];
-        if (!direction) return;
-        const { layerRect, windowRect } = travelBounds();
-        const step = event.shiftKey ? 30 : 10;
-        setMinorPositionPixels(
-            (finite(windowRect?.left) ?? 0)
-                - (finite(layerRect?.left) ?? 0)
-                + direction[0] * step,
-            (finite(windowRect?.top) ?? 0)
-                - (finite(layerRect?.top) ?? 0)
-                + direction[1] * step,
-            true,
-        );
-        scheduleSizeUpdate();
-        event.preventDefault();
-    };
-
     button.addEventListener('click', togglePrimaryView);
-    resetButton.addEventListener('click', resetMinorPosition);
-    dragHandle.addEventListener('pointerdown', beginDrag);
-    dragHandle.addEventListener('pointermove', moveDrag);
-    dragHandle.addEventListener('pointerup', finishDrag);
-    dragHandle.addEventListener('pointercancel', finishDrag);
-    dragHandle.addEventListener('lostpointercapture', finishDrag);
-    dragHandle.addEventListener('keydown', moveWithKeyboard);
     let resizeObserver = null;
     const resizeHandler = () => scheduleSizeUpdate();
     if (typeof ResizeObserver === 'function') {
@@ -889,7 +682,8 @@ export function createGroundControlHud({
         resizeObserver.observe(visuals);
         resizeObserver.observe(surface);
         resizeObserver.observe(mapSurface);
-        resizeObserver.observe(minorWindow);
+        resizeObserver.observe(mapPane);
+        resizeObserver.observe(hudPane);
     } else {
         globalThis.addEventListener?.('resize', resizeHandler);
     }
@@ -901,8 +695,6 @@ export function createGroundControlHud({
         render,
         primaryView: () => primaryView,
         setPrimaryView: (value) => applyPrimaryView(value),
-        minorViewPosition: () => minorPosition && { ...minorPosition },
-        resetMinorPosition,
         unitSystem: () => displayUnitSystem,
         setUnitSystem(value) {
             displayUnitSystem = normalizeGroundControlUnitSystem(value);
@@ -911,27 +703,7 @@ export function createGroundControlHud({
         },
         destroy() {
             destroyed = true;
-            const capturedPointerId = dragState?.pointerId;
-            if (
-                capturedPointerId !== undefined
-                && dragHandle.hasPointerCapture?.(capturedPointerId)
-            ) {
-                try {
-                    dragHandle.releasePointerCapture(capturedPointerId);
-                } catch {
-                    // Chromium can release capture first as the tab detaches.
-                }
-            }
             button.removeEventListener('click', togglePrimaryView);
-            resetButton.removeEventListener('click', resetMinorPosition);
-            dragHandle.removeEventListener('pointerdown', beginDrag);
-            dragHandle.removeEventListener('pointermove', moveDrag);
-            dragHandle.removeEventListener('pointerup', finishDrag);
-            dragHandle.removeEventListener('pointercancel', finishDrag);
-            dragHandle.removeEventListener('lostpointercapture', finishDrag);
-            dragHandle.removeEventListener('keydown', moveWithKeyboard);
-            dragState = null;
-            minorWindow.classList.remove('fc-minor-view-window--dragging');
             resizeObserver?.disconnect();
             globalThis.removeEventListener?.('resize', resizeHandler);
             if (animationFrame !== null) cancelAnimationFrame(animationFrame);

@@ -199,6 +199,11 @@ test("survey camera command 206 is explicit and optional", () => {
   assert.ok(
     withCameraCommands.some((item) => item.command === MAV_CMD_DO_SET_CAM_TRIGG_DIST),
   );
+  assert.ok(
+    withCameraCommands
+      .filter((item) => item.command === MAV_CMD_DO_SET_CAM_TRIGG_DIST)
+      .every((item) => item.frame === 2),
+  );
   assert.equal(
     withoutCameraCommands.some((item) => item.command === MAV_CMD_DO_SET_CAM_TRIGG_DIST),
     false,

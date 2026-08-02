@@ -90,6 +90,33 @@
     border-right: 0px;
 }
 
+.tab-ports .fc-panel {
+    margin-top: 1.25rem;
+}
+
+.tab-ports .fc-dronecan-heading {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.tab-ports .fc-dronecan-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+    gap: 1rem;
+    margin: 1rem 0;
+}
+
+.tab-ports .fc-dronecan-grid label {
+    display: grid;
+    gap: 0.35rem;
+}
+
+.tab-ports #dronecanNodes {
+    width: 100%;
+}
+
 @media only screen and (max-width: 1055px) , only screen and (max-device-width: 1055px) {
     .tab-ports table thead tr:first-child {
         font-size: 12px;

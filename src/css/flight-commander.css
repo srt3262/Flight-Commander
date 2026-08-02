@@ -656,14 +656,17 @@
 .fc-planner-layout {
   display: grid;
   grid-template-columns: minmax(500px, 1.7fr) minmax(300px, 0.8fr);
+  align-items: start;
   gap: 12px;
 }
 .fc-planner-map-panel {
   position: relative;
-  min-height: 600px;
+  min-height: 0;
+  height: clamp(460px, calc(100vh - 300px), 650px);
 }
 .fc-planner-map {
-  min-height: 600px;
+  min-height: 0;
+  height: 100%;
 }
 .fc-planner-sidebar {
   display: grid;
@@ -822,7 +825,8 @@
   }
   .fc-planner-map-panel,
   .fc-planner-map {
-    min-height: 480px;
+    min-height: 0;
+    height: clamp(400px, calc(100vh - 280px), 560px);
   }
   .fc-inav-planning-heading {
     display: block;

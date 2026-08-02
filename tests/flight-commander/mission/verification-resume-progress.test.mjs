@@ -59,6 +59,69 @@ test("protocol filter refuses camera command 206 and raw INAV loss over MAVLink"
   );
 });
 
+test("Flight Commander preserves command 206 over MAVLink and native MSP action 9", () => {
+  const photo = waypoint(0, {
+    frame: 2,
+    command: 206,
+    param1: 12.345,
+    latitude: 35,
+    longitude: -80,
+    altitude: 60,
+  });
+  const mavlink = filterExpectedMissionForProtocol([photo], "mavlink", {
+    firmwareProfile: "flight-commander",
+  });
+  assert.equal(mavlink[0].command, 206);
+  assert.equal(mavlink[0].frame, 2);
+  assert.equal(mavlink[0].param1, 12.35);
+  assert.equal(mavlink[0].latitude, 0);
+  assert.equal(mavlink[0].longitude, 0);
+  assert.equal(mavlink[0].altitude, 0);
+
+  const msp = filterExpectedMissionForProtocol([photo], "msp", {
+    firmwareProfile: "flight-commander",
+  });
+  assert.equal(msp[0].command, 206);
+  assert.equal(msp[0].frame, 2);
+  assert.equal(msp[0].param1, 12.35);
+  assert.equal(msp[0].metadata.inavAction, 9);
+  assert.equal(msp[0].metadata.inavP1, 1235);
+
+  assert.throws(
+    () =>
+      filterExpectedMissionForProtocol([photo], "msp", {
+        firmwareProfile: "inav",
+      }),
+    /Flight Commander extension/,
+  );
+});
+
+test("Flight Commander preserves absolute-MSL terrain waypoint frames", () => {
+  const absolute = waypoint(0, {
+    frame: 5,
+    altitude: 412.75,
+    metadata: {
+      terrainElevationM: 352.75,
+      terrainClearanceM: 60,
+    },
+  });
+  const flightCommander = filterExpectedMissionForProtocol(
+    [absolute],
+    "mavlink",
+    { firmwareProfile: "flight-commander" },
+  );
+  assert.equal(flightCommander[0].frame, 0);
+  assert.equal(flightCommander[0].altitude, 412.75);
+
+  assert.throws(
+    () =>
+      filterExpectedMissionForProtocol([absolute], "mavlink", {
+        firmwareProfile: "inav",
+      }),
+    /requires frame 3 or 6/,
+  );
+});
+
 test("mission verification checks canonical INAV coordinates", () => {
   const expected = [waypoint(0), waypoint(1)];
   const actual = structuredClone(expected);

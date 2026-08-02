@@ -10,6 +10,8 @@ export const MAV_CMD_NAV_LAND = 21;
 export const MAV_CMD_NAV_ROI = 80;
 export const MAV_CMD_CONDITION_YAW = 115;
 export const MAV_CMD_DO_JUMP = 177;
+export const MAV_CMD_DO_SET_CAM_TRIGG_DIST = 206;
+export const MAV_FRAME_MISSION = 2;
 export const MAV_FRAME_GLOBAL_INT = 5;
 export const MAV_FRAME_GLOBAL_RELATIVE_ALT_INT = 6;
 export const INAV_END_MISSION = 0xa5;
@@ -25,6 +27,7 @@ const INAV_ACTION_TO_MAV_CMD = new Map([
   [MWNP.WPTYPE.JUMP, MAV_CMD_DO_JUMP],
   [MWNP.WPTYPE.SET_HEAD, MAV_CMD_CONDITION_YAW],
   [MWNP.WPTYPE.LAND, MAV_CMD_NAV_LAND],
+  [MWNP.WPTYPE.FLIGHT_COMMANDER_CAMERA_TRIGGER_DISTANCE, MAV_CMD_DO_SET_CAM_TRIGG_DIST],
 ]);
 const MAV_CMD_TO_INAV_ACTION = new Map(
   [...INAV_ACTION_TO_MAV_CMD].map(([action, command]) => [command, action]),
@@ -39,6 +42,7 @@ export const INAV_MSP_COMMAND_NAMES = Object.freeze({
   [MAV_CMD_DO_JUMP]: "JUMP",
   [MAV_CMD_CONDITION_YAW]: "SET HEADING",
   [MAV_CMD_NAV_LAND]: "LAND",
+  [MAV_CMD_DO_SET_CAM_TRIGG_DIST]: "CAMERA TRIGGER DISTANCE",
 });
 
 export const INAV_REQUIRED_RAW_METADATA_FIELDS = Object.freeze([
@@ -209,6 +213,24 @@ function jumpParameterValue(item, metadata, itemNumber) {
   return finiteInteger(shared, `${label} zero-based sequence`, 0, 254) + 1;
 }
 
+function photoDistanceParameterValue(item, metadata, itemNumber) {
+  const label = `Mission item ${itemNumber} camera trigger distance`;
+  const shared = optionalNumber(item?.param1, `${label} in metres`);
+  const raw = metadataNumber(metadata, "inavP1");
+  const distanceCm = finiteInteger(
+    Math.round((shared ?? 0) * 100),
+    `${label} in centimetres`,
+    0,
+    32767,
+  );
+  if (raw != null && shared != null && raw !== distanceCm) {
+    throw conversionError(
+      `${label} is ambiguous: the shared value is ${shared} m, but INAV metadata contains ${raw} cm.`,
+    );
+  }
+  return finiteInteger(raw ?? distanceCm, `${label} in centimetres`, 0, 32767);
+}
+
 function p3WithAltitudeFrame(item, p3, itemNumber) {
   const frame = optionalNumber(item?.frame, `Mission item ${itemNumber} frame`);
   if (frame == null) return p3;
@@ -286,8 +308,12 @@ export function decodeInavMissionRecords(records) {
   return records.map((record, index) => {
     const raw = validateDecodedRecord(record, index);
     const command = commandForInavAction(raw.action, index + 1);
+    const photoTrigger =
+      raw.action === MWNP.WPTYPE.FLIGHT_COMMANDER_CAMERA_TRIGGER_DISTANCE;
     const param1 =
-      raw.action === MWNP.WPTYPE.JUMP
+      photoTrigger
+        ? raw.p1 / 100
+        : raw.action === MWNP.WPTYPE.JUMP
         ? finiteInteger(
             raw.p1,
             `INAV mission item ${index + 1} JUMP target`,
@@ -297,7 +323,9 @@ export function decodeInavMissionRecords(records) {
         : raw.p1;
     const item = {
       frame:
-        (raw.p3 & 1) !== 0
+        photoTrigger
+          ? MAV_FRAME_MISSION
+          : (raw.p3 & 1) !== 0
           ? MAV_FRAME_GLOBAL_INT
           : MAV_FRAME_GLOBAL_RELATIVE_ALT_INT,
       command,
@@ -362,6 +390,13 @@ export function encodeInavMissionItems(mission, options = {}) {
     const metadata = item?.metadata ?? {};
     rejectLegacyLossyMetadata(item, metadata, itemNumber);
     const action = actionForMavCommand(item?.command, itemNumber);
+    const photoTrigger =
+      action === MWNP.WPTYPE.FLIGHT_COMMANDER_CAMERA_TRIGGER_DISTANCE;
+    if (photoTrigger && !options.allowFlightCommanderPhotoTriggers) {
+      throw conversionError(
+        `Mission item ${itemNumber} command ${MAV_CMD_DO_SET_CAM_TRIGG_DIST} is a Flight Commander extension. Connect Flight Commander Firmware with photo-trigger capability before writing it.`,
+      );
+    }
     const rawAction = metadataNumber(metadata, "inavAction");
     if (rawAction != null && rawAction !== action) {
       throw conversionError(
@@ -375,7 +410,9 @@ export function encodeInavMissionItems(mission, options = {}) {
       );
     }
     const p1 =
-      action === MWNP.WPTYPE.WAYPOINT && speed != null
+      photoTrigger
+        ? photoDistanceParameterValue(item, metadata, itemNumber)
+        : action === MWNP.WPTYPE.WAYPOINT && speed != null
         ? speed
         : action === MWNP.WPTYPE.JUMP
           ? jumpParameterValue(item, metadata, itemNumber)
@@ -393,17 +430,19 @@ export function encodeInavMissionItems(mission, options = {}) {
       "inavP2",
       `Mission item ${itemNumber} P2`,
     );
-    const p3 = p3WithAltitudeFrame(
-      item,
-      parameterValue(
+    const p3Raw = parameterValue(
         item,
         metadata,
         "param3",
         "inavP3",
         `Mission item ${itemNumber} P3`,
-      ),
-      itemNumber,
     );
+    const p3 = photoTrigger ? p3Raw : p3WithAltitudeFrame(item, p3Raw, itemNumber);
+    if (photoTrigger && (p2 !== 0 || p3 !== 0)) {
+      throw conversionError(
+        `Mission item ${itemNumber} camera trigger supports only distance in param1; param2 and param3 must be zero.`,
+      );
+    }
     const endMission = finiteInteger(
       metadataNumber(metadata, "inavEndMission") ??
         (index === mission.length - 1 ? INAV_END_MISSION : 0),
@@ -425,19 +464,19 @@ export function encodeInavMissionItems(mission, options = {}) {
     const record = {
       number: itemNumber,
       action,
-      latitudeE7: rawCoordinate(
+      latitudeE7: photoTrigger ? 0 : rawCoordinate(
         item?.latitude ?? item?.lat,
         metadataNumber(metadata, "inavLatitudeE7"),
         1e7,
         `Mission item ${itemNumber} latitude`,
       ),
-      longitudeE7: rawCoordinate(
+      longitudeE7: photoTrigger ? 0 : rawCoordinate(
         item?.longitude ?? item?.lon,
         metadataNumber(metadata, "inavLongitudeE7"),
         1e7,
         `Mission item ${itemNumber} longitude`,
       ),
-      altitudeCm: rawAltitude(
+      altitudeCm: photoTrigger ? 0 : rawAltitude(
         item?.altitude ?? item?.alt,
         metadataNumber(metadata, "inavAltitudeCm"),
         `Mission item ${itemNumber} altitude`,
@@ -713,7 +752,11 @@ export function reindexInavMissionItems(mission) {
     }
   });
 
-  return decodeInavMissionRecords(encodeInavMissionItems(result)).map(
+  return decodeInavMissionRecords(encodeInavMissionItems(result, {
+    allowFlightCommanderPhotoTriggers: result.some(
+      (item) => Number(item?.command) === MAV_CMD_DO_SET_CAM_TRIGG_DIST,
+    ),
+  })).map(
     (decoded, index) => {
       const metadata = { ...result[index].metadata };
       for (const field of INAV_RAW_METADATA_FIELDS) delete metadata[field];

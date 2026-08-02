@@ -13,10 +13,15 @@ export const MAV_FRAME_GLOBAL_INT = 5;
 export const MAV_FRAME_GLOBAL_RELATIVE_ALT_INT = 6;
 export const MAV_CMD_NAV_WAYPOINT = 16;
 export const MAV_CMD_NAV_RETURN_TO_LAUNCH = 20;
+export const MAV_CMD_DO_SET_CAM_TRIGG_DIST = 206;
 
 const INAV_MAVLINK_SUPPORTED_COMMANDS = new Set([
   MAV_CMD_NAV_WAYPOINT,
   MAV_CMD_NAV_RETURN_TO_LAUNCH,
+]);
+const FLIGHT_COMMANDER_MAVLINK_SUPPORTED_COMMANDS = new Set([
+  ...INAV_MAVLINK_SUPPORTED_COMMANDS,
+  MAV_CMD_DO_SET_CAM_TRIGG_DIST,
 ]);
 const MISSION_COUNT_NAMES = new Set(["MISSION_COUNT", "MissionCount"]);
 const MISSION_ITEM_NAMES = new Set([
@@ -111,25 +116,87 @@ export function toMissionItem(item, sequence, target, missionType) {
   };
 }
 
-export function normalizeInavMissionUploadItem(item, index = 0) {
+export function normalizeInavMissionUploadItem(
+  item,
+  index = 0,
+  profile = "inav",
+) {
   const command = Number(item?.command ?? MAV_CMD_NAV_WAYPOINT);
-  if (!INAV_MAVLINK_SUPPORTED_COMMANDS.has(command)) {
+  const flightCommander = profile === "flight-commander";
+  const supportedCommands = flightCommander
+    ? FLIGHT_COMMANDER_MAVLINK_SUPPORTED_COMMANDS
+    : INAV_MAVLINK_SUPPORTED_COMMANDS;
+  if (!supportedCommands.has(command)) {
     throw new Error(
-      `INAV MAVLink mission item ${index + 1} uses unsupported command ${command}; ` +
-        "stock INAV accepts only waypoint (16) and return-to-launch (20).",
+      `${flightCommander ? "Flight Commander" : "Official INAV"} MAVLink ` +
+        `mission item ${index + 1} uses unsupported command ${command}.`,
+    );
+  }
+  const photoTrigger =
+    flightCommander && command === MAV_CMD_DO_SET_CAM_TRIGG_DIST;
+  const suppliedFrame = item?.frame == null || item.frame === ""
+    ? null
+    : Number(item.frame);
+  const allowedFrames =
+    command === MAV_CMD_NAV_RETURN_TO_LAUNCH || photoTrigger
+      ? [MAV_FRAME_MISSION]
+      : flightCommander
+        ? [
+            MAV_FRAME_GLOBAL,
+            MAV_FRAME_GLOBAL_RELATIVE_ALT,
+            MAV_FRAME_GLOBAL_INT,
+            MAV_FRAME_GLOBAL_RELATIVE_ALT_INT,
+          ]
+        : [MAV_FRAME_GLOBAL_RELATIVE_ALT, MAV_FRAME_GLOBAL_RELATIVE_ALT_INT];
+  if (suppliedFrame != null && !allowedFrames.includes(suppliedFrame)) {
+    throw new Error(
+      `${flightCommander ? "Flight Commander" : "Official INAV"} mission ` +
+        `item ${index + 1} command ${command} requires frame ` +
+        `${allowedFrames.join(" or ")}; received ${item.frame}.`,
+    );
+  }
+  const absoluteWaypoint =
+    flightCommander &&
+    command === MAV_CMD_NAV_WAYPOINT &&
+    [MAV_FRAME_GLOBAL, MAV_FRAME_GLOBAL_INT].includes(suppliedFrame);
+  const distanceM = Number(item?.param1 ?? 0);
+  if (
+    photoTrigger &&
+    (!Number.isFinite(distanceM) || distanceM < 0 || distanceM > 327.67)
+  ) {
+    throw new Error(
+      `Flight Commander mission item ${index + 1} camera trigger distance ` +
+        `must be between 0 and 327.67 m; received ${item?.param1}.`,
+    );
+  }
+  if (
+    photoTrigger &&
+    [item?.param2, item?.param3, item?.param4].some(
+      (value) => value != null && value !== "" && Number(value) !== 0,
+    )
+  ) {
+    throw new Error(
+      `Flight Commander mission item ${index + 1} camera trigger supports ` +
+        "distance in param1 only; param2 through param4 must be zero.",
     );
   }
   return {
     ...item,
     command,
     frame:
-      command === MAV_CMD_NAV_RETURN_TO_LAUNCH
+      command === MAV_CMD_NAV_RETURN_TO_LAUNCH || photoTrigger
         ? MAV_FRAME_MISSION
+        : absoluteWaypoint
+          ? MAV_FRAME_GLOBAL
         : MAV_FRAME_GLOBAL_RELATIVE_ALT,
     autocontinue: true,
-    latitude: finiteNumber(item?.latitude ?? item?.lat),
-    longitude: finiteNumber(item?.longitude ?? item?.lon),
-    altitude: finiteNumber(item?.altitude ?? item?.alt),
+    param1: photoTrigger ? Math.round(distanceM * 100) / 100 : finiteNumber(item?.param1),
+    param2: finiteNumber(item?.param2),
+    param3: finiteNumber(item?.param3),
+    param4: finiteNumber(item?.param4),
+    latitude: photoTrigger ? 0 : finiteNumber(item?.latitude ?? item?.lat),
+    longitude: photoTrigger ? 0 : finiteNumber(item?.longitude ?? item?.lon),
+    altitude: photoTrigger ? 0 : finiteNumber(item?.altitude ?? item?.alt),
   };
 }
 
@@ -146,6 +213,12 @@ function firmwareProfile(options, session) {
 
 export function isInavMission(options, session) {
   return ["inav", "inav-mavlink", "inav/mavlink"].includes(
+    firmwareProfile(options, session),
+  );
+}
+
+export function isFlightCommanderMission(options, session) {
+  return ["flight-commander", "flightcommander", "fcfw"].includes(
     firmwareProfile(options, session),
   );
 }
@@ -351,7 +424,9 @@ export class MavlinkMissionManager {
       signal,
     } = options;
     const legacyOnly = Boolean(
-      options.legacyOnly || isInavMission(options, this.session),
+      options.legacyOnly ||
+        isInavMission(options, this.session) ||
+        isFlightCommanderMission(options, this.session),
     );
     const target = this.session.target();
 
@@ -449,6 +524,47 @@ export class MavlinkMissionManager {
     );
   }
 
+  setCurrent(sequence, options = {}) {
+    return this.runTransaction(
+      (signal) => this.setCurrentUnlocked(sequence, { ...options, signal }),
+      options.signal,
+    );
+  }
+
+  async setCurrentUnlocked(sequence, options = {}) {
+    const selected = Number(sequence);
+    if (!Number.isInteger(selected) || selected < 0 || selected > 65535) {
+      throw new RangeError('Mission current sequence must be an integer from 0 through 65535.');
+    }
+    const {
+      timeoutMs = 4000,
+      retries = 2,
+      signal,
+    } = options;
+    const target = this.session.target();
+    let lastError = null;
+    for (let attempt = 0; attempt <= retries; attempt += 1) {
+      try {
+        const envelope = await this.requestAndWait(
+          'MissionSetCurrent',
+          { ...target, seq: selected },
+          ['MISSION_CURRENT', 'MissionCurrent'],
+          (candidate) => this.targetMatches(candidate)
+            && Number(field(candidate.data, 'seq')) === selected,
+          timeoutMs,
+          signal,
+        );
+        return envelope.data;
+      } catch (error) {
+        if (error.name === 'AbortError') throw error;
+        lastError = error;
+      }
+    }
+    throw new Error(
+      `Mission current selection failed after ${retries + 1} attempts: ${lastError?.message ?? 'no confirmation'}`,
+    );
+  }
+
   async uploadUnlocked(items, options = {}) {
     if (!Array.isArray(items))
       throw new TypeError("Mission upload requires an array.");
@@ -468,9 +584,17 @@ export class MavlinkMissionManager {
 
     const target = this.session.target();
     const inav = isInavMission(options, this.session);
-    const legacyOnly = Boolean(options.legacyOnly || inav);
-    const normalizedItems = inav
-      ? items.map(normalizeInavMissionUploadItem)
+    const flightCommander = isFlightCommanderMission(options, this.session);
+    const inavCompatible = inav || flightCommander;
+    const legacyOnly = Boolean(options.legacyOnly || inavCompatible);
+    const normalizedItems = inavCompatible
+      ? items.map((item, index) =>
+          normalizeInavMissionUploadItem(
+            item,
+            index,
+            flightCommander ? "flight-commander" : "inav",
+          ),
+        )
       : items.map((item) => ({ ...item }));
     const integerItems = normalizedItems.map((item, sequence) =>
       toMissionItemInt(item, sequence, target, missionType),
@@ -632,8 +756,9 @@ export class MavlinkMissionManager {
       signal,
     } = options;
     const inav = isInavMission(options, this.session);
-    const legacyOnly = Boolean(options.legacyOnly || inav);
-    const volatile = Boolean(options.volatile || inav);
+    const flightCommander = isFlightCommanderMission(options, this.session);
+    const legacyOnly = Boolean(options.legacyOnly || inav || flightCommander);
+    const volatile = Boolean(options.volatile || inav || flightCommander);
     const target = this.session.target();
 
     let acknowledgement = null;

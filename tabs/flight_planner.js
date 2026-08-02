@@ -20,6 +20,11 @@ import View from 'ol/View.js';
 
 import CONFIGURATOR from './../js/data_storage';
 import FC from './../js/fc';
+import { globalSettings } from './../js/globalSettings';
+import {
+  FLIGHT_COMMANDER_CAPABILITIES,
+  firmwareFeatureSupport,
+} from './../js/flightCommander/firmwareIdentity';
 import GUI from './../js/gui';
 import mspHelper from './../js/msp/MSPHelper';
 import {
@@ -89,6 +94,10 @@ import {
   assertMissionReadback,
   filterExpectedMissionForProtocol,
 } from './../js/mission/missionVerification';
+import {
+  assertSurveyCameraCommandsCompatible,
+  assertTerrainMissionCompatible,
+} from './../js/mission/flightCommanderMissionPolicy';
 import { missionOperationCoordinator } from './../js/mission/missionOperationCoordinator';
 import { missionResumeManager } from './../js/mission/missionResumeManager';
 import {
@@ -108,6 +117,16 @@ import ltmDecoder from './../js/ltmDecoder';
 import store from './../js/store';
 import dialog from './../js/dialog';
 import { calculate_new_cooridatnes } from './../js/helpers';
+import {
+  distanceFromPlannerDisplay,
+  distanceToPlannerDisplay,
+  formatPlannerArea,
+  formatPlannerDistance,
+  plannerUnitLabels,
+  resolvePlannerUnitSystem,
+  speedFromPlannerDisplay,
+  speedToPlannerDisplay,
+} from './../js/mission/plannerUnits';
 
 const NAVIGATION_COMMANDS = new Set([
   MAV_CMD_NAV_WAYPOINT,
@@ -129,8 +148,29 @@ const INAV_MISSION_RESTART_ENUM = Object.freeze([
 ]);
 const SURVEY_CAMERA_MODES = Object.freeze({
   AUTO: 'auto',
+  FLIGHT_COMMANDER: 'flight-commander',
   NAVIGATION_ONLY: 'navigation-only',
 });
+const PLANNER_DEFAULTS_SI = Object.freeze({
+  angleDeg: 0,
+  lineSpacingM: 25,
+  altitudeM: 60,
+  overshootM: 5,
+  turnaroundM: 10,
+  triggerDistanceM: 0,
+  cruiseSpeedMps: 0,
+  clearanceM: 60,
+  terrainSampleSpacingM: 30,
+});
+const PLANNER_DISTANCE_FIELDS = new Set([
+  'lineSpacingM',
+  'altitudeM',
+  'overshootM',
+  'turnaroundM',
+  'triggerDistanceM',
+  'clearanceM',
+  'terrainSampleSpacingM',
+]);
 
 function normalizeSurveyCameraMode(value) {
   return Object.values(SURVEY_CAMERA_MODES).includes(value)
@@ -139,10 +179,30 @@ function normalizeSurveyCameraMode(value) {
 }
 
 function missionTargetForConnection(protocol, firmwareFamily) {
-  if (protocol === 'msp' || protocol === 'ltm') return 'inav';
+  if (protocol === 'msp') {
+    return FC.CONFIG?.firmwareIdentity?.family === 'flight-commander'
+      ? 'flight-commander'
+      : 'inav';
+  }
+  if (protocol === 'ltm') return 'unknown';
   if (protocol !== 'mavlink') return 'unknown';
   const family = String(firmwareFamily ?? '').toLowerCase();
-  return family === 'inav' ? family : 'unknown';
+  return ['flight-commander', 'inav'].includes(family) ? family : 'unknown';
+}
+
+function connectedFlightCommanderFeature(featureKey) {
+  const protocol = CONFIGURATOR.connectionProtocol;
+  if (protocol === 'msp') {
+    return firmwareFeatureSupport(FC.CONFIG?.firmwareIdentity, featureKey).enabled;
+  }
+  if (protocol !== 'mavlink' || mavlinkSession.state.firmwareFamily !== 'flight-commander') {
+    return false;
+  }
+  const capability = FLIGHT_COMMANDER_CAPABILITIES[
+    featureKey === 'photoTriggers' ? 'PHOTO_TRIGGERS' : 'TERRAIN_WAYPOINTS'
+  ];
+  const mask = Number(mavlinkSession.state.flightCommanderCapabilities ?? 0) >>> 0;
+  return (mask & capability) === capability;
 }
 
 function resolveSurveyCameraPolicy({
@@ -150,6 +210,7 @@ function resolveSurveyCameraPolicy({
   protocol = null,
   firmwareFamily = null,
   triggerDistanceM = 0,
+  photoTriggersSupported = false,
 } = {}) {
   const normalizedMode = normalizeSurveyCameraMode(mode);
   const target = missionTargetForConnection(protocol, firmwareFamily);
@@ -176,14 +237,55 @@ function resolveSurveyCameraPolicy({
     };
   }
 
-  if (target === 'inav') {
+  if (normalizedMode === SURVEY_CAMERA_MODES.FLIGHT_COMMANDER) {
+    if (target === 'inav') {
+      return {
+        mode: normalizedMode,
+        target,
+        includeCameraCommands: false,
+        incompatible: true,
+        notice: 'Official INAV does not support Flight Commander camera-trigger missions. Select Navigation only or connect Flight Commander Firmware.',
+      };
+    }
+    if (target === 'flight-commander' && !photoTriggersSupported) {
+      return {
+        mode: normalizedMode,
+        target,
+        includeCameraCommands: false,
+        incompatible: true,
+        notice: 'The connected Flight Commander Firmware does not advertise MAVLink photo triggers.',
+      };
+    }
+    return {
+      mode: normalizedMode,
+      target,
+      includeCameraCommands: true,
+      incompatible: false,
+      notice: target === 'flight-commander'
+        ? 'Flight Commander MAVLink photo triggering is enabled for mission command 206.'
+        : 'Offline Flight Commander photo plan: command 206 will be verified against firmware capability before upload.',
+    };
+  }
+
+  if (target === 'flight-commander' && photoTriggersSupported) {
+    return {
+      mode: normalizedMode,
+      target,
+      includeCameraCommands: true,
+      incompatible: false,
+      notice: 'Flight Commander MAVLink photo triggering is enabled; mission command 206 will trigger compatible cameras or companions.',
+    };
+  }
+
+  if (target === 'inav' || target === 'flight-commander') {
     return {
       mode: normalizedMode,
       target,
       includeCameraCommands: false,
       incompatible: false,
-      notice: 'Automatic camera target: INAV-compatible navigation-only survey. '
-        + 'Photo spacing produces an estimated photo count only; no shutter command is sent.',
+      notice: target === 'inav'
+        ? 'Official INAV is navigation-only in Flight Commander; photo spacing estimates images but no shutter command is sent.'
+        : 'The connected Flight Commander Firmware does not advertise photo triggers; photo spacing estimates images only.',
     };
   }
 
@@ -194,23 +296,6 @@ function resolveSurveyCameraPolicy({
     incompatible: false,
     notice: 'Automatic camera target: no supported controller is identified, so this survey is navigation only.',
   };
-}
-
-function assertSurveyCameraCommandsCompatible(mission, target) {
-  if (target !== 'inav') return;
-  const cameraItems = mission
-    .map((item, index) => (Number(item?.command) === MAV_CMD_DO_SET_CAM_TRIGG_DIST
-      ? index + 1
-      : null))
-    .filter(Number.isInteger);
-  if (!cameraItems.length) return;
-  throw new Error(
-    `This plan contains removed distance-camera command 206 at mission item`
-    + `${cameraItems.length === 1 ? '' : 's'} ${cameraItems.join(', ')}. `
-    + 'INAV-compatible missions cannot accept or represent that command. '
-    + 'Set Photo command target to Automatic or Navigation only, '
-    + 'regenerate the survey, and try again. No mission data was written.',
-  );
 }
 
 const flightPlanner = {
@@ -238,6 +323,10 @@ const flightPlanner = {
 
 function numberValue(selector) {
   return Number($(selector).val());
+}
+
+function currentPlannerUnitSystem() {
+  return resolvePlannerUnitSystem(globalSettings.unitType, globalSettings.osdUnits);
 }
 
 function isCoordinateItem(item) {
@@ -281,6 +370,7 @@ flightPlanner.initialize = function (callback) {
   this.missionBehaviorWarnings = [];
   import('./flight_planner.html?raw').then(({ default: html }) => {
     GUI.load(html, () => {
+      this.updateUnitUi();
       this.loadStoredSettings();
       this.buildMap();
       this.bindControls();
@@ -298,6 +388,23 @@ flightPlanner.initialize = function (callback) {
       GUI.content_ready(callback);
       setTimeout(() => this.map?.updateSize(), 0);
     });
+  });
+};
+
+flightPlanner.updateUnitUi = function () {
+  const unitSystem = currentPlannerUnitSystem();
+  const labels = plannerUnitLabels(unitSystem);
+  $('.planner-distance-unit').text(labels.distance);
+  $('.planner-speed-unit').text(labels.speed);
+  $('#plannerTriggerDistance').attr({
+    max: distanceToPlannerDisplay(327.67, unitSystem).toFixed(2),
+    step: unitSystem === 'imperial' ? '0.1' : '0.01',
+  });
+  $('#plannerSpacing').attr('min', distanceToPlannerDisplay(0.1, unitSystem).toFixed(2));
+  $('#plannerTerrainSpacing').attr('min', distanceToPlannerDisplay(1, unitSystem).toFixed(2));
+  $('#plannerCruiseSpeed').attr({
+    max: speedToPlannerDisplay(INAV_SPEED_M_S_MAX, unitSystem).toFixed(2),
+    step: '0.1',
   });
 };
 
@@ -439,7 +546,10 @@ flightPlanner.bindControls = function () {
     const input = $(event.currentTarget);
     const index = Number(input.data('mission-index'));
     const field = input.data('mission-field');
-    const value = Number(input.val());
+    const rawValue = Number(input.val());
+    const value = field === 'altitude'
+      ? distanceFromPlannerDisplay(rawValue, currentPlannerUnitSystem())
+      : rawValue;
     if (this.mission[index] && Number.isFinite(value)) {
       this.mission[index][field] = value;
       this.renderMission();
@@ -576,12 +686,16 @@ flightPlanner.updateVehicleTransferState = function () {
   const telemetryOnly = CONFIGURATOR.connectionProtocol === 'ltm';
   const isMavlink = CONFIGURATOR.connectionProtocol === 'mavlink';
   const firmwareFamily = isMavlink ? mavlinkSession.state.firmwareFamily : null;
-  const firmwareReady = !isMavlink || firmwareFamily === 'inav';
+  const firmwareReady = !isMavlink
+    || ['inav', 'flight-commander'].includes(firmwareFamily);
   const inavMavlink = isMavlink && firmwareFamily === 'inav';
+  const flightCommanderMavlink = isMavlink && firmwareFamily === 'flight-commander';
   const missionOperationBusy = missionOperationCoordinator.isBusy();
   const vehicleName = isMavlink
-    ? `${inavMavlink ? 'INAV' : mavlinkSession.state.autopilotName} ${mavlinkSession.state.vehicleTypeName}`
-    : FC.CONFIG?.name || FC.CONFIG?.flightControllerIdentifier || 'INAV';
+    ? `${flightCommanderMavlink ? 'Flight Commander' : inavMavlink ? 'Official INAV' : mavlinkSession.state.autopilotName} ${mavlinkSession.state.vehicleTypeName}`
+    : FC.CONFIG?.firmwareIdentity?.family === 'flight-commander'
+      ? 'Flight Commander Firmware'
+      : FC.CONFIG?.name || FC.CONFIG?.flightControllerIdentifier || 'Official INAV';
 
   $('#plannerVehicleStatus').text(connected
     ? firmwareReady
@@ -590,20 +704,22 @@ flightPlanner.updateVehicleTransferState = function () {
     : telemetryOnly ? 'Connected: INAV LTM telemetry' : 'Offline planning');
   $('#plannerVehicleStatusDetail').text(connected
     ? CONFIGURATOR.connectionProtocol === 'msp'
-      ? `INAV / MSP wired · persistent mission read/write; empty erase is unsupported · ${this.mission.length} planned mission items`
+      ? `${FC.CONFIG?.firmwareIdentity?.family === 'flight-commander' ? 'Flight Commander' : 'Official INAV'} / MSP wired · persistent mission read/write; empty erase is unsupported · ${this.mission.length} planned mission items`
       : inavMavlink
-        ? `MAVLink · INAV active mission is retained only for this power cycle · ${this.mission.length} planned mission items`
+        ? `MAVLink · Official INAV active mission is retained only for this power cycle · ${this.mission.length} planned mission items`
+        : flightCommanderMavlink
+          ? `MAVLink · Flight Commander active mission is retained only for this power cycle · ${this.mission.length} planned mission items`
         : firmwareFamily === 'unsupported'
           ? 'Unsupported MAVLink firmware. Mission transfer is disabled.'
-          : 'MAVLink is connected; mission controls will unlock after INAV-compatible firmware detection.'
+          : 'MAVLink is connected; mission controls will unlock after Flight Commander or Official INAV detection.'
     : telemetryOnly
       ? 'LTM is read-only. Reconnect through MAVLink for active missions and commands.'
       : 'Connect a flight controller to transfer this mission.');
 
-  $('#plannerUpload').text(inavMavlink
+  $('#plannerUpload').text((inavMavlink || flightCommanderMavlink)
     ? 'Write active mission (current power cycle)'
     : 'Write & save mission to flight controller');
-  $('#plannerClearVehicle').text(inavMavlink
+  $('#plannerClearVehicle').text((inavMavlink || flightCommanderMavlink)
     ? 'Clear active mission (current power cycle)'
     : CONFIGURATOR.connectionProtocol === 'msp'
       ? 'Stored-mission erase limitation'
@@ -620,8 +736,8 @@ flightPlanner.updateVehicleTransferState = function () {
     .prop('disabled', !connected || !firmwareReady || missionOperationBusy)
     .attr(
       'title',
-      inavMavlink
-        ? 'Clear and verify the active INAV RAM mission for this power cycle; persistent storage is unchanged'
+      inavMavlink || flightCommanderMavlink
+        ? 'Clear and verify the active RAM mission for this power cycle; persistent storage is unchanged'
         : CONFIGURATOR.connectionProtocol === 'msp'
           ? 'Stock INAV cannot save an empty mission to persistent storage; select this for details'
           : 'Erase and verify the mission stored on the connected flight controller',
@@ -640,10 +756,17 @@ flightPlanner.updateSurveyCameraAvailability = function () {
     mode: $('#plannerCameraCommandMode').val(),
     protocol,
     firmwareFamily,
-    triggerDistanceM: numberValue('#plannerTriggerDistance'),
+    triggerDistanceM: this.settings().triggerDistanceM,
+    photoTriggersSupported: connectedFlightCommanderFeature('photoTriggers'),
   });
   const connectedTarget = missionTargetForConnection(protocol, firmwareFamily);
-  const incompatibleCameraItems = connectedTarget === 'inav'
+  const incompatibleCameraItems = (
+    connectedTarget === 'inav'
+    || (
+      connectedTarget === 'flight-commander'
+      && !connectedFlightCommanderFeature('photoTriggers')
+    )
+  )
     ? this.mission
       .map((item, index) => (
         Number(item?.command) === MAV_CMD_DO_SET_CAM_TRIGG_DIST ? index + 1 : null
@@ -653,7 +776,7 @@ flightPlanner.updateSurveyCameraAvailability = function () {
   const existingPlanWarning = incompatibleCameraItems.length
     ? `Current plan still contains removed camera command 206 at mission item`
       + `${incompatibleCameraItems.length === 1 ? '' : 's'} ${incompatibleCameraItems.join(', ')}. `
-      + 'It cannot be written to INAV-compatible firmware. Select Automatic or Navigation only and regenerate the survey.'
+      + 'It cannot be written to the connected firmware. Select Automatic or Navigation only and regenerate the survey.'
     : '';
   $('#plannerCameraCommandHelp')
     .text(
@@ -1529,7 +1652,9 @@ flightPlanner.applyDerivedMissionBehavior = function (derived, options = {}) {
   }
   const behavior = normalizeMissionBehavior(derived.behavior);
   this.mission = derived.mission;
-  $('#plannerCruiseSpeed').val(behavior.cruiseSpeedMps);
+  $('#plannerCruiseSpeed').val(
+    speedToPlannerDisplay(behavior.cruiseSpeedMps, currentPlannerUnitSystem()).toFixed(2),
+  );
   $('#plannerCompletionAction').val(behavior.completionAction);
   this.missionBehaviorWarnings = [
     ...(derived.conflicts ?? []),
@@ -1565,7 +1690,8 @@ flightPlanner.updateMissionBehaviorAvailability = function () {
   const firmwareFamily = protocol === 'mavlink'
     ? String(mavlinkSession.state.firmwareFamily ?? 'unknown').toLowerCase()
     : null;
-  const inavMavlink = firmwareFamily === 'inav' && protocol === 'mavlink';
+  const inavMavlink = protocol === 'mavlink'
+    && ['inav', 'flight-commander'].includes(firmwareFamily);
   const inavSegments = new Set(
     this.mission
       .map((item) => Number(item?.metadata?.inavMultiMissionIndex))
@@ -1578,8 +1704,11 @@ flightPlanner.updateMissionBehaviorAvailability = function () {
     .attr(
       'title',
       inavMavlink
-        ? 'Stock INAV MAVLink missions do not support a mission speed command; use MSP or controller defaults.'
-        : `0 preserves the mission/controller default; maximum ${INAV_SPEED_M_S_MAX.toFixed(2)} m/s.`,
+        ? 'The Flight Commander/INAV-compatible MAVLink mission transport does not support a mission speed command; use MSP or controller defaults.'
+        : `0 preserves the mission/controller default; maximum ${speedToPlannerDisplay(
+          INAV_SPEED_M_S_MAX,
+          currentPlannerUnitSystem(),
+        ).toFixed(2)} ${plannerUnitLabels(currentPlannerUnitSystem()).speed}.`,
     );
   for (const action of [
     'hold',
@@ -1602,11 +1731,12 @@ flightPlanner.updateMissionBehaviorAvailability = function () {
     ? 'This INAV plan contains multiple mission segments. Each existing segment terminal '
       + 'is preserved; one global completion selector cannot safely replace them.'
     : inavMavlink
-    ? 'INAV over stock MAVLink supports no added terminal action or RTL. '
+    ? 'The Flight Commander/INAV-compatible MAVLink transport supports no added terminal action or RTL. '
       + 'Mission cruise speed, terminal hold, and terminal land require the wired MSP mission link.'
     : protocol === 'msp'
       ? 'INAV/MSP stores cruise speed in waypoint P1 (cm/s) and maps terminal hold, RTL, or land to native mission actions.'
-      : 'Cruise speed is entered in m/s; 0 preserves the INAV/controller default. '
+      : `Cruise speed is entered in ${plannerUnitLabels(currentPlannerUnitSystem()).speed}; `
+        + '0 preserves the INAV/controller default. '
         + 'Terminal behavior is compiled for the INAV-compatible controller during upload.';
   const warningText = this.missionBehaviorWarnings.length
     ? ` ${this.missionBehaviorWarnings.join(' ')}`
@@ -1704,10 +1834,10 @@ flightPlanner.resolveMavlinkFirmwareFamily = async function () {
   const state = mavlinkSession.state.firmwareFamily === 'unknown'
     ? await mavlinkSession.waitForFirmwareFamily()
     : mavlinkSession.snapshot();
-  if (state.firmwareFamily !== 'inav') {
+  if (!['inav', 'flight-commander'].includes(state.firmwareFamily)) {
     throw new Error(
       state.firmwareFamily === 'unsupported'
-        ? 'ArduPilot mission transfer has been removed. Connect an INAV-compatible controller.'
+        ? 'ArduPilot mission transfer has been removed. Connect Flight Commander Firmware or Official INAV.'
         : 'This MAVLink firmware is not supported for mission transfer.',
     );
   }
@@ -1761,18 +1891,19 @@ flightPlanner.restorePolygonLayer = function () {
 };
 
 flightPlanner.settings = function () {
+  const unitSystem = currentPlannerUnitSystem();
   return {
     angleDeg: numberValue('#plannerAngle'),
-    lineSpacingM: numberValue('#plannerSpacing'),
-    altitudeM: numberValue('#plannerAltitude'),
-    overshootM: numberValue('#plannerOvershoot'),
-    turnaroundM: numberValue('#plannerTurnaround'),
-    triggerDistanceM: numberValue('#plannerTriggerDistance'),
+    lineSpacingM: distanceFromPlannerDisplay(numberValue('#plannerSpacing'), unitSystem),
+    altitudeM: distanceFromPlannerDisplay(numberValue('#plannerAltitude'), unitSystem),
+    overshootM: distanceFromPlannerDisplay(numberValue('#plannerOvershoot'), unitSystem),
+    turnaroundM: distanceFromPlannerDisplay(numberValue('#plannerTurnaround'), unitSystem),
+    triggerDistanceM: distanceFromPlannerDisplay(numberValue('#plannerTriggerDistance'), unitSystem),
     cameraCommandMode: normalizeSurveyCameraMode($('#plannerCameraCommandMode').val()),
-    cruiseSpeedMps: numberValue('#plannerCruiseSpeed'),
+    cruiseSpeedMps: speedFromPlannerDisplay(numberValue('#plannerCruiseSpeed'), unitSystem),
     completionAction: $('#plannerCompletionAction').val(),
-    clearanceM: numberValue('#plannerClearance'),
-    terrainSampleSpacingM: numberValue('#plannerTerrainSpacing'),
+    clearanceM: distanceFromPlannerDisplay(numberValue('#plannerClearance'), unitSystem),
+    terrainSampleSpacingM: distanceFromPlannerDisplay(numberValue('#plannerTerrainSpacing'), unitSystem),
     elevationSource: $('#plannerElevationSource').val(),
     altitudeReference: $('#plannerAltitudeReference').val(),
   };
@@ -1780,6 +1911,7 @@ flightPlanner.settings = function () {
 
 flightPlanner.loadStoredSettings = function () {
   const settings = store.get('flightPlannerSettings', {});
+  const unitSystem = currentPlannerUnitSystem();
   const selectors = {
     angleDeg: '#plannerAngle',
     lineSpacingM: '#plannerSpacing',
@@ -1802,12 +1934,20 @@ flightPlanner.loadStoredSettings = function () {
     missionBehavior = DEFAULT_MISSION_BEHAVIOR;
   }
   const normalizedSettings = {
+    ...PLANNER_DEFAULTS_SI,
     ...settings,
     ...missionBehavior,
   };
   for (const [key, selector] of Object.entries(selectors)) {
     if (key === 'elevationSource' || key === 'cameraCommandMode') continue;
-    if (normalizedSettings[key] != null) $(selector).val(normalizedSettings[key]);
+    if (normalizedSettings[key] == null) continue;
+    let value = normalizedSettings[key];
+    if (PLANNER_DISTANCE_FIELDS.has(key)) {
+      value = distanceToPlannerDisplay(value, unitSystem);
+    } else if (key === 'cruiseSpeedMps') {
+      value = speedToPlannerDisplay(value, unitSystem);
+    }
+    $(selector).val(Number.isFinite(Number(value)) ? Number(value).toFixed(2) : value);
   }
   $('#plannerCameraCommandMode').val(
     normalizeSurveyCameraMode(settings.cameraCommandMode),
@@ -1850,6 +1990,7 @@ flightPlanner.generateGrid = function () {
         ? mavlinkSession.state.firmwareFamily
         : null,
       triggerDistanceM: settings.triggerDistanceM,
+      photoTriggersSupported: connectedFlightCommanderFeature('photoTriggers'),
     });
     if (cameraPolicy.incompatible) {
       throw new Error(cameraPolicy.notice);
@@ -1887,7 +2028,7 @@ flightPlanner.addWaypoint = function () {
       param4: Number.NaN,
       latitude,
       longitude,
-      altitude: numberValue('#plannerAltitude'),
+      altitude: this.settings().altitudeM,
     };
     const finalCommand = Number(this.mission.at(-1)?.command);
     const insertionIndex = [17, 20, 21].includes(finalCommand)
@@ -1945,7 +2086,10 @@ flightPlanner.renderMissionTable = function () {
     $('<td>').text(index + 1).appendTo(row);
     $('<td>').text(COMMAND_NAMES[item.command] ?? `CMD ${item.command}`).appendTo(row);
     for (const [field, decimals] of [['latitude', 7], ['longitude', 7], ['altitude', 2]]) {
-      const value = Number(item[field] ?? item[field === 'latitude' ? 'lat' : field === 'longitude' ? 'lon' : 'alt']);
+      const canonicalValue = Number(item[field] ?? item[field === 'latitude' ? 'lat' : field === 'longitude' ? 'lon' : 'alt']);
+      const value = field === 'altitude'
+        ? distanceToPlannerDisplay(canonicalValue, currentPlannerUnitSystem())
+        : canonicalValue;
       $('<td>').append(
         $('<input>').attr({
           type: 'number',
@@ -1986,10 +2130,10 @@ flightPlanner.renderSummary = function () {
   $('#plannerItemCount').text(this.mission.length);
   $('#plannerLineCount').text(this.grid?.statistics.segmentCount ?? 0);
   $('#plannerRouteDistance').text(
-    routeDistance >= 1000 ? `${(routeDistance / 1000).toFixed(2)} km` : `${routeDistance.toFixed(0)} m`,
+    formatPlannerDistance(routeDistance, currentPlannerUnitSystem()),
   );
   const area = this.grid?.statistics.areaM2 ?? 0;
-  $('#plannerArea').text(area >= 10000 ? `${(area / 10000).toFixed(2)} ha` : `${area.toFixed(0)} m²`);
+  $('#plannerArea').text(formatPlannerArea(area, currentPlannerUnitSystem()));
   $('#plannerPhotoCount').text(this.grid?.statistics.estimatedPhotos ?? 0);
   this.updateVehicleTransferState();
 };
@@ -2107,7 +2251,8 @@ flightPlanner.applyTerrain = async function () {
     this.updateMapAttribution();
     this.renderMission();
     this.setStatus(
-      `Terrain following applied at ${settings.clearanceM} m AGL; home elevation ${result.homeElevationM.toFixed(1)} m.`,
+      `Terrain following applied at ${formatPlannerDistance(settings.clearanceM, currentPlannerUnitSystem())} AGL; `
+      + `home elevation ${formatPlannerDistance(result.homeElevationM, currentPlannerUnitSystem())}.`,
     );
   } catch (error) {
     this.setStatus(error.message, true);
@@ -2143,7 +2288,14 @@ flightPlanner.upload = async function () {
     let savedMission;
     if (CONFIGURATOR.connectionProtocol === 'mavlink') {
       const firmwareFamily = await this.resolveMavlinkFirmwareFamily();
-      assertSurveyCameraCommandsCompatible(this.mission, firmwareFamily);
+      const photoTriggersSupported = connectedFlightCommanderFeature('photoTriggers');
+      const terrainSupported = connectedFlightCommanderFeature('terrainWaypoints');
+      assertSurveyCameraCommandsCompatible(
+        this.mission,
+        firmwareFamily,
+        photoTriggersSupported,
+      );
+      assertTerrainMissionCompatible(this.mission, firmwareFamily, terrainSupported);
       missionResumeManager.clearRegisteredMission(
         'The previous mission-resume checkpoint was cleared because a new mission transfer started.',
       );
@@ -2177,18 +2329,41 @@ flightPlanner.upload = async function () {
         source: 'flight-planner-upload-readback',
       });
       this.setStatus(
-        `${missionToUpload.length} INAV mission items written to active memory and verified.`
+        `${missionToUpload.length} ${firmwareFamily === 'flight-commander' ? 'Flight Commander' : 'Official INAV'} mission items written to active memory and verified.`
         + ' This active mission is not stored across a power cycle.',
       );
     } else {
-      assertSurveyCameraCommandsCompatible(this.mission, 'inav');
-      const compiled = compileInavMspMission(this.mission, behavior);
-      const missionToUpload = filterExpectedMissionForProtocol(compiled.mission, 'msp');
+      const firmwareFamily = missionTargetForConnection('msp');
+      const photoTriggersSupported = connectedFlightCommanderFeature('photoTriggers');
+      const terrainSupported = connectedFlightCommanderFeature('terrainWaypoints');
+      assertSurveyCameraCommandsCompatible(
+        this.mission,
+        firmwareFamily,
+        photoTriggersSupported,
+      );
+      assertTerrainMissionCompatible(this.mission, firmwareFamily, terrainSupported);
+      const extensionOptions = {
+        allowFlightCommanderPhotoTriggers:
+          firmwareFamily === 'flight-commander' && photoTriggersSupported,
+      };
+      const compiled = compileInavMspMission(
+        this.mission,
+        behavior,
+        extensionOptions,
+      );
+      const missionToUpload = filterExpectedMissionForProtocol(
+        compiled.mission,
+        'msp',
+        { firmwareProfile: firmwareFamily },
+      );
       const result = await inavMissionAdapter.upload(missionToUpload, {
         saveToEeprom: true,
         speedCmS: compiled.speedCmS,
+        ...extensionOptions,
       });
-      this.setStatus('Mission saved to INAV EEPROM. Reading it back for verification…');
+      this.setStatus(
+        `Mission saved to ${firmwareFamily === 'flight-commander' ? 'Flight Commander' : 'Official INAV'} EEPROM. Reading it back for verification…`,
+      );
       savedMission = await inavMissionAdapter.download({ loadFromEeprom: true });
       assertMissionReadback(
         result.normalizedMission,
@@ -2198,7 +2373,9 @@ flightPlanner.upload = async function () {
       const suffix = result.omitted
         ? ` ${result.omitted} MAVLink-only command items were omitted.`
         : '';
-      this.setStatus(`${result.uploaded} INAV mission items written to EEPROM and verified.${suffix}`);
+      this.setStatus(
+        `${result.uploaded} ${firmwareFamily === 'flight-commander' ? 'Flight Commander' : 'Official INAV'} mission items written to EEPROM and verified.${suffix}`,
+      );
     }
   } catch (error) {
     this.setStatus(error.message, true);
@@ -2290,15 +2467,15 @@ flightPlanner.clearVehicleMission = async function () {
   $('#plannerClearVehicle').prop('disabled', true);
   try {
     if (CONFIGURATOR.connectionProtocol === 'mavlink') {
-      await this.resolveMavlinkFirmwareFamily();
+      const firmwareFamily = await this.resolveMavlinkFirmwareFamily();
       missionResumeManager.clearRegisteredMission(
         'The mission-resume checkpoint was cleared because controller mission erase started.',
       );
       await mavlinkMissionManager.clear({ legacyOnly: true, volatile: true });
       mavlinkSession.state.missionTotal = 0;
       this.setStatus(
-        'Active INAV RAM mission cleared and verified for this power cycle. '
-        + 'The stored mission is unchanged; stock INAV cannot persist an empty mission, '
+        `Active ${firmwareFamily === 'flight-commander' ? 'Flight Commander' : 'Official INAV'} RAM mission cleared and verified for this power cycle. `
+        + 'The stored mission is unchanged; this MAVLink mission transport cannot persist an empty mission, '
         + 'so replace it with another valid mission if it must not return after reboot.',
       );
       return;
