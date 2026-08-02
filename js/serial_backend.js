@@ -39,6 +39,11 @@ import {
     serialOptionsForProtocol,
 } from './connection/connectionPreferences';
 import {
+    INAV_REBOOT_RECONNECT_DELAY_MS,
+    createInavRebootRecoveryAttempt,
+    nextInavRebootRecoveryAttempt,
+} from './connection/inavRebootRecovery';
+import {
     SERIAL_STARTUP_RECOVERY_DELAY_MS,
     SERIAL_TERMINAL_OPERATOR_GUARD_MS,
     shouldAttemptMavlinkStartupRecovery,
@@ -151,6 +156,10 @@ var SerialBackend = (function () {
 
         GUI.handleReconnect = function (reopenLastTab = true) {
 
+            const rebootOpenAttempt = createInavRebootRecoveryAttempt(
+                privateScope.activeOpenAttempt,
+            );
+
             let modal = new jBox('Modal', {
                 width: 400,
                 height: 120,
@@ -186,8 +195,10 @@ var SerialBackend = (function () {
             */
             setTimeout(function start_connection() {
                 modal.close();
-                privateScope.reConnect();
-            }, 5000);
+                privateScope.reConnect(
+                    rebootOpenAttempt ? {openAttempt: rebootOpenAttempt} : {},
+                );
+            }, INAV_REBOOT_RECONNECT_DELAY_MS);
         };
 
     
@@ -310,6 +321,12 @@ var SerialBackend = (function () {
                     port: selected_port,
                     bitrate: selected_baud,
                     recoveryAttempt: requestedAttempt?.recoveryAttempt || 0,
+                    ...(requestedAttempt?.rebootRecoveryAttempt > 0
+                        ? {
+                            rebootRecoveryAttempt:
+                                requestedAttempt.rebootRecoveryAttempt,
+                        }
+                        : {}),
                 });
                 const handleOpen = openInfo => privateScope.onOpen(openInfo, openAttempt);
                 
@@ -588,6 +605,26 @@ var SerialBackend = (function () {
     });
 }
 
+    privateScope.retryInavRebootConnection = function (openAttempt) {
+        const nextAttempt = nextInavRebootRecoveryAttempt(openAttempt);
+        if (nextAttempt) {
+            const safePort = $('<div>').text(nextAttempt.port).html();
+            GUI.log(
+                `<span style="color: #d98f00">INAV is not responding after reboot. ` +
+                `Flight Commander will close and reopen ${safePort} ` +
+                `(attempt ${nextAttempt.rebootRecoveryAttempt} of 3).</span>`,
+            );
+            privateScope.pendingReconnectRequest = {openAttempt: nextAttempt};
+        } else {
+            GUI.log(
+                '<span style="color: red">INAV did not respond after three post-reboot ' +
+                'connection attempts. The serial port has been closed; reconnect manually ' +
+                'after checking the USB connection.</span>',
+            );
+        }
+        privateScope.reConnect({forceDisconnect: true});
+    };
+
     privateScope.onInvalidFirmwareVariant = function ()
     {
         if (!privateScope.selectProtocol('msp')) {
@@ -693,6 +730,13 @@ var SerialBackend = (function () {
                 if (connectingTimeoutInstalled) return;
                 connectingTimeoutInstalled = true;
                 timeout.add('connecting', function () {
+                    if (
+                        !CONFIGURATOR.connectionValid &&
+                        openAttempt?.rebootRecoveryAttempt > 0
+                    ) {
+                        privateScope.retryInavRebootConnection(openAttempt);
+                        return;
+                    }
                     if (
                         !CONFIGURATOR.connectionValid &&
                         !ltmDecoder.isReceiving() &&

@@ -149,6 +149,29 @@ test("serial open completion uses the immutable protocol captured by the click a
   );
 });
 
+test("INAV save-and-reboot reconnect is bounded and performs a full close/reopen retry", () => {
+  assert.match(
+    serialBackend,
+    /GUI\.handleReconnect = function[\s\S]*?createInavRebootRecoveryAttempt\([\s\S]*?privateScope\.activeOpenAttempt[\s\S]*?reConnect\(\s*rebootOpenAttempt \? \{openAttempt: rebootOpenAttempt\} : \{\}/,
+  );
+  assert.match(
+    serialBackend,
+    /requestedAttempt\?\.rebootRecoveryAttempt > 0[\s\S]*?rebootRecoveryAttempt:\s*requestedAttempt\.rebootRecoveryAttempt/,
+  );
+  assert.match(
+    serialBackend,
+    /!CONFIGURATOR\.connectionValid &&\s*openAttempt\?\.rebootRecoveryAttempt > 0[\s\S]*?retryInavRebootConnection\(openAttempt\)/,
+  );
+  assert.match(
+    serialBackend,
+    /nextInavRebootRecoveryAttempt\(openAttempt\)[\s\S]*?pendingReconnectRequest = \{openAttempt: nextAttempt\}[\s\S]*?reConnect\(\{forceDisconnect: true\}\)/,
+  );
+  assert.match(
+    serialBackend,
+    /INAV did not respond after three post-reboot[\s\S]*?serial port has been closed/,
+  );
+});
+
 test("bytes received while the COM open promise is resolving are buffered and flushed", () => {
   assert.match(connectionSerial, /this\.queuePendingIpcEvent\('data', envelope\)/);
   assert.match(connectionSerial, /this\._receiveReady = true/);

@@ -745,6 +745,12 @@ for (const marker of [
   "Keep every current value and save only the first-run acknowledgement",
   "Preset compatibility: skipped optional settings",
   "No preset values were written to the controller",
+  "Selecting default control profile 1",
+  "Control profile 1:",
+  "INAV is not responding after reboot",
+  "INAV did not respond after three post-reboot",
+  "nav_fw_pos_z_ff",
+  "nav_fw_alt_control_response",
   "batteryProfileHighlightActive",
   "controlProfileHighlightActive",
   "ARDUPILOT_FLIGHT_COMMANDER_PARITY",
@@ -765,6 +771,17 @@ for (const marker of [
 ]) {
   if (!rendererText.includes(marker)) {
     fail(`the active renderer does not contain ${marker}`);
+  }
+}
+for (const retiredPresetRuntime of [
+  "Restoring the selected control profile",
+  "Selecting control profile 2",
+  "Selecting control profile 3",
+  "Control profile 2:",
+  "Control profile 3:",
+]) {
+  if (rendererText.includes(retiredPresetRuntime)) {
+    fail(`the active renderer still contains ${retiredPresetRuntime}`);
   }
 }
 if (rendererText.includes("tab_mission_control")) {

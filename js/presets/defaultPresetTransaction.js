@@ -4,6 +4,7 @@
 // that bounded queue enough time to report its own terminal result before the
 // UI-level watchdog takes over.
 export const DEFAULT_PRESET_STEP_TIMEOUT_MS = 20000;
+export const DEFAULT_CONTROL_PROFILE_INDEX = 0;
 
 export class DefaultPresetApplicationError extends Error {
   constructor(step, message, options = {}) {
@@ -44,6 +45,55 @@ export function partitionDefaultPresetSettings(
     battery: Object.freeze(battery),
     common: Object.freeze(common),
   });
+}
+
+export function buildDefaultControlProfilePresetSteps(
+  preset,
+  {
+    commonSettings = [],
+    controlProfileSettings = [],
+  } = {},
+  {
+    selectControlProfile,
+    setSetting,
+  } = {},
+) {
+  if (typeof setSetting !== "function") {
+    throw new TypeError("Preset steps require a setting writer");
+  }
+
+  const steps = [];
+  if (preset?.preserveCurrentSettings !== true) {
+    if (typeof selectControlProfile !== "function") {
+      throw new TypeError("Preset steps require a control-profile selector");
+    }
+    steps.push({
+      label: "Selecting default control profile 1",
+      run(done) {
+        selectControlProfile(DEFAULT_CONTROL_PROFILE_INDEX, done);
+      },
+    });
+  }
+
+  for (const input of Array.from(commonSettings)) {
+    steps.push({
+      label: `Setting ${input.key}`,
+      run(done) {
+        setSetting(input.key, input.value, done);
+      },
+    });
+  }
+
+  for (const input of Array.from(controlProfileSettings)) {
+    steps.push({
+      label: `Control profile 1: ${input.key}`,
+      run(done) {
+        setSetting(input.key, input.value, done);
+      },
+    });
+  }
+
+  return Object.freeze(steps);
 }
 
 export async function preflightDefaultPresetSettings(

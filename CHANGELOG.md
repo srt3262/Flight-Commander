@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.9.2
+
+- Limited first-run airframe and prop-size presets to Control Profile 1. The
+  transaction now selects Profile 1 before its first setting write, never
+  selects or modifies Profiles 2 and 3, and leaves Profile 1 selected after a
+  successful save.
+- Corrected INAV 9.1 profile ownership for all EZ Tune fields and the
+  fixed-wing altitude feed-forward/response fields used by Flight Commander
+  presets. These settings can no longer be written to whichever control
+  profile happened to be active when the controller connected.
+- Added regression coverage for a controller initially connected on another
+  profile, exact Profile 1 command ordering, untouched alternate profiles, and
+  the no-profile-selection **Keep current settings** path.
+- Fixed INAV save-and-reboot recovery opening the serial port before the
+  controller was ready and remaining on **Connecting**. Flight Commander now
+  performs a bounded full close/reopen retry on the same port, protocol, and
+  baud, succeeds automatically once MSP responds, and returns to a clean
+  disconnected state with a useful error after three failed attempts.
+
 ## 1.9.1
 
 - Repaired INAV 9.1 first-run presets. Removed settings retired by the

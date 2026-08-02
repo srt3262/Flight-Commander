@@ -12,6 +12,11 @@ import {
   serialOptionsForProtocol,
 } from "../../../js/connection/connectionPreferences.js";
 import {
+  INAV_REBOOT_RECONNECT_DELAY_MS,
+  createInavRebootRecoveryAttempt,
+  nextInavRebootRecoveryAttempt,
+} from "../../../js/connection/inavRebootRecovery.js";
+import {
   SERIAL_STARTUP_RECOVERY_DELAY_MS,
   SERIAL_TERMINAL_OPERATOR_GUARD_MS,
   shouldAttemptMavlinkStartupRecovery,
@@ -30,7 +35,7 @@ const projectRoot = resolve(
 const SERIAL_CLOSED_OK = "__serial_port_closed_ok__";
 const SERIAL_CLOSED_FAIL = "__serial_port_closed_fail__";
 
-function createBackendHarness({ deferDisconnect = false } = {}) {
+function createBackendHarness({ deferDisconnect = false, protocol = "mavlink" } = {}) {
   const logs = [];
   const consoleLogs = [];
   const connectCalls = [];
@@ -41,12 +46,13 @@ function createBackendHarness({ deferDisconnect = false } = {}) {
   const elementValues = new Map([
     ["#port", "COM8"],
     ["#baud", "460800"],
-    ["#protocol", "mavlink"],
+    ["#protocol", protocol],
     ["#port-override", ""],
   ]);
   const elementClasses = new Map();
   const storedValues = new Map([
-    ["connectionProtocolPreference", "mavlink"],
+    ["connectionProtocolPreference", protocol],
+    [CONNECTION_BAUD_PREFERENCES_KEY, { [protocol]: 460800 }],
   ]);
   let nextConnectionId = 41;
   let failBatteryRender = false;
@@ -410,6 +416,7 @@ function createBackendHarness({ deferDisconnect = false } = {}) {
       resetState() {},
     },
     GUI,
+    INAV_REBOOT_RECONNECT_DELAY_MS,
     MSP: {
       constants: { PROTOCOL_V2: 2 },
       disconnect_cleanup() {},
@@ -441,6 +448,7 @@ function createBackendHarness({ deferDisconnect = false } = {}) {
       },
     },
     defaultsDialog: { init: async () => {} },
+    createInavRebootRecoveryAttempt,
     globalThis: null,
     groundstation: {
       deactivate() {},
@@ -489,6 +497,7 @@ function createBackendHarness({ deferDisconnect = false } = {}) {
       setSensorStatusEx() {},
     },
     mspQueue: queue,
+    nextInavRebootRecoveryAttempt,
     periodicStatusUpdater: {
       getUpdateInterval: () => 1000,
       run() {},
@@ -576,6 +585,25 @@ function createBackendHarness({ deferDisconnect = false } = {}) {
     timer.callback();
   }
 
+  function runTimerByDelay(delay) {
+    const timer = timers.find(
+      (candidate) =>
+        candidate.delay === delay &&
+        !candidate.canceled &&
+        !candidate.fired,
+    );
+    assert.ok(timer, `expected one scheduled ${delay} ms timer`);
+    timer.fired = true;
+    timer.callback();
+  }
+
+  function runNamedTimeout(name) {
+    const entry = timeoutEntries.get(name);
+    assert.ok(entry, `expected the ${name} timeout`);
+    timeoutEntries.delete(name);
+    entry.callback();
+  }
+
   function raiseNativeClose(message = "ReadFile failed on COM8") {
     assert.ok(connection.connectionId, "native close requires an open connection");
     connection.cause = Object.freeze({
@@ -634,13 +662,58 @@ function createBackendHarness({ deferDisconnect = false } = {}) {
     mavlinkCommandRouter,
     mavlinkSession,
     raiseNativeClose,
+    runNamedTimeout,
     runRecoveryTimer,
+    runTimerByDelay,
     setFailBatteryRender(value = true) {
       failBatteryRender = value;
     },
     startupErrors,
   };
 }
+
+test("an unresponsive INAV reboot performs bounded full serial reopen attempts", () => {
+  const harness = createBackendHarness({ protocol: "msp" });
+
+  harness.connect();
+  harness.CONFIGURATOR.connectionValid = true;
+  assert.equal(harness.connectCalls.length, 1);
+  assert.equal(harness.GUI.connected_to, "COM8");
+
+  harness.GUI.handleReconnect(false);
+  harness.runTimerByDelay(100);
+  assert.equal(harness.GUI.connected_to, false);
+
+  harness.runTimerByDelay(INAV_REBOOT_RECONNECT_DELAY_MS);
+  assert.equal(harness.connectCalls.length, 2);
+  assert.equal(harness.GUI.connected_to, "COM8");
+
+  harness.runNamedTimeout("connecting");
+  assert.equal(harness.connectCalls.length, 3);
+  assert.equal(harness.connection.disconnectCalls, 2);
+  assert.equal(harness.GUI.connected_to, "COM8");
+
+  harness.runNamedTimeout("connecting");
+  assert.equal(harness.connectCalls.length, 4);
+  assert.equal(harness.connection.disconnectCalls, 3);
+  assert.equal(harness.GUI.connected_to, "COM8");
+
+  harness.runNamedTimeout("connecting");
+  assert.equal(harness.connectCalls.length, 4);
+  assert.equal(harness.connection.disconnectCalls, 4);
+  assert.equal(harness.GUI.connected_to, false);
+  assert.equal(harness.GUI.connecting_to, false);
+  assert.ok(
+    harness.logs.some((message) =>
+      message.includes("INAV did not respond after three post-reboot"),
+    ),
+  );
+  for (const attempt of harness.connectCalls.slice(1)) {
+    assert.equal(attempt.path, "COM8");
+    assert.equal(attempt.options.bitrate, 460800);
+  }
+  assert.equal(harness.element("#protocol").val(), "msp");
+});
 
 test("native MAVLink close forces cleanup through connect lock without a false success and retries once", () => {
   const harness = createBackendHarness();

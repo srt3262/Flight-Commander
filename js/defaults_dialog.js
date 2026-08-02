@@ -15,6 +15,7 @@ import Settings from './settings.js';
 import wizardUiBindings from './wizard_ui_bindings';
 import wizardSaveFramework from './wizard_save_framework';
 import {
+    buildDefaultControlProfilePresetSteps,
     partitionDefaultPresetSettings,
     preflightDefaultPresetSettings,
     runDefaultPresetCallbackStep,
@@ -311,9 +312,7 @@ var defaultsDialog = (function () {
             periodicStatusUpdater.stop();
         }
         
-        var currentControlProfile = parseInt($("#profilechange").val());
         var currentBatteryProfile = parseInt($("#batteryprofilechange").val());
-        if (!Number.isInteger(currentControlProfile)) currentControlProfile = 0;
         if (!Number.isInteger(currentBatteryProfile)) currentBatteryProfile = 0;
 
         const partitionedSettings = partitionDefaultPresetSettings(
@@ -327,36 +326,25 @@ var defaultsDialog = (function () {
         const batterySettings = partitionedSettings.battery;
         const miscSettings = partitionedSettings.common;
         
-        const steps = [];
+        const steps = Array.from(buildDefaultControlProfilePresetSteps(
+            selectedDefaultPreset,
+            {
+                commonSettings: miscSettings,
+                controlProfileSettings,
+            },
+            {
+                selectControlProfile: function (profileIdx, callback) {
+                    MSP.send_message(MSPCodes.MSP_SELECT_SETTING, [profileIdx], false, callback);
+                },
+                setSetting: function (key, value, callback) {
+                    mspHelper.setSetting(key, value, callback);
+                },
+            },
+        ));
 
-        miscSettings.forEach(input => {
-            steps.push({
-                label: `Setting ${input.key}`,
-                run: function (callback) {
-                    mspHelper.setSetting(input.key, input.value, callback);
-                }
-            });
-        });
-
-        // Set control and battery parameters on all 3 profiles
+        // Battery-profile values are independent of the control profile. Only
+        // presets that explicitly contain them enter the battery-profile loop.
         for (let profileIdx = 0; profileIdx < 3; profileIdx++){
-            if (controlProfileSettings.length > 0) {
-                steps.push({
-                    label: `Selecting control profile ${profileIdx + 1}`,
-                    run: function (callback) {
-                        MSP.send_message(MSPCodes.MSP_SELECT_SETTING, [profileIdx], false, callback);
-                    }
-                });
-                controlProfileSettings.forEach(input => {
-                    steps.push({
-                        label: `Control profile ${profileIdx + 1}: ${input.key}`,
-                        run: function (callback) {
-                            mspHelper.setSetting(input.key, input.value, callback);
-                        }
-                    });
-                });
-            }
-
             if (batterySettings.length > 0) {
                 steps.push({
                     label: `Selecting battery profile ${profileIdx + 1}`,
@@ -397,15 +385,6 @@ var defaultsDialog = (function () {
                 { label: 'Saving servo mixer', run: mspHelper.sendServoMixer },
                 { label: 'Saving motor mixer', run: mspHelper.sendMotorMixer }
             );
-        }
-            
-        if (controlProfileSettings.length > 0) {
-            steps.push({
-                label: 'Restoring the selected control profile',
-                run: function (callback) {
-                    MSP.send_message(MSPCodes.MSP_SELECT_SETTING, [currentControlProfile], false, callback);
-                }
-            });
         }
             
         if (batterySettings.length > 0) {
