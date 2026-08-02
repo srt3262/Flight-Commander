@@ -12,7 +12,6 @@ import {
   resolveMotorNumberPositions,
   resolveMotorPreviewLayout,
 } from "../../../js/motorPreview.js";
-import { ARDUPILOT_QUAD_MOTOR_RULES } from "../../../js/ardupilot/motorLayout.js";
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const source = (path) => readFileSync(resolve(projectRoot, path), "utf8");
@@ -235,27 +234,6 @@ test("the fallback renderer makes labels 1-4 visible at percentage positions", (
       "Motor 2 · CCW · Props-in",
       "Motor 3 · CCW · Props-in",
       "Motor 4 · CW · Props-in",
-    ],
-  );
-});
-
-test("ArduPilot Quad X and Plus use their native motor order in the mirrored previews", () => {
-  assert.deepEqual(
-    calculateMotorNumberPositions("quad_x", ARDUPILOT_QUAD_MOTOR_RULES.quad_x),
-    [
-      { left: 80, top: 20 },
-      { left: 20, top: 80 },
-      { left: 20, top: 20 },
-      { left: 80, top: 80 },
-    ],
-  );
-  assert.deepEqual(
-    calculateMotorNumberPositions("quad_p", ARDUPILOT_QUAD_MOTOR_RULES.quad_p),
-    [
-      { left: 80, top: 50 },
-      { left: 20, top: 50 },
-      { left: 50, top: 20 },
-      { left: 50, top: 80 },
     ],
   );
 });

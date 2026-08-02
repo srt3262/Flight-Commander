@@ -78,19 +78,22 @@ release.
 
 The source keeps transport responsibilities explicit:
 
-- **INAV/MSP** is the wired configuration and native persistent mission path.
-- **INAV/MAVLink** supplies telemetry and carefully gated AUX-backed operational
-  commands. Stock INAV's limited MAVLink mission representation is validated
-  before transfer.
+- **INAV and Flight Commander Firmware/MSP** use the wired configuration and
+  native persistent mission path. The maintained fork adds a versioned,
+  capability-gated identity extension without changing the inherited INAV
+  handshake.
+- **INAV-compatible MAVLink** supplies telemetry and carefully gated AUX-backed
+  operational commands. Stock INAV's limited MAVLink mission representation is
+  validated before transfer.
 - **INAV/LTM** is treated as read-only telemetry.
-- **ArduPilot/MAVLink** supplies native telemetry, parameters, operational
-  commands, and MAVLink mission transfer.
-- Firmware flashing runs through the applicable serial bootloader and is not
-  treated as a live-aircraft MAVLink command.
+- Other MAVLink firmware families are classified as unsupported; configuration,
+  mission transfer, and commands remain disabled.
+- Official INAV and Flight Commander Firmware flashing share the guarded
+  STM32/DFU path and are not treated as live-aircraft MAVLink commands.
 
 Controller-specific commands are never intentionally translated by silently
-dropping information. For example, ArduPilot distance-camera command 206 is not
-written to an INAV mission.
+dropping information. An operation that stock INAV cannot represent is rejected
+before transfer.
 
 ## Verification policy
 

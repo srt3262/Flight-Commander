@@ -308,7 +308,7 @@ var MSP = {
         }
     },
 
-    send_message(code, data, callback_sent, callback_msp, protocolVersion) {
+    send_message(code, data, callback_sent, callback_msp, protocolVersion, options = {}) {
         var payloadLength = data && data.length ? data.length : 0;
         var length;
         var buffer;
@@ -376,7 +376,9 @@ var MSP = {
         /*
          * In case of MSP_REBOOT special procedure is required
          */
-        if (code == MSPCodes.MSP_SET_REBOOT) {
+        if (Number.isInteger(options.retryCounter) && options.retryCounter >= 0) {
+            message.retryCounter = options.retryCounter;
+        } else if (code == MSPCodes.MSP_SET_REBOOT) {
             message.retryCounter = 10;
         } else if (code == MSPCodes.MSP_EEPROM_WRITE) {
             // EEPROM writes should normally acknowledge within one five-second

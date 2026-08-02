@@ -576,49 +576,21 @@ if (rendererCss.includes(".inavLogo{")) {
   fail("the active renderer CSS still contains the retired INAV logo selector");
 }
 for (const selector of [
-  ".fc-unit-switch",
-  ".fc-ap-editor-page",
-  ".fc-ap-status-primary",
-  ".fc-ap-feature-setting",
-  ".fc-ap-pid-table",
-  ".fc-ap-pid-editor",
+  ".fc-firmware-identity",
+  ".fc-firmware-feature",
+  ".fc-firmware-feature--enabled",
   ".fc-minor-view-layer",
   ".fc-minor-view-window",
   ".fc-minor-view-handle",
   ".mixer-preview-image-numbers .motorNumber",
   ".batteryProfileHighlightActive",
   ".controlProfileHighlightActive",
-  ".fc-ap-parity-coverage",
-  ".fc-ap-inav-equivalent-note",
-  ".fc-ap-parity-control--equivalent",
 ]) {
   if (ruleDeclarations(rendererCss, selector).length === 0) {
     fail(`the active renderer CSS does not contain ${selector}`);
   }
 }
 
-const ardupilotEditorDeclarations = ruleDeclarations(
-  rendererCss,
-  ".fc-ap-editor-page",
-);
-if (
-  !ardupilotEditorDeclarations.some((declaration) =>
-    /(?:^|;)display:flex(?:;|$)/.test(declaration.replace(/\s+/g, "")),
-  )
-) {
-  fail("ArduPilot editor pages do not reserve a flex-layout footer");
-}
-const ardupilotFooterDeclarations = ruleDeclarations(
-  rendererCss,
-  ".fc-ap-editor-page>.fc-ap-toolbar",
-);
-if (
-  !ardupilotFooterDeclarations.some((declaration) =>
-    /(?:^|;)position:static(?:;|$)/.test(declaration.replace(/\s+/g, "")),
-  )
-) {
-  fail("the ArduPilot action footer is still positioned over settings");
-}
 const rendererText = [
   rendererEntryHtml,
   ...rendererFiles.map((path) => readFileSync(path, "utf8")),
@@ -673,37 +645,6 @@ for (const marker of [
   "flightCommanderGroundControlUnits",
   "flightCommanderTheme",
   "flight-commander-theme-change",
-  "Use imperial ArduPilot setup units",
-  "controller-native",
-  "tab_ardupilot_setup",
-  "tab_ardupilot_configuration",
-  "tab_ardupilot_ports",
-  "tab_ardupilot_outputs",
-  "tab_ardupilot_receiver",
-  "tab_ardupilot_modes",
-  "tab_ardupilot_pid_tuning",
-  "tab_ardupilot_advanced_tuning",
-  "tab_ardupilot_gps_navigation",
-  "tab_ardupilot_sensors",
-  "tab_ardupilot_osd",
-  "tab_ardupilot_logging",
-  "tab_ardupilot_programming",
-  "tab_ardupilot_javascript_programming",
-  "tab_ardupilot_cli",
-  "tab_ardupilot_search",
-  "INAV-style preflight overview",
-  "Detect moved channel",
-  "Start endpoint capture",
-  "INAV-style setup",
-  "ArduPilot extras",
-  "Complete native fallback",
-  "GPS update rate",
-  "data-ap-pid-slider",
-  "Save &amp; reboot",
-  "Sending normal ArduPilot reboot",
-  "Disarm the vehicle before rebooting the flight controller",
-  "Official metadata is unavailable",
-  "onboard_control_sensors_health",
   'Multirotor with 10" propellers',
   'Multirotor with 12" propellers',
   'Multirotor with 15" propellers',
@@ -714,9 +655,7 @@ for (const marker of [
   "miles per hour",
   "#31523b",
   "#172a20",
-  "plannerCameraCommandMode",
   "plannerInavMissionRestart",
-  "plannerArduPilotMissionRestart",
   "connectionBaudPreferencesByProtocol",
   "forceDtrLow",
   "Waiting for vehicle heartbeat",
@@ -749,39 +688,61 @@ for (const marker of [
   "Control profile 1:",
   "INAV is not responding after reboot",
   "INAV did not respond after three post-reboot",
+  "Flight Commander Firmware",
+  "Official INAV Firmware",
+  "Flight-Commander-Firmware-",
+  "FCFW",
+  "MICOAIR743",
+  "MICROAIR743",
+  "Select Flight Commander Firmware before flashing it",
+  "Firmware Capabilities",
+  "Standard INAV is connected",
+  "Multirotor AutoTune",
+  "Terrain-relative waypoints",
+  "Mission streaming",
+  "Capability bitmap",
+  "ArduPilot support has been removed",
   "nav_fw_pos_z_ff",
   "nav_fw_alt_control_response",
   "batteryProfileHighlightActive",
   "controlProfileHighlightActive",
-  "ARDUPILOT_FLIGHT_COMMANDER_PARITY",
-  "data-fc-parity-intents",
-  "data-fc-parity-intent",
-  "Every function from Flight Commander's own INAV-side tab remains represented here",
-  "import OpenLayersMap from 'ol/Map.js';",
-  "tab.map = new OpenLayersMap({",
-  "staged: new Map()",
-  "tab.sensorHistory = new Map()",
-  "fc-ap-inav-initialization-error",
-  "Unable to initialize ",
-  "selectMavlinkMapPosition",
-  "mavlinkFtpClient",
-  "mavlinkLogManager",
-  "ARDUPILOT_SCRIPT_PATH",
-  "executeConsoleCommand",
 ]) {
   if (!rendererText.includes(marker)) {
     fail(`the active renderer does not contain ${marker}`);
   }
 }
-for (const retiredPresetRuntime of [
+for (const retiredRuntime of [
   "Restoring the selected control profile",
   "Selecting control profile 2",
   "Selecting control profile 3",
   "Control profile 2:",
   "Control profile 3:",
+  "tab_ardupilot_setup",
+  "tab_ardupilot_configuration",
+  "tab_ardupilot_ports",
+  "tab_ardupilot_outputs",
+  "tab_ardupilot_receiver",
+  "tab_ardupilot_modes",
+  "tab_ardupilot_pid_tuning",
+  "tab_ardupilot_advanced_tuning",
+  "tab_ardupilot_gps_navigation",
+  "tab_ardupilot_sensors",
+  "tab_ardupilot_osd",
+  "tab_ardupilot_logging",
+  "tab_ardupilot_programming",
+  "tab_ardupilot_javascript_programming",
+  "tab_ardupilot_cli",
+  "tab_ardupilot_search",
+  "ArduPilot extras",
+  "Complete native fallback",
+  "plannerArduPilotMissionRestart",
+  "MavlinkParameterManager",
+  "mavlinkFtpClient",
+  "mavlinkLogManager",
+  "ARDUPILOT_SCRIPT_PATH",
 ]) {
-  if (rendererText.includes(retiredPresetRuntime)) {
-    fail(`the active renderer still contains ${retiredPresetRuntime}`);
+  if (rendererText.includes(retiredRuntime)) {
+    fail(`the active renderer still contains retired runtime ${retiredRuntime}`);
   }
 }
 if (rendererText.includes("tab_mission_control")) {

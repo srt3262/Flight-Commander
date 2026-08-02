@@ -1,0 +1,50 @@
+<div class="tab-firmware-info">
+    <div class="content_wrapper">
+        <div class="tab_title">Firmware Capabilities</div>
+        <section class="fc-firmware-identity">
+            <div>
+                <span class="fc-eyebrow">Connected firmware</span>
+                <h2 id="firmwareInfoFamily">Waiting…</h2>
+                <p id="firmwareInfoSummary"></p>
+            </div>
+            <dl class="fc-firmware-identity__facts">
+                <div><dt>Firmware version</dt><dd id="firmwareInfoVersion">--</dd></div>
+                <div><dt>Compatibility</dt><dd id="firmwareInfoCompatibility">--</dd></div>
+                <div><dt>Hardware target</dt><dd id="firmwareInfoTarget">--</dd></div>
+                <div><dt>Identity schema</dt><dd id="firmwareInfoSchema">--</dd></div>
+                <div><dt>Capability bitmap</dt><dd id="firmwareInfoCapabilities">0x00000000</dd></div>
+            </dl>
+        </section>
+
+        <section class="fc-panel">
+            <h3>Flight Commander Firmware features</h3>
+            <p>
+                These gates fail closed. A matching firmware capability must be reported by the
+                connected controller before its configurator surface can become available.
+            </p>
+            <div class="fc-firmware-feature-grid">
+                <article class="fc-firmware-feature" data-fc-feature="multirotorAutotune">
+                    <div class="fc-firmware-feature__heading">
+                        <h4>Multirotor AutoTune</h4>
+                        <span class="fc-pill fc-firmware-feature__state">Disabled</span>
+                    </div>
+                    <p class="fc-firmware-feature__reason"></p>
+                </article>
+                <article class="fc-firmware-feature" data-fc-feature="terrainWaypoints">
+                    <div class="fc-firmware-feature__heading">
+                        <h4>Terrain-relative waypoints</h4>
+                        <span class="fc-pill fc-firmware-feature__state">Disabled</span>
+                    </div>
+                    <p class="fc-firmware-feature__reason"></p>
+                </article>
+                <article class="fc-firmware-feature" data-fc-feature="missionStreaming">
+                    <div class="fc-firmware-feature__heading">
+                        <h4>Mission streaming</h4>
+                        <span class="fc-pill fc-firmware-feature__state">Disabled</span>
+                    </div>
+                    <p class="fc-firmware-feature__reason"></p>
+                </article>
+            </div>
+        </section>
+    </div>
+</div>

@@ -18,10 +18,10 @@
           <h2>Configure and fly from one application</h2>
           <div>
             Configure INAV aircraft through the wired MSP connection, then use
-            MAVLink telemetry for airborne ground control on INAV F7/H7,
-            Pixhawk, and CubePilot-class flight controllers. Monitor live
-            telemetry, send supported commands, and plan missions without
-            changing applications.
+            MAVLink telemetry for airborne ground control on compatible INAV
+            and Flight Commander Firmware targets. Monitor live telemetry,
+            send supported commands, and plan missions without changing
+            applications.
           </div>
           <h2 style="margin-top: 1em">Mission and mapping tools</h2>
           <div>
@@ -34,36 +34,25 @@
       </div>
       <div class="column half text2">
         <div class="wrap">
-          <h2>Flight Commander 1.9.2</h2>
+          <h2>Flight Commander 2.0.0</h2>
           <div>
-            Built from the verified INAV Configurator 9.1.1 source base. INAV
-            keeps its complete wired configurator and flasher, while ArduPilot
-            controllers receive a metadata-driven setup GUI, verified first
-            installation through STM32 DFU, and board-ID-checked APJ updates.
-            This release keeps the application dark-only and makes ArduPilot
-            use Flight Commander's own INAV tab layouts, labels, controls, and
-            workflows. All 450 cataloged front-end functions resolve through
-            direct, composite, equivalent, or command-backed ArduPilot
-            translations, while All Parameters remains available for advanced
-            native access. Version 1.9.2 also limits first-run aircraft
-            presets to Control Profile 1, keeps Profiles 2 and 3 untouched,
-            correctly scopes every EZ Tune value to that default profile, and
-            automatically retries a full serial close/reopen when INAV is not
-            yet responsive after a save-and-reboot cycle.
-            It retains the v1.9.1 fixes that restore mirrored ArduPilot tab
-            initialization, prevent a page error from locking every tab,
-            reject invalid pre-GPS map positions, add MAVLink-backed
-            calibration, sensor, motor, logging, Lua, console, and Search
-            workflows, repair INAV 9.1 preset compatibility, and verify
-            Quad X/Plus M1-M4 numbering and Props-in/Props-out rotation. It
-            retains the guarded STM32 ROM-DFU/full-erase handoff, metric and
-            imperial units, and tuned INAV Quad X starting points for 3, 5, 7,
-            10, 12, 15, and 17-inch propellers.
+            Built from the verified INAV Configurator 9.1.1 source base.
+            Version 2.0.0 supports two firmware families: official INAV and
+            Flight Commander Firmware. The flasher keeps automatic target
+            detection, offers either family for the detected hardware, and
+            validates the selected family and target again before writing.
+            Connected Flight Commander Firmware is identified through the
+            versioned <code>FCFW</code> extension; fork-only features remain
+            disabled unless the firmware explicitly advertises their
+            capability. Stock INAV retains its complete configurator, presets,
+            mission planning, and MAVLink Ground Control behavior. ArduPilot
+            configuration, mission, command, parameter, and flashing support
+            has been removed.
           </div>
           <h2 style="margin-top: 1em">Open-source foundations</h2>
           <div>
             Flight Commander is licensed under GPL-3.0 and includes work from
-            the INAV, MAVLink, ArduPilot, OpenLayers, and other open-source
+            the INAV, MAVLink, OpenLayers, and other open-source
             communities.
           </div>
         </div>

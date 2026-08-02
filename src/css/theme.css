@@ -815,7 +815,7 @@ progress::-webkit-progress-bar,
     background: #8f3038;
 }
 
-/* Flight Commander and ArduPilot-native views. */
+/* Flight Commander native views. */
 .fc-toolbar,
 .fc-command-panel,
 .fc-controller-mission,

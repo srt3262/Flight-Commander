@@ -4,7 +4,6 @@ import { describe, test } from "node:test";
 import {
   MAV_CMD_NAV_RETURN_TO_LAUNCH,
   MavlinkMissionManager,
-  MavlinkParameterManager,
   withAbortSignal,
 } from "../../../js/mavlink/services.js";
 
@@ -26,7 +25,7 @@ class FakeSession {
     this.state = {
       systemId: 7,
       componentId: 1,
-      firmwareFamily: "ardupilot",
+      firmwareFamily: "inav",
     };
     this.listeners = new Map();
     this.sent = [];
@@ -91,14 +90,14 @@ class FakeSession {
 }
 
 describe("MavlinkMissionManager", () => {
-  test("downloads integer mission items in sequence and cleans waiters", async () => {
+  test("downloads INAV legacy mission items in sequence and cleans waiters", async () => {
     const session = new FakeSession((messageName, payload, source) => {
       if (messageName === "MissionRequestList") {
         source.message("MissionCount", { count: 2, missionType: 0 });
-      } else if (messageName === "MissionRequestInt") {
-        source.message("MissionItemInt", {
+      } else if (messageName === "MissionRequest") {
+        source.message("MissionItem", {
           seq: payload.seq,
-          frame: 6,
+          frame: 3,
           command: payload.seq === 0 ? 16 : MAV_CMD_NAV_RETURN_TO_LAUNCH,
           current: payload.seq === 0 ? 1 : 0,
           autocontinue: 1,
@@ -106,8 +105,8 @@ describe("MavlinkMissionManager", () => {
           param2: 0,
           param3: 0,
           param4: Number.NaN,
-          x: payload.seq === 0 ? 351234567 : 0,
-          y: payload.seq === 0 ? -789123456 : 0,
+          x: payload.seq === 0 ? 35.1234567 : 0,
+          y: payload.seq === 0 ? -78.9123456 : 0,
           z: payload.seq === 0 ? 60 : 0,
           missionType: 0,
         });
@@ -128,14 +127,18 @@ describe("MavlinkMissionManager", () => {
     assert.equal(items[1].command, MAV_CMD_NAV_RETURN_TO_LAUNCH);
     assert.deepEqual(progress, [1, 2]);
     assert.equal(session.sent.at(-1).messageName, "MissionAck");
+    assert.equal(
+      session.sent.some(({ messageName }) => messageName.endsWith("Int")),
+      false,
+    );
     assert.equal(session.listenerCount(), 0);
   });
 
-  test("uploads requested items, rejects invalid sequence, and blocks INAV command 206", async () => {
+  test("uploads INAV legacy items and blocks unsupported command 206", async () => {
     const session = new FakeSession((messageName, payload, source) => {
       if (messageName === "MissionCount") {
-        source.message("MissionRequestInt", { seq: 0, missionType: 0 });
-      } else if (messageName === "MissionItemInt") {
+        source.message("MissionRequest", { seq: 0, missionType: 0 });
+      } else if (messageName === "MissionItem") {
         source.message("MissionAck", { type: 0, missionType: 0 });
       }
     });
@@ -157,10 +160,10 @@ describe("MavlinkMissionManager", () => {
 
     assert.equal(result.type, 0);
     const item = session.sent.find(
-      ({ messageName }) => messageName === "MissionItemInt",
+      ({ messageName }) => messageName === "MissionItem",
     );
-    assert.equal(item.payload.x, 350000000);
-    assert.equal(item.payload.y, -780000000);
+    assert.equal(item.payload.x, 35);
+    assert.equal(item.payload.y, -78);
     assert.equal(session.listenerCount(), 0);
 
     const inav = new FakeSession();
@@ -196,7 +199,9 @@ describe("MavlinkMissionManager", () => {
     });
     assert.equal(result.cleared, true);
     assert.equal(result.verified, true);
-    assert.equal(result.persistent, true);
+    assert.equal(result.persistent, false);
+    assert.equal(result.volatile, true);
+    assert.equal(result.storage, "volatile");
     assert.equal(session.listenerCount(), 0);
 
     const silentSession = new FakeSession();
@@ -300,116 +305,15 @@ test("withAbortSignal prevents a detached firmware-identification result from es
   const guarded = withAbortSignal(identification, controller.signal);
 
   controller.abort();
-  resolveIdentification({ firmwareFamily: "ardupilot" });
+  resolveIdentification({ firmwareFamily: "inav" });
 
   await assert.rejects(guarded, { name: "AbortError" });
 });
 
-describe("MavlinkParameterManager", () => {
-  test("loads the complete indexed parameter list and sorts it", async () => {
-    const session = new FakeSession((messageName, _payload, source) => {
-      if (messageName !== "ParamRequestList") return;
-      source.message("ParamValue", {
-        paramId: "B\0\0",
-        paramValue: 2,
-        paramType: 9,
-        paramIndex: 1,
-        paramCount: 2,
-      });
-      source.message("ParamValue", {
-        paramId: "A",
-        paramValue: 1,
-        paramType: 9,
-        paramIndex: 0,
-        paramCount: 2,
-      });
-    });
-    const manager = new MavlinkParameterManager(session);
-    const parameters = await manager.loadAll({
-      timeoutMs: 100,
-      retryAfterMs: 20,
-    });
-    assert.deepEqual(
-      parameters.map(({ id }) => id),
-      ["A", "B"],
-    );
-    assert.equal(manager.parameters.get("B").value, 2);
-    assert.equal(session.listenerCount(), 0);
-  });
-
-  test("detach cancels a parameter list load and removes its timers and listeners", async () => {
-    const session = new FakeSession();
-    const manager = new MavlinkParameterManager(session);
-    const load = manager.loadAll({
-      timeoutMs: 1000,
-      retryAfterMs: 100,
-    });
-
-    await new Promise((resolve) => setImmediate(resolve));
-    assert.equal(session.listenerCount("message"), 1);
-    assert.equal(session.listenerCount("detached"), 1);
-    session.emit("detached", {});
-
-    await assert.rejects(load, { name: "AbortError" });
-    assert.equal(session.listenerCount(), 0);
-  });
-
-  test("requests and writes parameters with controller readback validation", async () => {
-    const session = new FakeSession((messageName, payload, source) => {
-      if (messageName === "ParamRequestRead") {
-        source.message("ParamValue", {
-          paramId: payload.paramId,
-          paramValue: 0,
-          paramType: 9,
-          paramIndex: 4,
-          paramCount: 10,
-        });
-      } else if (messageName === "ParamSet") {
-        source.message("ParamValue", {
-          paramId: payload.paramId,
-          paramValue: payload.paramValue,
-          paramType: payload.paramType,
-          paramIndex: 4,
-          paramCount: 10,
-        });
-      }
-    });
-    const manager = new MavlinkParameterManager(session);
-    const requested = await manager.request("MIS_RESTART", 100);
-    assert.equal(requested.id, "MIS_RESTART");
-    const confirmed = await manager.set("MIS_RESTART", 1, { timeoutMs: 100 });
-    assert.equal(confirmed.value, 1);
-    assert.equal(manager.parameters.get("MIS_RESTART").value, 1);
-    assert.equal(session.listenerCount(), 0);
-  });
-
-  test("rejects a mismatched write readback", async () => {
-    const session = new FakeSession((messageName, payload, source) => {
-      if (messageName === "ParamSet") {
-        source.message("ParamValue", {
-          paramId: payload.paramId,
-          paramValue: 0,
-          paramType: payload.paramType,
-          paramIndex: 1,
-          paramCount: 2,
-        });
-      }
-    });
-    const manager = new MavlinkParameterManager(session);
-    await assert.rejects(
-      manager.set("MIS_RESTART", 1, { timeoutMs: 100 }),
-      /was not confirmed/,
-    );
-    assert.equal(session.listenerCount(), 0);
-  });
-});
-
-test("mission and parameter defaults retain the Chromium timer receiver", async () => {
+test("mission defaults retain the Chromium timer receiver", async () => {
   const originalTimers = {
     setTimeout: globalThis.setTimeout,
     clearTimeout: globalThis.clearTimeout,
-    setInterval: globalThis.setInterval,
-    clearInterval: globalThis.clearInterval,
   };
   const calls = [];
   const checkedTimer = (name) =>
@@ -428,8 +332,6 @@ test("mission and parameter defaults retain the Chromium timer receiver", async 
   try {
     globalThis.setTimeout = checkedTimer("setTimeout");
     globalThis.clearTimeout = checkedTimer("clearTimeout");
-    globalThis.setInterval = checkedTimer("setInterval");
-    globalThis.clearInterval = checkedTimer("clearInterval");
 
     const missionSession = new FakeSession();
     const missionManager = new MavlinkMissionManager(missionSession);
@@ -442,32 +344,8 @@ test("mission and parameter defaults retain the Chromium timer receiver", async 
     const canceledPromise = waiter.promise.catch((error) => error);
     waiter.cancel(cancellation);
     assert.equal(await canceledPromise, cancellation);
-
-    const parameterSession = new FakeSession(
-      (messageName, _payload, source) => {
-        if (messageName === "ParamRequestList") {
-          source.message("ParamValue", {
-            paramId: "TEST_PARAM",
-            paramValue: 1,
-            paramType: 9,
-            paramIndex: 0,
-            paramCount: 1,
-          });
-        }
-      },
-    );
-    const parameterManager = new MavlinkParameterManager(parameterSession);
-    const parameters = await parameterManager.loadAll({
-      timeoutMs: 100,
-      retryAfterMs: 50,
-      maxRetryRounds: 0,
-    });
-
-    assert.equal(parameters.length, 1);
     assert.ok(calls.includes("setTimeout"));
     assert.ok(calls.includes("clearTimeout"));
-    assert.ok(calls.includes("setInterval"));
-    assert.ok(calls.includes("clearInterval"));
   } finally {
     Object.assign(globalThis, originalTimers);
   }

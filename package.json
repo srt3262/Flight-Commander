@@ -2,7 +2,7 @@
   "name": "flight-commander",
   "productName": "Flight Commander",
   "description": "Unified INAV configurator and MAVLink ground control station.",
-  "version": "1.9.2",
+  "version": "2.0.0",
   "packageManager": "yarn@1.22.22",
   "main": ".vite/build/main.js",
   "type": "module",
@@ -14,7 +14,7 @@
     "lint": "echo \"No linting configured\"",
     "test": "node tests/transpiler/run_all_tests.cjs && node scripts/run-node-tests.mjs",
     "test:flight-commander": "node scripts/run-node-tests.mjs --flight-commander",
-    "package:windows": "electron-forge package --platform=win32 --arch=x64",
+    "package:windows": "node scripts/clean-vite-output.mjs && electron-forge package --platform=win32 --arch=x64",
     "verify:windows": "node scripts/verify-windows-package.mjs"
   },
   "repository": {

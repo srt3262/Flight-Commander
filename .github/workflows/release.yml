@@ -26,7 +26,7 @@ jobs:
         github.event_name == 'workflow_dispatch' ||
         (
           github.event_name == 'push' &&
-          github.event.head_commit.message == 'Publish Flight Commander 1.9.2 release'
+          github.event.head_commit.message == 'Publish Flight Commander 2.0.0 release'
         )
       )
     runs-on: windows-latest
@@ -382,39 +382,26 @@ jobs:
 
           $notesPath = Join-Path $env:RUNNER_TEMP 'flight-commander-release-notes.md'
           @"
-          Flight Commander $version makes the ArduPilot front end mirror Flight
-          Commander's own INAV experience. The same tab families, sections,
-          labels, controls, and workflows remain visible while a metadata-driven
-          adapter translates all 450 cataloged functions into direct parameter
-          writes, coordinated multi-parameter behavior, equivalent ArduPilot
-          behavior, or MAVLink-backed commands. Equivalent functions explain
-          their ArduPilot semantics in place instead of disappearing.
+          Flight Commander $version supports two firmware families: official
+          INAV and Flight Commander Firmware. The flasher retains automatic
+          hardware-target discovery and uses the proven STM32/DFU path for both
+          families. It validates the selected family, compiled FCFW identity,
+          and target again before writing.
 
-          Calibration, live sensors, motor setup/testing, onboard and tethered
-          logging, Lua script transfer, the parameter console, and Search now
-          have working ArduPilot translations. All Parameters remains the
-          advanced native fallback rather than a substitute for mirrored
-          everyday configuration.
+          Connected Flight Commander Firmware is identified through the
+          versioned MSPv2 FCFW extension. Firmware-only configurator features
+          fail closed and remain disabled unless the controller explicitly
+          advertises their capability bit. Standard INAV keeps the complete
+          configurator, preset, mission-planning, and MAVLink Ground Control
+          behavior established in v1.9.2.
 
-          Flight Planner now rejects ArduPilot's invalid pre-GPS latitude and
-          longitude sentinel at 0,0, prefers a valid vehicle or home position,
-          and otherwise opens at the safe overview instead of zooming into map
-          tiles with no imagery.
+          ArduPilot flashing, configuration, parameter, mission, and command
+          support has been removed. A parameter-capable non-INAV MAVLink vehicle
+          is classified as unsupported and cannot reach an operational route.
 
-          INAV first-run preset application now checks every required setting
-          and value before writing, omits firmware-retired settings, and offers
-          coherent Quad X starting points for 3 through 17-inch propellers plus
-          distinct airplane, flying-wing, rover, and boat frames. Keep current
-          settings saves only the dismissal acknowledgement and does not cycle
-          through control or battery profiles.
-
-          Mixer and Outputs now retain visible INAV M1-M4 numbering when live
-          mixer rules are temporarily empty. Quad X and Quad Plus use the exact
-          INAV motor order, and switching between Props-in and Props-out reverses
-          every CW/CCW arrow without moving or renumbering a motor.
-
-          The dark-only interface, readable profile fields, guarded Save &
-          Reboot, and ArduPilot-to-INAV ROM-DFU handoff remain intact.
+          Presets still write only Control Profile 1, Save & Reboot retains its
+          bounded same-port MSP recovery, and the working INAV MAVLink transport
+          remains unchanged.
 
           The archive also passed the complete repository source tests,
           packaged-application verification, clean ZIP extraction, and

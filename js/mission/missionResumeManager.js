@@ -3,10 +3,7 @@
 import { estimateInavMissionProgress } from "../gcs/inavMissionProgress.js";
 import { mavlinkCommandRouter } from "../gcs/mavlinkCommandRouterInstance.js";
 import mavlinkSession from "../mavlink/mavlinkSession.js";
-import {
-  mavlinkMissionManager,
-  mavlinkParameterManager,
-} from "../mavlink/services.js";
+import { mavlinkMissionManager } from "../mavlink/services.js";
 import { missionOperationCoordinator } from "./missionOperationCoordinator.js";
 import {
   assertMissionReadback,
@@ -17,7 +14,6 @@ const MAV_CMD_NAV_WAYPOINT = 16;
 const MAV_CMD_NAV_RETURN_TO_LAUNCH = 20;
 const MAV_MISSION_STATE_COMPLETE = 5;
 const MAV_MISSION_STATES_IN_PROGRESS = new Set([2, 3, 4]);
-export const ARDUPILOT_MISSION_RESTART_PARAMETER = "MIS_RESTART";
 const BOOT_TIME_MODULUS_MS = 4294967296;
 const BOOT_CONTINUITY_MIN_TOLERANCE_MS = 5000;
 const BOOT_CONTINUITY_MAX_TOLERANCE_MS = 60000;
@@ -170,10 +166,10 @@ function firmwareFamilyFrom(state) {
   const family = String(state?.firmwareFamily ?? "")
     .trim()
     .toLowerCase();
-  if (!["ardupilot", "inav"].includes(family)) {
+  if (family !== "inav") {
     throw resumeError(
       "FIRMWARE_UNKNOWN",
-      "Mission resume is unavailable until the controller is identified as ArduPilot or INAV.",
+      "Mission resume is available only for an identified INAV-compatible controller.",
     );
   }
   return family;
@@ -326,7 +322,6 @@ export class MissionResumeManager {
     this.session = options.session;
     this.commandRouter = options.commandRouter;
     this.missionManager = options.missionManager;
-    this.parameterManager = options.parameterManager;
     this.operationCoordinator =
       options.operationCoordinator ?? missionOperationCoordinator;
     this.now = options.now ?? Date.now;
@@ -628,8 +623,6 @@ export class MissionResumeManager {
 
   observeSessionState(value) {
     const state = cloneValue(value ?? {});
-    const previousState = this.lastSessionState;
-    const previousObservedAt = this.lastSessionStateObservedAt;
     const observedAt = this.now();
     this.lastSessionState = state;
     this.lastSessionStateObservedAt = observedAt;
@@ -668,22 +661,6 @@ export class MissionResumeManager {
       return this.snapshot();
     }
 
-    if (
-      String(state.firmwareFamily ?? "").toLowerCase() === "ardupilot" &&
-      previousState &&
-      isMissionMode(previousState.modeName) &&
-      isReturnMode(state.modeName)
-    ) {
-      this.captureTransitionCheckpoint({
-        state: previousState,
-        returnState: state,
-        stateObservedAt: previousObservedAt,
-        returnStateObservedAt: observedAt,
-        sequence: finiteInteger(previousState.missionCurrent),
-        estimated: false,
-        source: "ardupilot-mission-current",
-      });
-    }
     return this.snapshot();
   }
 
@@ -1045,10 +1022,7 @@ export class MissionResumeManager {
         "Mission resume cannot verify the onboard mission because mission download is unavailable.",
       );
     }
-    const inav = validated.checkpoint.firmwareFamily === "inav";
-    const downloaded = await this.missionManager.download(
-      inav ? { legacyOnly: true } : {},
-    );
+    const downloaded = await this.missionManager.download({ legacyOnly: true });
     if (
       fingerprintMission(downloaded) !== this.registration.fingerprint ||
       canonicalMission(downloaded) !== this.registration.canonical
@@ -1112,9 +1086,7 @@ export class MissionResumeManager {
     this.emitUpdate("resume-verifying");
     try {
       const mission = await this.downloadAndVerifyRegisteredMission(validated);
-      return validated.checkpoint.firmwareFamily === "ardupilot"
-        ? await this.resumeArduPilot(validated, mission, options)
-        : await this.resumeInav(validated, mission, options);
+      return await this.resumeInav(validated, mission, options);
     } catch (error) {
       if (error?.clearCheckpoint) {
         this.clearCheckpoint(error.message, {
@@ -1128,83 +1100,6 @@ export class MissionResumeManager {
       this.emitUpdate("resume-failed");
       throw error;
     }
-  }
-
-  async resumeArduPilot(validated, mission, options) {
-    if (typeof this.commandRouter?.resumeMissionFrom !== "function") {
-      throw resumeError(
-        "RESUME_COMMAND_UNAVAILABLE",
-        "The ArduPilot mission-resume command service is unavailable.",
-      );
-    }
-    this.message = "Re-reading ArduPilot MIS_RESTART before exact resume…";
-    this.emitUpdate("ardupilot-policy-verifying");
-    const restartPolicy = await this.requireArduPilotResumePolicy(options);
-    const checkpoint = cloneCheckpoint(validated.checkpoint);
-    const commandResult = await this.commandRouter.resumeMissionFrom(
-      checkpoint.sequence,
-      { ...options, checkpoint },
-    );
-    const executionPending = stateSnapshot(this.session).armed === false;
-    this.activeCheckpoint = null;
-    this.status = RESUME_STATUS.RESUMED;
-    this.message = executionPending
-      ? `ArduPilot resume item ${checkpoint.sequence + 1} selected and AUTO confirmed; arm/launch is required before mission execution.`
-      : `ArduPilot mission resumed from item ${checkpoint.sequence + 1}.`;
-    this.lastError = null;
-    const result = {
-      ok: true,
-      firmwareFamily: "ardupilot",
-      exact: true,
-      estimated: false,
-      executionPending,
-      sequence: checkpoint.sequence,
-      checkpoint,
-      restartPolicy,
-      commandResult,
-    };
-    this.emitUpdate("resume-succeeded", { result });
-    return result;
-  }
-
-  async requireArduPilotResumePolicy(options = {}) {
-    if (typeof this.parameterManager?.request !== "function") {
-      throw resumeError(
-        "ARDUPILOT_MIS_RESTART_UNAVAILABLE",
-        "Exact ArduPilot resume was blocked because MIS_RESTART could not be read. Open Flight Planner, read the ArduPilot interruption policy, and set it to RESUME (0).",
-      );
-    }
-    let parameter;
-    try {
-      parameter = await this.parameterManager.request(
-        ARDUPILOT_MISSION_RESTART_PARAMETER,
-        options.parameterTimeoutMs ?? 3000,
-      );
-    } catch (error) {
-      throw resumeError(
-        "ARDUPILOT_MIS_RESTART_UNAVAILABLE",
-        "Exact ArduPilot resume was blocked because the controller did not confirm MIS_RESTART. Reconnect, then read the ArduPilot interruption policy in Flight Planner before trying again.",
-        { cause: error },
-      );
-    }
-    const value = Number(parameter?.value);
-    if (!Number.isInteger(value) || ![0, 1].includes(value)) {
-      throw resumeError(
-        "ARDUPILOT_MIS_RESTART_UNSUPPORTED",
-        `Exact ArduPilot resume was blocked because the controller returned unsupported MIS_RESTART value ${String(parameter?.value)}. No resume command was sent.`,
-      );
-    }
-    if (value !== 0) {
-      throw resumeError(
-        "ARDUPILOT_MIS_RESTART_RESTART",
-        "Exact ArduPilot resume requires MIS_RESTART = 0 (RESUME), but the controller confirmed MIS_RESTART = 1 (RESTART). Change and verify the policy in Flight Planner before trying again.",
-      );
-    }
-    return {
-      id: ARDUPILOT_MISSION_RESTART_PARAMETER,
-      value,
-      type: parameter?.type,
-    };
   }
 
   normalizeInavMission(mission) {
@@ -1447,5 +1342,4 @@ export const missionResumeManager = new MissionResumeManager({
   session: mavlinkSession,
   commandRouter: mavlinkCommandRouter,
   missionManager: mavlinkMissionManager,
-  parameterManager: mavlinkParameterManager,
 });

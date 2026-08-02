@@ -32,7 +32,6 @@ const COMPLETION_ACTION_BY_COMMAND = Object.freeze({
 });
 const FIXED_WING_VEHICLE_CLASSES = new Set([
   "airplane",
-  "arduplane",
   "fixedwing",
   "flyingwing",
   "plane",

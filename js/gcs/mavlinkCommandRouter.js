@@ -1,6 +1,5 @@
 "use strict";
 
-import { vehicleFamily } from "../mavlink/ardupilotModes.js";
 import { bindHostTimer } from "../mavlink/hostTimers.js";
 
 export const INAV_MODE_IDS = Object.freeze({
@@ -1143,95 +1142,6 @@ export class MavlinkCommandRouter {
     return { resolution, adapter: this.inavAdapter };
   }
 
-  ardupilotMissionHoldMode(modeNames) {
-    const modes =
-      modeNames instanceof Set ? modeNames : new Set(modeNames ?? []);
-    const vehicleType = Number(this.session.state.vehicleType);
-    let choices;
-    if ([19, 20, 21].includes(vehicleType)) choices = ["QLOITER", "LOITER"];
-    else {
-      switch (vehicleFamily(vehicleType)) {
-        case "plane":
-          choices = vehicleType === 1 ? ["LOITER"] : [];
-          break;
-        case "rover":
-          choices = [10, 11].includes(vehicleType) ? ["HOLD", "LOITER"] : [];
-          break;
-        case "sub":
-          choices = vehicleType === 12 ? ["POSHOLD", "ALT_HOLD"] : [];
-          break;
-        case "copter":
-          choices = [2, 3, 4, 13, 14, 15, 29].includes(vehicleType)
-            ? ["LOITER", "POSHOLD", "BRAKE"]
-            : [];
-          break;
-        default:
-          choices = [];
-      }
-    }
-    return choices.find((mode) => modes.has(mode)) ?? null;
-  }
-
-  ardupilotCapabilities() {
-    const modes = new Set(
-      (this.session.availableModes?.() ?? [])
-        .map((mode) => (typeof mode === "string" ? mode : mode?.name))
-        .filter(Boolean),
-    );
-    const vehicleType = Number(this.session.state.vehicleType);
-    const family = vehicleFamily(vehicleType);
-    const airborne = [1, 2, 3, 4, 13, 14, 15, 19, 20, 21, 29].includes(
-      vehicleType,
-    );
-    const canTakeoff =
-      typeof this.session.takeoff === "function" &&
-      airborne &&
-      (family === "plane"
-        ? modes.has("TAKEOFF")
-        : family === "copter" && modes.has("GUIDED"));
-    const canLand =
-      typeof this.session.land === "function" &&
-      airborne &&
-      (family === "plane"
-        ? modes.has("QLAND") || modes.has("AUTOLAND")
-        : family === "copter" && modes.has("LAND"));
-    const holdMode = this.ardupilotMissionHoldMode(modes);
-    const canHold =
-      typeof this.session.setMode === "function" && holdMode != null;
-    const missionLoaded =
-      Number.isInteger(this.session.state.missionTotal) &&
-      this.session.state.missionTotal > 0;
-    const canSetMissionCurrent =
-      typeof this.session.setMissionCurrent === "function" && missionLoaded;
-    return {
-      canArm: typeof this.session.setArmed === "function",
-      canSetMode: typeof this.session.setMode === "function" && modes.size > 0,
-      canStartMission:
-        typeof this.session.startMission === "function" && modes.has("AUTO"),
-      canAbortMissionResume: false,
-      canSetMissionCurrent,
-      canResumeMission:
-        typeof this.session.resumeMissionFrom === "function" &&
-        canSetMissionCurrent &&
-        modes.has("AUTO"),
-      canHoldMission: canHold,
-      canPauseMission: canHold,
-      canTakeoff,
-      canRtl:
-        typeof this.session.returnToLaunch === "function" &&
-        ["RTL", "QRTL", "SMART_RTL", "AUTO_RTL"].some((mode) =>
-          modes.has(mode),
-        ),
-      canLand,
-      missionHoldMode: holdMode,
-      missionHoldReason: holdMode
-        ? `Mission hold uses the native ArduPilot ${holdMode} flight mode.`
-        : "This ArduPilot vehicle does not expose a supported native mission-hold mode.",
-      reason:
-        "Available controls are derived from this ArduPilot vehicle type and its native MAVLink flight modes.",
-    };
-  }
-
   capabilities() {
     const link = this.linkCapability();
     if (!link.available) {
@@ -1239,10 +1149,6 @@ export class MavlinkCommandRouter {
       return unavailable(link.reason);
     }
     const family = this.firmwareFamily();
-    if (family === "ardupilot") {
-      this.releaseInavAdapter();
-      return this.ardupilotCapabilities();
-    }
     if (family === "inav") {
       const isolation = this.inavTargetIsolationCapability();
       if (!isolation.available) return unavailable(isolation.reason);
@@ -1257,7 +1163,9 @@ export class MavlinkCommandRouter {
     }
     this.releaseInavAdapter();
     return unavailable(
-      "Command controls are disabled until the MAVLink firmware family is identified as ArduPilot or INAV.",
+      family === "unsupported"
+        ? "This MAVLink vehicle is not running INAV or Flight Commander Firmware. ArduPilot support has been removed."
+        : "Command controls are disabled until an INAV-compatible firmware family is identified.",
     );
   }
 
@@ -1266,13 +1174,7 @@ export class MavlinkCommandRouter {
       this.releaseInavAdapter();
       return [];
     }
-    const family = this.firmwareFamily();
-    if (family === "ardupilot") {
-      return (this.session.availableModes?.() ?? [])
-        .map((mode) => (typeof mode === "string" ? mode : mode?.name))
-        .filter(Boolean);
-    }
-    return family === "inav"
+    return this.firmwareFamily() === "inav"
       ? (this.resolveInavAdapter().adapter?.availableModes() ?? [])
       : [];
   }
@@ -1284,14 +1186,6 @@ export class MavlinkCommandRouter {
       throw new Error(link.reason);
     }
     const family = this.firmwareFamily();
-    if (family === "ardupilot") {
-      if (typeof this.session[methodName] !== "function") {
-        throw new Error(
-          `ArduPilot command ${methodName} is unavailable in this MAVLink session.`,
-        );
-      }
-      return this.session;
-    }
     if (family === "inav") {
       const isolation = this.inavTargetIsolationCapability();
       if (!isolation.available) throw new Error(isolation.reason);
@@ -1304,7 +1198,9 @@ export class MavlinkCommandRouter {
     }
     this.releaseInavAdapter();
     throw new Error(
-      "Cannot send a command until the MAVLink firmware family is identified as ArduPilot or INAV.",
+      family === "unsupported"
+        ? "Commands are unavailable because ArduPilot support has been removed. Connect an INAV-compatible vehicle."
+        : "Cannot send a command until an INAV-compatible firmware family is identified.",
     );
   }
 
@@ -1331,50 +1227,7 @@ export class MavlinkCommandRouter {
     return this.commandTarget("abortMissionResume").abortMissionResume(options);
   }
 
-  setMissionCurrent(sequence, options = {}) {
-    const link = this.linkCapability();
-    if (!link.available) throw new Error(link.reason);
-    if (this.firmwareFamily() !== "ardupilot") {
-      throw new Error(
-        "Selecting a MAVLink mission item is supported only for an ArduPilot vehicle.",
-      );
-    }
-    return this.commandTarget("setMissionCurrent").setMissionCurrent(
-      sequence,
-      options,
-    );
-  }
-
-  resumeMissionFrom(sequence, options = {}) {
-    const link = this.linkCapability();
-    if (!link.available) throw new Error(link.reason);
-    if (this.firmwareFamily() !== "ardupilot") {
-      throw new Error(
-        "Mission resume is supported only for an ArduPilot vehicle.",
-      );
-    }
-    return this.commandTarget("resumeMissionFrom").resumeMissionFrom(
-      sequence,
-      options,
-    );
-  }
-
   holdMission(options = {}) {
-    if (this.firmwareFamily() === "ardupilot") {
-      const target = this.commandTarget("setMode");
-      const modes = new Set(
-        (this.session.availableModes?.() ?? [])
-          .map((mode) => (typeof mode === "string" ? mode : mode?.name))
-          .filter(Boolean),
-      );
-      const holdMode = this.ardupilotMissionHoldMode(modes);
-      if (!holdMode) {
-        throw new Error(
-          `Mission hold is unavailable for ${this.session.state.vehicleTypeName ?? "this ArduPilot vehicle"} with its available native flight modes.`,
-        );
-      }
-      return target.setMode(holdMode, options);
-    }
     return this.commandTarget("holdMission").holdMission(options);
   }
 

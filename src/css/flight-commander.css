@@ -834,3 +834,76 @@
     grid-template-columns: repeat(2, minmax(110px, 1fr));
   }
 }
+.fc-firmware-identity {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(280px, 1fr);
+    gap: 20px;
+    margin-bottom: 20px;
+    padding: 20px;
+    border: 1px solid var(--fc-border, #46515f);
+    border-radius: 8px;
+    background: var(--fc-panel, #202833);
+}
+
+.fc-firmware-identity__facts,
+.fc-firmware-identity__facts div {
+    margin: 0;
+}
+
+.fc-firmware-identity__facts div {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 7px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.fc-firmware-identity__facts dd {
+    margin: 0;
+    text-align: right;
+    font-weight: 600;
+}
+
+.fc-firmware-feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 14px;
+}
+
+.fc-firmware-feature {
+    padding: 16px;
+    border: 1px solid var(--fc-border, #46515f);
+    border-radius: 7px;
+    background: rgba(255, 255, 255, 0.025);
+}
+
+.fc-firmware-feature--enabled {
+    border-color: #5fa83e;
+}
+
+.fc-firmware-feature__heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.fc-firmware-feature__heading h4 {
+    margin: 0;
+}
+
+.fc-pill--ready {
+    color: #d9ffd0;
+    background: #315b2a;
+}
+
+.fc-pill--locked {
+    color: #e3e7eb;
+    background: #4b545f;
+}
+
+@media (max-width: 900px) {
+    .fc-firmware-identity {
+        grid-template-columns: 1fr;
+    }
+}

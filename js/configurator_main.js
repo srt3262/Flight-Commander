@@ -1,7 +1,7 @@
 import '../src/css/styles.css'
 import '../src/css/flight-commander.css'
 // Keep the single dark visual system last so it can normalize both inherited
-// INAV widgets and Flight Commander's newer MAVLink/ArduPilot surfaces.
+// INAV widgets and Flight Commander's MAVLink ground-control surfaces.
 import '../src/css/theme.css'
 
 import $ from 'jquery';
@@ -57,33 +57,7 @@ import cliTab from './../tabs/cli';
 import searchTab from './../tabs/search';
 import flightDataTab from './../tabs/flight_data';
 import flightPlannerTab from './../tabs/flight_planner';
-import mavlinkParametersTab from './../tabs/mavlink_parameters';
-import {
-    ardupilotInavAdjustmentsTab,
-    ardupilotInavAdvancedTuningTab,
-    ardupilotInavCalibrationTab,
-    ardupilotInavCliTab,
-    ardupilotInavConfigurationTab,
-    ardupilotInavFailsafeTab,
-    ardupilotInavGpsTab,
-    ardupilotInavLedStripTab,
-    ardupilotInavJavascriptProgrammingTab,
-    ardupilotInavLoggingTab,
-    ardupilotInavMagnetometerTab,
-    ardupilotInavMixerTab,
-    ardupilotInavModesTab,
-    ardupilotInavOsdTab,
-    ardupilotInavOutputsTab,
-    ardupilotInavPidTuningTab,
-    ardupilotInavPortsTab,
-    ardupilotInavProgrammingTab,
-    ardupilotInavReceiverTab,
-    ardupilotInavSensorsTab,
-    ardupilotInavSearchTab,
-    ardupilotInavSetupTab,
-    ardupilotInavTetheredLoggingTab,
-} from './../tabs/ardupilot_inav_ui';
-import autotuneTab from './../tabs/autotune';
+import firmwareInfoTab from './../tabs/firmware_info';
 import dialog from './dialog'
 
 window.$ = $;
@@ -324,80 +298,8 @@ $(function() {
                         case 'flight_planner':
                             flightPlannerTab.initialize(content_ready);
                             break;
-                        case 'mavlink_parameters':
-                            mavlinkParametersTab.initialize(content_ready);
-                            break;
-                        case 'ardupilot_setup':
-                            ardupilotInavSetupTab.initialize(content_ready);
-                            break;
-                        case 'ardupilot_ports':
-                            ardupilotInavPortsTab.initialize(content_ready);
-                            break;
-                        case 'ardupilot_receiver':
-                            ardupilotInavReceiverTab.initialize(content_ready);
-                            break;
-                        case 'ardupilot_modes':
-                            ardupilotInavModesTab.initialize(content_ready);
-                            break;
-                        case 'ardupilot_configuration':
-                            ardupilotInavConfigurationTab.initialize(content_ready);
-                            break;
-                        case 'ardupilot_outputs':
-                            ardupilotInavOutputsTab.initialize(content_ready);
-                            break;
-                        case 'ardupilot_failsafe':
-                            ardupilotInavFailsafeTab.initialize(content_ready);
-                            break;
-                        case 'ardupilot_sensors':
-                            ardupilotInavSensorsTab.initialize(content_ready);
-                            break;
-                        case 'ardupilot_gps_navigation':
-                            ardupilotInavGpsTab.initialize(content_ready);
-                            break;
-                        case 'ardupilot_osd':
-                            ardupilotInavOsdTab.initialize(content_ready);
-                            break;
-                        case 'ardupilot_logging':
-                            ardupilotInavLoggingTab.initialize(content_ready);
-                            break;
-                        case 'ardupilot_pid_tuning':
-                            ardupilotInavPidTuningTab.initialize(content_ready);
-                            break;
-                        case 'ardupilot_calibration':
-                            ardupilotInavCalibrationTab.initialize(content_ready);
-                            break;
-                        case 'ardupilot_magnetometer':
-                            ardupilotInavMagnetometerTab.initialize(content_ready);
-                            break;
-                        case 'ardupilot_mixer':
-                            ardupilotInavMixerTab.initialize(content_ready);
-                            break;
-                        case 'ardupilot_advanced_tuning':
-                            ardupilotInavAdvancedTuningTab.initialize(content_ready);
-                            break;
-                        case 'ardupilot_adjustments':
-                            ardupilotInavAdjustmentsTab.initialize(content_ready);
-                            break;
-                        case 'ardupilot_led_strip':
-                            ardupilotInavLedStripTab.initialize(content_ready);
-                            break;
-                        case 'ardupilot_tethered_logging':
-                            ardupilotInavTetheredLoggingTab.initialize(content_ready);
-                            break;
-                        case 'ardupilot_programming':
-                            ardupilotInavProgrammingTab.initialize(content_ready);
-                            break;
-                        case 'ardupilot_javascript_programming':
-                            ardupilotInavJavascriptProgrammingTab.initialize(content_ready);
-                            break;
-                        case 'ardupilot_cli':
-                            ardupilotInavCliTab.initialize(content_ready);
-                            break;
-                        case 'ardupilot_search':
-                            ardupilotInavSearchTab.initialize(content_ready);
-                            break;
-                        case 'autotune':
-                            autotuneTab.initialize(content_ready);
+                        case 'firmware_info':
+                            firmwareInfoTab.initialize(content_ready);
                             break;
                         default:
                             console.log('Tab not found:' + tab);

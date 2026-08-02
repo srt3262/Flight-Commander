@@ -68,10 +68,8 @@ import {
 import {
   DEFAULT_MISSION_BEHAVIOR,
   INAV_SPEED_M_S_MAX,
-  compileArduPilotMission,
   compileInavMavlinkMission,
   compileInavMspMission,
-  deriveArduPilotMissionBehavior,
   normalizeMissionBehavior,
 } from './../js/mission/missionBehavior';
 import { inavMissionAdapter } from './../js/mission/inavMissionAdapter';
@@ -104,10 +102,7 @@ import {
   normalizeCoordinate,
   surveyGridToMission,
 } from './../js/mission/surveyGrid';
-import {
-  mavlinkMissionManager,
-  mavlinkParameterManager,
-} from './../js/mavlink/services';
+import { mavlinkMissionManager } from './../js/mavlink/services';
 import mavlinkSession from './../js/mavlink/mavlinkSession';
 import ltmDecoder from './../js/ltmDecoder';
 import store from './../js/store';
@@ -125,8 +120,6 @@ const COMMAND_NAMES = {
   ...INAV_MSP_COMMAND_NAMES,
   20: 'RTL',
   22: 'TAKEOFF',
-  178: 'CHANGE SPEED',
-  206: 'CAMERA TRIGGER',
 };
 const INAV_MISSION_RESTART_SETTING = 'nav_wp_mission_restart';
 const INAV_MISSION_RESTART_ENUM = Object.freeze([
@@ -134,15 +127,9 @@ const INAV_MISSION_RESTART_ENUM = Object.freeze([
   { value: 1, name: 'RESUME', detail: 'continue from the last active waypoint' },
   { value: 2, name: 'SWITCH', detail: 'alternate START and RESUME' },
 ]);
-const ARDUPILOT_MISSION_RESTART_PARAMETER = 'MIS_RESTART';
-const ARDUPILOT_MISSION_RESTART_ENUM = Object.freeze([
-  { value: 0, name: 'RESUME', detail: 'continue the interrupted mission' },
-  { value: 1, name: 'RESTART', detail: 'start from the first mission item' },
-]);
 const SURVEY_CAMERA_MODES = Object.freeze({
   AUTO: 'auto',
   NAVIGATION_ONLY: 'navigation-only',
-  ARDUPILOT_DISTANCE: 'ardupilot-distance',
 });
 
 function normalizeSurveyCameraMode(value) {
@@ -155,7 +142,7 @@ function missionTargetForConnection(protocol, firmwareFamily) {
   if (protocol === 'msp' || protocol === 'ltm') return 'inav';
   if (protocol !== 'mavlink') return 'unknown';
   const family = String(firmwareFamily ?? '').toLowerCase();
-  return ['inav', 'ardupilot'].includes(family) ? family : 'unknown';
+  return family === 'inav' ? family : 'unknown';
 }
 
 function resolveSurveyCameraPolicy({
@@ -189,37 +176,6 @@ function resolveSurveyCameraPolicy({
     };
   }
 
-  if (normalizedMode === SURVEY_CAMERA_MODES.ARDUPILOT_DISTANCE) {
-    if (target === 'inav') {
-      return {
-        mode: normalizedMode,
-        target,
-        includeCameraCommands: false,
-        incompatible: true,
-        notice: 'The connected controller is INAV. Stock INAV missions cannot accept or represent '
-          + 'ArduPilot camera command 206. '
-          + 'Select Automatic or Navigation only before generating this survey.',
-      };
-    }
-    return {
-      mode: normalizedMode,
-      target,
-      includeCameraCommands: true,
-      incompatible: false,
-      notice: 'ArduPilot distance-camera command 206 is inserted at each survey-line start and stop.',
-    };
-  }
-
-  if (target === 'ardupilot') {
-    return {
-      mode: normalizedMode,
-      target,
-      includeCameraCommands: true,
-      incompatible: false,
-      notice: 'Automatic camera target: ArduPilot distance-camera command 206 is inserted at each survey-line start and stop.',
-    };
-  }
-
   if (target === 'inav') {
     return {
       mode: normalizedMode,
@@ -236,8 +192,7 @@ function resolveSurveyCameraPolicy({
     target,
     includeCameraCommands: false,
     incompatible: false,
-    notice: 'Automatic camera target: no controller type is identified, so this survey is navigation only. '
-      + 'Connect ArduPilot or select ArduPilot distance trigger to include camera command 206.',
+    notice: 'Automatic camera target: no supported controller is identified, so this survey is navigation only.',
   };
 }
 
@@ -250,9 +205,9 @@ function assertSurveyCameraCommandsCompatible(mission, target) {
     .filter(Number.isInteger);
   if (!cameraItems.length) return;
   throw new Error(
-    `This plan contains ArduPilot distance-camera command 206 at mission item`
+    `This plan contains removed distance-camera command 206 at mission item`
     + `${cameraItems.length === 1 ? '' : 's'} ${cameraItems.join(', ')}. `
-    + 'Stock INAV missions cannot accept or represent that command. '
+    + 'INAV-compatible missions cannot accept or represent that command. '
     + 'Set Photo command target to Automatic or Navigation only, '
     + 'regenerate the survey, and try again. No mission data was written.',
   );
@@ -278,9 +233,6 @@ const flightPlanner = {
   fwApproachLengthCm: 0,
   inavMissionRestartLoaded: false,
   inavMissionRestartBusy: false,
-  ardupilotMissionRestartLoaded: false,
-  ardupilotMissionRestartBusy: false,
-  ardupilotMissionRestartSystemId: null,
   missionBehaviorWarnings: [],
 };
 
@@ -326,9 +278,6 @@ flightPlanner.initialize = function (callback) {
   }
   this.inavMissionRestartLoaded = false;
   this.inavMissionRestartBusy = false;
-  this.ardupilotMissionRestartLoaded = false;
-  this.ardupilotMissionRestartBusy = false;
-  this.ardupilotMissionRestartSystemId = null;
   this.missionBehaviorWarnings = [];
   import('./flight_planner.html?raw').then(({ default: html }) => {
     GUI.load(html, () => {
@@ -470,17 +419,6 @@ flightPlanner.bindControls = function () {
     if (this.inavMissionRestartLoaded) {
       this.setInavMissionRestartStatus(
         'Policy changed locally. Save it to INAV to make the selection persistent.',
-      );
-    }
-  });
-  $('#plannerReadArduPilotMissionRestart')
-    .on('click', () => this.readArduPilotMissionRestartPolicy());
-  $('#plannerWriteArduPilotMissionRestart')
-    .on('click', () => this.writeArduPilotMissionRestartPolicy());
-  $('#plannerArduPilotMissionRestart').on('change', () => {
-    if (this.ardupilotMissionRestartLoaded) {
-      this.setArduPilotMissionRestartStatus(
-        'Policy changed locally. Save it to ArduPilot to make the selection persistent.',
       );
     }
   });
@@ -638,7 +576,7 @@ flightPlanner.updateVehicleTransferState = function () {
   const telemetryOnly = CONFIGURATOR.connectionProtocol === 'ltm';
   const isMavlink = CONFIGURATOR.connectionProtocol === 'mavlink';
   const firmwareFamily = isMavlink ? mavlinkSession.state.firmwareFamily : null;
-  const firmwareReady = !isMavlink || ['inav', 'ardupilot'].includes(firmwareFamily);
+  const firmwareReady = !isMavlink || firmwareFamily === 'inav';
   const inavMavlink = isMavlink && firmwareFamily === 'inav';
   const missionOperationBusy = missionOperationCoordinator.isBusy();
   const vehicleName = isMavlink
@@ -655,9 +593,9 @@ flightPlanner.updateVehicleTransferState = function () {
       ? `INAV / MSP wired · persistent mission read/write; empty erase is unsupported · ${this.mission.length} planned mission items`
       : inavMavlink
         ? `MAVLink · INAV active mission is retained only for this power cycle · ${this.mission.length} planned mission items`
-        : firmwareFamily === 'ardupilot'
-          ? `MAVLink · ArduPilot mission storage · ${this.mission.length} planned mission items`
-          : 'MAVLink is connected; mission controls will unlock after firmware detection.'
+        : firmwareFamily === 'unsupported'
+          ? 'Unsupported MAVLink firmware. Mission transfer is disabled.'
+          : 'MAVLink is connected; mission controls will unlock after INAV-compatible firmware detection.'
     : telemetryOnly
       ? 'LTM is read-only. Reconnect through MAVLink for active missions and commands.'
       : 'Connect a flight controller to transfer this mission.');
@@ -691,7 +629,6 @@ flightPlanner.updateVehicleTransferState = function () {
   this.updateMissionBehaviorAvailability();
   this.updateSurveyCameraAvailability();
   this.updateInavPlanningAvailability();
-  this.updateArduPilotMissionRestartAvailability();
 };
 
 flightPlanner.updateSurveyCameraAvailability = function () {
@@ -714,13 +651,10 @@ flightPlanner.updateSurveyCameraAvailability = function () {
       .filter(Number.isInteger)
     : [];
   const existingPlanWarning = incompatibleCameraItems.length
-    ? `Current plan still contains ArduPilot camera command 206 at mission item`
+    ? `Current plan still contains removed camera command 206 at mission item`
       + `${incompatibleCameraItems.length === 1 ? '' : 's'} ${incompatibleCameraItems.join(', ')}. `
-      + 'It cannot be written to stock INAV. Select Automatic or Navigation only and regenerate the survey.'
+      + 'It cannot be written to INAV-compatible firmware. Select Automatic or Navigation only and regenerate the survey.'
     : '';
-  $('#plannerCameraCommandMode')
-    .find(`option[value="${SURVEY_CAMERA_MODES.ARDUPILOT_DISTANCE}"]`)
-    .prop('disabled', connectedTarget === 'inav');
   $('#plannerCameraCommandHelp')
     .text(
       existingPlanWarning
@@ -761,188 +695,6 @@ flightPlanner.hasWiredInavSetupLink = function () {
     CONFIGURATOR.connectionValid
     && CONFIGURATOR.connectionProtocol === 'msp',
   );
-};
-
-flightPlanner.hasArduPilotMavlinkLink = function () {
-  const systemId = Number(mavlinkSession.state.systemId);
-  return Boolean(
-    CONFIGURATOR.connectionValid
-    && CONFIGURATOR.connectionProtocol === 'mavlink'
-    && mavlinkSession.state.firmwareFamily === 'ardupilot'
-    && Number.isInteger(systemId)
-    && systemId >= 1
-    && systemId <= 255,
-  );
-};
-
-flightPlanner.updateArduPilotMissionRestartAvailability = function () {
-  const connected = this.hasArduPilotMavlinkLink();
-  const systemId = connected ? Number(mavlinkSession.state.systemId) : null;
-  if (
-    this.ardupilotMissionRestartSystemId != null
-    && systemId !== this.ardupilotMissionRestartSystemId
-  ) {
-    this.ardupilotMissionRestartLoaded = false;
-  }
-  if (!connected) {
-    this.ardupilotMissionRestartLoaded = false;
-    this.ardupilotMissionRestartSystemId = null;
-  }
-
-  const canEdit = connected
-    && this.ardupilotMissionRestartLoaded
-    && !this.ardupilotMissionRestartBusy;
-  $('#plannerArduPilotMissionRestartPanel').prop('hidden', !connected);
-  $('#plannerArduPilotMissionRestart').prop('disabled', !canEdit);
-  $('#plannerReadArduPilotMissionRestart').prop(
-    'disabled',
-    !connected || this.ardupilotMissionRestartBusy,
-  );
-  $('#plannerWriteArduPilotMissionRestart').prop('disabled', !canEdit);
-
-  if (!connected) {
-    this.setArduPilotMissionRestartStatus(
-      'Connect to an ArduPilot controller over MAVLink to read this setting.',
-    );
-  } else if (!this.ardupilotMissionRestartLoaded && !this.ardupilotMissionRestartBusy) {
-    this.setArduPilotMissionRestartStatus(
-      'Select Read policy to request MIS_RESTART directly from this controller.',
-    );
-  }
-};
-
-flightPlanner.setArduPilotMissionRestartStatus = function (message, error = false) {
-  $('#plannerArduPilotMissionRestartStatus')
-    .text(message)
-    .toggleClass('fc-action-status--error', error);
-};
-
-flightPlanner.validateArduPilotMissionRestartParameter = function (parameter) {
-  const id = String(parameter?.id ?? '').trim().toUpperCase();
-  const value = Number(parameter?.value);
-  if (
-    id !== ARDUPILOT_MISSION_RESTART_PARAMETER
-    || !Number.isInteger(value)
-    || !ARDUPILOT_MISSION_RESTART_ENUM.some((entry) => entry.value === value)
-  ) {
-    throw new Error(
-      'The connected ArduPilot firmware did not return a supported MIS_RESTART value '
-      + '(0 = Resume, 1 = Restart). No value was changed.',
-    );
-  }
-  return {
-    value,
-    type: parameter.type,
-  };
-};
-
-flightPlanner.renderArduPilotMissionRestartParameter = function (parameter) {
-  const select = $('#plannerArduPilotMissionRestart').empty();
-  for (const option of ARDUPILOT_MISSION_RESTART_ENUM) {
-    $('<option>')
-      .val(option.value)
-      .text(`${option.name} — ${option.detail}`)
-      .appendTo(select);
-  }
-  select.val(String(parameter.value));
-};
-
-flightPlanner.readArduPilotMissionRestartPolicy = async function (options = {}) {
-  if (!this.hasArduPilotMavlinkLink()) {
-    this.ardupilotMissionRestartLoaded = false;
-    this.updateArduPilotMissionRestartAvailability();
-    if (!options.quiet) {
-      this.setArduPilotMissionRestartStatus(
-        'Connect to an ArduPilot controller over MAVLink before reading MIS_RESTART.',
-        true,
-      );
-    }
-    return null;
-  }
-
-  this.ardupilotMissionRestartBusy = true;
-  this.updateArduPilotMissionRestartAvailability();
-  if (!options.quiet) {
-    this.setArduPilotMissionRestartStatus('Reading MIS_RESTART from ArduPilot…');
-  }
-  try {
-    const parameter = this.validateArduPilotMissionRestartParameter(
-      await mavlinkParameterManager.request(ARDUPILOT_MISSION_RESTART_PARAMETER),
-    );
-    this.renderArduPilotMissionRestartParameter(parameter);
-    this.ardupilotMissionRestartLoaded = true;
-    this.ardupilotMissionRestartSystemId = Number(mavlinkSession.state.systemId);
-    this.setArduPilotMissionRestartStatus(
-      `Controller policy: ${ARDUPILOT_MISSION_RESTART_ENUM[parameter.value].name}. `
-      + 'The displayed value was read directly from ArduPilot.',
-    );
-    return parameter.value;
-  } catch (error) {
-    this.ardupilotMissionRestartLoaded = false;
-    this.setArduPilotMissionRestartStatus(error.message, true);
-    return null;
-  } finally {
-    this.ardupilotMissionRestartBusy = false;
-    this.updateArduPilotMissionRestartAvailability();
-  }
-};
-
-flightPlanner.writeArduPilotMissionRestartPolicy = async function () {
-  if (!this.hasArduPilotMavlinkLink() || !this.ardupilotMissionRestartLoaded) {
-    this.setArduPilotMissionRestartStatus(
-      'Read MIS_RESTART from the connected ArduPilot controller before saving.',
-      true,
-    );
-    return;
-  }
-  const expected = Number($('#plannerArduPilotMissionRestart').val());
-  if (!ARDUPILOT_MISSION_RESTART_ENUM.some((entry) => entry.value === expected)) {
-    this.setArduPilotMissionRestartStatus(
-      'Select a valid ArduPilot mission restart policy.',
-      true,
-    );
-    return;
-  }
-
-  this.ardupilotMissionRestartBusy = true;
-  this.updateArduPilotMissionRestartAvailability();
-  this.setArduPilotMissionRestartStatus(
-    `Writing ${ARDUPILOT_MISSION_RESTART_ENUM[expected].name} to ArduPilot…`,
-  );
-  try {
-    const before = this.validateArduPilotMissionRestartParameter(
-      await mavlinkParameterManager.request(ARDUPILOT_MISSION_RESTART_PARAMETER),
-    );
-    await mavlinkParameterManager.set(
-      ARDUPILOT_MISSION_RESTART_PARAMETER,
-      expected,
-      { type: before.type },
-    );
-    const readback = this.validateArduPilotMissionRestartParameter(
-      await mavlinkParameterManager.request(ARDUPILOT_MISSION_RESTART_PARAMETER),
-    );
-    if (readback.value !== expected) {
-      throw new Error(
-        `ArduPilot MIS_RESTART verification failed: requested `
-        + `${ARDUPILOT_MISSION_RESTART_ENUM[expected].name}, but the controller returned `
-        + `${ARDUPILOT_MISSION_RESTART_ENUM[readback.value].name}.`,
-      );
-    }
-
-    this.renderArduPilotMissionRestartParameter(readback);
-    this.ardupilotMissionRestartLoaded = true;
-    this.ardupilotMissionRestartSystemId = Number(mavlinkSession.state.systemId);
-    this.setArduPilotMissionRestartStatus(
-      `${ARDUPILOT_MISSION_RESTART_ENUM[readback.value].name} saved to ArduPilot `
-      + 'and verified by an explicit parameter readback.',
-    );
-  } catch (error) {
-    this.ardupilotMissionRestartLoaded = false;
-    this.setArduPilotMissionRestartStatus(error.message, true);
-  } finally {
-    this.ardupilotMissionRestartBusy = false;
-    this.updateArduPilotMissionRestartAvailability();
-  }
 };
 
 flightPlanner.updateInavMissionRestartAvailability = function () {
@@ -1794,11 +1546,9 @@ flightPlanner.applyDerivedMissionBehavior = function (derived, options = {}) {
 
 flightPlanner.rederiveMissionBehaviorAfterTopologyEdit = function () {
   const cruiseSpeedMps = this.missionBehavior().cruiseSpeedMps;
-  const derived = hasInavMissionMetadata(this.mission)
-    ? deriveInavMissionBehavior(this.mission, {
-      fixedWing: FC.isAirplane(),
-    })
-    : deriveArduPilotMissionBehavior(this.mission);
+  const derived = deriveInavMissionBehavior(this.mission, {
+    fixedWing: FC.isAirplane(),
+  });
   derived.behavior = {
     ...derived.behavior,
     cruiseSpeedMps,
@@ -1856,10 +1606,8 @@ flightPlanner.updateMissionBehaviorAvailability = function () {
       + 'Mission cruise speed, terminal hold, and terminal land require the wired MSP mission link.'
     : protocol === 'msp'
       ? 'INAV/MSP stores cruise speed in waypoint P1 (cm/s) and maps terminal hold, RTL, or land to native mission actions.'
-      : firmwareFamily === 'ardupilot'
-        ? 'ArduPilot uploads add MAV_CMD_DO_CHANGE_SPEED when speed is nonzero and append the selected terminal mission command.'
-        : 'Cruise speed is entered in m/s; 0 preserves the mission/controller default. '
-          + 'Terminal behavior is compiled for the connected controller during upload.';
+      : 'Cruise speed is entered in m/s; 0 preserves the INAV/controller default. '
+        + 'Terminal behavior is compiled for the INAV-compatible controller during upload.';
   const warningText = this.missionBehaviorWarnings.length
     ? ` ${this.missionBehaviorWarnings.join(' ')}`
     : '';
@@ -1887,9 +1635,7 @@ flightPlanner.renderResumeCheckpoint = function (
     const total = Number(checkpoint.missionTotal)
       || Number(snapshot.registration?.itemCount)
       || 0;
-    const type = checkpoint.estimated
-      ? 'Estimated INAV'
-      : 'Exact ArduPilot';
+    const type = 'Estimated INAV';
     const availability = snapshot.canResume
       ? 'Ready on this powered controller.'
       : snapshot.unavailableReason;
@@ -1942,12 +1688,9 @@ flightPlanner.resumeMissionFromCheckpoint = async function () {
       ? ' The aircraft is disarmed; arm and launch it before the selected mission can execute.'
       : '';
     this.setStatus(
-      result.firmwareFamily === 'inav'
-        ? `INAV resume selection was confirmed from estimated original item ${result.originalSequence + 1}. `
-          + 'Only the remaining suffix was written to active RAM; the persistent MSP mission was not changed.'
-          + executionNotice
-        : `ArduPilot mission item ${result.sequence + 1} was selected and AUTO mode was confirmed.`
-          + executionNotice,
+      `INAV resume selection was confirmed from estimated original item ${result.originalSequence + 1}. `
+      + 'Only the remaining suffix was written to active RAM; the persistent MSP mission was not changed.'
+      + executionNotice,
     );
   } catch (error) {
     this.setStatus(error.message, true);
@@ -1961,8 +1704,12 @@ flightPlanner.resolveMavlinkFirmwareFamily = async function () {
   const state = mavlinkSession.state.firmwareFamily === 'unknown'
     ? await mavlinkSession.waitForFirmwareFamily()
     : mavlinkSession.snapshot();
-  if (!['inav', 'ardupilot'].includes(state.firmwareFamily)) {
-    throw new Error('This MAVLink firmware is not supported for mission transfer.');
+  if (state.firmwareFamily !== 'inav') {
+    throw new Error(
+      state.firmwareFamily === 'unsupported'
+        ? 'ArduPilot mission transfer has been removed. Connect an INAV-compatible controller.'
+        : 'This MAVLink firmware is not supported for mission transfer.',
+    );
   }
   return state.firmwareFamily;
 };
@@ -2400,10 +2147,7 @@ flightPlanner.upload = async function () {
       missionResumeManager.clearRegisteredMission(
         'The previous mission-resume checkpoint was cleared because a new mission transfer started.',
       );
-      const inavMavlink = firmwareFamily === 'inav';
-      const compiledMission = inavMavlink
-        ? compileInavMavlinkMission(this.mission, behavior)
-        : compileArduPilotMission(this.mission, behavior);
+      const compiledMission = compileInavMavlinkMission(this.mission, behavior);
       const missionToUpload = filterExpectedMissionForProtocol(
         compiledMission,
         'mavlink',
@@ -2411,9 +2155,7 @@ flightPlanner.upload = async function () {
       );
       if (!missionToUpload.length) {
         throw new Error(
-          inavMavlink
-            ? 'This plan has no INAV MAVLink-compatible waypoint or RTL items.'
-            : 'There is no mission to upload.',
+          'This plan has no INAV MAVLink-compatible waypoint or RTL items.',
         );
       }
       await mavlinkMissionManager.upload(missionToUpload, {
@@ -2423,27 +2165,21 @@ flightPlanner.upload = async function () {
       this.setStatus('Mission accepted. Reading it back from the flight controller for verification…');
       savedMission = await mavlinkMissionManager.download({
         onProgress: ({ completed, total }) => this.setStatus(`Verifying ${completed} / ${total}`),
-        ...(inavMavlink ? { legacyOnly: true } : {}),
+        legacyOnly: true,
       });
       assertMissionReadback(
         missionToUpload,
         savedMission,
-        inavMavlink ? { compareProtocolFields: true } : {},
+        { compareProtocolFields: true },
       );
       mavlinkSession.state.missionTotal = savedMission.length;
       missionResumeManager.registerMission(savedMission, {
         source: 'flight-planner-upload-readback',
       });
-      if (inavMavlink) {
-        this.setStatus(
-          `${missionToUpload.length} INAV mission items written to active memory and verified.`
-          + ' This active mission is not stored across a power cycle.',
-        );
-      } else {
-        this.setStatus(
-          `${missionToUpload.length} mission items written, saved, and verified on the flight controller.`,
-        );
-      }
+      this.setStatus(
+        `${missionToUpload.length} INAV mission items written to active memory and verified.`
+        + ' This active mission is not stored across a power cycle.',
+      );
     } else {
       assertSurveyCameraCommandsCompatible(this.mission, 'inav');
       const compiled = compileInavMspMission(this.mission, behavior);
@@ -2493,12 +2229,14 @@ flightPlanner.download = async function () {
   try {
     let derived;
     if (CONFIGURATOR.connectionProtocol === 'mavlink') {
-      const firmwareFamily = await this.resolveMavlinkFirmwareFamily();
+      await this.resolveMavlinkFirmwareFamily();
       const downloadedMission = await mavlinkMissionManager.download({
         onProgress: ({ completed, total }) => this.setStatus(`Downloading ${completed} / ${total}`),
-        ...(firmwareFamily === 'inav' ? { legacyOnly: true } : {}),
+        legacyOnly: true,
       });
-      derived = deriveArduPilotMissionBehavior(downloadedMission);
+      derived = deriveInavMissionBehavior(downloadedMission, {
+        fixedWing: FC.isAirplane(),
+      });
       this.applyDerivedMissionBehavior(derived);
       mavlinkSession.state.missionTotal = this.mission.length;
       if (this.mission.length) {
@@ -2552,22 +2290,18 @@ flightPlanner.clearVehicleMission = async function () {
   $('#plannerClearVehicle').prop('disabled', true);
   try {
     if (CONFIGURATOR.connectionProtocol === 'mavlink') {
-      const firmwareFamily = await this.resolveMavlinkFirmwareFamily();
+      await this.resolveMavlinkFirmwareFamily();
       missionResumeManager.clearRegisteredMission(
         'The mission-resume checkpoint was cleared because controller mission erase started.',
       );
-      if (firmwareFamily === 'inav') {
-        await mavlinkMissionManager.clear({ legacyOnly: true, volatile: true });
-        mavlinkSession.state.missionTotal = 0;
-        this.setStatus(
-          'Active INAV RAM mission cleared and verified for this power cycle. '
-          + 'The stored mission is unchanged; stock INAV cannot persist an empty mission, '
-          + 'so replace it with another valid mission if it must not return after reboot.',
-        );
-        return;
-      }
-      await mavlinkMissionManager.clear();
+      await mavlinkMissionManager.clear({ legacyOnly: true, volatile: true });
       mavlinkSession.state.missionTotal = 0;
+      this.setStatus(
+        'Active INAV RAM mission cleared and verified for this power cycle. '
+        + 'The stored mission is unchanged; stock INAV cannot persist an empty mission, '
+        + 'so replace it with another valid mission if it must not return after reboot.',
+      );
+      return;
     } else {
       await inavMissionAdapter.clear();
     }
@@ -2643,7 +2377,9 @@ flightPlanner.openPlan = async function () {
     this.grid = null;
     if (plan.format === 'qgc-wpl-110') {
       this.applyDerivedMissionBehavior(
-        deriveArduPilotMissionBehavior(plan.mission),
+        deriveInavMissionBehavior(plan.mission, {
+          fixedWing: FC.isAirplane(),
+        }),
       );
     } else if (plan.settings) {
       const missionBehavior = normalizeMissionBehavior(plan.settings);

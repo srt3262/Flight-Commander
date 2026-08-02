@@ -32,10 +32,6 @@ const firmwareSerial = readFileSync(
   resolve(projectRoot, "js/connection/electronSerialByteTransport.js"),
   "utf8",
 );
-const bootloaderEntry = readFileSync(
-  resolve(projectRoot, "js/connection/ardupilotBootloaderEntry.js"),
-  "utf8",
-);
 const configuratorMain = readFileSync(
   resolve(projectRoot, "js/configurator_main.js"),
   "utf8",
@@ -199,10 +195,6 @@ test("serial IPC data, close and error events are scoped to one connection ID", 
   assert.match(
     firmwareSerial,
     /envelope\?\.connectionId !== this\.connectionId/,
-  );
-  assert.match(
-    bootloaderEntry,
-    /envelope\?\.connectionId === serialConnectionId/,
   );
   assert.match(
     connectionSerial,

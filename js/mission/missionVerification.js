@@ -4,7 +4,6 @@ import { normalizeMissionForInavMsp } from "./inavMissionCodec.js";
 
 const MAV_CMD_NAV_WAYPOINT = 16;
 const MAV_CMD_NAV_RETURN_TO_LAUNCH = 20;
-const MAV_CMD_DO_CHANGE_SPEED = 178;
 const MAV_FRAME_MISSION = 2;
 const MAV_FRAME_GLOBAL_RELATIVE_ALT = 3;
 const MAV_FRAME_GLOBAL_RELATIVE_ALT_INT = 6;
@@ -21,7 +20,6 @@ const MISSION_PARAMETER_FIELDS = Object.freeze([
 ]);
 const DEFAULT_COORDINATE_TOLERANCE_DEG = 1e-6;
 const DEFAULT_ALTITUDE_TOLERANCE_M = 0.02;
-const DEFAULT_SPEED_TOLERANCE_M_S = 0.01;
 
 function normalizeProtocol(protocol) {
   const normalized = String(protocol ?? "")
@@ -46,13 +44,10 @@ function normalizeFirmwareProfile(options = {}) {
     typeof options === "string"
       ? options
       : (options.firmwareProfile ?? options.profile);
-  if (profile == null || profile === "") return null;
+  if (profile == null || profile === "") return "inav";
   const normalized = String(profile).trim().toLowerCase();
   if (["inav", "inav-mavlink", "inav/mavlink"].includes(normalized)) {
     return "inav";
-  }
-  if (["ardupilot", "ardupilotmega", "ardu-pilot"].includes(normalized)) {
-    return "ardupilot";
   }
   throw new Error(`Unsupported firmware profile "${profile}".`);
 }
@@ -124,12 +119,9 @@ export function filterExpectedMissionForProtocol(
     throw new TypeError("Expected mission must be an array.");
   }
   const normalizedProtocol = normalizeProtocol(protocol);
-  const firmwareProfile = normalizeFirmwareProfile(options);
+  normalizeFirmwareProfile(options);
   if (normalizedProtocol === "msp") {
     return normalizeMissionForInavMsp(mission);
-  }
-  if (normalizedProtocol === "mavlink" && firmwareProfile !== "inav") {
-    return [...mission];
   }
   mission.forEach((item, index) => {
     const command = missionCommand(item, MAV_CMD_NAV_WAYPOINT);
@@ -244,33 +236,6 @@ function compareNumericField(
     : null;
 }
 
-function compareChangeSpeedParameters(expected, actual, index, options) {
-  return (
-    compareNumericField(
-      expected,
-      actual,
-      index,
-      "param1",
-      null,
-      0,
-      "selector units",
-    ) ||
-    compareNumericField(
-      expected,
-      actual,
-      index,
-      "param2",
-      null,
-      toleranceOption(
-        options,
-        "speedToleranceMps",
-        DEFAULT_SPEED_TOLERANCE_M_S,
-      ),
-      "m/s",
-    )
-  );
-}
-
 export function compareMissionReadback(expected, actual, options = {}) {
   if (!Array.isArray(expected) || !Array.isArray(actual)) {
     throw new TypeError("Expected and read-back missions must both be arrays.");
@@ -337,15 +302,6 @@ export function compareMissionReadback(expected, actual, options = {}) {
         );
         if (result) return result;
       }
-    }
-    if (expectedCommand === MAV_CMD_DO_CHANGE_SPEED) {
-      const result = compareChangeSpeedParameters(
-        expectedItem,
-        actualItem,
-        index,
-        options,
-      );
-      if (result) return result;
     }
     if (expectedCommand === MAV_CMD_NAV_RETURN_TO_LAUNCH) continue;
     for (const [primary, fallback, tolerance, units] of [

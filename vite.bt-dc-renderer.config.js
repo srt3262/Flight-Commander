@@ -14,6 +14,7 @@ return {
   base: './',
   build: {
     outDir: `.vite/renderer/${name}`,
+    emptyOutDir: true,
     rollupOptions: {
       input: path.join(__dirname, 'js/libraries/bluetooth-device-chooser/bt-device-chooser-index.html')
     },
@@ -27,4 +28,3 @@ return {
   clearScreen: false,
 };
 });
-

@@ -54,6 +54,11 @@ import {
     queueGroundControlActivation,
     runCriticalMavlinkTransition,
 } from './gcs/mavlinkTransportStartup';
+import {
+    FIRMWARE_FAMILY_FLIGHT_COMMANDER,
+    applyFirmwareIdentity,
+    probeFlightCommanderFirmware,
+} from './flightCommander/firmwareIdentity';
 
 var SerialBackend = (function () {
 
@@ -588,6 +593,15 @@ var SerialBackend = (function () {
                 // continue as usually
                 CONFIGURATOR.connectionValid = true;
                 GUI.allowedTabs = GUI.defaultAllowedTabsWhenConnected.slice();
+                $('body')
+                    .toggleClass(
+                        'fc-firmware-flight-commander',
+                        FC.CONFIG.firmwareFamily === FIRMWARE_FAMILY_FLIGHT_COMMANDER,
+                    )
+                    .toggleClass(
+                        'fc-firmware-inav',
+                        FC.CONFIG.firmwareFamily !== FIRMWARE_FAMILY_FLIGHT_COMMANDER,
+                    );
                 privateScope.onConnect();
 
                 defaultsDialog.init().then( () => {
@@ -838,11 +852,32 @@ var SerialBackend = (function () {
                                 if (CONFIGURATOR.connection.type == ConnectionType.BLE && semver.lt(FC.CONFIG.flightControllerVersion, "5.0.0")) {  
                                     privateScope.onBleNotSupported();
                                 } else {
-                                    mspHelper.getCraftName(function(name) {
-                                        if (name) {
-                                            FC.CONFIG.name = name;
+                                    probeFlightCommanderFirmware({
+                                        MSP,
+                                        MSPCodes,
+                                        compatibleInavVersion: FC.CONFIG.flightControllerVersion,
+                                    }).then(function(identity) {
+                                        applyFirmwareIdentity(FC, identity);
+                                        if (identity.family === FIRMWARE_FAMILY_FLIGHT_COMMANDER) {
+                                            GUI.log(
+                                                `Flight Commander Firmware ${identity.firmwareVersion ?? 'unknown'} ` +
+                                                `(INAV ${identity.compatibleInavVersion} compatibility, ` +
+                                                `capabilities 0x${identity.capabilities.toString(16).padStart(8, '0')}).`,
+                                            );
+                                        } else if (identity.probeError) {
+                                            GUI.log(
+                                                `<span style="color: #d98f00">Flight Commander identity probe was invalid; ` +
+                                                `fork-only features remain disabled: ${$('<div>').text(identity.probeError).html()}</span>`,
+                                            );
+                                        } else {
+                                            GUI.log('Standard INAV firmware detected; Flight Commander firmware features are disabled.');
                                         }
-                                        privateScope.onValidFirmware();  
+                                        mspHelper.getCraftName(function(name) {
+                                            if (name) {
+                                                FC.CONFIG.name = name;
+                                            }
+                                            privateScope.onValidFirmware();
+                                        });
                                     });
                                 }
                             } else  {
@@ -1060,7 +1095,7 @@ var SerialBackend = (function () {
         $('#sensor-status, #dataflash_wrapper_global, #profiles_wrapper_global').hide();
         $('#portsinput').hide();
         $('#quad-status_wrapper').show();
-        $('body').removeClass('fc-controller-ardupilot fc-controller-inav-mavlink');
+        $('body').removeClass('fc-controller-inav-mavlink fc-controller-unsupported');
         $('#logo .firmware_version').text('MAVLink / Waiting for vehicle heartbeat');
 
         GUI.log(
@@ -1108,29 +1143,30 @@ var SerialBackend = (function () {
         const renderState = function (nextState) {
             const firmwareName = nextState.firmwareFamily === 'inav'
                 ? 'INAV'
-                : nextState.firmwareFamily === 'ardupilot'
-                    ? 'ArduPilot'
+                : nextState.firmwareFamily === 'unsupported'
+                    ? 'Unsupported firmware'
                     : 'MAVLink';
             $('#logo .firmware_version').text(`${firmwareName} / ${nextState.vehicleTypeName}`);
 
-            const setupLink = $('#tabs ul.mode-mavlink .fc-mavlink-setup-fallback a');
-            if (nextState.firmwareFamily === 'ardupilot') {
-                setupLink
-                    .text('ArduPilot Setup')
-                    .attr('title', 'ArduPilot configuration and parameters');
-                $('body')
-                    .addClass('fc-controller-ardupilot')
-                    .removeClass('fc-controller-inav-mavlink');
-            } else if (nextState.firmwareFamily === 'inav') {
-                setupLink
-                    .text('INAV Setup Link')
-                    .attr('title', 'INAV configuration uses a wired USB/MSP connection');
+            if (nextState.firmwareFamily === 'inav') {
                 $('body')
                     .addClass('fc-controller-inav-mavlink')
-                    .removeClass('fc-controller-ardupilot');
+                    .removeClass('fc-controller-unsupported');
+                mavlinkCommandRouter.clearCommandBlock();
+            } else if (nextState.firmwareFamily === 'unsupported') {
+                const newlyUnsupported = !$('body').hasClass('fc-controller-unsupported');
+                $('body')
+                    .addClass('fc-controller-unsupported')
+                    .removeClass('fc-controller-inav-mavlink');
+                const message =
+                    'This vehicle is not running INAV or Flight Commander Firmware. ' +
+                    'ArduPilot support has been removed; configuration, missions, and commands are disabled.';
+                mavlinkCommandRouter.blockCommands(message);
+                if (newlyUnsupported) {
+                    GUI.log(`<span style="color: #d42133">${message}</span>`);
+                }
             } else {
-                setupLink.text('Vehicle Setup').attr('title', 'Vehicle Setup');
-                $('body').removeClass('fc-controller-ardupilot fc-controller-inav-mavlink');
+                $('body').removeClass('fc-controller-inav-mavlink fc-controller-unsupported');
             }
 
             const batteryRemaining = Number.isFinite(nextState.batteryRemaining)
@@ -1356,10 +1392,10 @@ var SerialBackend = (function () {
         privateScope.runBestEffort('Disconnected layout', () => {
             $('.mode-connected, .mode-mavlink, .mode-telemetry').hide();
             $('.mode-disconnected').show();
-            $('body').removeClass('fc-controller-ardupilot fc-controller-inav-mavlink');
-            $('#tabs ul.mode-mavlink .fc-mavlink-setup-fallback a')
-                .text('Vehicle Setup')
-                .attr('title', 'Vehicle Setup');
+            $('body').removeClass(
+                'fc-controller-inav-mavlink fc-controller-unsupported ' +
+                'fc-firmware-flight-commander fc-firmware-inav',
+            );
 
             $('#sensor-status').hide();
             $('#portsinput').show();

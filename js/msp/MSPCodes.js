@@ -248,7 +248,11 @@ var MSPCodes = {
     MSP2_INAV_GEOZONE:                  0x2210,
     MSP2_INAV_SET_GEOZONE:              0x2211,
     MSP2_INAV_GEOZONE_VERTEX:           0x2212,
-    MSP2_INAV_SET_GEOZONE_VERTICE:      0x2213
+    MSP2_INAV_SET_GEOZONE_VERTICE:      0x2213,
+
+    // Optional Flight Commander Firmware extension. Stock INAV returns an
+    // unsupported response and continues through the normal compatibility path.
+    MSP2_FLIGHT_COMMANDER_INFO:          0x2F00
 
 };
 

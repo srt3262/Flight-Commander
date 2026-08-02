@@ -1,6 +1,7 @@
 import path from "node:path";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
+import { cleanViteOutput } from "./scripts/clean-vite-output.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -55,16 +56,7 @@ export default {
     // therefore cannot let each individual build empty that shared directory.
     // Clean both Vite output roots once at the start of a package operation so
     // an obsolete hashed renderer chunk can never survive into a release.
-    prePackage: async () => {
-      fs.rmSync(path.join(__dirname, ".vite", "build"), {
-        recursive: true,
-        force: true,
-      });
-      fs.rmSync(path.join(__dirname, ".vite", "renderer"), {
-        recursive: true,
-        force: true,
-      });
-    },
+    prePackage: async () => cleanViteOutput(__dirname),
     // Remove SITL binaries for other platforms/architectures to reduce package size
     postPackage: async (forgeConfig, options) => {
       for (const outputPath of options.outputPaths) {

@@ -8,7 +8,7 @@ export function isUsableMapCoordinate(latitude, longitude) {
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) return false;
   if (lat < -90 || lat > 90 || lon < -180 || lon > 180) return false;
 
-  // ArduPilot can publish GLOBAL_POSITION_INT with the MAVLink unknown-position
+  // MAVLink vehicles can publish GLOBAL_POSITION_INT with the unknown-position
   // sentinel (0, 0) before a receiver has a fix. Treating that as a real
   // aircraft position opens the map at maximum zoom over Null Island, where
   // satellite providers correctly return their "map data not available" tile.

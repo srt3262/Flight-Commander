@@ -18,6 +18,17 @@ inav-configurator.iml
 *.bak
 eeprom.bin
 
+# Retired ArduPilot UI files are excluded from the v2 source graph. These
+# explicit paths also prevent recovery tooling from reintroducing old runtime
+# assets into a current checkout.
+/src/css/ardupilot_setup.css
+/tabs/ardupilot_pid_tuning.html
+/tabs/ardupilot_pid_tuning.js
+/tabs/ardupilot_ports.html
+/tabs/ardupilot_ports.js
+/tabs/ardupilot_receiver.html
+/tabs/ardupilot_receiver.js
+
 # ctags
 tags
 TAGS

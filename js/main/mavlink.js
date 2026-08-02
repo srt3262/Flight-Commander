@@ -5,13 +5,12 @@ import {
   MavLinkPacketSplitter,
   MavLinkProtocolV1,
   MavLinkProtocolV2,
-  ardupilotmega,
   common,
   minimal,
   standard,
 } from "node-mavlink";
 
-const DIALECTS = [minimal, common, standard, ardupilotmega];
+const DIALECTS = [minimal, common, standard];
 const MAX_FEED_BYTES = 1024 * 1024;
 
 function buildMessageRegistry() {

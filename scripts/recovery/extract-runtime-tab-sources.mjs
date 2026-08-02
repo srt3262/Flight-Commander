@@ -25,9 +25,6 @@ if (!fs.existsSync(assetsRoot)) {
 
 const recoveredTabs = new Map([
   ["advanced_tuning.html", "advanced_tuning"],
-  ["ardupilot_firmware_flasher.js", "ardupilot_firmware_flasher"],
-  ["autotune.html", "autotune"],
-  ["autotune.js", "autotune"],
   ["firmware_flasher.html", "firmware_flasher"],
   ["firmware_flasher.js", "firmware_flasher"],
   ["flight_data.html", "flight_data"],
@@ -35,8 +32,6 @@ const recoveredTabs = new Map([
   ["flight_planner.html", "flight_planner"],
   ["flight_planner.js", "flight_planner"],
   ["landing.html", "landing"],
-  ["mavlink_parameters.html", "mavlink_parameters"],
-  ["mavlink_parameters.js", "mavlink_parameters"],
   ["options.html", "options"],
 ]);
 

@@ -1,9 +1,10 @@
 "use strict";
 
 /**
- * ArduPilot encodes the active flight mode in HEARTBEAT.custom_mode.  The
- * numeric value is vehicle-family specific, so mode lookup must always include
- * MAV_TYPE rather than treating custom_mode as a global enumeration.
+ * INAV's MAVLink compatibility layer encodes the active flight mode in
+ * HEARTBEAT.custom_mode using vehicle-family-specific values. Mode lookup must
+ * therefore include MAV_TYPE rather than treating custom_mode as a global
+ * enumeration.
  */
 export const COPTER_MODES = Object.freeze({
   0: "STABILIZE",

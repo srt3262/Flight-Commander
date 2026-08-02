@@ -2,11 +2,8 @@
 
 import {
   VEHICLE_TYPES,
-  modeMapForVehicle,
   modeName,
-  modeNumber,
-  vehicleFamily,
-} from "./ardupilotModes.js";
+} from "./mavlinkModes.js";
 import { field, normalizeMavlinkEnvelope } from "./frameNormalizer.js";
 import { bindHostTimer } from "./hostTimers.js";
 
@@ -14,15 +11,10 @@ export const MAV_AUTOPILOT_INVALID = 8;
 export const MAV_AUTOPILOT_GENERIC = 0;
 export const MAV_AUTOPILOT_ARDUPILOTMEGA = 3;
 export const MAV_TYPE_GCS = 6;
-export const MAV_MODE_FLAG_CUSTOM_MODE_ENABLED = 1;
 export const MAV_MODE_FLAG_SAFETY_ARMED = 128;
 export const MAV_STATE_ACTIVE = 4;
 export const MAV_RESULT_ACCEPTED = 0;
 export const MAV_RESULT_IN_PROGRESS = 5;
-export const MAV_CMD_NAV_TAKEOFF = 22;
-export const MAV_CMD_DO_SET_MISSION_CURRENT = 224;
-export const MAV_CMD_MISSION_START = 300;
-export const MAV_CMD_COMPONENT_ARM_DISARM = 400;
 export const MAV_CMD_SET_MESSAGE_INTERVAL = 511;
 export const MAV_CMD_REQUEST_MESSAGE = 512;
 export const MAVLINK_MSG_ID_AUTOPILOT_VERSION = 148;
@@ -30,11 +22,10 @@ export const MAV_DATA_STREAM_ALL = 0;
 
 export const FIRMWARE_FAMILY_UNKNOWN = "unknown";
 export const FIRMWARE_FAMILY_INAV = "inav";
-export const FIRMWARE_FAMILY_ARDUPILOT = "ardupilot";
+export const FIRMWARE_FAMILY_UNSUPPORTED = "unsupported";
 
 const FIRMWARE_FAMILIES = new Set([
   FIRMWARE_FAMILY_INAV,
-  FIRMWARE_FAMILY_ARDUPILOT,
 ]);
 const COMMAND_ACK_NAMES = new Set(["COMMAND_ACK", "CommandAck"]);
 const PARAM_VALUE_NAMES = new Set(["PARAM_VALUE", "ParamValue"]);
@@ -44,7 +35,7 @@ const AIRBORNE_VEHICLE_TYPES = new Set([
 ]);
 const MAV_AUTOPILOT_NAMES = Object.freeze({
   0: "Generic",
-  3: "ArduPilot",
+  3: "ArduPilot-compatible",
   12: "PX4",
   13: "SMACCMPilot",
 });
@@ -992,7 +983,7 @@ export class MavlinkSession {
       this.setTimeoutFn(() => {
         this.firmwareDetectionTimer = null;
         if (!this.attachmentIsCurrent(attachment)) return;
-        this.setFirmwareFamily(FIRMWARE_FAMILY_ARDUPILOT, "probe-timeout");
+        this.setFirmwareFamily(FIRMWARE_FAMILY_UNSUPPORTED, "probe-timeout");
       }, this.firmwareDetectionTimeoutMs),
     );
   }
@@ -1010,7 +1001,7 @@ export class MavlinkSession {
     if (count === 0) {
       this.setFirmwareFamily(FIRMWARE_FAMILY_INAV, "parameter-fingerprint");
     } else if (count > 0) {
-      this.setFirmwareFamily(FIRMWARE_FAMILY_ARDUPILOT, "parameter-stream");
+      this.setFirmwareFamily(FIRMWARE_FAMILY_UNSUPPORTED, "parameter-stream");
     }
   }
 
@@ -1319,12 +1310,6 @@ export class MavlinkSession {
     this.discoveryHeartbeatInFlight = false;
   }
 
-  availableModes() {
-    return Object.entries(modeMapForVehicle(this.state.vehicleType)).map(
-      ([number, name]) => ({ number: Number(number), name }),
-    );
-  }
-
   waitForState(
     predicate,
     timeoutMs = 6000,
@@ -1373,47 +1358,6 @@ export class MavlinkSession {
         }, timeoutMs),
       );
     });
-  }
-
-  async setMode(mode, options = {}) {
-    const customMode =
-      typeof mode === "number"
-        ? mode
-        : modeNumber(this.state.vehicleType, mode);
-    if (customMode == null) {
-      throw new Error(`Mode ${mode} is not available for this vehicle.`);
-    }
-    await this.send("SetMode", {
-      targetSystem: this.target().targetSystem,
-      baseMode: MAV_MODE_FLAG_CUSTOM_MODE_ENABLED,
-      customMode,
-    });
-    return this.waitForState(
-      (state) => state.customMode === customMode,
-      options.timeoutMs,
-      `flight mode ${modeName(this.state.vehicleType, customMode)}`,
-    );
-  }
-
-  async setArmed(armed, options = {}) {
-    const target = this.target();
-    await this.send("CommandLong", {
-      ...target,
-      command: MAV_CMD_COMPONENT_ARM_DISARM,
-      confirmation: 0,
-      param1: armed ? 1 : 0,
-      param2: 0,
-      param3: 0,
-      param4: 0,
-      param5: 0,
-      param6: 0,
-      param7: 0,
-    });
-    return this.waitForState(
-      (state) => state.armed === Boolean(armed),
-      options.timeoutMs,
-      armed ? "armed state" : "disarmed state",
-    );
   }
 
   createCommandAckWaiter(command, options = {}) {
@@ -1535,500 +1479,6 @@ export class MavlinkSession {
       throw error;
     }
     return waiter.promise;
-  }
-
-  requireArduPilotAction(action) {
-    if (this.state.firmwareFamily === FIRMWARE_FAMILY_UNKNOWN) {
-      throw new Error(
-        `${action} is unavailable until firmware detection completes.`,
-      );
-    }
-    if (this.state.firmwareFamily !== FIRMWARE_FAMILY_ARDUPILOT) {
-      throw new Error(`${action} is supported only for an ArduPilot vehicle.`);
-    }
-  }
-
-  requireActiveArduPilotLink(action) {
-    this.requireArduPilotAction(action);
-    if (!this.state.connected) {
-      throw new Error(
-        `${action} requires an active MAVLink vehicle connection.`,
-      );
-    }
-    if (this.state.linkLost) {
-      throw new Error(
-        `${action} was not sent because the MAVLink vehicle link is lost.`,
-      );
-    }
-    return this.target();
-  }
-
-  invalidateMissionCheckpoint(error, details = {}) {
-    this.emit("missionCheckpointInvalid", {
-      error,
-      ...details,
-      state: this.snapshot(),
-    });
-    return error;
-  }
-
-  validateMissionResumeContext(sequence, options = {}) {
-    this.requireActiveArduPilotLink("Mission resume");
-    const normalizedSequence = normalizeUnsignedInteger(sequence, 65534);
-    const missionTotal = normalizeUnsignedInteger(
-      this.state.missionTotal,
-      65534,
-    );
-    if (normalizedSequence == null) {
-      throw createMissionResumeError(
-        "MISSION_SEQUENCE_INVALID",
-        "Mission resume sequence must be an integer from 0 through 65534.",
-      );
-    }
-    if (missionTotal == null || missionTotal <= 0) {
-      throw createMissionResumeError(
-        "MISSION_SEQUENCE_INVALID",
-        "Mission resume is unavailable until the vehicle reports a non-empty mission total.",
-      );
-    }
-    if (normalizedSequence >= missionTotal) {
-      throw createMissionResumeError(
-        "MISSION_SEQUENCE_INVALID",
-        `Mission sequence ${normalizedSequence} is outside the loaded mission range 0-${missionTotal - 1}.`,
-      );
-    }
-
-    const checkpoint = options.checkpoint ?? {};
-    if (
-      !checkpoint ||
-      typeof checkpoint !== "object" ||
-      Array.isArray(checkpoint)
-    ) {
-      throw createMissionResumeError(
-        "MISSION_PLAN_MISMATCH",
-        "Mission resume checkpoint must be an object.",
-      );
-    }
-    if (
-      checkpoint.sequence != null &&
-      normalizeUnsignedInteger(checkpoint.sequence, 65534) !==
-        normalizedSequence
-    ) {
-      throw this.invalidateMissionCheckpoint(
-        createMissionResumeError(
-          "MISSION_PLAN_MISMATCH",
-          "The saved mission-resume sequence does not match the requested mission item.",
-          { clearCheckpoint: true },
-        ),
-        { checkpoint },
-      );
-    }
-    if (
-      checkpoint.missionTotal != null &&
-      normalizeUnsignedInteger(checkpoint.missionTotal, 65534) !== missionTotal
-    ) {
-      throw this.invalidateMissionCheckpoint(
-        createMissionResumeError(
-          "MISSION_PLAN_MISMATCH",
-          "The mission loaded on the flight controller is not the mission saved in the resume checkpoint.",
-          { clearCheckpoint: true },
-        ),
-        { checkpoint },
-      );
-    }
-    if (checkpoint.missionId != null) {
-      const expectedId = normalizeUnsignedInteger(
-        checkpoint.missionId,
-        0xffffffff,
-      );
-      if (
-        expectedId == null ||
-        expectedId === 0 ||
-        this.state.missionId == null ||
-        expectedId !== this.state.missionId
-      ) {
-        throw this.invalidateMissionCheckpoint(
-          createMissionResumeError(
-            "MISSION_PLAN_MISMATCH",
-            "The flight controller mission ID no longer matches the saved resume checkpoint.",
-            { clearCheckpoint: true },
-          ),
-          { checkpoint },
-        );
-      }
-    }
-    if (checkpoint.timeBootMs != null) {
-      const checkpointBootTime = normalizeUnsignedInteger(
-        checkpoint.timeBootMs,
-        0xffffffff,
-      );
-      if (checkpointBootTime == null) {
-        throw createMissionResumeError(
-          "MISSION_PLAN_MISMATCH",
-          "The mission-resume checkpoint contains an invalid flight-controller boot time.",
-        );
-      }
-      if (this.state.timeBootMs == null) {
-        throw createMissionResumeError(
-          "MISSION_PLAN_MISMATCH",
-          "Mission resume is unavailable until flight-controller boot-time telemetry is received.",
-        );
-      }
-      if (this.state.timeBootMs < checkpointBootTime) {
-        throw this.invalidateMissionCheckpoint(
-          createMissionResumeError(
-            "VEHICLE_REBOOTED",
-            "The flight controller restarted after the mission checkpoint was saved.",
-            { clearCheckpoint: true },
-          ),
-          { checkpoint },
-        );
-      }
-    }
-    if (
-      checkpoint.bootGeneration != null &&
-      normalizeUnsignedInteger(
-        checkpoint.bootGeneration,
-        Number.MAX_SAFE_INTEGER,
-      ) !== this.state.bootGeneration
-    ) {
-      throw this.invalidateMissionCheckpoint(
-        createMissionResumeError(
-          "VEHICLE_REBOOTED",
-          "The flight controller restarted after the mission checkpoint was saved.",
-          { clearCheckpoint: true },
-        ),
-        { checkpoint },
-      );
-    }
-
-    return {
-      sequence: normalizedSequence,
-      expectedMissionTotal: missionTotal,
-      expectedMissionId:
-        checkpoint.missionId == null
-          ? this.state.missionId
-          : normalizeUnsignedInteger(checkpoint.missionId, 0xffffffff),
-      expectedTimeBootMs: this.state.timeBootMs,
-      expectedBootGeneration: this.state.bootGeneration,
-      checkpoint,
-    };
-  }
-
-  validateActiveMissionContext(context) {
-    this.requireActiveArduPilotLink("Mission resume");
-    if (
-      this.state.missionTotal !== context.expectedMissionTotal ||
-      (context.expectedMissionId != null &&
-        this.state.missionId !== context.expectedMissionId)
-    ) {
-      throw this.invalidateMissionCheckpoint(
-        createMissionResumeError(
-          "MISSION_PLAN_MISMATCH",
-          "The vehicle mission changed while the resume item was being selected.",
-          { clearCheckpoint: true },
-        ),
-        { checkpoint: context.checkpoint },
-      );
-    }
-    if (
-      this.state.bootGeneration !== context.expectedBootGeneration ||
-      (context.expectedTimeBootMs != null &&
-        this.state.timeBootMs != null &&
-        this.state.timeBootMs < context.expectedTimeBootMs)
-    ) {
-      throw this.invalidateMissionCheckpoint(
-        createMissionResumeError(
-          "VEHICLE_REBOOTED",
-          "The flight controller restarted while the mission resume command was in progress.",
-          { clearCheckpoint: true },
-        ),
-        { checkpoint: context.checkpoint },
-      );
-    }
-  }
-
-  createMissionCurrentWaiter(context, options = {}) {
-    const timeoutMs = options.timeoutMs ?? 6000;
-    const systemId = this.state.systemId;
-    const watchCommandAck = options.watchCommandAck !== false;
-    const attachment = this.activeAttachment(
-      `confirming mission sequence ${context.sequence}`,
-    );
-    let timer = null;
-    let settled = false;
-    let unsubscribeMessage = () => {};
-    let unsubscribeDetached = () => {};
-    let rejectPromise = () => {};
-
-    const promise = new Promise((resolve, reject) => {
-      rejectPromise = reject;
-      const cleanup = () => {
-        this.clearTimeoutFn(timer);
-        unsubscribeMessage();
-        unsubscribeDetached();
-      };
-      const fail = (error) => {
-        if (settled) return;
-        settled = true;
-        cleanup();
-        reject(error);
-      };
-      const resetTimeout = () => {
-        this.clearTimeoutFn(timer);
-        timer = timerUnref(
-          this.setTimeoutFn(() => {
-            fail(
-              createMissionResumeError(
-                "MISSION_CURRENT_TIMEOUT",
-                `Timed out waiting for the flight controller to confirm mission sequence ${context.sequence}.`,
-              ),
-            );
-          }, timeoutMs),
-        );
-      };
-      unsubscribeMessage = this.on("message", (envelope) => {
-        if (!this.attachmentIsCurrent(attachment)) {
-          fail(createMavlinkAttachmentError(attachment.description));
-          return;
-        }
-        if (
-          systemId != null &&
-          envelope.header?.sysid != null &&
-          envelope.header.sysid !== systemId
-        )
-          return;
-
-        if (MISSION_CURRENT_NAMES.has(envelope.messageName)) {
-          if (
-            normalizeUnsignedInteger(field(envelope.data, "seq"), 65535) !==
-            context.sequence
-          ) {
-            return;
-          }
-          try {
-            this.validateActiveMissionContext(context);
-            this.validateMissionResumeContext(context.sequence, {
-              checkpoint: context.checkpoint,
-            });
-          } catch (error) {
-            fail(error);
-            return;
-          }
-          if (settled) return;
-          settled = true;
-          cleanup();
-          resolve(envelope);
-          return;
-        }
-
-        if (
-          !watchCommandAck ||
-          !COMMAND_ACK_NAMES.has(envelope.messageName) ||
-          Number(field(envelope.data, "command")) !==
-            MAV_CMD_DO_SET_MISSION_CURRENT
-        )
-          return;
-        const result = Number(field(envelope.data, "result"));
-        if (result === MAV_RESULT_IN_PROGRESS) {
-          resetTimeout();
-          return;
-        }
-        if (result === MAV_RESULT_ACCEPTED) return;
-        const error = createMissionResumeError(
-          "MISSION_CURRENT_REJECTED",
-          `The flight controller ${MAV_RESULT_NAMES[result] ?? `returned result ${result} for`} mission sequence ${context.sequence}.`,
-        );
-        error.mavResult = result;
-        error.legacyFallbackAllowed = result === 3;
-        fail(error);
-      });
-      unsubscribeDetached = this.on("detached", () => {
-        fail(createMavlinkAttachmentError(attachment.description));
-      });
-      resetTimeout();
-    });
-    promise.catch(() => {});
-
-    return {
-      promise,
-      cancel: (reason = null) => {
-        if (settled) return;
-        settled = true;
-        this.clearTimeoutFn(timer);
-        unsubscribeMessage();
-        unsubscribeDetached();
-        if (reason) rejectPromise(reason);
-      },
-    };
-  }
-
-  missionCurrentResult(method, context, envelope) {
-    return {
-      sequence: context.sequence,
-      missionTotal: this.state.missionTotal,
-      missionId: this.state.missionId,
-      timeBootMs: this.state.timeBootMs,
-      bootGeneration: this.state.bootGeneration,
-      method,
-      confirmation: { ...envelope.data },
-    };
-  }
-
-  async setMissionCurrent(sequence, options = {}) {
-    const context = this.validateMissionResumeContext(sequence, options);
-    const target = this.target();
-    const commandWaiter = this.createMissionCurrentWaiter(context, options);
-    try {
-      await this.send("CommandLong", {
-        ...target,
-        command: MAV_CMD_DO_SET_MISSION_CURRENT,
-        confirmation: 0,
-        param1: context.sequence,
-        param2: 0,
-        param3: 0,
-        param4: 0,
-        param5: 0,
-        param6: 0,
-        param7: 0,
-      });
-    } catch (error) {
-      commandWaiter.cancel();
-      throw error;
-    }
-
-    try {
-      const confirmation = await commandWaiter.promise;
-      return this.missionCurrentResult(
-        "MAV_CMD_DO_SET_MISSION_CURRENT",
-        context,
-        confirmation,
-      );
-    } catch (error) {
-      const fallbackAllowed =
-        error.code === "MISSION_CURRENT_TIMEOUT" ||
-        error.legacyFallbackAllowed === true;
-      if (!fallbackAllowed || options.allowLegacyFallback === false)
-        throw error;
-    }
-
-    this.validateActiveMissionContext(context);
-    this.validateMissionResumeContext(sequence, options);
-    const legacyWaiter = this.createMissionCurrentWaiter(context, {
-      ...options,
-      watchCommandAck: false,
-    });
-    try {
-      await this.send("MissionSetCurrent", {
-        ...target,
-        seq: context.sequence,
-      });
-    } catch (error) {
-      legacyWaiter.cancel();
-      throw error;
-    }
-    return this.missionCurrentResult(
-      "MISSION_SET_CURRENT",
-      context,
-      await legacyWaiter.promise,
-    );
-  }
-
-  async resumeMissionFrom(sequence, options = {}) {
-    const selected = await this.setMissionCurrent(sequence, options);
-    this.validateMissionResumeContext(sequence, {
-      checkpoint: {
-        sequence: selected.sequence,
-        missionTotal: selected.missionTotal,
-        missionId: selected.missionId,
-        timeBootMs: selected.timeBootMs,
-        bootGeneration: selected.bootGeneration,
-      },
-    });
-    const mode = this.selectActionMode("Mission resume", ["AUTO"]);
-    const state =
-      this.state.modeName === mode
-        ? this.snapshot()
-        : await this.setMode(mode, options);
-    return { ...selected, state };
-  }
-
-  selectActionMode(action, choices) {
-    this.requireArduPilotAction(action);
-    const available = new Set(this.availableModes().map(({ name }) => name));
-    const selected = choices.find((choice) => available.has(choice));
-    if (!selected) {
-      throw new Error(
-        `${action} is not supported for ${this.state.vehicleTypeName}.`,
-      );
-    }
-    return selected;
-  }
-
-  async startMission(options = {}) {
-    const mode = this.selectActionMode("Mission start", ["AUTO"]);
-    if (this.state.modeName !== mode) await this.setMode(mode, options);
-    return this.sendCommandLong(
-      MAV_CMD_MISSION_START,
-      {
-        param1: options.firstItem ?? 0,
-        param2: options.lastItem ?? 0,
-      },
-      options,
-    );
-  }
-
-  returnToLaunch(options = {}) {
-    const mode = this.selectActionMode("Return to launch", [
-      "RTL",
-      "QRTL",
-      "SMART_RTL",
-      "AUTO_RTL",
-    ]);
-    return this.setMode(mode, options);
-  }
-
-  land(options = {}) {
-    const family = vehicleFamily(this.state.vehicleType);
-    let choices = [];
-    if (family === "plane") {
-      choices = [19, 20, 21].includes(Number(this.state.vehicleType))
-        ? ["QLAND", "AUTOLAND"]
-        : ["AUTOLAND"];
-    } else if (family === "copter") {
-      choices = ["LAND"];
-    }
-    return this.setMode(this.selectActionMode("Land", choices), options);
-  }
-
-  async takeoff(altitude = 10, options = {}) {
-    this.requireArduPilotAction("Takeoff");
-    if (!AIRBORNE_VEHICLE_TYPES.has(Number(this.state.vehicleType))) {
-      throw new Error(
-        `Takeoff is not supported for ${this.state.vehicleTypeName}.`,
-      );
-    }
-    const altitudeM = Number(altitude);
-    if (!Number.isFinite(altitudeM) || altitudeM <= 0) {
-      throw new Error("Takeoff altitude must be a positive number of metres.");
-    }
-    if (vehicleFamily(this.state.vehicleType) === "plane") {
-      return this.setMode(
-        this.selectActionMode("Takeoff", ["TAKEOFF"]),
-        options,
-      );
-    }
-    if (
-      modeNumber(this.state.vehicleType, "GUIDED") != null &&
-      this.state.modeName !== "GUIDED"
-    ) {
-      await this.setMode("GUIDED", options);
-    }
-    return this.sendCommandLong(
-      MAV_CMD_NAV_TAKEOFF,
-      { param7: altitudeM },
-      options,
-    );
   }
 
   requestDataStreams(rateHz = 4) {

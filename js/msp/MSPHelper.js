@@ -762,6 +762,11 @@ var mspHelper = (function () {
                 FC.CONFIG.flightControllerVersion = data.getUint8(offset++) + '.' + data.getUint8(offset++) + '.' + data.getUint8(offset++);
                 break;
 
+            case MSPCodes.MSP2_FLIGHT_COMMANDER_INFO:
+                // Parsed by the optional identity probe after this common MSP
+                // dispatcher releases the matching callback.
+                break;
+
             case MSPCodes.MSP_BUILD_INFO:
                 var dateLength = 11;
 

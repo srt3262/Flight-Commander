@@ -2,11 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
-  ARDUPILOT_SPEED_COMMAND_CONFLICT,
-  MAV_CMD_DO_CHANGE_SPEED,
-  compileArduPilotMission,
   compileInavMspMission,
-  deriveArduPilotMissionBehavior,
 } from "../../../js/mission/missionBehavior.js";
 import {
   parseFlightPlan,
@@ -38,71 +34,6 @@ function waypoint(index, overrides = {}) {
     ...overrides,
   };
 }
-
-test("ArduPilot speed and completion compile canonically without duplication", () => {
-  const original = [waypoint(0), waypoint(1)];
-  const compiled = compileArduPilotMission(original, {
-    cruiseSpeedMps: 14.5,
-    completionAction: "rtl",
-  });
-  assert.deepEqual(
-    compiled.map((item) => item.command),
-    [16, MAV_CMD_DO_CHANGE_SPEED, 16, 20],
-  );
-  assert.equal(compiled[1].param2, 14.5);
-  assert.equal(original.length, 2);
-
-  const derived = deriveArduPilotMissionBehavior(compiled);
-  assert.deepEqual(derived.behavior, {
-    cruiseSpeedMps: 14.5,
-    completionAction: "rtl",
-  });
-  assert.equal(derived.conflicts.length, 0);
-
-  const updated = compileArduPilotMission(compiled, {
-    cruiseSpeedMps: 18,
-    completionAction: "rtl",
-  });
-  assert.equal(
-    updated.filter((item) => item.command === MAV_CMD_DO_CHANGE_SPEED).length,
-    1,
-  );
-  assert.equal(updated[1].param2, 18);
-});
-
-test("custom ArduPilot speed commands are preserved or rejected, never flattened", () => {
-  const custom = [
-    waypoint(0),
-    {
-      frame: 2,
-      command: MAV_CMD_DO_CHANGE_SPEED,
-      autocontinue: true,
-      param1: 0,
-      param2: 9,
-      param3: -1,
-      param4: 0,
-      latitude: 0,
-      longitude: 0,
-      altitude: 0,
-    },
-    waypoint(1),
-  ];
-  assert.deepEqual(
-    compileArduPilotMission(custom, {
-      cruiseSpeedMps: 0,
-      completionAction: "none",
-    }),
-    custom,
-  );
-  assert.throws(
-    () =>
-      compileArduPilotMission(custom, {
-        cruiseSpeedMps: 12,
-        completionAction: "none",
-      }),
-    (error) => error.code === ARDUPILOT_SPEED_COMMAND_CONFLICT,
-  );
-});
 
 test("INAV MSP behavior returns native speed and terminal action", () => {
   const compiled = compileInavMspMission([waypoint(0), waypoint(1)], {

@@ -7,14 +7,14 @@ import {
   MavlinkCommandRouter,
 } from "../../../js/gcs/mavlinkCommandRouter.js";
 
-function fakeArduPilotSession(overrides = {}) {
+function fakeUnsupportedSession(overrides = {}) {
   const { state: stateOverrides = {}, ...methodOverrides } = overrides;
   const calls = [];
   const session = {
     state: {
       connected: true,
       linkLost: false,
-      firmwareFamily: "ardupilot",
+      firmwareFamily: "unsupported",
       systemId: 1,
       componentId: 1,
       vehicleType: 2,
@@ -112,68 +112,45 @@ function inavProfile() {
   };
 }
 
-describe("ArduPilot command routing and capability gates", () => {
-  test("routes mode, arm, mission, RTL, land and takeoff to native session methods", async () => {
-    const session = fakeArduPilotSession();
+describe("unsupported firmware command gates", () => {
+  test("blocks every command for a parameter-capable non-INAV vehicle", () => {
+    const session = fakeUnsupportedSession();
     const router = new MavlinkCommandRouter(session);
     const capabilities = router.capabilities();
 
-    assert.equal(capabilities.canArm, true);
-    assert.equal(capabilities.canStartMission, true);
-    assert.equal(capabilities.canTakeoff, true);
-    assert.equal(capabilities.canRtl, true);
-    assert.equal(capabilities.canLand, true);
-    assert.equal(capabilities.canHoldMission, true);
-    assert.equal(capabilities.missionHoldMode, "LOITER");
-
-    await router.setMode("GUIDED");
-    await router.setArmed(true);
-    await router.startMission();
-    await router.takeoff(12);
-    await router.returnToLaunch();
-    await router.land();
-    await router.holdMission();
-
-    assert.deepEqual(
-      session.calls.map(([name]) => name),
-      [
-        "setMode",
-        "setArmed",
-        "startMission",
-        "takeoff",
-        "returnToLaunch",
-        "land",
-        "setMode",
-      ],
-    );
-    assert.equal(session.calls.at(-1)[1], "LOITER");
+    for (const capability of [
+      "canSetMode",
+      "canArm",
+      "canStartMission",
+      "canTakeoff",
+      "canRtl",
+      "canLand",
+      "canHoldMission",
+    ]) {
+      assert.equal(capabilities[capability], false, capability);
+    }
+    assert.match(capabilities.reason, /ArduPilot support has been removed/);
+    assert.deepEqual(router.availableModes(), []);
+    assert.throws(() => router.setMode("GUIDED"), /support has been removed/);
+    assert.throws(() => router.setArmed(true), /support has been removed/);
+    assert.throws(() => router.startMission(), /support has been removed/);
+    assert.throws(() => router.takeoff(12), /support has been removed/);
+    assert.throws(() => router.returnToLaunch(), /support has been removed/);
+    assert.throws(() => router.land(), /support has been removed/);
+    assert.throws(() => router.holdMission(), /support has been removed/);
+    assert.deepEqual(session.calls, []);
   });
 
-  test("disables unsafe commands for a rover and blocks all commands on link loss", () => {
-    const rover = fakeArduPilotSession({
-      state: {
-        vehicleType: 10,
-        vehicleTypeName: "Ground Rover",
-      },
-      availableModes: () =>
-        ["MANUAL", "AUTO", "HOLD", "RTL"].map((name, number) => ({
-          name,
-          number,
-        })),
-    });
-    const router = new MavlinkCommandRouter(rover);
-    assert.equal(router.capabilities().canTakeoff, false);
-    assert.equal(router.capabilities().canLand, false);
-    assert.equal(router.capabilities().missionHoldMode, "HOLD");
-
-    rover.state.linkLost = true;
+  test("link loss remains the first failure for every firmware family", () => {
+    const session = fakeUnsupportedSession({ state: { linkLost: true } });
+    const router = new MavlinkCommandRouter(session);
     assert.equal(router.capabilities().canArm, false);
     assert.throws(() => router.setArmed(true), /link is lost/);
     assert.throws(() => router.returnToLaunch(), /link is lost/);
   });
 
   test("does not route commands until firmware family is known", () => {
-    const session = fakeArduPilotSession({
+    const session = fakeUnsupportedSession({
       state: { firmwareFamily: "unknown" },
     });
     const router = new MavlinkCommandRouter(session);
@@ -184,8 +161,8 @@ describe("ArduPilot command routing and capability gates", () => {
     );
   });
 
-  test("an application transition failure blocks commands while telemetry stays attached", () => {
-    const session = fakeArduPilotSession();
+  test("an application transition failure remains blocked after the transient block clears", () => {
+    const session = fakeUnsupportedSession();
     const router = new MavlinkCommandRouter(session);
 
     router.blockCommands(
@@ -201,7 +178,8 @@ describe("ArduPilot command routing and capability gates", () => {
     assert.deepEqual(session.calls, []);
 
     router.clearCommandBlock();
-    assert.equal(router.capabilities().canArm, true);
+    assert.equal(router.capabilities().canArm, false);
+    assert.match(router.capabilities().reason, /support has been removed/);
   });
 });
 

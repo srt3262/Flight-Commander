@@ -4,10 +4,11 @@
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-blue.svg)](LICENSE)
 
 Flight Commander is a desktop flight-controller configurator, mission planner,
-and ground control station for INAV and ArduPilot aircraft. It combines the
-complete INAV Configurator workflow with a MAVLink Ground Control view,
-ArduPilot parameters, controller-aware mission handling, terrain-assisted
-planning, and controller-aware firmware workflows.
+firmware flasher, and ground control station for official INAV and Flight
+Commander Firmware aircraft. It combines the complete INAV Configurator
+workflow with MAVLink Ground Control, terrain-assisted planning, automatic
+target detection, and capability-gated extensions for the maintained firmware
+fork.
 
 > **Source provenance:** version 1.3.6 is a reconstructed source release. It was
 > rebuilt from INAV Configurator 9.1.1 and a verified Flight Commander 1.3.5
@@ -19,63 +20,53 @@ planning, and controller-aware firmware workflows.
 - Full inherited INAV configuration over the wired MSP setup link.
 - Ground Control with satellite mapping, a live attitude HUD, telemetry,
   autopilot messages, mission progress, and map-primary/HUD-primary layouts.
-- One Flight Planner for INAV and ArduPilot, including survey grids, mission
-  read/write, cruise-speed and completion policies, terrain following, and
-  guarded same-session mission resume.
+- One Flight Planner for INAV-compatible firmware, including survey grids,
+  mission read/write, cruise-speed and completion policies, terrain following,
+  and guarded same-session mission resume.
 - Built-in online ASTER terrain through OpenTopoData with no API key, plus
   optional Google Elevation and local GIS sources.
-- ArduPilot parameter download, search, editing, comparison, and verified write.
-- INAV-style ArduPilot navigation with live Status, Ports, Receiver, Modes,
-  PID Tuning, Configuration, Motors & Outputs, Safety & Failsafe, Sensors,
-  GPS & Navigation, Power, OSD, Logging, Mission, and All Parameters pages.
-  Guided controls translate familiar INAV concepts to parameters discovered
-  on the connected vehicle and show official explanations, exact native names,
-  limits, choices, and restart needs. ArduPilot Extras and All Parameters retain
-  every firmware-specific setting without a safe one-to-one mapping.
-- Guarded Save and Save & Reboot on ArduPilot configuration pages. Parameter
-  readback must confirm before a normal reboot is sent, and both operations are
-  refused while the vehicle is armed.
-- One application-wide high-contrast dark theme, plus synchronized metric or
-  imperial displays in Ground Control and ArduPilot setup. Controller writes
-  and JSON backups remain in the flight controller's native parameter units.
+- Versioned Flight Commander Firmware identity over MSPv2. Fork-only features
+  remain disabled unless the connected firmware advertises the corresponding
+  capability bit.
+- One application-wide high-contrast dark theme, with synchronized metric or
+  imperial Ground Control displays.
 - INAV 10, 12, 15, and 17-inch multirotor presets with prop-size-tuned EZ Tune
   baselines and explicit generated P/I/D/FF values.
-- Controller-aware autotune and operational controls.
-- INAV firmware flashing, first-time ArduPilot installation through STM32 DFU,
-  board-ID-checked APJ updates through the PX4FMU serial bootloader, and a
-  guarded STM32 ROM-DFU/full-erase handoff when returning from ArduPilot to INAV.
+- INAV and Flight Commander Firmware flashing through the same proven
+  STM32/DFU path. The app automatically detects the target, validates the
+  selected firmware family, and prevents cross-family or target-mismatched HEX
+  images from being written.
 
-Flight Commander deliberately fails closed when a mission or command cannot be
-represented by the connected controller. It does not silently discard
-controller-specific mission items.
+ArduPilot firmware is unsupported. A parameter-capable non-INAV MAVLink vehicle
+is identified as unsupported, and its configuration, mission, and command
+paths remain disabled. Flight Commander also fails closed whenever an INAV
+mission or command cannot be represented losslessly.
 
 ## Controller and transport boundaries
 
 The connection type matters. A capability shown for one transport should not be
 assumed to exist on another.
 
-| Controller and link        | Configuration                                                                  | Missions and planning                                                                                                                                  | Live Ground Control                                                                                                                                                               |
-| -------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **INAV over MSP**          | Full INAV configuration and persistent settings                                | Native INAV mission and planning-data read/write, including INAV-specific mission items, safe homes, fixed-wing approaches, and geozones               | Wired telemetry is available; airborne commands require a MAVLink link                                                                                                            |
-| **INAV over MAVLink**      | Not a replacement for the wired MSP setup link                                 | Only the stock INAV MAVLink mission subset is accepted losslessly; unsupported commands, including ArduPilot camera command 206, are rejected          | Telemetry and explicitly configured AUX-backed commands; command use requires a matching profile captured over MSP and confirmation that exactly one INAV aircraft is on the link |
-| **INAV over LTM**          | None                                                                           | None                                                                                                                                                   | Read-only telemetry                                                                                                                                                               |
-| **ArduPilot over MAVLink** | ArduPilot parameter read/write; mission policy remains owned by Flight Planner | Native MAVLink mission transfer, speed command 178, ArduPilot distance-camera command 206, completion actions, and exact resume checks where supported | Telemetry and vehicle-aware arm, mode, mission, RTL, land, takeoff, and autotune actions                                                                                          |
+| Controller and link | Configuration | Missions and planning | Live Ground Control |
+| --- | --- | --- | --- |
+| **INAV / Flight Commander Firmware over MSP** | Full INAV-compatible configuration and persistent settings; Flight Commander Firmware identity and advertised capabilities are also shown | Native mission and planning-data read/write, including INAV-specific mission items, safe homes, fixed-wing approaches, and geozones | Wired telemetry is available; airborne commands require a MAVLink link |
+| **INAV / Flight Commander Firmware over MAVLink** | Not a replacement for the wired MSP setup link | Only the stock INAV MAVLink mission subset is accepted losslessly; unsupported commands are rejected | Telemetry and explicitly configured AUX-backed commands; command use requires a matching profile captured over MSP and confirmation that exactly one aircraft is on the link |
+| **INAV over LTM** | None | None | Read-only telemetry |
+| **Other firmware over MAVLink** | Unsupported | Disabled | Telemetry may identify the vehicle, but configuration, missions, and commands remain blocked |
 
-INAV exact behavior remains firmware-specific. Its interruption checkpoint is
-position-estimated and its persistent `nav_wp_mission_restart` policy is managed
-over MSP. ArduPilot resume uses mission identity and boot-session checks and
-requires a compatible `MIS_RESTART` setting. In both cases, resume is intended
-for the same powered flight controller; power loss invalidates the checkpoint.
+INAV-compatible interruption checkpoints are position-estimated, and the
+persistent `nav_wp_mission_restart` policy is managed over MSP. Resume is
+intended for the same powered flight controller; power loss invalidates the
+checkpoint.
 
 Firmware flashing is a separate bootloader operation, not an airborne MAVLink
-Ground Control command. An existing ArduPilot installation is updated with an
-APJ package only after its PX4 bootloader board ID is checked. A controller
-running INAV has no PX4 bootloader identity, so its first ArduPilot installation
-uses the official, same-release `*_with_bl.hex` through STM32 DFU with a full
-erase and read-back verification. Flight Commander can pre-match an exact INAV
-MSP target name; raw STM32 DFU cannot report a board model and therefore
-requires manual hardware-target confirmation. Always verify the detected
-identity, selected target, and firmware before writing.
+Ground Control command. Official INAV and Flight Commander Firmware use the
+same target discovery and STM32/DFU machinery. Flight Commander Firmware HEX
+files must use a recognized release filename, contain the compiled `FCFW`
+identity marker, and match the selected target. Official INAV mode rejects an
+image containing that marker. Raw STM32 DFU cannot report a board model and
+therefore still requires manual hardware-target confirmation. Always verify
+the detected identity, selected family, target, and firmware before writing.
 
 ### USB MAVLink radios
 
@@ -180,5 +171,4 @@ reconstruction starts from INAV Configurator 9.1.1 commit
 [`4c343e38aba4ef655afd88e8339ef21d0c3c53ac`](https://github.com/iNavFlight/inav-configurator/commit/4c343e38aba4ef655afd88e8339ef21d0c3c53ac).
 Upstream copyright and license notices are retained.
 
-Flight Commander is an independent project and is not an official release of
-the INAV or ArduPilot projects.
+Flight Commander is an independent project and is not an official INAV release.

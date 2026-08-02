@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { afterEach, describe, test } from "node:test";
 
 import {
-  FIRMWARE_FAMILY_ARDUPILOT,
   FIRMWARE_FAMILY_INAV,
+  FIRMWARE_FAMILY_UNSUPPORTED,
   MAV_MODE_FLAG_SAFETY_ARMED,
   MavlinkSession,
 } from "../../../js/mavlink/mavlinkSession.js";
@@ -292,7 +292,7 @@ test("rolls back a failed timer initialization and permits a clean retry", () =>
 describe("MAVLink state normalization and firmware detection", () => {
   test("normalizes heartbeat, position, attitude, battery and sentinel values", () => {
     const { session } = createAttachedSession({
-      firmwareFamilyOverride: FIRMWARE_FAMILY_ARDUPILOT,
+      firmwareFamilyOverride: FIRMWARE_FAMILY_INAV,
     });
 
     session.handleMessage(
@@ -442,7 +442,7 @@ describe("MAVLink state normalization and firmware detection", () => {
     assert.equal(connectedEvents, 1);
   });
 
-  test("uses parameter stream fingerprint to distinguish INAV from ArduPilot", () => {
+  test("uses parameter stream fingerprint to distinguish INAV from unsupported firmware", () => {
     const inav = createAttachedSession().session;
     inav.handleMessage(heartbeat({ autopilot: 3, sysid: 11 }));
     assert.equal(inav.state.firmwareFamily, "unknown");
@@ -455,18 +455,18 @@ describe("MAVLink state normalization and firmware detection", () => {
     assert.equal(inav.state.firmwareFamily, FIRMWARE_FAMILY_INAV);
     assert.equal(inav.state.firmwareFamilySource, "parameter-fingerprint");
 
-    const ardupilot = createAttachedSession().session;
-    ardupilot.handleMessage(heartbeat({ autopilot: 3, sysid: 12 }));
-    ardupilot.handleMessage({
+    const unsupported = createAttachedSession().session;
+    unsupported.handleMessage(heartbeat({ autopilot: 3, sysid: 12 }));
+    unsupported.handleMessage({
       name: "PARAM_VALUE",
       message: { param_count: 900, param_id: "SYSID_THISMAV", param_value: 1 },
       header: { systemId: 12, componentId: 1 },
     });
-    assert.equal(ardupilot.state.firmwareFamily, FIRMWARE_FAMILY_ARDUPILOT);
-    assert.equal(ardupilot.state.firmwareFamilySource, "parameter-stream");
+    assert.equal(unsupported.state.firmwareFamily, FIRMWARE_FAMILY_UNSUPPORTED);
+    assert.equal(unsupported.state.firmwareFamilySource, "parameter-stream");
   });
 
-  test("falls back to ArduPilot when the compatibility fingerprint probe is silent", async () => {
+  test("fails closed when the INAV compatibility fingerprint probe is silent", async () => {
     const { session } = createAttachedSession({
       firmwareDetectionTimeoutMs: 10,
     });
@@ -475,7 +475,7 @@ describe("MAVLink state normalization and firmware detection", () => {
 
     await new Promise((resolve) => setTimeout(resolve, 20));
 
-    assert.equal(session.state.firmwareFamily, FIRMWARE_FAMILY_ARDUPILOT);
+    assert.equal(session.state.firmwareFamily, FIRMWARE_FAMILY_UNSUPPORTED);
     assert.equal(session.state.firmwareFamilySource, "probe-timeout");
   });
 });
@@ -887,59 +887,29 @@ describe("commands, acknowledgements and cleanup", () => {
     vehicleCodec.destroy();
   });
 
-  test("confirms mode and arm commands from subsequent heartbeat state", async () => {
-    const { session, bridge } = createAttachedSession({
-      firmwareFamilyOverride: FIRMWARE_FAMILY_ARDUPILOT,
-    });
-    session.handleMessage(heartbeat({ customMode: 0 }));
-
-    const modePromise = session.setMode("GUIDED", { timeoutMs: 100 });
-    await Promise.resolve();
-    session.handleMessage(heartbeat({ customMode: 4 }));
-    assert.equal((await modePromise).modeName, "GUIDED");
-    assert.equal(
-      bridge.encoded.some(
-        ({ messageName, payload }) =>
-          messageName === "SetMode" && payload.customMode === 4,
-      ),
-      true,
-    );
-
-    const armPromise = session.setArmed(true, { timeoutMs: 100 });
-    await Promise.resolve();
-    session.handleMessage(
-      heartbeat({
-        customMode: 4,
-        baseMode: MAV_MODE_FLAG_SAFETY_ARMED,
-      }),
-    );
-    assert.equal((await armPromise).armed, true);
+  test("does not expose removed direct vehicle command helpers", () => {
+    const { session } = createAttachedSession();
+    for (const method of [
+      "setMode",
+      "setArmed",
+      "setMissionCurrent",
+      "resumeMissionFrom",
+      "startMission",
+      "returnToLaunch",
+      "land",
+      "takeoff",
+    ]) {
+      assert.equal(session[method], undefined, method);
+    }
   });
 
-  test("detaching rejects state, ACK, firmware, mission, and mode waits", async () => {
+  test("detaching rejects state, ACK, firmware, and mission waits", async () => {
     const { session } = createAttachedSession();
     session.handleMessage(heartbeat({ customMode: 0 }));
     session.state.missionTotal = 3;
     session.state.missionId = 91;
     session.state.timeBootMs = 5000;
 
-    const missionContext = {
-      sequence: 1,
-      expectedMissionTotal: 3,
-      expectedMissionId: 91,
-      expectedTimeBootMs: 5000,
-      expectedBootGeneration: 0,
-      checkpoint: {
-        sequence: 1,
-        missionTotal: 3,
-        missionId: 91,
-        timeBootMs: 5000,
-        bootGeneration: 0,
-      },
-    };
-    const missionWaiter = session.createMissionCurrentWaiter(missionContext, {
-      timeoutMs: 1000,
-    });
     const operations = [
       [
         "state",
@@ -948,8 +918,6 @@ describe("commands, acknowledgements and cleanup", () => {
       ["ACK", session.waitForCommandAck(300, { timeoutMs: 1000 })],
       ["firmware", session.waitForFirmwareFamily({ timeoutMs: 1000 })],
       ["mission message", session.waitFor("MissionCount", () => true, 1000)],
-      ["mission current", missionWaiter.promise],
-      ["mode", session.setMode("GUIDED", { timeoutMs: 1000 })],
     ];
     const results = operations.map(([name, operation]) =>
       operation.then(
@@ -976,7 +944,7 @@ describe("commands, acknowledgements and cleanup", () => {
 
   test("accepts progress ACK, rejects negative ACK, and times out cleanly", async () => {
     const { session } = createAttachedSession({
-      firmwareFamilyOverride: FIRMWARE_FAMILY_ARDUPILOT,
+      firmwareFamilyOverride: FIRMWARE_FAMILY_INAV,
     });
     session.handleMessage(heartbeat());
 

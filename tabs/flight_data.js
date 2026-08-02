@@ -601,9 +601,7 @@ flightData.renderResumeCheckpoint = function (
     const total = Number(checkpoint.missionTotal)
       || Number(snapshot.registration?.itemCount)
       || 0;
-    const type = checkpoint.estimated
-      ? 'Estimated INAV checkpoint'
-      : 'Exact ArduPilot checkpoint';
+    const type = 'Estimated INAV checkpoint';
     $('#flightDataResumeStatus').text(
       `${type}: item ${checkpoint.sequence + 1}${total ? ` / ${total}` : ''} saved when ${checkpoint.fromMode} changed to ${checkpoint.returnMode}.`,
     );
@@ -655,12 +653,9 @@ flightData.resumeInterruptedMission = async function () {
       ? ' The aircraft is disarmed; arm and launch it before the selected mission can execute.'
       : '';
     this.setActionStatus(
-      result.firmwareFamily === 'inav'
-        ? `INAV resume selection was confirmed from estimated original item ${result.originalSequence + 1}. `
-          + 'The remaining suffix is active for this power cycle; the persistent MSP mission was not changed.'
-          + executionNotice
-        : `ArduPilot mission item ${result.sequence + 1} was selected and AUTO mode was confirmed.`
-          + executionNotice,
+      `INAV resume selection was confirmed from estimated original item ${result.originalSequence + 1}. `
+      + 'The remaining suffix is active for this power cycle; the persistent MSP mission was not changed.'
+      + executionNotice,
     );
   } catch (error) {
     this.setActionStatus(error.message, true);
@@ -754,15 +749,15 @@ flightData.render = function (state) {
   const protocolLabel = this.protocol === 'mavlink'
     ? state.firmwareFamily === 'inav'
       ? 'MAVLink · INAV'
-      : state.firmwareFamily === 'ardupilot'
-        ? 'MAVLink · ArduPilot'
-        : 'MAVLink · detecting'
+      : state.firmwareFamily === 'unsupported'
+        ? 'MAVLink · unsupported firmware'
+        : 'MAVLink · detecting INAV-compatible firmware'
     : this.protocol === 'ltm'
       ? 'INAV / LTM'
       : 'INAV / MSP wired';
   $('#flightDataVehicle').text(
     state.connected
-      ? `${state.firmwareFamily === 'inav' ? 'INAV' : state.autopilotName} · ${state.vehicleTypeName}`
+      ? `${state.firmwareFamily === 'inav' ? 'INAV' : 'Unsupported firmware'} · ${state.vehicleTypeName}`
       : 'Waiting for vehicle',
   );
   $('#flightDataProtocol').text(protocolLabel);
@@ -962,9 +957,16 @@ flightData.loadVehicleMission = async function () {
         )
         : mavlinkSession.snapshot();
       if (!attachmentIsCurrent()) return;
+      if (state.firmwareFamily !== 'inav') {
+        throw new Error(
+          state.firmwareFamily === 'unsupported'
+            ? 'ArduPilot mission download has been removed. Connect an INAV-compatible controller.'
+            : 'Mission download is waiting for INAV-compatible firmware identification.',
+        );
+      }
       mission = await mavlinkMissionManager.download(
         {
-          ...(state.firmwareFamily === 'inav' ? { legacyOnly: true } : {}),
+          legacyOnly: true,
           signal: abortController.signal,
         },
       );

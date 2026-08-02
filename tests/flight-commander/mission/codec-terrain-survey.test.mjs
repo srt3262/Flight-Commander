@@ -186,21 +186,21 @@ test("survey camera command 206 is explicit and optional", () => {
   assert.ok(grid.lines.length > 0);
   assert.ok(grid.statistics.estimatedPhotos > 0);
 
-  const ardupilot = surveyGridToMission(grid, {
+  const withCameraCommands = surveyGridToMission(grid, {
     altitudeM: 60,
     triggerDistanceM: 25,
     includeCameraCommands: true,
   });
-  const inav = surveyGridToMission(grid, {
+  const withoutCameraCommands = surveyGridToMission(grid, {
     altitudeM: 60,
     triggerDistanceM: 25,
     includeCameraCommands: false,
   });
   assert.ok(
-    ardupilot.some((item) => item.command === MAV_CMD_DO_SET_CAM_TRIGG_DIST),
+    withCameraCommands.some((item) => item.command === MAV_CMD_DO_SET_CAM_TRIGG_DIST),
   );
   assert.equal(
-    inav.some((item) => item.command === MAV_CMD_DO_SET_CAM_TRIGG_DIST),
+    withoutCameraCommands.some((item) => item.command === MAV_CMD_DO_SET_CAM_TRIGG_DIST),
     false,
   );
 });

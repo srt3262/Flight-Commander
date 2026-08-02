@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -13,8 +13,20 @@ const forgeConfig = readFileSync(
   resolve(projectRoot, "forge.config.js"),
   "utf8",
 );
+const cleanViteOutput = readFileSync(
+  resolve(projectRoot, "scripts/clean-vite-output.mjs"),
+  "utf8",
+);
+const rendererConfigs = [
+  "vite.main-renderer.config.js",
+  "vite.bt-dc-renderer.config.js",
+].map((path) => readFileSync(resolve(projectRoot, path), "utf8"));
 const packageVerifier = readFileSync(
   resolve(projectRoot, "scripts/verify-windows-package.mjs"),
+  "utf8",
+);
+const releaseWorkflow = readFileSync(
+  resolve(projectRoot, ".github/workflows/release.yml"),
   "utf8",
 );
 const landingHtml = readFileSync(
@@ -41,8 +53,24 @@ const rendererEntry = readFileSync(
   resolve(projectRoot, "index.html"),
   "utf8",
 );
-const parameterHtml = readFileSync(
-  resolve(projectRoot, "tabs/mavlink_parameters.html"),
+const firmwareFlasherHtml = readFileSync(
+  resolve(projectRoot, "tabs/firmware_flasher.html"),
+  "utf8",
+);
+const firmwareFlasherSource = readFileSync(
+  resolve(projectRoot, "tabs/firmware_flasher.js"),
+  "utf8",
+);
+const firmwareInfoHtml = readFileSync(
+  resolve(projectRoot, "tabs/firmware_info.html"),
+  "utf8",
+);
+const firmwareIdentitySource = readFileSync(
+  resolve(projectRoot, "js/flightCommander/firmwareIdentity.js"),
+  "utf8",
+);
+const firmwareCatalogSource = readFileSync(
+  resolve(projectRoot, "js/flightCommander/firmwareCatalog.js"),
   "utf8",
 );
 const presetSource = readFileSync(
@@ -94,14 +122,16 @@ function contrastAgainstWhite(hexColor) {
 
 test("packaging starts from clean Vite output roots", () => {
   assert.match(forgeConfig, /prePackage:\s*async\s*\(\)\s*=>/);
+  assert.match(forgeConfig, /cleanViteOutput\(__dirname\)/);
+  assert.match(cleanViteOutput, /["']\.vite\/build["']/);
+  assert.match(cleanViteOutput, /["']\.vite\/renderer["']/);
   assert.match(
-    forgeConfig,
-    /path\.join\(__dirname,\s*["']\.vite["'],\s*["']build["']\)/,
+    packageManifest.scripts["package:windows"],
+    /^node scripts\/clean-vite-output\.mjs && electron-forge package/,
   );
-  assert.match(
-    forgeConfig,
-    /path\.join\(__dirname,\s*["']\.vite["'],\s*["']renderer["']\)/,
-  );
+  for (const rendererConfig of rendererConfigs) {
+    assert.match(rendererConfig, /emptyOutDir:\s*true/);
+  }
 });
 
 test("Windows verification follows the active renderer graph and rejects leftovers", () => {
@@ -147,30 +177,18 @@ test("Windows verification follows the active renderer graph and rejects leftove
   assert.match(packageVerifier, /flightCommanderTheme/);
   assert.match(packageVerifier, /flight-commander-theme-change/);
   assert.match(packageVerifier, /dark-only/);
-  assert.match(packageVerifier, /Use imperial ArduPilot setup units/);
-  assert.match(packageVerifier, /controller-native/);
-  assert.match(packageVerifier, /tab_ardupilot_setup/);
-  assert.match(packageVerifier, /tab_ardupilot_configuration/);
-  assert.match(packageVerifier, /tab_ardupilot_ports/);
-  assert.match(packageVerifier, /tab_ardupilot_outputs/);
-  assert.match(packageVerifier, /tab_ardupilot_receiver/);
-  assert.match(packageVerifier, /tab_ardupilot_modes/);
-  assert.match(packageVerifier, /tab_ardupilot_pid_tuning/);
-  assert.match(packageVerifier, /tab_ardupilot_advanced_tuning/);
-  assert.match(packageVerifier, /tab_ardupilot_gps_navigation/);
-  assert.match(packageVerifier, /tab_ardupilot_sensors/);
-  assert.match(packageVerifier, /tab_ardupilot_osd/);
-  assert.match(packageVerifier, /tab_ardupilot_logging/);
-  assert.match(packageVerifier, /tab_ardupilot_programming/);
-  assert.match(packageVerifier, /tab_ardupilot_javascript_programming/);
-  assert.match(packageVerifier, /tab_ardupilot_cli/);
-  assert.match(packageVerifier, /tab_ardupilot_search/);
-  assert.match(packageVerifier, /INAV-style preflight overview/);
-  assert.match(packageVerifier, /Detect moved channel/);
-  assert.match(packageVerifier, /Start endpoint capture/);
-  assert.match(packageVerifier, /Save &amp; reboot/);
-  assert.match(packageVerifier, /Sending normal ArduPilot reboot/);
-  assert.match(packageVerifier, /onboard_control_sensors_health/);
+  assert.match(packageVerifier, /Flight Commander Firmware/);
+  assert.match(packageVerifier, /Official INAV Firmware/);
+  assert.match(packageVerifier, /Flight-Commander-Firmware-/);
+  assert.match(packageVerifier, /FCFW/);
+  assert.match(packageVerifier, /MICOAIR743/);
+  assert.match(packageVerifier, /MICROAIR743/);
+  assert.match(packageVerifier, /Firmware Capabilities/);
+  assert.match(packageVerifier, /Standard INAV is connected/);
+  assert.match(packageVerifier, /Multirotor AutoTune/);
+  assert.match(packageVerifier, /Terrain-relative waypoints/);
+  assert.match(packageVerifier, /Mission streaming/);
+  assert.match(packageVerifier, /ArduPilot support has been removed/);
   for (const propInches of [10, 12, 15, 17]) {
     assert.match(
       packageVerifier,
@@ -199,11 +217,6 @@ test("Windows verification follows the active renderer graph and rejects leftove
   assert.match(packageVerifier, /batteryProfileHighlightActive/);
   assert.match(packageVerifier, /controlProfileHighlightActive/);
   for (const selector of [
-    "fc-unit-switch",
-    "fc-ap-editor-page",
-    "fc-ap-status-primary",
-    "fc-ap-feature-setting",
-    "fc-ap-pid-table",
     "fc-minor-view-layer",
     "fc-minor-view-window",
     "fc-minor-view-handle",
@@ -215,12 +228,10 @@ test("Windows verification follows the active renderer graph and rejects leftove
   }
 });
 
-test("application is dark-only while unit preferences remain global and persistent", () => {
+test("application remains dark-only", () => {
   assert.match(rendererEntry, /<html[^>]+data-theme="dark"/);
   assert.doesNotMatch(rendererEntry, /id="applicationTheme"/);
   assert.doesNotMatch(rendererEntry, /fc-theme-switch/);
-  assert.match(parameterHtml, /id="parameterUnits"/);
-  assert.match(parameterHtml, /Use imperial ArduPilot setup units/);
   assert.match(themeCss, /:root\s*\{[^}]*color-scheme:\s*dark;/s);
   assert.doesNotMatch(themeCss, /data-theme="light"/);
   assert.doesNotMatch(themeCss, /\.fc-theme-switch/);
@@ -230,19 +241,48 @@ test("application is dark-only while unit preferences remain global and persiste
   assert.match(themeCss, /\.tab-landing \.flightCommanderLogo/);
 });
 
-test("ArduPilot feature pages package guided mappings, PID sliders, and native fallback", () => {
-  const featureHtml = readFileSync(resolve(projectRoot, "tabs/ardupilot_feature.html"), "utf8");
-  const featureSource = readFileSync(resolve(projectRoot, "tabs/ardupilot_feature.js"), "utf8");
-  const compatibility = readFileSync(resolve(projectRoot, "js/ardupilot/inavCompatibility.js"), "utf8");
-  const pidHtml = readFileSync(resolve(projectRoot, "tabs/ardupilot_pid_tuning.html"), "utf8");
-  assert.match(featureHtml, /INAV-style setup/);
-  assert.match(featureHtml, /ArduPilot extras/);
-  assert.match(featureSource, /discoverInavCompatibleControls/);
-  assert.match(compatibility, /GPS update rate/);
-  assert.match(compatibility, /SERVO\(\\d\+\)_FUNCTION/);
-  assert.match(pidHtml, /Main PID Gains/);
-  assert.match(pidHtml, /Filters &amp; Mechanics/);
-  assert.match(parameterHtml, /Complete native fallback/);
+test("firmware selection, identity, and feature gates are packaged together", () => {
+  assert.deepEqual(
+    [...firmwareFlasherHtml.matchAll(/<option value="([^"]+)">(?:Flight Commander Firmware|Official INAV Firmware)<\/option>/g)]
+      .map((match) => match[1]),
+    ["flight-commander", "inav"],
+  );
+  assert.match(firmwareFlasherHtml, /value="flight-commander">Flight Commander Firmware/);
+  assert.match(firmwareFlasherHtml, /value="inav">Official INAV Firmware/);
+  assert.doesNotMatch(firmwareFlasherHtml, /value="ardupilot"/i);
+  assert.match(firmwareFlasherSource, /parsedHexContainsFlightCommanderIdentity/);
+  assert.match(firmwareFlasherSource, /loadedFirmwareFamily !== firmwareBackend/);
+  assert.match(
+    firmwareFlasherSource,
+    /flightCommanderReleasesData[\s\S]+firmwareFlasherTab\.getTarget\(\)/,
+  );
+  assert.match(firmwareIdentitySource, /MSP2_FLIGHT_COMMANDER_INFO = 0x2f00/);
+  assert.match(firmwareIdentitySource, /FLIGHT_COMMANDER_INFO_SIGNATURE = "FCFW"/);
+  assert.match(firmwareIdentitySource, /retryCounter: 0/);
+  assert.match(firmwareCatalogSource, /MICOAIR743/);
+  assert.match(firmwareCatalogSource, /MICROAIR743/);
+  assert.match(firmwareInfoHtml, /Firmware Capabilities/);
+  assert.match(firmwareInfoHtml, /data-fc-feature="multirotorAutotune"/);
+  assert.match(firmwareInfoHtml, /data-fc-feature="terrainWaypoints"/);
+  assert.match(firmwareInfoHtml, /data-fc-feature="missionStreaming"/);
+});
+
+test("retired ArduPilot implementation files are absent", () => {
+  for (const path of [
+    "tabs/ardupilot_firmware_flasher.js",
+    "tabs/mavlink_parameters.js",
+    "tabs/autotune.js",
+    "js/ardupilot/setupService.js",
+    "js/firmware/apj.js",
+    "js/firmware/px4BootloaderUploader.js",
+    "js/parameters/ardupilotParameterModel.js",
+  ]) {
+    assert.equal(existsSync(resolve(projectRoot, path)), false, path);
+  }
+  assert.doesNotMatch(
+    readFileSync(resolve(projectRoot, "js/mavlink/services.js"), "utf8"),
+    /MavlinkParameterManager|ParamSet/,
+  );
 });
 
 test("all requested large-prop INAV presets are wired into the release source", () => {
@@ -255,11 +295,20 @@ test("all requested large-prop INAV presets are wired into the release source", 
 });
 
 test("landing page reports the current Flight Commander release", () => {
-  assert.equal(packageManifest.version, "1.9.2");
+  assert.equal(packageManifest.version, "2.0.0");
   assert.equal(manifest.version, packageManifest.version);
   assert.match(
     landingHtml,
     new RegExp(`>Flight Commander ${packageManifest.version.replaceAll(".", "\\.")}<`),
+  );
+});
+
+test("guarded push publication is tied to the current release version", () => {
+  assert.match(
+    releaseWorkflow,
+    new RegExp(
+      `github\\.event\\.head_commit\\.message == 'Publish Flight Commander ${packageManifest.version.replaceAll(".", "\\.")} release'`,
+    ),
   );
 });
 

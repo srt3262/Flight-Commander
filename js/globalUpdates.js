@@ -15,7 +15,11 @@ var update = {
 
     firmwareVersion: function() {
         if (CONFIGURATOR.connectionValid) {
-            $('#logo .firmware_version').text(FC.CONFIG.flightControllerVersion + " [" + FC.CONFIG.target + "]");
+            const fork = FC.CONFIG.flightCommanderFirmware;
+            const identity = fork
+                ? `Flight Commander Firmware ${fork.firmwareVersion ?? 'unknown'} · INAV ${FC.CONFIG.flightControllerVersion}`
+                : `INAV ${FC.CONFIG.flightControllerVersion}`;
+            $('#logo .firmware_version').text(`${identity} [${FC.CONFIG.target}]`);
             globalSettings.docsTreeLocation = 'https://github.com/iNavFlight/inav/blob/' + FC.CONFIG.flightControllerVersion + '/docs/';
             globalSettings.configuratorTreeLocation = 'https://github.com/iNavFlight/inav-configurator/tree/' + FC.CONFIG.flightControllerVersion + '/';
 
@@ -38,4 +42,3 @@ var update = {
 };
 
 export default update;
-

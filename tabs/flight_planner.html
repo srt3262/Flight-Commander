@@ -51,16 +51,14 @@
                         <label>Photo spacing / trigger distance (m)<input id="plannerTriggerDistance" type="number" value="0" min="0" step="0.1"></label>
                         <label>Photo command target
                             <select id="plannerCameraCommandMode">
-                                <option value="auto" selected>Automatic — ArduPilot trigger / INAV navigation only</option>
+                                <option value="auto" selected>Automatic — INAV-compatible navigation only</option>
                                 <option value="navigation-only">Navigation only — estimate photos, no trigger command</option>
-                                <option value="ardupilot-distance">ArduPilot — distance trigger (MAVLink command 206)</option>
                             </select>
                         </label>
                     </div>
                     <div id="plannerCameraCommandHelp" class="fc-provider-attribution">
-                        Automatic mode inserts command 206 only for an identified ArduPilot controller.
-                        INAV surveys remain navigation only because stock INAV missions cannot accept
-                        or represent that command.
+                        Photo spacing is used to estimate image count. INAV-compatible missions remain
+                        navigation only because distance-camera command 206 is not supported losslessly.
                     </div>
                 </section>
                 <section class="fc-panel">
@@ -79,34 +77,6 @@
                         </label>
                     </div>
                     <div id="plannerMissionBehaviorHelp" class="fc-provider-attribution"></div>
-                    <div id="plannerArduPilotMissionRestartPanel" class="fc-controller-setting" hidden>
-                        <h4>ArduPilot controller mission-interruption behavior</h4>
-                        <div class="fc-form-grid">
-                            <label for="plannerArduPilotMissionRestart">
-                                When AUTO is selected after an interruption
-                                <select id="plannerArduPilotMissionRestart" disabled>
-                                    <option value="0">RESUME — continue the interrupted mission</option>
-                                    <option value="1">RESTART — start from the first mission item</option>
-                                </select>
-                            </label>
-                        </div>
-                        <div class="fc-panel-actions">
-                            <button id="plannerReadArduPilotMissionRestart" type="button" disabled>
-                                Read policy from ArduPilot
-                            </button>
-                            <button id="plannerWriteArduPilotMissionRestart" class="fc-button--primary" type="button" disabled>
-                                Save policy to ArduPilot &amp; verify
-                            </button>
-                        </div>
-                        <div id="plannerArduPilotMissionRestartStatus" class="fc-provider-attribution">
-                            Connect to an ArduPilot controller over MAVLink to read this setting.
-                        </div>
-                        <p class="fc-provider-attribution">
-                            This is ArduPilot's persistent <code>MIS_RESTART</code> parameter.
-                            Flight Commander's exact resume command requires RESUME (0) and re-reads
-                            the controller value before selecting the saved mission item.
-                        </p>
-                    </div>
                     <div id="plannerInavMissionRestartPanel" class="fc-controller-setting">
                         <h4>INAV controller mission-interruption behavior</h4>
                         <div class="fc-form-grid">
@@ -149,8 +119,8 @@
                         A resume checkpoint records mission progress observed over MAVLink so a mission can continue
                         after an RTH/RTL interruption and battery swap while the flight controller remains powered.
                         This covers an RC-selected RTH even though MAVLink does not identify which source selected the mode.
-                        ArduPilot progress is exact; INAV progress is position-estimated and resumed by a verified
-                        active-RAM suffix. It does not configure radio, battery, or telemetry link-loss failsafes.
+                        INAV progress is position-estimated and resumed by a verified active-RAM suffix.
+                        It does not configure radio, battery, or telemetry link-loss failsafes.
                     </div>
                 </section>
                 <section class="fc-panel">

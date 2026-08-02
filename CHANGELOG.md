@@ -1,5 +1,23 @@
 # Changelog
 
+## 2.0.0
+
+- Removed ArduPilot flashing, configuration, parameter, mission, command, and
+  AutoTune support. Non-INAV MAVLink vehicles are identified as unsupported and
+  cannot reach configuration, mission-transfer, or operational command routes.
+- Replaced the INAV/ArduPilot firmware selector with **Flight Commander
+  Firmware** and **Official INAV Firmware**. Both use automatic INAV target
+  discovery and the existing guarded STM32/DFU flashing path.
+- Added the versioned MSPv2 `FCFW` identity query (`0x2F00`), compatible-INAV
+  version reporting, and a capability bitmap. Standard INAV falls back safely
+  after a single optional probe and retains all compatible configurator and
+  Ground Control behavior.
+- Added a Firmware Capabilities page. Flight Commander Firmware-only features
+  stay disabled unless the connected firmware explicitly advertises the exact
+  capability; stock INAV therefore cannot expose incompatible fork features.
+- Added the initial `MICOAIR743` / `MICROAIR743` alias-aware firmware catalog
+  and pre-flash family, embedded-identity, and hardware-target validation.
+
 ## 1.9.2
 
 - Limited first-run airframe and prop-size presets to Control Profile 1. The

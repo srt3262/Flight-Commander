@@ -16,6 +16,7 @@ export default defineConfig((env) => {
     assetsInclude: ['**/*.gltf', '**/*.glb'],
     build: {
       outDir: `.vite/renderer/${name}`,
+      emptyOutDir: true,
       assetsInlineLimit: Number.MAX_SAFE_INTEGER,
       chunkSizeWarningLimit: 10240,
     },
