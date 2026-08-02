@@ -88,5 +88,5 @@ test("mirrored tab initialization failures release the shared tab-switch lock", 
 
   assert.match(initialize, /try \{/);
   assert.match(initialize, /fc-ap-inav-initialization-error/);
-  assert.match(initialize, /finishArduPilotTab\(callback\);\n        return;/);
+  assert.match(initialize, /finishArduPilotTab\(callback\);\r?\n        return;/);
 });
