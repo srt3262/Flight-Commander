@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
 import {
   ARDUPILOT_INAV_PAGE_SCHEMAS,
@@ -8,6 +11,8 @@ import {
   resolveInavUiBinding,
   toInavUiValue,
 } from "../../../js/ardupilot/inavUiParity.js";
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 
 test("ArduPilot compatibility pages name canonical INAV templates", () => {
   assert.deepEqual(canonicalTemplateNames(), [
@@ -61,4 +66,27 @@ test("canonical controls round-trip transformed native values", () => {
     .find((binding) => binding.key === "gps-rate");
   assert.equal(toInavUiValue(rate, 200), 5);
   assert.equal(fromInavUiValue(rate, 10), 100);
+});
+
+test("OpenLayers map rendering does not shadow native Map state stores", () => {
+  const source = fs.readFileSync(path.join(root, "tabs", "ardupilot_inav_ui.js"), "utf8");
+
+  assert.match(source, /import OpenLayersMap from 'ol\/Map\.js';/);
+  assert.doesNotMatch(source, /import Map from 'ol\/Map\.js';/);
+  assert.match(source, /tab\.map = new OpenLayersMap\(\{/);
+
+  // These must remain JavaScript Maps. Mirrored tabs call staged.clear() during
+  // initialization, while the other stores depend on native Map iteration APIs.
+  assert.match(source, /staged: new Map\(\)/);
+  assert.match(source, /const anchorTails = new Map\(\)/);
+  assert.match(source, /tab\.sensorHistory = new Map\(\)/);
+});
+
+test("mirrored tab initialization failures release the shared tab-switch lock", () => {
+  const source = fs.readFileSync(path.join(root, "tabs", "ardupilot_inav_ui.js"), "utf8");
+  const initialize = source.match(/tab\.initialize = function \(callback\) \{([\s\S]*?)\n  \};/)?.[1] ?? "";
+
+  assert.match(initialize, /try \{/);
+  assert.match(initialize, /fc-ap-inav-initialization-error/);
+  assert.match(initialize, /finishArduPilotTab\(callback\);\n        return;/);
 });

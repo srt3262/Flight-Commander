@@ -623,8 +623,10 @@ progress::-webkit-progress-bar,
 }
 
 .mixer-preview-image-numbers .motorNumber {
+    position: absolute;
     z-index: 3;
     display: flex;
+    visibility: visible;
     align-items: center;
     justify-content: center;
     width: 22px;

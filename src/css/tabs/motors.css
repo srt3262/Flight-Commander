@@ -472,7 +472,6 @@
 .tab-motors .motorNumber {
     position: absolute;
     font-size: 1.4em;
-    visibility: hidden;
 }
 
 .tab-motors .mixer-preview-image-numbers {

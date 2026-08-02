@@ -15,6 +15,8 @@ import Settings from './settings.js';
 import wizardUiBindings from './wizard_ui_bindings';
 import wizardSaveFramework from './wizard_save_framework';
 import {
+    partitionDefaultPresetSettings,
+    preflightDefaultPresetSettings,
     runDefaultPresetCallbackStep,
     runDefaultPresetTransaction,
     verifyAppliedDefaultsValue,
@@ -70,7 +72,9 @@ var defaultsDialog = (function () {
             .find('.defaults-dialog__error')
             .text(
                 `Preset application stopped: ${error?.message ?? String(error)}. `
-                + 'Some earlier values may already be staged on the controller; reconnect or retry before flying.'
+                + (error?.settingsMayBeStaged === false
+                    ? 'No preset values were written to the controller.'
+                    : 'Some earlier values may already be staged on the controller; reconnect or retry before flying.')
             )
             .show();
         $container.show();
@@ -282,6 +286,26 @@ var defaultsDialog = (function () {
         }
     };
 
+    privateScope.preflightPreset = async function (selectedDefaultPreset) {
+        const result = await preflightDefaultPresetSettings(
+            selectedDefaultPreset.settings,
+            {
+                inspectSetting: (name) => mspHelper.getSetting(name),
+                encodeSetting: (name, value) => mspHelper.encodeSetting(name, value),
+                onProgress: privateScope.setProgress,
+            },
+        );
+        if (result.skipped.length > 0) {
+            GUI.log(
+                `Preset compatibility: skipped optional settings not compiled for this target: ${result.skipped.map((entry) => entry.key).join(', ')}`
+            );
+        }
+        return {
+            ...selectedDefaultPreset,
+            settings: result.settings,
+        };
+    };
+
     privateScope.setSettings = async function (selectedDefaultPreset) {
         if(selectedDefaultPreset.reboot) {
             periodicStatusUpdater.stop();
@@ -292,19 +316,16 @@ var defaultsDialog = (function () {
         if (!Number.isInteger(currentControlProfile)) currentControlProfile = 0;
         if (!Number.isInteger(currentBatteryProfile)) currentBatteryProfile = 0;
 
-        var controlProfileSettings = [];
-        var batterySettings = [];
-        var miscSettings = [];
-
-        selectedDefaultPreset.settings.forEach(input => {
-            if (FC.isControlProfileParameter(input.key)) {
-                controlProfileSettings.push(input);
-            } else if (FC.isBatteryProfileParameter(input.key)) {
-                batterySettings.push(input);
-            } else {
-                miscSettings.push(input);
-            }
-        });
+        const partitionedSettings = partitionDefaultPresetSettings(
+            selectedDefaultPreset.settings,
+            {
+                isControlProfileParameter: (key) => FC.isControlProfileParameter(key),
+                isBatteryProfileParameter: (key) => FC.isBatteryProfileParameter(key),
+            },
+        );
+        const controlProfileSettings = partitionedSettings.control;
+        const batterySettings = partitionedSettings.battery;
+        const miscSettings = partitionedSettings.common;
         
         const steps = [];
 
@@ -319,35 +340,39 @@ var defaultsDialog = (function () {
 
         // Set control and battery parameters on all 3 profiles
         for (let profileIdx = 0; profileIdx < 3; profileIdx++){
-            steps.push({
-                label: `Selecting control profile ${profileIdx + 1}`,
-                run: function (callback) {
-                    MSP.send_message(MSPCodes.MSP_SELECT_SETTING, [profileIdx], false, callback);
-                }
-            });
-            controlProfileSettings.forEach(input => {
+            if (controlProfileSettings.length > 0) {
                 steps.push({
-                    label: `Control profile ${profileIdx + 1}: ${input.key}`,
+                    label: `Selecting control profile ${profileIdx + 1}`,
                     run: function (callback) {
-                        mspHelper.setSetting(input.key, input.value, callback);
+                        MSP.send_message(MSPCodes.MSP_SELECT_SETTING, [profileIdx], false, callback);
                     }
                 });
-            });
+                controlProfileSettings.forEach(input => {
+                    steps.push({
+                        label: `Control profile ${profileIdx + 1}: ${input.key}`,
+                        run: function (callback) {
+                            mspHelper.setSetting(input.key, input.value, callback);
+                        }
+                    });
+                });
+            }
 
-            steps.push({
-                label: `Selecting battery profile ${profileIdx + 1}`,
-                run: function (callback) {
-                    MSP.send_message(MSPCodes.MSP2_INAV_SELECT_BATTERY_PROFILE, [profileIdx], false, callback);
-                }
-            });
-            batterySettings.forEach(input => {
+            if (batterySettings.length > 0) {
                 steps.push({
-                    label: `Battery profile ${profileIdx + 1}: ${input.key}`,
+                    label: `Selecting battery profile ${profileIdx + 1}`,
                     run: function (callback) {
-                        mspHelper.setSetting(input.key, input.value, callback);
+                        MSP.send_message(MSPCodes.MSP2_INAV_SELECT_BATTERY_PROFILE, [profileIdx], false, callback);
                     }
                 });
-            });
+                batterySettings.forEach(input => {
+                    steps.push({
+                        label: `Battery profile ${profileIdx + 1}: ${input.key}`,
+                        run: function (callback) {
+                            mspHelper.setSetting(input.key, input.value, callback);
+                        }
+                    });
+                });
+            }
         }
         
         // Set Mixers
@@ -374,19 +399,23 @@ var defaultsDialog = (function () {
             );
         }
             
-        steps.push({
-            label: 'Restoring the selected control profile',
-            run: function (callback) {
-                MSP.send_message(MSPCodes.MSP_SELECT_SETTING, [currentControlProfile], false, callback);
-            }
-        });
+        if (controlProfileSettings.length > 0) {
+            steps.push({
+                label: 'Restoring the selected control profile',
+                run: function (callback) {
+                    MSP.send_message(MSPCodes.MSP_SELECT_SETTING, [currentControlProfile], false, callback);
+                }
+            });
+        }
             
-        steps.push({
-            label: 'Restoring the selected battery profile',
-            run: function (callback) {
-                MSP.send_message(MSPCodes.MSP2_INAV_SELECT_BATTERY_PROFILE, [currentBatteryProfile], false, callback);
-            }
-        });
+        if (batterySettings.length > 0) {
+            steps.push({
+                label: 'Restoring the selected battery profile',
+                run: function (callback) {
+                    MSP.send_message(MSPCodes.MSP2_INAV_SELECT_BATTERY_PROFILE, [currentBatteryProfile], false, callback);
+                }
+            });
+        }
         await runDefaultPresetTransaction(steps, {
             onProgress: privateScope.setProgress,
         });
@@ -407,13 +436,10 @@ var defaultsDialog = (function () {
         privateScope.activePreset = selectedDefaultPreset;
         if (selectedDefaultPreset && selectedDefaultPreset.settings) {
 
-            if (selectedDefaultPreset.id == 0) {
-                // Close applying preset dialog if keeping current settings.
-                savingDefaultsModal.close();
-            }
             (async () => {
-                await privateScope.setFeaturesBits(selectedDefaultPreset);
-                await privateScope.setSettings(selectedDefaultPreset);
+                const compatiblePreset = await privateScope.preflightPreset(selectedDefaultPreset);
+                await privateScope.setFeaturesBits(compatiblePreset);
+                await privateScope.setSettings(compatiblePreset);
             })().catch(privateScope.fail);
         } else {
             privateScope.fail(new Error('The selected preset has no settings to apply.'));

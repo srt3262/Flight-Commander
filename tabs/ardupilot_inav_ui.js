@@ -1,6 +1,9 @@
 'use strict';
 
-import Map from 'ol/Map.js';
+// Keep the OpenLayers class distinct from JavaScript's native Map. This module
+// uses native Map instances for staged parameters, lookup tables, and sensor
+// history; shadowing Map here makes every mirrored tab fail during initialize.
+import OpenLayersMap from 'ol/Map.js';
 import View from 'ol/View.js';
 import { fromLonLat } from 'ol/proj.js';
 
@@ -1387,7 +1390,7 @@ function renderGps(tab) {
   render();
   tab.stateUnsubscribe = mavlinkSession.on('state', render);
   const position = selectMavlinkMapPosition(mavlinkSession.snapshot());
-  tab.map = new Map({
+  tab.map = new OpenLayersMap({
     target: 'gps-map',
     layers: createBaseMapLayers(MAP_STYLES.HYBRID),
     view: new View({
@@ -2239,8 +2242,22 @@ function createCanonicalArduPilotPage(pageKey) {
   tab.initialize = function (callback) {
     if (GUI.active_tab !== this) GUI.active_tab = this;
     GUI.load(TEMPLATES[this.schema.template], () => {
-      this.staged.clear();
-      prepareCanonicalTemplate(this);
+      try {
+        this.staged.clear();
+        prepareCanonicalTemplate(this);
+      } catch (error) {
+        const message = `Unable to initialize ${this.pageKey.replaceAll('_', ' ')}: ${error.message}`;
+        GUI.log(message);
+        $('<div>')
+          .addClass('fc-action-status fc-action-status--error fc-ap-inav-initialization-error')
+          .attr({ role: 'alert', 'data-fc-ardupilot-page': this.pageKey })
+          .text(message)
+          .appendTo('#content');
+        // Always release the shared tab-switch lock. A renderer defect should
+        // remain isolated to this page rather than making every tab look hung.
+        finishArduPilotTab(callback);
+        return;
+      }
       finishArduPilotTab(callback);
       void this.load(false);
     });

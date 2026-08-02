@@ -14,7 +14,7 @@ import interval from './../js/intervals';
 import ServoMixRule from './../js/servoMixRule';
 import MotorMixRule from './../js/motorMixRule';
 import BitHelper from './../js/bitHelper';
-import { renderMotorNumberLabels } from './../js/motorPreview';
+import { motorPreviewAssetStem, renderMotorNumberLabels } from './../js/motorPreview';
 
 const mixerTab = {};
 
@@ -438,14 +438,27 @@ mixerTab.initialize = function (callback, scrollPosition) {
     }
 
 
-    function labelMotorNumbers() {
+    function isMotorDirectionReversed() {
+        const selectedDirection = $('input[name=motor_direction_inverted]:checked').val();
+        return Number(selectedDirection) === 1
+            && (FC.MIXER_CONFIG.platformType == PLATFORM.MULTIROTOR
+                || FC.MIXER_CONFIG.platformType == PLATFORM.TRICOPTER);
+    }
+
+    function labelMotorNumbers(isReversed = isMotorDirectionReversed()) {
         const rules = currentMixerPreset.id == loadedMixerPresetID
             ? FC.MOTOR_RULES.get()
             : currentMixerPreset.motorMixer;
         const $preview = $('#motor-mixer-preview-img')
             .closest('.mixer-preview-image-numbers');
 
-        renderMotorNumberLabels($preview, currentMixerPreset.image, rules);
+        renderMotorNumberLabels(
+            $preview,
+            currentMixerPreset.image,
+            rules,
+            currentMixerPreset.motorMixer,
+            isReversed,
+        );
     }
 
 
@@ -824,12 +837,12 @@ mixerTab.initialize = function (callback, scrollPosition) {
         };
 
         const updateMotorDirection = function () {
-            let motorDirectionCheckbox = $('input[name=motor_direction_inverted]:checked');
-            const isReversed = motorDirectionCheckbox.val() == 1 && (FC.MIXER_CONFIG.platformType == PLATFORM.MULTIROTOR || FC.MIXER_CONFIG.platformType == PLATFORM.TRICOPTER);
+            const isReversed = isMotorDirectionReversed();
+            const assetStem = motorPreviewAssetStem(currentMixerPreset.image, isReversed);
 
-            import(`./../resources/motor_order/${currentMixerPreset.image}${isReversed ? "_reverse" : ""}.svg`).then(({default: path}) => {
+            import(`./../resources/motor_order/${assetStem}.svg`).then(({default: path}) => {
                 $('#motor-mixer-preview-img').attr('src', path);
-                labelMotorNumbers();
+                labelMotorNumbers(isReversed);
             });
 
             renderServoOutputImage();

@@ -3457,6 +3457,14 @@ var mspHelper = (function () {
                     throw 'Invalid value "' + value + '" for setting ' + name;
                 }
             }
+            if (typeof value == 'number' && Number.isFinite(value)) {
+                if (Number.isFinite(setting.min) && value < setting.min) {
+                    throw 'Value ' + value + ' is below the minimum ' + setting.min + ' for setting ' + name;
+                }
+                if (Number.isFinite(setting.max) && value > setting.max) {
+                    throw 'Value ' + value + ' is above the maximum ' + setting.max + ' for setting ' + name;
+                }
+            }
             var data = [];
             self._encodeSettingReference(name, setting.index, data);
             switch (setting.type) {

@@ -10,7 +10,124 @@ export class DefaultPresetApplicationError extends Error {
     super(`${step}: ${message}`, options);
     this.name = "DefaultPresetApplicationError";
     this.step = step;
+    this.settingsMayBeStaged = options.settingsMayBeStaged ?? true;
   }
+}
+
+export function partitionDefaultPresetSettings(
+  settings,
+  { isControlProfileParameter, isBatteryProfileParameter } = {},
+) {
+  if (
+    typeof isControlProfileParameter !== "function"
+    || typeof isBatteryProfileParameter !== "function"
+  ) {
+    throw new TypeError("Preset partitioning requires both profile classifiers");
+  }
+
+  const control = [];
+  const battery = [];
+  const common = [];
+
+  for (const entry of Array.from(settings ?? [])) {
+    if (isControlProfileParameter(entry.key)) {
+      control.push(entry);
+    } else if (isBatteryProfileParameter(entry.key)) {
+      battery.push(entry);
+    } else {
+      common.push(entry);
+    }
+  }
+
+  return Object.freeze({
+    control: Object.freeze(control),
+    battery: Object.freeze(battery),
+    common: Object.freeze(common),
+  });
+}
+
+export async function preflightDefaultPresetSettings(
+  settings,
+  {
+    inspectSetting,
+    encodeSetting,
+    onProgress = null,
+  } = {},
+) {
+  if (typeof inspectSetting !== "function" || typeof encodeSetting !== "function") {
+    throw new TypeError("Preset preflight requires setting inspection and encoding functions");
+  }
+
+  const entries = Array.from(settings ?? []);
+  const compatibleSettings = [];
+  const skippedSettings = [];
+  const seen = new Set();
+
+  for (let index = 0; index < entries.length; index += 1) {
+    const entry = entries[index];
+    const key = entry?.key;
+    if (typeof key !== "string" || key.trim() === "") {
+      throw new DefaultPresetApplicationError(
+        "Checking preset compatibility",
+        `entry ${index + 1} has no setting name`,
+        { settingsMayBeStaged: false },
+      );
+    }
+    if (seen.has(key)) {
+      throw new DefaultPresetApplicationError(
+        "Checking preset compatibility",
+        `setting ${key} is defined more than once`,
+        { settingsMayBeStaged: false },
+      );
+    }
+    seen.add(key);
+
+    onProgress?.({
+      index,
+      total: entries.length,
+      label: `Checking ${key}`,
+    });
+
+    let discovered;
+    try {
+      discovered = await inspectSetting(key);
+    } catch (error) {
+      throw new DefaultPresetApplicationError(
+        "Checking preset compatibility",
+        `could not inspect ${key}: ${error?.message ?? String(error)}`,
+        { cause: error, settingsMayBeStaged: false },
+      );
+    }
+
+    if (!discovered) {
+      if (entry.optional === true) {
+        skippedSettings.push(entry);
+        continue;
+      }
+      throw new DefaultPresetApplicationError(
+        "Checking preset compatibility",
+        `setting ${key} is not available on the connected INAV target`,
+        { settingsMayBeStaged: false },
+      );
+    }
+
+    try {
+      await encodeSetting(key, entry.value);
+    } catch (error) {
+      throw new DefaultPresetApplicationError(
+        "Checking preset compatibility",
+        `${key} cannot accept ${JSON.stringify(entry.value)}: ${error?.message ?? String(error)}`,
+        { cause: error, settingsMayBeStaged: false },
+      );
+    }
+    compatibleSettings.push(entry);
+  }
+
+  return Object.freeze({
+    checked: entries.length,
+    settings: Object.freeze(compatibleSettings.slice()),
+    skipped: Object.freeze(skippedSettings.slice()),
+  });
 }
 
 export function runDefaultPresetCallbackStep(

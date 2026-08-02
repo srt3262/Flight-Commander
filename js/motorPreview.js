@@ -35,17 +35,108 @@ export function calculateMotorNumberPositions(imageName, rules) {
 }
 
 /**
+ * INAV's normal motor mixer uses negative yaw factors for clockwise motors
+ * and positive yaw factors for counter-clockwise motors. The firmware flips
+ * the yaw multiplier when motor_direction_inverted selects Props-out.
+ */
+export function calculateMotorRotationDirections(imageName, rules, isReversed = false) {
+    if (!NUMBERED_MOTOR_IMAGES.has(imageName) || !rules) {
+        return [];
+    }
+
+    return Object.keys(rules).map((key) => {
+        const yaw = readRuleAxis(rules[key], 'yaw');
+        if (Math.abs(yaw) < 0.1) {
+            return null;
+        }
+        const normalDirection = yaw < 0 ? 'CW' : 'CCW';
+        if (!isReversed) {
+            return normalDirection;
+        }
+        return normalDirection === 'CW' ? 'CCW' : 'CW';
+    });
+}
+
+export function motorPreviewAssetStem(imageName, isReversed = false) {
+    return `${imageName}${isReversed ? '_reverse' : ''}`;
+}
+
+function hasCompleteNumberedLayout(imageName, positions) {
+    if (!NUMBERED_MOTOR_IMAGES.has(imageName) || positions.length < 4) {
+        return false;
+    }
+    const firstFour = positions.slice(0, 4);
+    return new Set(firstFour.map(({ left, top }) => `${left}:${top}`)).size === 4;
+}
+
+/**
+ * Prefer the controller's active rules, but retain useful numbering while a
+ * freshly erased controller has only the selected mixer identity. This state
+ * can also occur after an older preset stops before its mixer-write phase.
+ */
+export function resolveMotorNumberPositions(imageName, rules, presetRules = null) {
+    const activePositions = calculateMotorNumberPositions(imageName, rules);
+    if (hasCompleteNumberedLayout(imageName, activePositions)) {
+        return activePositions.slice(0, 4);
+    }
+
+    const presetPositions = calculateMotorNumberPositions(imageName, presetRules);
+    if (hasCompleteNumberedLayout(imageName, presetPositions)) {
+        return presetPositions.slice(0, 4);
+    }
+    return [];
+}
+
+export function resolveMotorPreviewLayout(
+    imageName,
+    rules,
+    presetRules = null,
+    isReversed = false,
+) {
+    const activePositions = calculateMotorNumberPositions(imageName, rules);
+    const useActiveRules = hasCompleteNumberedLayout(imageName, activePositions);
+    const selectedRules = useActiveRules ? rules : presetRules;
+    const positions = useActiveRules
+        ? activePositions.slice(0, 4)
+        : resolveMotorNumberPositions(imageName, null, presetRules);
+    const rotations = calculateMotorRotationDirections(
+        imageName,
+        selectedRules,
+        isReversed,
+    );
+
+    return positions.map((position, index) => ({
+        ...position,
+        rotation: rotations[index] ?? null,
+    }));
+}
+
+/**
  * Render the fixed motor-number elements inside one preview-image wrapper.
  * The function does not depend on image dimensions or the SVG load event.
  */
-export function renderMotorNumberLabels($preview, imageName, rules) {
-    const positions = calculateMotorNumberPositions(imageName, rules);
+export function renderMotorNumberLabels(
+    $preview,
+    imageName,
+    rules,
+    presetRules = null,
+    isReversed = false,
+) {
+    const layout = resolveMotorPreviewLayout(
+        imageName,
+        rules,
+        presetRules,
+        isReversed,
+    );
     const $labels = $preview.find('.motorNumber');
+    const propConfiguration = isReversed ? 'Props-out' : 'Props-in';
 
     $preview.attr('data-motor-number-layout', 'percentage');
+    $preview.attr('data-motor-number-fallback', 'selected-preset');
+    $preview.attr('data-motor-prop-configuration', propConfiguration.toLowerCase());
     $labels.addClass('is-hidden').css('visibility', 'hidden');
 
-    positions.forEach((position, index) => {
+    layout.forEach((position, index) => {
         const $label = $labels.eq(index);
         if ($label.length === 0) {
             return;
@@ -53,6 +144,12 @@ export function renderMotorNumberLabels($preview, imageName, rules) {
 
         $label
             .text(index + 1)
+            .attr({
+                title: position.rotation
+                    ? `Motor ${index + 1} · ${position.rotation} · ${propConfiguration}`
+                    : `Motor ${index + 1}`,
+                'data-motor-rotation': position.rotation ?? 'unknown',
+            })
             .css({
                 left: `${position.left}%`,
                 top: `${position.top}%`,

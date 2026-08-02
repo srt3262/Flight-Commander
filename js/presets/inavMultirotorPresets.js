@@ -104,7 +104,7 @@ export function deriveInavEzTunePids(profile) {
   return Object.freeze({ roll, pitch, yaw });
 }
 
-const setting = (key, value) => Object.freeze({ key, value });
+const setting = (key, value, options = {}) => Object.freeze({ key, value, ...options });
 
 function pidTuple(pid) {
   return `${pid.p}/${pid.i}/${pid.d}/${pid.ff}`;
@@ -127,7 +127,6 @@ export function createLargeMultirotorPreset(profile) {
     tuning: Object.freeze({ ...profile, pids }),
     settings: Object.freeze([
       setting("model_preview_type", 3),
-      setting("gyro_hardware_lpf", "256HZ"),
       setting("motor_pwm_protocol", "DSHOT300"),
       setting("ez_enabled", "ON"),
       setting("ez_filter_hz", profile.filterHz),
@@ -142,10 +141,10 @@ export function createLargeMultirotorPreset(profile) {
       setting("airmode_type", "THROTTLE_THRESHOLD"),
       setting("airmode_throttle_threshold", 1150),
       setting("mc_iterm_relax", "RPY"),
-      setting("d_boost_min", 1.0),
-      setting("d_boost_max", 1.0),
-      setting("antigravity_gain", 2),
-      setting("antigravity_accelerator", 5),
+      setting("d_boost_min", 1.0, { optional: true }),
+      setting("d_boost_max", 1.0, { optional: true }),
+      setting("antigravity_gain", 2, { optional: true }),
+      setting("antigravity_accelerator", 5, { optional: true }),
       setting("tpa_rate", 20),
       setting("tpa_breakpoint", 1200),
       setting("platform_type", "MULTIROTOR"),

@@ -5,6 +5,9 @@ import { INAV_LARGE_MULTIROTOR_PRESETS } from './presets/inavMultirotorPresets.j
 var defaultsDialogData = [
     {
         "title": 'Mini Quad with 3" propellers',
+        "description": 'INAV 9.1 prop-size baseline · 90 Hz filters · compact 3-inch Quad X',
+        "propInches": 3,
+        "presetFamily": "flight-commander-multirotor",
         "id": 6,
         "notRecommended": false,
         "reboot": true,
@@ -14,13 +17,6 @@ var defaultsDialogData = [
             {
                 key: "model_preview_type",
                 value: 3
-            },
-            /*
-            System
-            */
-            {
-                key: "gyro_hardware_lpf",
-                value: "256HZ"
             },
             {
                 key: "motor_pwm_protocol",
@@ -65,6 +61,10 @@ var defaultsDialogData = [
                 key: "ez_expo",
                 value: 118
             },
+            {
+                key: "ez_snappiness",
+                value: 0
+            },
             /*
             Mechanics
             */
@@ -82,19 +82,23 @@ var defaultsDialogData = [
             },
             {
                 key: "d_boost_min",
-                value: 1.0
+                value: 1.0,
+                optional: true
             },
             {
                 key: "d_boost_max",
-                value: 1.0
+                value: 1.0,
+                optional: true
             },
             {
                 key: "antigravity_gain",
-                value: 2
+                value: 2,
+                optional: true
             },
             {
                 key: "antigravity_accelerator",
-                value: 5
+                value: 5,
+                optional: true
             },
             /*
                 * TPA
@@ -123,6 +127,9 @@ var defaultsDialogData = [
     },
     {
         "title": 'Mini Quad with 5" propellers',
+        "description": 'INAV 9.1 prop-size baseline · 110 Hz filters · responsive 5-inch Quad X',
+        "propInches": 5,
+        "presetFamily": "flight-commander-multirotor",
         "id": 2,
         "notRecommended": false,
         "reboot": true,
@@ -132,13 +139,6 @@ var defaultsDialogData = [
             {
                 key: "model_preview_type",
                 value: 3
-            },
-            /*
-            System
-            */
-            {
-                key: "gyro_hardware_lpf",
-                value: "256HZ"
             },
             {
                 key: "motor_pwm_protocol",
@@ -183,20 +183,9 @@ var defaultsDialogData = [
                 key: "ez_expo",
                 value: 118
             },
-            /*
-            Dynamic gyro LPF
-            */
             {
-                key: "gyro_dyn_lpf_min_hz",
-                value: 85
-            },
-            {
-                key: "gyro_dyn_lpf_max_hz",
-                value: 300
-            },
-            {
-                key: "gyro_dyn_lpf_curve_expo",
-                value: 3
+                key: "ez_snappiness",
+                value: 0
             },
             /*
             Mechanics
@@ -215,19 +204,23 @@ var defaultsDialogData = [
             },
             {
                 key: "d_boost_min",
-                value: 1.0
+                value: 1.0,
+                optional: true
             },
             {
                 key: "d_boost_max",
-                value: 1.0
+                value: 1.0,
+                optional: true
             },
             {
                 key: "antigravity_gain",
-                value: 2
+                value: 2,
+                optional: true
             },
             {
                 key: "antigravity_accelerator",
-                value: 5
+                value: 5,
+                optional: true
             },
             /*
              * TPA
@@ -256,6 +249,9 @@ var defaultsDialogData = [
     },
     {
         "title": 'Mini Quad with 7" propellers',
+        "description": 'INAV 9.1 prop-size baseline · 90 Hz filters · long-range 7-inch Quad X',
+        "propInches": 7,
+        "presetFamily": "flight-commander-multirotor",
         "id": 5,
         "notRecommended": false,
         "reboot": true,
@@ -265,13 +261,6 @@ var defaultsDialogData = [
             {
                 key: "model_preview_type",
                 value: 3
-            },
-            /*
-            System
-            */
-            {
-                key: "gyro_hardware_lpf",
-                value: "256HZ"
             },
             {
                 key: "motor_pwm_protocol",
@@ -316,6 +305,10 @@ var defaultsDialogData = [
                 key: "ez_expo",
                 value: 118
             },
+            {
+                key: "ez_snappiness",
+                value: 20
+            },
             /*
             Mechanics
             */
@@ -333,19 +326,23 @@ var defaultsDialogData = [
             },
             {
                 key: "d_boost_min",
-                value: 0.8
+                value: 0.8,
+                optional: true
             },
             {
                 key: "d_boost_max",
-                value: 1.2
+                value: 1.2,
+                optional: true
             },
             {
                 key: "antigravity_gain",
-                value: 2
+                value: 2,
+                optional: true
             },
             {
                 key: "antigravity_accelerator",
-                value: 5
+                value: 5,
+                optional: true
             },
             /*
              * TPA
@@ -375,6 +372,8 @@ var defaultsDialogData = [
     ...INAV_LARGE_MULTIROTOR_PRESETS,
     {
         "title": 'Airplane with a Tail',
+        "description": 'Conservative INAV 9.1 conventional-tail starting point with moderate bank, launch, and navigation response',
+        "presetFamily": "flight-commander-fixed-wing",
         "notRecommended": false,
         "id": 3,
         "reboot": true,
@@ -398,10 +397,6 @@ var defaultsDialogData = [
                 value: 1000
             },
             {
-                key: "gyro_hardware_lpf",
-                value: "256HZ"
-            },
-            {
                 key: "gyro_main_lpf_hz",
                 value: 25
             },
@@ -411,23 +406,28 @@ var defaultsDialogData = [
             },
             {
                 key: "d_boost_min",
-                value: 1
+                value: 1,
+                optional: true
             },
             {
                 key: "d_boost_max",
-                value: 1
+                value: 1,
+                optional: true
             },
             {
                 key: "dynamic_gyro_notch_enabled",
-                value: "ON"
+                value: "ON",
+                optional: true
             },
             {
                 key: "dynamic_gyro_notch_q",
-                value: 250
+                value: 250,
+                optional: true
             },
             {
                 key: "dynamic_gyro_notch_min_hz",
-                value: 30
+                value: 30,
+                optional: true
             },
             {
                 key: "motor_pwm_protocol",
@@ -538,7 +538,7 @@ var defaultsDialogData = [
                 value: 2
             },
             {
-                key: "nav_fw_pos_z_FF",
+                key: "nav_fw_pos_z_ff",
                 value: 25
             },
             {
@@ -596,6 +596,8 @@ var defaultsDialogData = [
     },
     {
         "title": 'Airplane without a Tail (Wing, Delta, etc)',
+        "description": 'Conservative INAV 9.1 flying-wing/delta starting point with the correct elevon mixer and wider launch-angle allowance',
+        "presetFamily": "flight-commander-fixed-wing",
         "notRecommended": false,
         "id": 4,
         "reboot": true,
@@ -619,10 +621,6 @@ var defaultsDialogData = [
                 value: 1000
             },
             {
-                key: "gyro_hardware_lpf",
-                value: "256HZ"
-            },
-            {
                 key: "gyro_main_lpf_hz",
                 value: 25
             },
@@ -632,23 +630,28 @@ var defaultsDialogData = [
             },
             {
                 key: "d_boost_min",
-                value: 1
+                value: 1,
+                optional: true
             },
             {
                 key: "d_boost_max",
-                value: 1
+                value: 1,
+                optional: true
             },
             {
                 key: "dynamic_gyro_notch_enabled",
-                value: "ON"
+                value: "ON",
+                optional: true
             },
             {
                 key: "dynamic_gyro_notch_q",
-                value: 250
+                value: 250,
+                optional: true
             },
             {
                 key: "dynamic_gyro_notch_min_hz",
-                value: 30
+                value: 30,
+                optional: true
             },
             {
                 key: "motor_pwm_protocol",
@@ -759,7 +762,7 @@ var defaultsDialogData = [
                 value: 5
             },
             {
-                key: "nav_fw_pos_z_FF",
+                key: "nav_fw_pos_z_ff",
                 value: 25
             },
             {
@@ -816,7 +819,9 @@ var defaultsDialogData = [
         ],
     },
     {
-        "title": 'Rovers & Boats',
+        "title": 'Rover',
+        "description": 'INAV 9.1 ground-rover starting point with the Rover steering mixer and low-speed heading response',
+        "presetFamily": "flight-commander-surface-vehicle",
         "id": 1,
         "notRecommended": false,
         "reboot": true,
@@ -830,10 +835,6 @@ var defaultsDialogData = [
             {
                 key: "looptime",
                 value: 1000
-            },
-            {
-                key: "gyro_hardware_lpf",
-                value: "256HZ"
             },
             {
                 key: "gyro_main_lpf_hz",
@@ -868,8 +869,68 @@ var defaultsDialogData = [
                 value: 5
             },
             {
-                key: "pidsum_limit_yaw",
+                key: "nav_fw_pos_hdg_p",
+                value: 60
+            },
+            {
+                key: "nav_fw_pos_hdg_i",
+                value: 2
+            },
+            {
+                key: "nav_fw_pos_hdg_d",
+                value: 0
+            }
+        ]
+    },
+    {
+        "title": 'Boat',
+        "description": 'INAV 9.1 surface-boat starting point with the Boat platform and rudder steering mixer',
+        "presetFamily": "flight-commander-surface-vehicle",
+        "id": 7,
+        "notRecommended": false,
+        "reboot": true,
+        "mixerToApply": 32,
+        "wizardPages": ['receiver', 'gps'],
+        "settings": [
+            {
+                key: "model_preview_type",
+                value: 32
+            },
+            {
+                key: "looptime",
+                value: 1000
+            },
+            {
+                key: "gyro_main_lpf_hz",
+                value: 10
+            },
+            {
+                key: "motor_pwm_protocol",
+                value: "STANDARD"
+            },
+            {
+                key: "applied_defaults",
+                value: 1
+            },
+            {
+                key: "failsafe_procedure",
+                value: "DROP"
+            },
+            {
+                key: "platform_type",
+                value: "BOAT"
+            },
+            {
+                key: "nav_wp_max_safe_distance",
                 value: 500
+            },
+            {
+                key: "nav_fw_loiter_radius",
+                value: 100
+            },
+            {
+                key: "nav_fw_yaw_deadband",
+                value: 5
             },
             {
                 key: "nav_fw_pos_hdg_p",
@@ -887,7 +948,9 @@ var defaultsDialogData = [
     },
     {
         "title": 'Keep current settings (Not recommended)',
+        "description": 'Keep every current value and save only the first-run acknowledgement',
         "id": 0,
+        "preserveCurrentSettings": true,
         "notRecommended": true,
         "reboot": false,
         "settings": [

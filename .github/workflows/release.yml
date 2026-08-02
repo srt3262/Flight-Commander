@@ -26,7 +26,7 @@ jobs:
         github.event_name == 'workflow_dispatch' ||
         (
           github.event_name == 'push' &&
-          github.event.head_commit.message == 'Publish Flight Commander 1.9.0 release'
+          github.event.head_commit.message == 'Publish Flight Commander 1.9.1 release'
         )
       )
     runs-on: windows-latest
@@ -401,10 +401,20 @@ jobs:
           and otherwise opens at the safe overview instead of zooming into map
           tiles with no imagery.
 
-          The dark-only interface, bounded first-connection presets, readable
-          profile fields, motor-number overlays, guarded Save & Reboot,
-          large-prop INAV presets, and ArduPilot-to-INAV ROM-DFU handoff remain
-          intact.
+          INAV first-run preset application now checks every required setting
+          and value before writing, omits firmware-retired settings, and offers
+          coherent Quad X starting points for 3 through 17-inch propellers plus
+          distinct airplane, flying-wing, rover, and boat frames. Keep current
+          settings saves only the dismissal acknowledgement and does not cycle
+          through control or battery profiles.
+
+          Mixer and Outputs now retain visible INAV M1-M4 numbering when live
+          mixer rules are temporarily empty. Quad X and Quad Plus use the exact
+          INAV motor order, and switching between Props-in and Props-out reverses
+          every CW/CCW arrow without moving or renumbering a motor.
+
+          The dark-only interface, readable profile fields, guarded Save &
+          Reboot, and ArduPilot-to-INAV ROM-DFU handoff remain intact.
 
           The archive also passed the complete repository source tests,
           packaged-application verification, clean ZIP extraction, and

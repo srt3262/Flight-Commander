@@ -13,7 +13,7 @@ import features from './../js/feature_framework';
 import { mixer, PLATFORM } from './../js/model';
 import timeout from './../js/timeouts';
 import interval from './../js/intervals';
-import { renderMotorNumberLabels } from './../js/motorPreview';
+import { motorPreviewAssetStem, renderMotorNumberLabels } from './../js/motorPreview';
 
 const outputsTab = {
     allowTestMode: false,
@@ -249,13 +249,14 @@ outputsTab.initialize = function (callback) {
     function update_model(val) {
         if (FC.MIXER_CONFIG.appliedMixerPreset == -1) return;
 
-        const isMotorInverted = self.motorDirectionInverted;
+        const isMotorInverted = Number(self.motorDirectionInverted) === 1;
         const isReversed = isMotorInverted && (FC.MIXER_CONFIG.platformType == PLATFORM.MULTIROTOR || FC.MIXER_CONFIG.platformType == PLATFORM.TRICOPTER);
 
         const mixerPreset = mixer.getById(val);
-        import(`./../resources/motor_order/${mixerPreset.image}${isReversed ? "_reverse" : ""}.svg`).then(({default: path}) => {
+        const assetStem = motorPreviewAssetStem(mixerPreset.image, isReversed);
+        import(`./../resources/motor_order/${assetStem}.svg`).then(({default: path}) => {
             $('#motor-mixer-preview-img').attr('src', path);
-            labelMotorNumbers(mixerPreset);
+            labelMotorNumbers(mixerPreset, isReversed);
         });
     }
 
@@ -718,10 +719,21 @@ outputsTab.initialize = function (callback) {
         GUI.content_ready(callback);
     }
 
-   function labelMotorNumbers(mixerPreset = mixer.getById(FC.MIXER_CONFIG.appliedMixerPreset)) {
+   function labelMotorNumbers(
+       mixerPreset = mixer.getById(FC.MIXER_CONFIG.appliedMixerPreset),
+       isReversed = Number(self.motorDirectionInverted) === 1
+           && (FC.MIXER_CONFIG.platformType == PLATFORM.MULTIROTOR
+               || FC.MIXER_CONFIG.platformType == PLATFORM.TRICOPTER),
+   ) {
         const $preview = $('#motor-mixer-preview-img')
             .closest('.mixer-preview-image-numbers');
-        renderMotorNumberLabels($preview, mixerPreset?.image, FC.MOTOR_RULES.get());
+        renderMotorNumberLabels(
+            $preview,
+            mixerPreset?.image,
+            FC.MOTOR_RULES.get(),
+            mixerPreset?.motorMixer,
+            isReversed,
+        );
     }
 
 

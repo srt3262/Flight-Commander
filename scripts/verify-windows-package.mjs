@@ -623,6 +623,48 @@ const rendererText = [
   rendererEntryHtml,
   ...rendererFiles.map((path) => readFileSync(path, "utf8")),
 ].join("\n");
+
+for (const contract of [
+  {
+    stem: "quad_x",
+    configuration: "in",
+    rotations: "1:CW;2:CCW;3:CCW;4:CW",
+  },
+  {
+    stem: "quad_x_reverse",
+    configuration: "out",
+    rotations: "1:CCW;2:CW;3:CW;4:CCW",
+  },
+  {
+    stem: "quad_p",
+    configuration: "in",
+    rotations: "1:CW;2:CCW;3:CCW;4:CW",
+  },
+  {
+    stem: "quad_p_reverse",
+    configuration: "out",
+    rotations: "1:CCW;2:CW;3:CW;4:CCW",
+  },
+]) {
+  const chunkPattern = new RegExp(`^${contract.stem}-[A-Za-z0-9_-]+\\.js$`);
+  const chunk = rendererFiles.find((path) => chunkPattern.test(basename(path)));
+  if (!chunk) {
+    fail(`the active renderer is missing the ${contract.stem} motor-diagram module`);
+  }
+  const declaration = readFileSync(chunk, "utf8");
+  const encodedSvg = /data:image\/svg\+xml;base64,([A-Za-z0-9+/=]+)/.exec(declaration)?.[1];
+  if (!encodedSvg) {
+    fail(`${contract.stem} does not export an inline SVG diagram`);
+  }
+  const svg = Buffer.from(encodedSvg, "base64").toString("utf8");
+  if (!svg.includes(`data-props-configuration="${contract.configuration}"`)) {
+    fail(`${contract.stem} has the wrong Props-in/Props-out diagram identity`);
+  }
+  if (!svg.includes(`data-motor-rotations="${contract.rotations}"`)) {
+    fail(`${contract.stem} has the wrong INAV motor rotation order`);
+  }
+}
+
 for (const marker of [
   "flightDataMap",
   "flightDataHud",
@@ -698,12 +740,23 @@ for (const marker of [
   "MAVLink host timer",
   "supported controls unlock after identification and safety checks",
   "data-motor-number-layout",
+  "data-motor-prop-configuration",
+  "selected-preset",
+  "Keep every current value and save only the first-run acknowledgement",
+  "Preset compatibility: skipped optional settings",
+  "No preset values were written to the controller",
   "batteryProfileHighlightActive",
   "controlProfileHighlightActive",
   "ARDUPILOT_FLIGHT_COMMANDER_PARITY",
   "data-fc-parity-intents",
   "data-fc-parity-intent",
   "Every function from Flight Commander's own INAV-side tab remains represented here",
+  "import OpenLayersMap from 'ol/Map.js';",
+  "tab.map = new OpenLayersMap({",
+  "staged: new Map()",
+  "tab.sensorHistory = new Map()",
+  "fc-ap-inav-initialization-error",
+  "Unable to initialize ",
   "selectMavlinkMapPosition",
   "mavlinkFtpClient",
   "mavlinkLogManager",

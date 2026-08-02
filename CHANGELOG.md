@@ -1,5 +1,33 @@
 # Changelog
 
+## 1.9.1
+
+- Repaired INAV 9.1 first-run presets. Removed settings retired by the
+  firmware, corrected canonical setting names, split Rover and Boat into their
+  proper platform/mixer combinations, and added compatibility preflight so an
+  unavailable or out-of-range required value stops before any controller
+  write. The 3, 5, 7, 10, 12, 15, and 17-inch Quad X presets now carry
+  complete prop-size EZ Tune starting profiles with progressively conservative
+  large-prop filtering and response.
+- Made **Keep current settings** a true preservation path: it writes only the
+  first-run acknowledgement, saves it, and never selects or rewrites control
+  or battery profiles.
+- Restored visible M1-M4 labels in Mixer and Outputs even when a previous
+  failed preset left the live motor-rule collection empty. Quad X and Quad
+  Plus labels use INAV's mixer order, stay fixed when direction changes, and
+  pair with verified Props-in/Props-out SVGs whose CW/CCW assignments invert
+  exactly with `motor_direction_inverted`.
+- Fixed every mirrored ArduPilot tab remaining on `Waiting for data ...` after
+  selecting it. The OpenLayers map renderer no longer shadows JavaScript's
+  native `Map`, so staged parameters, controller lookup tables, sensor
+  histories, and tab initialization use the correct state container.
+- Added initialization recovery that releases the shared tab-switch lock and
+  displays the page error if a renderer fails, preventing one tab defect from
+  making the rest of Flight Commander appear frozen.
+- Added source regression gates for the distinct OpenLayers map class and
+  native state maps, plus source and packaged-renderer checks for tab
+  initialization recovery.
+
 ## 1.9.0
 
 - Replaced the separate ArduPilot settings experience with Flight Commander's

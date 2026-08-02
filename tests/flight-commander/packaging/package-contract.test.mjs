@@ -184,6 +184,12 @@ test("Windows verification follows the active renderer graph and rejects leftove
   assert.match(packageVerifier, /#31523b/);
   assert.match(packageVerifier, /#172a20/);
   assert.match(packageVerifier, /data-motor-number-layout/);
+  assert.match(packageVerifier, /data-motor-prop-configuration/);
+  assert.match(packageVerifier, /quad_x_reverse/);
+  assert.match(packageVerifier, /quad_p_reverse/);
+  assert.match(packageVerifier, /data-motor-rotations/);
+  assert.match(packageVerifier, /wrong INAV motor rotation order/);
+  assert.match(packageVerifier, /Keep every current value and save only the first-run acknowledgement/);
   assert.match(packageVerifier, /batteryProfileHighlightActive/);
   assert.match(packageVerifier, /controlProfileHighlightActive/);
   for (const selector of [
@@ -243,7 +249,7 @@ test("all requested large-prop INAV presets are wired into the release source", 
 });
 
 test("landing page reports the current Flight Commander release", () => {
-  assert.equal(packageManifest.version, "1.9.0");
+  assert.equal(packageManifest.version, "1.9.1");
   assert.equal(manifest.version, packageManifest.version);
   assert.match(
     landingHtml,
