@@ -163,6 +163,59 @@ describe("decoded frame normalization", () => {
       /does not identify its message type/,
     );
   });
+
+  test("normalizes sensor, output, log and FTP message names", () => {
+    assert.equal(canonicalMessageName("SCALED_IMU"), "ScaledImu");
+    assert.equal(canonicalMessageName("SCALED_PRESSURE2"), "ScaledPressure2");
+    assert.equal(canonicalMessageName("SERVO_OUTPUT_RAW"), "ServoOutputRaw");
+    assert.equal(canonicalMessageName("LOG_ENTRY"), "LogEntry");
+    assert.equal(canonicalMessageName("FILE_TRANSFER_PROTOCOL"), "FileTransferProtocol");
+  });
+});
+
+test("captures equivalent MAVLink sensor streams and servo outputs", () => {
+  const { session } = createAttachedSession();
+  session.handleMessage(heartbeat());
+  session.handleMessage({
+    messageName: "SCALED_IMU",
+    header: { sysid: 1, compid: 1 },
+    data: {
+      xacc: 1000,
+      yacc: -500,
+      zacc: 250,
+      xgyro: 2000,
+      ygyro: -1000,
+      zgyro: 500,
+      xmag: 12,
+      ymag: 13,
+      zmag: 14,
+      temperature: 2350,
+    },
+  });
+  session.handleMessage({
+    messageName: "SCALED_PRESSURE",
+    header: { sysid: 1, compid: 1 },
+    data: { press_abs: 1013.25, temperature: 2400 },
+  });
+  session.handleMessage({
+    messageName: "DISTANCE_SENSOR",
+    header: { sysid: 1, compid: 1 },
+    data: { current_distance: 321 },
+  });
+  session.handleMessage({
+    messageName: "SERVO_OUTPUT_RAW",
+    header: { sysid: 1, compid: 1 },
+    data: { servo1_raw: 1100, servo2_raw: 1500, servo3_raw: 1900 },
+  });
+
+  const state = session.snapshot();
+  assert.deepEqual(state.rawSensors.accel, [1, -0.5, 0.25]);
+  assert.deepEqual(state.rawSensors.gyro, [2, -1, 0.5]);
+  assert.deepEqual(state.rawSensors.mag, [12, 13, 14]);
+  assert.equal(state.rawSensors.pressure, 1013.25);
+  assert.equal(state.rawSensors.distance, 3.21);
+  assert.equal(state.rawSensors.temperatures[0], 24);
+  assert.deepEqual(state.servoOutputs, [1100, 1500, 1900]);
 });
 
 test("binds default host timers to the Electron renderer receiver", () => {

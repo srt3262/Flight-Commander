@@ -26,7 +26,7 @@ jobs:
         github.event_name == 'workflow_dispatch' ||
         (
           github.event_name == 'push' &&
-          github.event.head_commit.message == 'Publish Flight Commander 1.8.1 release'
+          github.event.head_commit.message == 'Publish Flight Commander 1.9.0 release'
         )
       )
     runs-on: windows-latest
@@ -382,22 +382,29 @@ jobs:
 
           $notesPath = Join-Path $env:RUNNER_TEMP 'flight-commander-release-notes.md'
           @"
-          Flight Commander $version fixes the remaining dark-theme profile
-          fields. Battery-profile and control-profile settings no longer inherit
-          INAV's pale inline highlight colors; each now uses a distinct dark,
-          high-contrast foreground, background, and border. This covers Motors
-          IDLE power, Throttle scale, and every other setting discovered as a
-          profile parameter across the configurator.
+          Flight Commander $version makes the ArduPilot front end mirror Flight
+          Commander's own INAV experience. The same tab families, sections,
+          labels, controls, and workflows remain visible while a metadata-driven
+          adapter translates all 450 cataloged functions into direct parameter
+          writes, coordinated multi-parameter behavior, equivalent ArduPilot
+          behavior, or MAVLink-backed commands. Equivalent functions explain
+          their ArduPilot semantics in place instead of disappearing.
 
-          Mixer and Outputs now share one image-bound motor-number renderer.
-          Quad X and Quad Plus labels 1-4 use percentage positions inside the
-          SVG preview, so they remain visible at both tab sizes and no longer
-          depend on cached-image load timing or stale pixel measurements.
+          Calibration, live sensors, motor setup/testing, onboard and tethered
+          logging, Lua script transfer, the parameter console, and Search now
+          have working ArduPilot translations. All Parameters remains the
+          advanced native fallback rather than a substitute for mirrored
+          everyday configuration.
 
-          The v1.8.0 dark-only interface, bounded first-connection presets,
-          INAV-style ArduPilot setup, native parameter fallback, guarded Save &
-          Reboot, large-prop INAV presets, and ArduPilot-to-INAV ROM-DFU handoff
-          remain intact.
+          Flight Planner now rejects ArduPilot's invalid pre-GPS latitude and
+          longitude sentinel at 0,0, prefers a valid vehicle or home position,
+          and otherwise opens at the safe overview instead of zooming into map
+          tiles with no imagery.
+
+          The dark-only interface, bounded first-connection presets, readable
+          profile fields, motor-number overlays, guarded Save & Reboot,
+          large-prop INAV presets, and ArduPilot-to-INAV ROM-DFU handoff remain
+          intact.
 
           The archive also passed the complete repository source tests,
           packaged-application verification, clean ZIP extraction, and

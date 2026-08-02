@@ -148,10 +148,23 @@ test("Windows verification follows the active renderer graph and rejects leftove
   assert.match(packageVerifier, /flight-commander-theme-change/);
   assert.match(packageVerifier, /dark-only/);
   assert.match(packageVerifier, /Use imperial ArduPilot setup units/);
-  assert.match(packageVerifier, /Use imperial ArduPilot status units/);
   assert.match(packageVerifier, /controller-native/);
-  assert.match(packageVerifier, /tab_ardupilot_status/);
+  assert.match(packageVerifier, /tab_ardupilot_setup/);
+  assert.match(packageVerifier, /tab_ardupilot_configuration/);
+  assert.match(packageVerifier, /tab_ardupilot_ports/);
+  assert.match(packageVerifier, /tab_ardupilot_outputs/);
+  assert.match(packageVerifier, /tab_ardupilot_receiver/);
+  assert.match(packageVerifier, /tab_ardupilot_modes/);
   assert.match(packageVerifier, /tab_ardupilot_pid_tuning/);
+  assert.match(packageVerifier, /tab_ardupilot_advanced_tuning/);
+  assert.match(packageVerifier, /tab_ardupilot_gps_navigation/);
+  assert.match(packageVerifier, /tab_ardupilot_sensors/);
+  assert.match(packageVerifier, /tab_ardupilot_osd/);
+  assert.match(packageVerifier, /tab_ardupilot_logging/);
+  assert.match(packageVerifier, /tab_ardupilot_programming/);
+  assert.match(packageVerifier, /tab_ardupilot_javascript_programming/);
+  assert.match(packageVerifier, /tab_ardupilot_cli/);
+  assert.match(packageVerifier, /tab_ardupilot_search/);
   assert.match(packageVerifier, /INAV-style preflight overview/);
   assert.match(packageVerifier, /Detect moved channel/);
   assert.match(packageVerifier, /Start endpoint capture/);
@@ -230,7 +243,7 @@ test("all requested large-prop INAV presets are wired into the release source", 
 });
 
 test("landing page reports the current Flight Commander release", () => {
-  assert.equal(packageManifest.version, "1.8.1");
+  assert.equal(packageManifest.version, "1.9.0");
   assert.equal(manifest.version, packageManifest.version);
   assert.match(
     landingHtml,

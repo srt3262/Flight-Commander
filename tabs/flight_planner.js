@@ -29,6 +29,7 @@ import {
   normalizeMapStyle,
   setBaseMapStyle,
 } from './../js/maps/baseMapLayers';
+import { selectMavlinkMapPosition } from './../js/maps/mapPosition';
 import {
   DEFAULT_ELEVATION_SOURCE,
   GisPointElevationProvider,
@@ -602,10 +603,7 @@ flightPlanner.updateMapAttribution = function () {
 
 flightPlanner.vehiclePosition = function () {
   if (CONFIGURATOR.connectionProtocol === 'mavlink') {
-    const { latitude, longitude } = mavlinkSession.state;
-    return Number.isFinite(latitude) && Number.isFinite(longitude)
-      ? { latitude, longitude }
-      : null;
+    return selectMavlinkMapPosition(mavlinkSession.state);
   }
   if (CONFIGURATOR.connectionProtocol === 'ltm') {
     const telemetry = ltmDecoder.get();

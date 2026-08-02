@@ -37,31 +37,38 @@ test("ArduPilot navigation exposes the complete INAV-style setup tree", () => {
   const index = source("index.html");
   const configurator = source("js/configurator_main.js");
   const allowedTabs = source("js/gui.js");
-  const setup = source("tabs/ardupilot_setup.html");
   const expectedTabs = [
     "ardupilot_setup",
-    "ardupilot_status",
+    "ardupilot_calibration",
+    "ardupilot_magnetometer",
     "ardupilot_ports",
     "ardupilot_configuration",
+    "ardupilot_mixer",
     "ardupilot_receiver",
     "ardupilot_modes",
     "ardupilot_outputs",
     "ardupilot_failsafe",
     "ardupilot_pid_tuning",
+    "ardupilot_advanced_tuning",
+    "ardupilot_adjustments",
     "ardupilot_sensors",
     "ardupilot_gps_navigation",
-    "ardupilot_power",
     "ardupilot_osd",
+    "ardupilot_led_strip",
     "ardupilot_logging",
+    "ardupilot_tethered_logging",
+    "ardupilot_programming",
+    "ardupilot_javascript_programming",
+    "ardupilot_cli",
+    "ardupilot_search",
   ];
   for (const tab of expectedTabs) {
     assert.match(index, new RegExp(`tab_${tab}`));
     assert.match(configurator, new RegExp(`['\"]${tab}['\"]`));
     assert.match(allowedTabs, new RegExp(`['\"]${tab}['\"]`));
-    if (tab !== "ardupilot_setup") {
-      assert.match(setup, new RegExp(`data-open-ardupilot-tab=["']${tab}["']`));
-    }
   }
+  assert.match(index, /tab_mavlink_parameters/);
+  assert.match(source("tabs/ardupilot_inav_ui.js"), /createCanonicalArduPilotPage/);
 });
 
 test("custom ArduPilot pages provide explanations and guarded Save & reboot", () => {

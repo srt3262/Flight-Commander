@@ -5,6 +5,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { calculateMotorNumberPositions } from "../../../js/motorPreview.js";
+import { ARDUPILOT_QUAD_MOTOR_RULES } from "../../../js/ardupilot/motorLayout.js";
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const source = (path) => readFileSync(resolve(projectRoot, path), "utf8");
@@ -65,4 +66,25 @@ test("Mixer and Outputs both use the image-bound motor-number overlay", () => {
   const theme = source("src/css/theme.css");
   assert.match(theme, /\.mixer-preview-image-numbers \.motorNumber\s*\{[^}]*z-index:\s*3;[^}]*color:\s*#ffffff\s*!important;/s);
   assert.match(theme, /transform:\s*translate\(-50%,\s*-50%\)/);
+});
+
+test("ArduPilot Quad X and Plus use their native motor order in the mirrored previews", () => {
+  assert.deepEqual(
+    calculateMotorNumberPositions("quad_x", ARDUPILOT_QUAD_MOTOR_RULES.quad_x),
+    [
+      { left: 80, top: 20 },
+      { left: 20, top: 80 },
+      { left: 20, top: 20 },
+      { left: 80, top: 80 },
+    ],
+  );
+  assert.deepEqual(
+    calculateMotorNumberPositions("quad_p", ARDUPILOT_QUAD_MOTOR_RULES.quad_p),
+    [
+      { left: 80, top: 50 },
+      { left: 20, top: 50 },
+      { left: 50, top: 20 },
+      { left: 50, top: 80 },
+    ],
+  );
 });

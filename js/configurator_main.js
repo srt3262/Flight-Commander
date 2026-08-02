@@ -58,22 +58,31 @@ import searchTab from './../tabs/search';
 import flightDataTab from './../tabs/flight_data';
 import flightPlannerTab from './../tabs/flight_planner';
 import mavlinkParametersTab from './../tabs/mavlink_parameters';
-import ardupilotSetupTab from './../tabs/ardupilot_setup';
-import ardupilotStatusTab from './../tabs/ardupilot_status';
-import ardupilotPortsTab from './../tabs/ardupilot_ports';
-import ardupilotReceiverTab from './../tabs/ardupilot_receiver';
-import ardupilotModesTab from './../tabs/ardupilot_modes';
-import ardupilotPidTuningTab from './../tabs/ardupilot_pid_tuning';
 import {
-    ardupilotConfigurationTab,
-    ardupilotFailsafeTab,
-    ardupilotGpsNavigationTab,
-    ardupilotLoggingTab,
-    ardupilotOsdTab,
-    ardupilotOutputsTab,
-    ardupilotPowerTab,
-    ardupilotSensorsTab,
-} from './../tabs/ardupilot_feature';
+    ardupilotInavAdjustmentsTab,
+    ardupilotInavAdvancedTuningTab,
+    ardupilotInavCalibrationTab,
+    ardupilotInavCliTab,
+    ardupilotInavConfigurationTab,
+    ardupilotInavFailsafeTab,
+    ardupilotInavGpsTab,
+    ardupilotInavLedStripTab,
+    ardupilotInavJavascriptProgrammingTab,
+    ardupilotInavLoggingTab,
+    ardupilotInavMagnetometerTab,
+    ardupilotInavMixerTab,
+    ardupilotInavModesTab,
+    ardupilotInavOsdTab,
+    ardupilotInavOutputsTab,
+    ardupilotInavPidTuningTab,
+    ardupilotInavPortsTab,
+    ardupilotInavProgrammingTab,
+    ardupilotInavReceiverTab,
+    ardupilotInavSensorsTab,
+    ardupilotInavSearchTab,
+    ardupilotInavSetupTab,
+    ardupilotInavTetheredLoggingTab,
+} from './../tabs/ardupilot_inav_ui';
 import autotuneTab from './../tabs/autotune';
 import dialog from './dialog'
 
@@ -319,46 +328,73 @@ $(function() {
                             mavlinkParametersTab.initialize(content_ready);
                             break;
                         case 'ardupilot_setup':
-                            ardupilotSetupTab.initialize(content_ready);
-                            break;
-                        case 'ardupilot_status':
-                            ardupilotStatusTab.initialize(content_ready);
+                            ardupilotInavSetupTab.initialize(content_ready);
                             break;
                         case 'ardupilot_ports':
-                            ardupilotPortsTab.initialize(content_ready);
+                            ardupilotInavPortsTab.initialize(content_ready);
                             break;
                         case 'ardupilot_receiver':
-                            ardupilotReceiverTab.initialize(content_ready);
+                            ardupilotInavReceiverTab.initialize(content_ready);
                             break;
                         case 'ardupilot_modes':
-                            ardupilotModesTab.initialize(content_ready);
+                            ardupilotInavModesTab.initialize(content_ready);
                             break;
                         case 'ardupilot_configuration':
-                            ardupilotConfigurationTab.initialize(content_ready);
+                            ardupilotInavConfigurationTab.initialize(content_ready);
                             break;
                         case 'ardupilot_outputs':
-                            ardupilotOutputsTab.initialize(content_ready);
+                            ardupilotInavOutputsTab.initialize(content_ready);
                             break;
                         case 'ardupilot_failsafe':
-                            ardupilotFailsafeTab.initialize(content_ready);
+                            ardupilotInavFailsafeTab.initialize(content_ready);
                             break;
                         case 'ardupilot_sensors':
-                            ardupilotSensorsTab.initialize(content_ready);
+                            ardupilotInavSensorsTab.initialize(content_ready);
                             break;
                         case 'ardupilot_gps_navigation':
-                            ardupilotGpsNavigationTab.initialize(content_ready);
-                            break;
-                        case 'ardupilot_power':
-                            ardupilotPowerTab.initialize(content_ready);
+                            ardupilotInavGpsTab.initialize(content_ready);
                             break;
                         case 'ardupilot_osd':
-                            ardupilotOsdTab.initialize(content_ready);
+                            ardupilotInavOsdTab.initialize(content_ready);
                             break;
                         case 'ardupilot_logging':
-                            ardupilotLoggingTab.initialize(content_ready);
+                            ardupilotInavLoggingTab.initialize(content_ready);
                             break;
                         case 'ardupilot_pid_tuning':
-                            ardupilotPidTuningTab.initialize(content_ready);
+                            ardupilotInavPidTuningTab.initialize(content_ready);
+                            break;
+                        case 'ardupilot_calibration':
+                            ardupilotInavCalibrationTab.initialize(content_ready);
+                            break;
+                        case 'ardupilot_magnetometer':
+                            ardupilotInavMagnetometerTab.initialize(content_ready);
+                            break;
+                        case 'ardupilot_mixer':
+                            ardupilotInavMixerTab.initialize(content_ready);
+                            break;
+                        case 'ardupilot_advanced_tuning':
+                            ardupilotInavAdvancedTuningTab.initialize(content_ready);
+                            break;
+                        case 'ardupilot_adjustments':
+                            ardupilotInavAdjustmentsTab.initialize(content_ready);
+                            break;
+                        case 'ardupilot_led_strip':
+                            ardupilotInavLedStripTab.initialize(content_ready);
+                            break;
+                        case 'ardupilot_tethered_logging':
+                            ardupilotInavTetheredLoggingTab.initialize(content_ready);
+                            break;
+                        case 'ardupilot_programming':
+                            ardupilotInavProgrammingTab.initialize(content_ready);
+                            break;
+                        case 'ardupilot_javascript_programming':
+                            ardupilotInavJavascriptProgrammingTab.initialize(content_ready);
+                            break;
+                        case 'ardupilot_cli':
+                            ardupilotInavCliTab.initialize(content_ready);
+                            break;
+                        case 'ardupilot_search':
+                            ardupilotInavSearchTab.initialize(content_ready);
                             break;
                         case 'autotune':
                             autotuneTab.initialize(content_ready);

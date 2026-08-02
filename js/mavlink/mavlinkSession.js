@@ -86,6 +86,14 @@ function numeric(value) {
   return Number.isFinite(number) ? number : null;
 }
 
+function sensorVector(data, suffix) {
+  return ["x", "y", "z"].map((axis) => numeric(field(
+    data,
+    `${axis}${suffix}`,
+    `${axis}_${suffix}`,
+  )));
+}
+
 function mavlinkUint8(value, { allowZero = true } = {}) {
   const minimum = allowZero ? 0 : 1;
   return Number.isInteger(value) && value >= minimum && value <= 255
@@ -212,6 +220,7 @@ export function createInitialMavlinkState() {
     rssi: null,
     rcChannelCount: 0,
     rcChannels: [],
+    servoOutputs: [],
     timeBootMs: null,
     bootGeneration: 0,
     missionCurrent: null,
@@ -223,6 +232,14 @@ export function createInitialMavlinkState() {
     distanceToWaypoint: null,
     lastHeartbeatAt: 0,
     statusText: [],
+    rawSensors: {
+      gyro: [null, null, null],
+      accel: [null, null, null],
+      mag: [null, null, null],
+      pressure: null,
+      distance: null,
+      temperatures: [],
+    },
   };
 }
 
@@ -498,7 +515,15 @@ export class MavlinkSession {
       ...this.state,
       statusText: this.state.statusText.map((entry) => ({ ...entry })),
       rcChannels: [...this.state.rcChannels],
+      servoOutputs: [...this.state.servoOutputs],
       controllerErrorCounts: [...this.state.controllerErrorCounts],
+      rawSensors: {
+        ...this.state.rawSensors,
+        gyro: [...this.state.rawSensors.gyro],
+        accel: [...this.state.rawSensors.accel],
+        mag: [...this.state.rawSensors.mag],
+        temperatures: [...this.state.rawSensors.temperatures],
+      },
       autopilotVersion: cloneAutopilotVersion(this.state.autopilotVersion),
     };
   }
@@ -644,6 +669,58 @@ export class MavlinkSession {
         this.state.yaw = toDegrees(field(data, "yaw"));
         break;
       }
+      case "RawImu":
+        this.state.rawSensors.accel = sensorVector(data, "acc");
+        this.state.rawSensors.gyro = sensorVector(data, "gyro");
+        this.state.rawSensors.mag = sensorVector(data, "mag");
+        break;
+      case "ScaledImu":
+      case "ScaledImu2":
+      case "ScaledImu3": {
+        const accel = sensorVector(data, "acc");
+        const gyro = sensorVector(data, "gyro");
+        const mag = sensorVector(data, "mag");
+        this.state.rawSensors.accel = accel.map((value) => (
+          value == null ? null : value / 1000
+        ));
+        this.state.rawSensors.gyro = gyro.map((value) => (
+          value == null ? null : value / 1000
+        ));
+        this.state.rawSensors.mag = mag;
+        const temperature = numeric(field(data, "temperature"));
+        if (temperature != null) {
+          this.state.rawSensors.temperatures = [temperature / 100, ...this.state.rawSensors.temperatures.slice(1)];
+        }
+        break;
+      }
+      case "HighresImu": {
+        this.state.rawSensors.accel = ["xacc", "yacc", "zacc"].map((name) => numeric(field(data, name)));
+        this.state.rawSensors.gyro = ["xgyro", "ygyro", "zgyro"].map((name) => numeric(field(data, name)));
+        this.state.rawSensors.mag = ["xmag", "ymag", "zmag"].map((name) => numeric(field(data, name)));
+        const pressure = numeric(field(data, "absPressure", "abs_pressure"));
+        if (pressure != null) this.state.rawSensors.pressure = pressure;
+        const temperature = numeric(field(data, "temperature"));
+        if (temperature != null) {
+          this.state.rawSensors.temperatures = [temperature, ...this.state.rawSensors.temperatures.slice(1)];
+        }
+        break;
+      }
+      case "ScaledPressure":
+      case "ScaledPressure2":
+      case "ScaledPressure3": {
+        const pressure = numeric(field(data, "pressAbs", "press_abs"));
+        if (pressure != null) this.state.rawSensors.pressure = pressure;
+        const temperature = numeric(field(data, "temperature"));
+        if (temperature != null) {
+          this.state.rawSensors.temperatures = [temperature / 100, ...this.state.rawSensors.temperatures.slice(1)];
+        }
+        break;
+      }
+      case "DistanceSensor": {
+        const distance = numeric(field(data, "currentDistance", "current_distance"));
+        this.state.rawSensors.distance = distance == null ? null : distance / 100;
+        break;
+      }
       case "SysStatus": {
         const voltage = numeric(
           field(data, "voltageBattery", "voltage_battery"),
@@ -716,6 +793,17 @@ export class MavlinkSession {
       case "RcChannelsRaw":
         this.handleRcChannelsRaw(data);
         break;
+      case "ServoOutputRaw": {
+        const outputs = Array.from({ length: 16 }, (_unused, index) => (
+          numeric(field(data, `servo${index + 1}Raw`, `servo${index + 1}_raw`))
+        ));
+        const lastOutput = outputs.reduce(
+          (last, value, index) => (value == null ? last : index),
+          -1,
+        );
+        this.state.servoOutputs = lastOutput >= 0 ? outputs.slice(0, lastOutput + 1) : [];
+        break;
+      }
       case "ParamValue":
         this.handleFirmwareFingerprint(envelope);
         break;

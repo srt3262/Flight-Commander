@@ -1,5 +1,27 @@
 # Changelog
 
+## 1.9.0
+
+- Replaced the separate ArduPilot settings experience with Flight Commander's
+  own INAV tab layouts, navigation, labels, controls, helpers, and workflows.
+  The parity catalog accounts for all 450 front-end functions across 23 tab
+  families and requires each one to use a direct mapping, coordinated
+  multi-parameter translation, active ArduPilot-equivalent behavior, or
+  MAVLink-backed workflow.
+- Kept original Flight Commander rows visible when ArduPilot organizes the
+  same function differently. Equivalent controls now explain their native
+  semantics in place, and the complete All Parameters page remains available
+  as an advanced fallback rather than a destination for missing translations.
+- Added MAVLink-backed calibration, raw sensor and servo-output streaming,
+  motor layout/testing, onboard and tethered log handling, Lua script transfer
+  over MAVLink FTP, a parameter console, and translated Search.
+- Fixed Flight Planner opening at Null Island before a GPS fix. Invalid or
+  no-fix `(0,0)` telemetry is rejected, a valid home position is preferred when
+  available, and the map otherwise retains its safe overview.
+- Added exhaustive source and packaged-renderer gates for mirrored navigation,
+  canonical layouts, translation coverage, active workflows, map-position
+  selection, MAVLink FTP/log services, and the native parameter fallback.
+
 ## 1.8.1
 
 - Replaced inherited pale inline battery/control-profile field colors with
