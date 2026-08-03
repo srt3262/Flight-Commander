@@ -80,7 +80,8 @@ unzip -q "${source_archive}" -d "${work_root}/source"
 source_root="${work_root}/source/Flight-Commander-Firmware-Source-v${firmware_version}"
 [[ -d "${source_root}" ]]
 
-node --input-type=module - "${source_root}/RELEASE-MANIFEST.json" \
+source_date_epoch="$(node --input-type=module - \
+    "${source_root}/RELEASE-MANIFEST.json" \
     "${firmware_version}" "${firmware_name}" "${firmware_sha256}" \
     "${source_revision}" "${source_tree}" <<'NODE'
 import { readFileSync } from 'node:fs';
@@ -105,7 +106,19 @@ if (manifest.artifact?.filename !== firmwareName) {
 if (manifest.artifact?.sha256 !== firmwareSha256) {
   throw new Error('firmware source manifest HEX SHA-256 mismatch');
 }
+if (!Number.isSafeInteger(manifest.source_date_epoch) || manifest.source_date_epoch <= 0) {
+  throw new Error('firmware source manifest source_date_epoch is invalid');
+}
+process.stdout.write(String(manifest.source_date_epoch));
 NODE
+)"
+if (( source_date_epoch > $(date +%s) )); then
+    echo 'Firmware source build epoch is in the future.' >&2
+    exit 1
+fi
+# ZIP timestamps have no timezone. Normalize the extracted tree to the signed-in
+# UTC build epoch so Ninja never sees future inputs on a runner in another zone.
+find "${source_root}" -exec touch --date="@${source_date_epoch}" {} +
 
 target_root="${source_root}/src/main/target"
 mapfile -t target_directories < <(

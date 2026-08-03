@@ -688,6 +688,8 @@ test("release policy distinguishes software-only updates from firmware rebuilds"
   assert.match(firmwareRebuildScript, /MICOAIR743_EXTMAG/);
   assert.match(firmwareRebuildScript, /grep -En/);
   assert.doesNotMatch(firmwareRebuildScript, /\brg\b/);
+  assert.match(firmwareRebuildScript, /source_date_epoch/);
+  assert.match(firmwareRebuildScript, /touch --date=/);
 });
 
 test("source-backed releases publish Configurator and firmware binaries plus both sources", () => {
