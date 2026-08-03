@@ -34,15 +34,17 @@
       </div>
       <div class="column half text2">
         <div class="wrap">
-          <h2>Flight Commander 2.0.5</h2>
+          <h2>Flight Commander 2.0.6</h2>
           <div>
-            Flight Commander 2.0.5 adds an explicit u-blox F9P/F9-series UART
-            RTK rover preset and separate Alignment Tool targets for UART RTK,
-            DroneCAN RTK, and moving-baseline modules. Calibration now detects
-            and persistently corrects the MICOAIR743 onboard IST8310 rotation
-            before calibration, preventing a fixed axis error from being
-            mistaken for calibration drift. Ground Control places Relative
-            Altitude beside Altitude (MSL) and removes the Air Speed tile.
+            Flight Commander 2.0.6 ships coordinated Configurator and firmware
+            builds with matching downloadable source. The single supported
+            MICOAIR743 firmware target uses its onboard IST8310 at the
+            board-correct CW90 orientation, so a normal calibration learns
+            magnetic offsets instead of compensating for incorrect axes.
+            There is no separate external-compass firmware target. Ground
+            Control places Relative Altitude beside Altitude (MSL), and the GPS
+            and Alignment workflows retain the UART, DroneCAN, and
+            moving-baseline RTK module controls introduced in 2.0.5.
             The CLI, page help, settings help, OSD, tuning, and SITL surfaces
             now use Flight Commander's comprehensive first-party GitHub manual;
             all 246 graphical setting links are indexed there. SITL no longer

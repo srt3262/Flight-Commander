@@ -29,6 +29,10 @@ const releaseWorkflow = readFileSync(
   resolve(projectRoot, ".github/workflows/release.yml"),
   "utf8",
 );
+const firmwareRebuildScript = readFileSync(
+  resolve(projectRoot, "scripts/rebuild-firmware-source-archive.sh"),
+  "utf8",
+);
 const landingHtml = readFileSync(
   resolve(projectRoot, "tabs/landing.html"),
   "utf8",
@@ -67,6 +71,10 @@ const magnetometerHtml = readFileSync(
 );
 const magnetometerSource = readFileSync(
   resolve(projectRoot, "tabs/magnetometer.js"),
+  "utf8",
+);
+const alignmentTargetsSource = readFileSync(
+  resolve(projectRoot, "js/flightCommander/alignmentTargets.js"),
   "utf8",
 );
 const calibrationHtml = readFileSync(
@@ -189,7 +197,11 @@ const linuxDesktop = readFileSync(
 );
 const bundledFirmwarePath = resolve(
   projectRoot,
-  `resources/firmware/Flight-Commander-Firmware-${packageManifest.flightCommander.bundledFirmwareVersion}-MICOAIR743-BENCH-ONLY.hex`,
+  `resources/firmware/Flight-Commander-Firmware-${packageManifest.flightCommander.bundledFirmwareVersion}-MICOAIR743.hex`,
+);
+const bundledFirmwareSourcePath = resolve(
+  projectRoot,
+  packageManifest.flightCommander.bundledFirmwareSourceArchive,
 );
 
 function fileSha256(path) {
@@ -472,6 +484,9 @@ test("UART RTK rover selection and per-module alignment ship in the release UI",
   assert.match(magnetometerSource, /writeFlightCommanderAlignmentAngles/);
   assert.match(magnetometerSource, /saveFlightCommanderHeadingConfig/);
   assert.match(magnetometerSource, /createGenericRtkModel/);
+  assert.match(alignmentTargetsSource, /label: 'Onboard compass'/);
+  assert.match(alignmentTargetsSource, /board-correct CW90 orientation/);
+  assert.doesNotMatch(alignmentTargetsSource, /Onboard \/ standard external compass/);
 });
 
 test("SITL presents a Flight Commander-owned operator surface", () => {
@@ -507,16 +522,45 @@ test("application remains dark-only", () => {
 });
 
 test("firmware selection, identity, and feature gates are packaged together", () => {
-  assert.equal(packageManifest.flightCommander.bundledFirmwareVersion, "2.0.1");
-  assert.equal(packageManifest.flightCommander.firmwareChangedInRelease, false);
-  assert.equal(packageManifest.flightCommander.bundledFirmwareSourceAvailable, false);
-  assert.equal(packageManifest.flightCommander.bundledFirmwareSourceVersion, null);
-  assert.equal(packageManifest.flightCommander.bundledFirmwareSourceDirectory, null);
+  assert.equal(packageManifest.flightCommander.bundledFirmwareVersion, "2.0.6");
+  assert.equal(packageManifest.flightCommander.firmwareChangedInRelease, true);
+  assert.equal(packageManifest.flightCommander.bundledFirmwareSourceAvailable, true);
+  assert.equal(packageManifest.flightCommander.bundledFirmwareSourceVersion, "2.0.6");
+  assert.equal(
+    packageManifest.flightCommander.bundledFirmwareSourceArchive,
+    "resources/firmware-source/Flight-Commander-Firmware-Source-v2.0.6.zip",
+  );
+  assert.equal(
+    packageManifest.flightCommander.bundledFirmwareSourceSha256,
+    "15e082ae28731e3f530635ec826e58f0375257e8671ae3ccf024a1acfffe1bec",
+  );
+  assert.equal(
+    packageManifest.flightCommander.bundledFirmwareSourceRevision,
+    "e92bca368b2b9b53aaf79103da3237dec77320b1",
+  );
+  assert.equal(
+    packageManifest.flightCommander.bundledFirmwareSourceTree,
+    "6c3f6e5da4978a7c2ce3825ce3d498403c7b81ee",
+  );
   assert.equal(existsSync(bundledFirmwarePath), true);
   assert.ok(readFileSync(bundledFirmwarePath).length > 1024 * 1024);
   assert.equal(
     fileSha256(bundledFirmwarePath),
-    "d49316e3d7d2a0a8cda70e02e916cab63458a5cd1013a91e20545c5dbbc21aab",
+    "db370ff20fefe2f80c768eea63aff9b368ba1b0d49beb4668ed693f391684df0",
+  );
+  assert.equal(
+    packageManifest.flightCommander.bundledFirmwareSha256,
+    fileSha256(bundledFirmwarePath),
+  );
+  assert.equal(existsSync(bundledFirmwareSourcePath), true);
+  assert.ok(readFileSync(bundledFirmwareSourcePath).length > 1024 * 1024);
+  assert.deepEqual(
+    [...readFileSync(bundledFirmwareSourcePath).subarray(0, 4)],
+    [0x50, 0x4b, 0x03, 0x04],
+  );
+  assert.equal(
+    fileSha256(bundledFirmwareSourcePath),
+    packageManifest.flightCommander.bundledFirmwareSourceSha256,
   );
   assert.deepEqual(
     [...firmwareFlasherHtml.matchAll(/<option value="([^"]+)">(?:Flight Commander Firmware|Official INAV Firmware)<\/option>/g)]
@@ -591,7 +635,7 @@ test("all requested large-prop INAV presets are wired into the release source", 
 });
 
 test("landing page reports the current Flight Commander release", () => {
-  assert.equal(packageManifest.version, "2.0.5");
+  assert.equal(packageManifest.version, "2.0.6");
   assert.equal(manifest.version, packageManifest.version);
   assert.match(
     landingHtml,
@@ -628,7 +672,20 @@ test("release policy distinguishes software-only updates from firmware rebuilds"
   );
   assert.match(releaseWorkflow, /bundledFirmwareSourceAvailable/);
   assert.match(releaseWorkflow, /bundledFirmwareSourceVersion/);
-  assert.match(releaseWorkflow, /bundledFirmwareSourceDirectory/);
+  assert.match(releaseWorkflow, /bundledFirmwareSourceArchive/);
+  assert.match(releaseWorkflow, /bundledFirmwareSourceSha256/);
+  assert.match(releaseWorkflow, /bundledFirmwareSourceRevision/);
+  assert.match(releaseWorkflow, /bundledFirmwareSourceTree/);
+  assert.match(releaseWorkflow, /Rebuild firmware from retained source ZIP/);
+  assert.match(releaseWorkflow, /rebuild-firmware-source-archive\.sh/);
+  assert.match(firmwareRebuildScript, /arm-gnu-toolchain-13\.2\.rel1/);
+  assert.match(
+    firmwareRebuildScript,
+    /6cd1bbc1d9ae57312bcd169ae283153a9572bd6a8e4eeae2fedfbc33b115fdbb/,
+  );
+  assert.match(firmwareRebuildScript, /cmp --silent/);
+  assert.match(firmwareRebuildScript, /target_directories/);
+  assert.match(firmwareRebuildScript, /MICOAIR743_EXTMAG/);
 });
 
 test("source-backed releases publish Configurator and firmware binaries plus both sources", () => {
@@ -642,14 +699,15 @@ test("source-backed releases publish Configurator and firmware binaries plus bot
   );
   assert.match(
     releaseWorkflow,
-    /Flight-Commander-Firmware-\$firmwareVersion-MICOAIR743-BENCH-ONLY\.hex/,
+    /Flight-Commander-Firmware-\$firmwareVersion-MICOAIR743\.hex/,
   );
   assert.match(
     releaseWorkflow,
     /Flight-Commander-Firmware-Source-v\$firmwareVersion\.zip/,
   );
   assert.match(releaseWorkflow, /git archive --format=zip/);
-  assert.match(releaseWorkflow, /schemaVersion = 6/);
+  assert.match(releaseWorkflow, /Copy-Item[\s\S]+\$firmwareSourceRepositoryPath[\s\S]+\$firmwareSourceArchivePath/);
+  assert.match(releaseWorkflow, /schemaVersion = 7/);
   assert.match(releaseWorkflow, /assets\.firmware/);
   assert.match(releaseWorkflow, /firmwareSourceAvailable = \$firmwareSourceAvailable/);
   assert.match(releaseWorkflow, /\$releaseAssets\['firmwareSource'\]/);

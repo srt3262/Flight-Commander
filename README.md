@@ -128,7 +128,7 @@ feature specifically requires upstream INAV behavior.
 ## Install
 
 The validated publication target for the reconstructed release is **Windows
-x64**. Every Configurator release publishes three explicit downloads on
+x64**. Every source-backed Configurator release publishes four explicit downloads on
 [GitHub Releases](https://github.com/srt3262/Flight-Commander/releases):
 
 - `Flight-Commander-Configurator-Windows-x64-vX.Y.Z.zip` is the portable
@@ -136,10 +136,13 @@ x64**. Every Configurator release publishes three explicit downloads on
   `flight-commander.exe`.
 - `Flight-Commander-Configurator-Source-vX.Y.Z.zip` is the matching source from
   the exact commit used to build and verify that Windows archive.
-- `Flight-Commander-Firmware-X.Y.Z-MICOAIR743-BENCH-ONLY.hex` is the directly
-  flashable firmware image under its truthful embedded firmware version. A
+- `Flight-Commander-Firmware-X.Y.Z-MICOAIR743.hex` is the directly flashable
+  firmware image under its truthful embedded firmware version. A
   Configurator-only release may therefore publish a lower firmware version
   without wrapping or relabeling the binary.
+- `Flight-Commander-Firmware-Source-vX.Y.Z.zip` is the exact corresponding
+  firmware source. Its manifest pins the source revision/tree, deterministic
+  build epoch, compiler, HEX size, and hashes needed to reproduce the image.
 
 Every published Configurator update advances its software version. If the
 update changes firmware, the firmware is rebuilt and its complete version must

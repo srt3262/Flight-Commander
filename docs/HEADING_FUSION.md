@@ -1,6 +1,6 @@
 # Heading fusion and moving-baseline yaw
 
-Flight Commander Firmware 2.0.1 can keep four heading sources live at the
+Flight Commander Firmware 2.0.6 can keep four heading sources live at the
 same time. The Configurator exposes them only when the connected controller
 advertises `HEADING_FUSION`; moving-baseline controls additionally require
 `MOVING_BASELINE_YAW`.
@@ -61,7 +61,8 @@ alignment can select an inherited flipped transform; calibration cannot repair
 that fixed axis error because calibration estimates offsets and per-axis gain,
 not sensor mounting rotation.
 
-Flight Commander 2.0.5 detects the board and physical onboard compass before a
+Flight Commander 2.0.6 sets the board-correct orientation in firmware and the
+Configurator also detects the board and physical onboard compass before a
 calibration run. If the stored rotation is not **CW90 (unflipped)**, Calibration
 blocks the run and offers **Apply orientation, reset calibration, and reboot**.
 Use that once, reconnect, and then perform the normal compass calibration. The
@@ -69,8 +70,9 @@ orientation and calibration are stored in the controller and do not need to be
 repeated at each startup. Recalibrate after changing the airframe installation,
 power wiring, nearby magnetic hardware, compass module, or firmware defaults.
 
-The guard does not apply to the `MICOAIR743_EXTMAG` target because the mounting
-rotation of an external compass depends on its actual installation.
+The release has one MICOAIR743 firmware target and one fixed onboard-compass
+profile. GPS-module compasses remain independent peripherals whose mounting
+rotation and calibration follow their actual installation.
 
 One calibration command samples every enabled physical compass concurrently,
 but each result is independent:

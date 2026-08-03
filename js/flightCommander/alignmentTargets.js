@@ -27,8 +27,8 @@ export function enumerateAlignmentTargets({
 } = {}) {
     const targets = [{
         id: ALIGNMENT_TARGET_LEGACY_MAG,
-        label: 'Onboard / standard external compass',
-        description: 'Edits the standard firmware magnetometer alignment settings.',
+        label: 'Onboard compass',
+        description: 'Shows the flight controller\'s onboard magnetometer alignment. MICOAIR743 uses its board-correct CW90 orientation.',
         axes: ['roll', 'pitch', 'yaw'],
         previewIndex: 0,
     }];

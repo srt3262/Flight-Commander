@@ -79,6 +79,10 @@ test('Alignment Tool enumerates UART, DroneCAN, and moving-baseline RTK targets'
             ALIGNMENT_TARGET_MOVING_BASELINE,
         ],
     );
+    assert.equal(targets[0].label, 'Onboard compass');
+    assert.doesNotMatch(targets[0].label, /external/i);
+    assert.match(targets[0].description, /MICOAIR743/);
+    assert.match(targets[0].description, /CW90/);
     assert.match(targets[1].label, /UART RTK GPS-module compass/);
     assert.match(targets[2].label, /node 42/);
     assert.deepEqual(targets[3].axes, ['yaw']);

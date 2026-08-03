@@ -6,18 +6,23 @@ import {
 } from '../../../scripts/check-flight-commander-version.mjs';
 
 function manifest(overrides = {}) {
+  const { flightCommander = {}, ...rootOverrides } = overrides;
   return {
     version: '2.0.5',
     flightCommander: {
       firmwareMajor: 2,
       bundledFirmwareVersion: '2.0.1',
+      bundledFirmwareSha256: 'd49316e3d7d2a0a8cda70e02e916cab63458a5cd1013a91e20545c5dbbc21aab',
       firmwareChangedInRelease: false,
       bundledFirmwareSourceAvailable: false,
       bundledFirmwareSourceVersion: null,
-      bundledFirmwareSourceDirectory: null,
-      ...(overrides.flightCommander ?? {}),
+      bundledFirmwareSourceArchive: null,
+      bundledFirmwareSourceSha256: null,
+      bundledFirmwareSourceRevision: null,
+      bundledFirmwareSourceTree: null,
+      ...flightCommander,
     },
-    ...overrides,
+    ...rootOverrides,
   };
 }
 
@@ -32,25 +37,35 @@ test('firmware-changing releases require an exact rebuilt firmware version', () 
     validateFlightCommanderVersions(manifest({
       flightCommander: {
         firmwareMajor: 2,
-        bundledFirmwareVersion: '2.0.5',
+        bundledFirmwareVersion: '2.0.6',
+        bundledFirmwareSha256: 'a'.repeat(64),
         firmwareChangedInRelease: true,
         bundledFirmwareSourceAvailable: true,
-        bundledFirmwareSourceVersion: '2.0.5',
-        bundledFirmwareSourceDirectory: 'firmware-src',
+        bundledFirmwareSourceVersion: '2.0.6',
+        bundledFirmwareSourceArchive: 'resources/firmware-source/Flight-Commander-Firmware-Source-v2.0.6.zip',
+        bundledFirmwareSourceSha256: 'b'.repeat(64),
+        bundledFirmwareSourceRevision: 'c'.repeat(40),
+        bundledFirmwareSourceTree: 'd'.repeat(40),
       },
+      version: '2.0.6',
     })).bundledFirmwareVersion,
-    '2.0.5',
+    '2.0.6',
   );
   assert.throws(
     () => validateFlightCommanderVersions(manifest({
       flightCommander: {
         firmwareMajor: 2,
         bundledFirmwareVersion: '2.0.1',
+        bundledFirmwareSha256: 'a'.repeat(64),
         firmwareChangedInRelease: true,
         bundledFirmwareSourceAvailable: true,
         bundledFirmwareSourceVersion: '2.0.1',
-        bundledFirmwareSourceDirectory: 'firmware-src',
+        bundledFirmwareSourceArchive: 'resources/firmware-source/Flight-Commander-Firmware-Source-v2.0.1.zip',
+        bundledFirmwareSourceSha256: 'b'.repeat(64),
+        bundledFirmwareSourceRevision: 'c'.repeat(40),
+        bundledFirmwareSourceTree: 'd'.repeat(40),
       },
+      version: '2.0.6',
     })),
     /exact same version/,
   );
@@ -69,15 +84,22 @@ test('source-backed software-only releases retain source matching the reused HEX
     version: '2.0.6',
     flightCommander: {
       firmwareMajor: 2,
-      bundledFirmwareVersion: '2.0.5',
+      bundledFirmwareVersion: '2.0.6',
+      bundledFirmwareSha256: 'a'.repeat(64),
       firmwareChangedInRelease: false,
       bundledFirmwareSourceAvailable: true,
-      bundledFirmwareSourceVersion: '2.0.5',
-      bundledFirmwareSourceDirectory: 'firmware-src',
+      bundledFirmwareSourceVersion: '2.0.6',
+      bundledFirmwareSourceArchive: 'resources/firmware-source/Flight-Commander-Firmware-Source-v2.0.6.zip',
+      bundledFirmwareSourceSha256: 'b'.repeat(64),
+      bundledFirmwareSourceRevision: 'c'.repeat(40),
+      bundledFirmwareSourceTree: 'd'.repeat(40),
     },
   }));
-  assert.equal(result.bundledFirmwareSourceVersion, '2.0.5');
-  assert.equal(result.bundledFirmwareSourceDirectory, 'firmware-src');
+  assert.equal(result.bundledFirmwareSourceVersion, '2.0.6');
+  assert.equal(
+    result.bundledFirmwareSourceArchive,
+    'resources/firmware-source/Flight-Commander-Firmware-Source-v2.0.6.zip',
+  );
 });
 
 test('firmware source identity must match its HEX and use a safe repository path', () => {
@@ -86,10 +108,14 @@ test('firmware source identity must match its HEX and use a safe repository path
       flightCommander: {
         firmwareMajor: 2,
         bundledFirmwareVersion: '2.0.1',
+        bundledFirmwareSha256: 'a'.repeat(64),
         firmwareChangedInRelease: false,
         bundledFirmwareSourceAvailable: true,
         bundledFirmwareSourceVersion: '2.0.0',
-        bundledFirmwareSourceDirectory: 'firmware-src',
+        bundledFirmwareSourceArchive: 'resources/firmware-source/Flight-Commander-Firmware-Source-v2.0.1.zip',
+        bundledFirmwareSourceSha256: 'b'.repeat(64),
+        bundledFirmwareSourceRevision: 'c'.repeat(40),
+        bundledFirmwareSourceTree: 'd'.repeat(40),
       },
     })),
     /source version must exactly match/,
@@ -99,13 +125,54 @@ test('firmware source identity must match its HEX and use a safe repository path
       flightCommander: {
         firmwareMajor: 2,
         bundledFirmwareVersion: '2.0.1',
+        bundledFirmwareSha256: 'a'.repeat(64),
         firmwareChangedInRelease: false,
         bundledFirmwareSourceAvailable: true,
         bundledFirmwareSourceVersion: '2.0.1',
-        bundledFirmwareSourceDirectory: '../lost-source',
+        bundledFirmwareSourceArchive: '../lost-source.zip',
+        bundledFirmwareSourceSha256: 'b'.repeat(64),
+        bundledFirmwareSourceRevision: 'c'.repeat(40),
+        bundledFirmwareSourceTree: 'd'.repeat(40),
       },
     })),
-    /safe repository-relative/,
+    /canonical safe repository-relative/,
+  );
+});
+
+test('firmware and source checksum declarations are mandatory', () => {
+  assert.throws(
+    () => validateFlightCommanderVersions(manifest({
+      flightCommander: {
+        firmwareMajor: 2,
+        bundledFirmwareVersion: '2.0.1',
+        bundledFirmwareSha256: undefined,
+        firmwareChangedInRelease: false,
+        bundledFirmwareSourceAvailable: false,
+        bundledFirmwareSourceVersion: null,
+        bundledFirmwareSourceArchive: null,
+        bundledFirmwareSourceSha256: null,
+        bundledFirmwareSourceRevision: null,
+        bundledFirmwareSourceTree: null,
+      },
+    })),
+    /SHA-256 of the bundled firmware HEX/,
+  );
+  assert.throws(
+    () => validateFlightCommanderVersions(manifest({
+      version: '2.0.6',
+      flightCommander: {
+        firmwareMajor: 2,
+        bundledFirmwareVersion: '2.0.6',
+        bundledFirmwareSha256: 'a'.repeat(64),
+        firmwareChangedInRelease: true,
+        bundledFirmwareSourceAvailable: true,
+        bundledFirmwareSourceVersion: '2.0.6',
+        bundledFirmwareSourceArchive: 'resources/firmware-source/Flight-Commander-Firmware-Source-v2.0.6.zip',
+        bundledFirmwareSourceRevision: 'c'.repeat(40),
+        bundledFirmwareSourceTree: 'd'.repeat(40),
+      },
+    })),
+    /SHA-256 of its source ZIP/,
   );
 });
 
@@ -129,13 +196,10 @@ test('all release types reject a Configurator/firmware major mismatch', () => {
 });
 
 test('every release must explicitly declare whether firmware changed', () => {
+  const candidate = manifest();
+  delete candidate.flightCommander.firmwareChangedInRelease;
   assert.throws(
-    () => validateFlightCommanderVersions(manifest({
-      flightCommander: {
-        firmwareMajor: 2,
-        bundledFirmwareVersion: '2.0.1',
-      },
-    })),
+    () => validateFlightCommanderVersions(candidate),
     /firmwareChangedInRelease as a boolean/,
   );
 });

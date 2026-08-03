@@ -91,14 +91,14 @@ describe("Flight Commander firmware catalog", () => {
 
   test("prefers the downloadable online release over a same-version bundled fallback", () => {
     const filename =
-      "Flight-Commander-Firmware-2.0.1-MICOAIR743-BENCH-ONLY.hex";
+      "Flight-Commander-Firmware-2.0.6-MICOAIR743.hex";
     const bundled = bundledFlightCommanderDescriptors([filename]);
     const online = flightCommanderReleaseDescriptors([
       {
         draft: false,
         prerelease: false,
-        tag_name: "v2.0.4",
-        name: "Flight Commander 2.0.4",
+        tag_name: "v2.0.6",
+        name: "Flight Commander 2.0.6",
         html_url: "https://example.invalid/release",
         published_at: "2026-08-02T20:00:00Z",
         body: "Software-only release with the compatible firmware asset.",

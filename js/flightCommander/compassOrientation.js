@@ -31,8 +31,6 @@ function finiteDecidegrees(value) {
 
 export function isMicoAir743Target(config = {}) {
     const reportedTarget = normalizedIdentifier(config.target);
-    if (reportedTarget.includes('EXTMAG')) return false;
-
     return [reportedTarget, config.boardIdentifier]
         .map(normalizedIdentifier)
         .some((identifier) => MICOAIR743_TARGET_IDENTIFIERS.has(identifier));

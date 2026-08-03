@@ -7,3 +7,5 @@ LICENSE text
 *.txt text
 *.png -crlf -diff
 *.svg -crlf -diff
+*.hex -text -diff
+*.zip -text -diff

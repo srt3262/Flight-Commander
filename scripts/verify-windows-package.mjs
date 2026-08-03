@@ -479,7 +479,7 @@ if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(bundledFirmwareVersion)) {
   fail("package.json does not declare a valid bundled firmware version");
 }
 const firmwareFilename =
-  `Flight-Commander-Firmware-${bundledFirmwareVersion}-MICOAIR743-BENCH-ONLY.hex`;
+  `Flight-Commander-Firmware-${bundledFirmwareVersion}-MICOAIR743.hex`;
 const sourceFirmwarePath = join(projectRoot, "resources", "firmware", firmwareFilename);
 const packagedFirmwareDirectory = join(packageDirectory, "resources", "firmware");
 if (!existsSync(sourceFirmwarePath) || !existsSync(packagedFirmwareDirectory)) {
@@ -500,6 +500,12 @@ const sourceFirmware = readFileSync(sourceFirmwarePath);
 const packagedFirmware = readFileSync(packagedFirmwarePath);
 if (sha256(packagedFirmware) !== sha256(sourceFirmware)) {
   fail("the packaged firmware differs from the verified source firmware image");
+}
+if (
+  sourcePackage.flightCommander?.bundledFirmwareSha256 !==
+  sha256(sourceFirmware)
+) {
+  fail("package.json does not identify the exact bundled firmware SHA-256");
 }
 const firmwarePayload = intelHexPayload(packagedFirmwarePath);
 for (const identity of ["FCFW", "Flight Commander Firmware", bundledFirmwareVersion]) {

@@ -29,8 +29,9 @@ same major version.
 - Configurator 2.0.5 is the one-time legacy exception: the custom Firmware
   2.0.1 source was not retained and cannot be reconstructed exactly from its
   compiled HEX. This exception cannot be reused by 2.0.6 or any later release.
-- A firmware-changing release is blocked unless the rebuilt source lives in a
-  versioned repository directory and is packaged from the exact tested commit.
+- A firmware-changing release is blocked unless a canonical, version-matched
+  firmware source ZIP is retained in the repository and its declared SHA-256,
+  source revision, source tree, and embedded release manifest match the HEX.
 - The release workflow treats any missing required archive, filename mismatch,
   checksum mismatch, or size mismatch as a publication failure.
 
@@ -40,9 +41,10 @@ For major version 2, `package.json` declares
 `scripts/check-flight-commander-version.mjs` and rejects a mismatched major,
 an undeclared release type, or a firmware-changing release whose firmware
 version does not exactly match the Configurator version. It also validates the
-`bundledFirmwareSourceAvailable`, `bundledFirmwareSourceVersion`, and
-`bundledFirmwareSourceDirectory` declarations and rejects every post-2.0.5
-release without exact firmware source.
+`bundledFirmwareSourceAvailable`, `bundledFirmwareSourceVersion`,
+`bundledFirmwareSourceArchive`, `bundledFirmwareSourceSha256`,
+`bundledFirmwareSourceRevision`, and `bundledFirmwareSourceTree` declarations
+and rejects every post-2.0.5 release without exact firmware source.
 The firmware has the reciprocal
 `FLIGHT_COMMANDER_CONFIGURATOR_VERSION_MAJOR` compile-time contract.
 

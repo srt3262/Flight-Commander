@@ -1,5 +1,22 @@
 # Changelog
 
+## 2.0.6
+
+- Rebuilt Flight Commander Firmware and Configurator together at version 2.0.6.
+- Reduced the firmware release to one supported hardware target: `MICOAIR743`.
+  It uses the board's onboard IST8310 on I2C2 with the correct unflipped
+  `CW90_DEG` mounting orientation as both its target default and its upgrade
+  fallback. There is no separate `MICOAIR743_EXTMAG` build or release asset.
+- Retained UART and DroneCAN GPS/RTK receivers, GPS-module compass inputs, and
+  moving-baseline yaw as configurable peripherals; none is represented as an
+  alternate flight-controller firmware target.
+- Added the first source-backed firmware release. The exact firmware source
+  ZIP, source revision/tree, official Arm GNU 13.2.Rel1 compiler identity,
+  firmware HEX size, and both SHA-256 digests are release-gated.
+- Publishes exactly four downloads: Windows x64 Configurator, Configurator
+  source, Firmware 2.0.6 HEX, and the complete matching Firmware 2.0.6 source
+  ZIP. A clean extraction of that ZIP rebuilds the published HEX byte-for-byte.
+
 ## 2.0.5
 
 - Added an explicit **u-blox F9P / F9-series (RTK Rover)** preset to the UART
@@ -13,8 +30,8 @@
 - Added a MICOAIR743 onboard IST8310 orientation guard. Calibration detects the
   physical onboard compass, blocks learning coefficients under the incorrect
   axes, applies and persists **CW90 (unflipped)**, clears stale calibration,
-  reboots, and then permits the normal calibration. The external-magnetometer
-  target is explicitly excluded.
+  reboots, and then permits the normal calibration. The guard applies only to
+  the physical onboard sensor on the MICOAIR743 board.
 - Replaced Ground Control's Air Speed tile with **Altitude (MSL)** and placed it
   directly beside Relative Altitude, with Metric/Imperial conversion across
   MAVLink, MSP, and LTM telemetry paths.

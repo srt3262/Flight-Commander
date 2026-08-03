@@ -129,13 +129,6 @@ test('custom mag angles override the MICOAIR743 preset and keep calibration bloc
     customAngles: { roll: 0, pitch: 0, yaw: 0 },
   }), null);
 
-  assert.equal(onboardCompassOrientationRequirement({
-    config: { target: 'MICOAIR743_EXTMAG', boardIdentifier: 'M743' },
-    activeSensors: 1 << 2,
-    sensorConfig: { magnetometer: 1 },
-    sensorAlignment: { align_mag: 0 },
-    customAngles: { roll: 0, pitch: 0, yaw: 0 },
-  }), null);
 });
 
 test('MICOAIR743 orientation guard follows detected hardware instead of the AUTO selector value', () => {
