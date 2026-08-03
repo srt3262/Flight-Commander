@@ -7,6 +7,7 @@ import GUI from './gui';
 import FC from './fc';
 import { globalSettings, UnitType } from './globalSettings';
 import i18n from './localization';
+import { settingDocumentationUrl } from './flightCommander/documentation';
 
 function padZeros(val, length) {
     let str = val.toString();
@@ -750,7 +751,7 @@ var Settings = (function () {
                 }
 
                 if (typeof dataSettingName !== "undefined" && dataSettingName !== "") {
-                    helpIcon.wrap('<a class="helpiconLink" href="' + globalSettings.docsTreeLocation + 'Settings.md#' + dataSettingName + '" target="_blank"></a>');
+                    helpIcon.wrap('<a class="helpiconLink" href="' + settingDocumentationUrl(dataSettingName) + '" target="_blank"></a>');
                 }
             }
 

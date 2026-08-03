@@ -6,7 +6,6 @@ import GUI from './../js/gui';
 import CONFIGURATOR from './../js/data_storage';
 import timeout from './../js/timeouts';
 import i18n from './../js/localization';
-import { globalSettings } from './../js/globalSettings';
 import CliAutoComplete from './../js/CliAutoComplete';
 import { ConnectionType } from './../js/connection/connection';
 import jBox from 'jbox';
@@ -14,6 +13,7 @@ import mspDeduplicationQueue from './../js/msp/mspDeduplicationQueue';
 import FC from './../js/fc';
 import { generateFilename } from './../js/helpers';
 import dialog from '../js/dialog';
+import { FLIGHT_COMMANDER_DOCUMENTATION } from './../js/flightCommander/documentation';
 
 const cliTab = {
     outputHistory: "",
@@ -156,7 +156,8 @@ cliTab.initialize = function (callback) {
         // translate to user-selected language
        i18n.localize();
 
-        $('.cliDocsBtn').attr('href', globalSettings.docsTreeLocation + 'Settings.md');
+        $('.tab-cli .helpiconLink').attr('href', FLIGHT_COMMANDER_DOCUMENTATION.cli);
+        $('.cliDocsBtn').attr('href', FLIGHT_COMMANDER_DOCUMENTATION.settings);
 
         CONFIGURATOR.cliActive = true;
 

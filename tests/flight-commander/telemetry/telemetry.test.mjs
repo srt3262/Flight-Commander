@@ -14,6 +14,7 @@ test("INAV normalization preserves scale, corrects pitch, and reports native 3D 
     GPS_DATA: {
       lat: 400000000,
       lon: -750000000,
+      alt: 147,
       speed: 1234,
       fix: 2,
       numSat: 13,
@@ -51,6 +52,7 @@ test("INAV normalization preserves scale, corrects pitch, and reports native 3D 
   assert.equal(telemetry.modeName, "NAV WP");
   assert.equal(telemetry.latitude, 40);
   assert.equal(telemetry.longitude, -75);
+  assert.equal(telemetry.altitudeMsl, 147);
   assert.equal(telemetry.groundSpeed, 12.34);
   assert.equal(telemetry.airSpeed, 15);
   assert.equal(telemetry.heading, 359);
@@ -78,6 +80,7 @@ test("INAV normalization uses explicit connection state and fails safely on inva
   assert.equal(telemetry.gpsFix, 1);
   assert.equal(telemetry.hdop, null);
   assert.equal(telemetry.groundSpeed, null);
+  assert.equal(telemetry.altitudeMsl, null);
   assert.equal(telemetry.batteryRemaining, null);
   assert.equal(telemetry.modeName, "ACRO");
 });
@@ -94,6 +97,7 @@ test("LTM normalization keeps armed semantics and separates consumed mAh from cu
       latitude: 400000000,
       longitude: -750000000,
       altitude: 12345,
+      homeAltitude: 10000,
       groundSpeed: 22,
       airspeed: 24,
       heading: 180,
@@ -111,7 +115,8 @@ test("LTM normalization keeps armed semantics and separates consumed mAh from cu
   assert.equal(telemetry.connected, true);
   assert.equal(telemetry.armed, true);
   assert.equal(telemetry.missionCurrent, 2);
-  assert.equal(telemetry.relativeAltitude, 123.45);
+  assert.equal(telemetry.relativeAltitude, 23.45);
+  assert.equal(telemetry.altitudeMsl, 123.45);
   assert.equal(telemetry.pitch, -7);
   assert.equal(telemetry.voltage, 15.4);
   assert.equal(telemetry.current, null);

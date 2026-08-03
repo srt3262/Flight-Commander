@@ -213,7 +213,7 @@
         "message": "模拟器输入"
     },
     "sitlInavOutput": {
-        "message": "INAV输出"
+        "message": "Flight Commander输出"
     },
     "sitlLog": {
         "message": "日志"
@@ -276,13 +276,13 @@
         "message": "启用"
     },
     "sitlHelp": {
-        "message": "软件在环仿真SITL (Software in the loop)允许在不使用飞行控制器的情况下在PC上完全用软件运行INAV，并模拟完整的FPV飞行。为此，INAV使用普通的PC编译器进行编译。传感器由模拟器提供的数据代替。<br/>目前支持的有:<br/><ul><li><a href=\"https://www.realflight.com\" target=\"_blank\">RealFlight</a><br/></li><li><a href=\"https://www.x-plane.com\" target=\"_blank\">X-Plane</a></li></ul>"
+        "message": "软件在环仿真SITL (Software in the loop)允许在不使用飞行控制器的情况下在PC上完全用软件运行Flight Commander，并模拟完整的FPV飞行。为此，Flight Commander使用普通的PC编译器进行编译。传感器由模拟器提供的数据代替。<br/>目前支持的有:<br/><ul><li><a href=\"https://www.realflight.com\" target=\"_blank\">RealFlight</a><br/></li><li><a href=\"https://www.x-plane.com\" target=\"_blank\">X-Plane</a></li></ul>"
     },
     "sitlProfilesHelp": {
-        "message": "配置文件保存在本地。描述文件不仅包含该选项卡的所有数据，还包含INAV本身的配置文件(\"EEPROM\")。<br><span style=\"color: red\">注意:</span><br>标准配置文件不能覆盖。要保存更改，请创建一个新的配置文件。"
+        "message": "配置文件保存在本地。描述文件不仅包含该选项卡的所有数据，还包含Flight Commander本身的配置文件(\"EEPROM\")。<br><span style=\"color: red\">注意:</span><br>标准配置文件不能覆盖。要保存更改，请创建一个新的配置文件。"
     },
     "sitlEnableSimulatorHelp": {
-        "message": "如果此选项被禁用，则只能使用UARTS (MSP/Configurator)。可以在不启动模拟器的情况下配置INAV。"
+        "message": "如果此选项被禁用，则只能使用UARTS (MSP/Configurator)。可以在不启动模拟器的情况下配置Flight Commander。"
     },
     "sitlUseImuHelp": {
         "message": "使用模拟器的IMU传感器数据，而不是直接使用模拟器的姿态数据(实验数据，不推荐)。"
@@ -533,13 +533,13 @@
         "message": "INAV由大量用户、开发人员和公司组成的社区支持。下面是一个简短的列表: <a href=\"http://www.mateksys.com/\" target=\"_blank\">Mateksys</a>, <a href=\"https://www.speedybee.com/\" target=\"_blank\">SpeedyBee</a>, <a href=\"https://geprc.com/\" target=\"_blank\">GEPRC</a>. "
     },
     "defaultWelcomeText": {
-        "message": "本应用支持所有能运行 INAV 的飞控。(<a href=\"https://inavflight.com/shop/s/bg/1890404\" target=\"_blank\">Matek F765-WSE</a>, <a href=\"https://inavflight.com/shop/s/bg/1755036\" target=\"_blank\">Matek H743-SLIM</a> 及其他硬件)。可用的硬件完整列表在 <a href=\"https://github.com/iNavFlight/inav/wiki/Welcome-to-INAV,-useful-links-and-products\" target=\"_blank\">这里</a>.<br /><br />固件的源代码可以从 <a href=\"https://github.com/iNavFlight\" title=\"www.github.com\" target=\"_blank\">这里</a>下载<br />最新的飞控固件在 <a href=\"https://github.com/iNavFlight/inav/releases\" title=\"www.github.com\" target=\"_blank\">这里</a>下载.<br /><br />最新的 <strong>STM USB VCP 驱动</strong> 可以点击 <a href=\"http://www.st.com/web/en/catalog/tools/PF257938\" title=\"http://www.st.com\" target=\"_blank\">这里</a>下载<br />最新的 <strong>Zadig</strong> Windows DFU USB驱动安装程序可以点击 <a href=\"http://zadig.akeo.ie/\" title=\"http://zadig.akeo.ie\" target=\"_blank\">这里</a>下载<br />"
+        "message": "本应用支持所有能运行 INAV 的飞控。(<a href=\"https://inavflight.com/shop/s/bg/1890404\" target=\"_blank\">Matek F765-WSE</a>, <a href=\"https://inavflight.com/shop/s/bg/1755036\" target=\"_blank\">Matek H743-SLIM</a> 及其他硬件)。可用的硬件完整列表在 <a href=\"https://github.com/srt3262/Flight-Commander/blob/main/docs/CONFIGURATION_REFERENCE.md\" target=\"_blank\">这里</a>.<br /><br />固件的源代码可以从 <a href=\"https://github.com/srt3262/Flight-Commander\" title=\"www.github.com\" target=\"_blank\">这里</a>下载<br />最新的飞控固件在 <a href=\"https://github.com/srt3262/Flight-Commander/releases\" title=\"www.github.com\" target=\"_blank\">这里</a>下载.<br /><br />最新的 <strong>STM USB VCP 驱动</strong> 可以点击 <a href=\"http://www.st.com/web/en/catalog/tools/PF257938\" title=\"http://www.st.com\" target=\"_blank\">这里</a>下载<br />最新的 <strong>Zadig</strong> Windows DFU USB驱动安装程序可以点击 <a href=\"http://zadig.akeo.ie/\" title=\"http://zadig.akeo.ie\" target=\"_blank\">这里</a>下载<br />"
     },
     "defaultContributingHead": {
         "message": "参与开发"
     },
     "defaultContributingText": {
-        "message": "如果您希望帮助让 INAV 变得更好，您可以通过以下方式贡献力量：<br /><ul><li>在论坛和 IRC 上回答其他用户的问题。</li><li>为固件和配置器贡献代码——新增功能、修复问题、改进性能。</li><li>测试<a href=\"https://github.com/iNavFlight/inav/pulls\" target=\"_blank\">新功能/修复</a>并提供反馈。</li><li>协助处理<a href=\"https://github.com/iNavFlight/inav/issues\" target=\"_blank\">问题并评论功能请求</a>。</li></ul>"
+        "message": "如果您希望帮助让 INAV 变得更好，您可以通过以下方式贡献力量：<br /><ul><li>在论坛和 IRC 上回答其他用户的问题。</li><li>为固件和配置器贡献代码——新增功能、修复问题、改进性能。</li><li>测试<a href=\"https://github.com/srt3262/Flight-Commander/pulls\" target=\"_blank\">新功能/修复</a>并提供反馈。</li><li>协助处理<a href=\"https://github.com/srt3262/Flight-Commander/issues\" target=\"_blank\">问题并评论功能请求</a>。</li></ul>"
     },
     "defaultChangelogHead": {
         "message": "配置程序 - 更新日志"
@@ -2662,7 +2662,7 @@
         "message": "<strong> 恢复/丢失通信 </strong>"
     },
     "firmwareFlasherRecoveryText": {
-        "message": "如果您和飞控板失去通信，请依照以下步骤恢复通信 :: <ul><li>关闭电源</li><li>开启选项 : 无重启序列 & 清空所有资料</li><li>将 Boot 脚位短路或是按住 Boot 键</li><li>开启电源(如果正确的话，LED 指示灯不会闪烁)</li><li>如果有需要请安装 STM32 驱动程序以及 Zadig 软件(在 iNav 文档中参阅<a href=\"https://github.com/iNavFlight/inav/blob/master/docs/USB%20Flashing.md\"target=\"_blank\">USB刷写</a> 的部分)</li><li>关闭 Flight Commander，关闭所有 Chrome，关闭所有 Chrome 外挂程序，重新启动 Flight Commander</li><li>松开 Boot 键，如果您的飞控板有Boot键的话</li><li>烧写正确的固件(手动选择波特率，如果您的飞控手册有指定)</li><li>关闭电源</li><li>移除 Boot 短路脚位</li><li>开启电源(LED 指示灯应该会闪烁)</li><li>正常连线</li></ul>"
+        "message": "如果您和飞控板失去通信，请依照以下步骤恢复通信 :: <ul><li>关闭电源</li><li>开启选项 : 无重启序列 & 清空所有资料</li><li>将 Boot 脚位短路或是按住 Boot 键</li><li>开启电源(如果正确的话，LED 指示灯不会闪烁)</li><li>如果有需要请安装 STM32 驱动程序以及 Zadig 软件(在 iNav 文档中参阅<a href=\"https://github.com/srt3262/Flight-Commander/blob/main/docs/FIRMWARE_FLASHING.md\"target=\"_blank\">USB刷写</a> 的部分)</li><li>关闭 Flight Commander，关闭所有 Chrome，关闭所有 Chrome 外挂程序，重新启动 Flight Commander</li><li>松开 Boot 键，如果您的飞控板有Boot键的话</li><li>烧写正确的固件(手动选择波特率，如果您的飞控手册有指定)</li><li>关闭电源</li><li>移除 Boot 短路脚位</li><li>开启电源(LED 指示灯应该会闪烁)</li><li>正常连线</li></ul>"
     },
     "firmwareFlasherButtonLeave": {
         "message": "关闭固件烧写"
@@ -4542,7 +4542,7 @@
         "message": "有新的INAV地面站版本可供下载"
     },
     "appUpdateNotificationDescription": {
-        "message": "请访问 <a href=\"https://github.com/iNavFlight/inav-configurator/releases\" target=\"_blank\">网站</a> 阅读发布说明并下载。"
+        "message": "请访问 <a href=\"https://github.com/srt3262/Flight-Commander/releases\" target=\"_blank\">网站</a> 阅读发布说明并下载。"
     },
     "closeUpdateBtn": {
         "message": "取消"
@@ -4947,7 +4947,7 @@
         "message": "操作菜单"
     },
     "useOnlyStandalone": {
-        "message": "使用独立的应用程序。<br> 请访问 <a href=\"https://github.com/iNavFlight/inav-configurator/releases\" target=\"_blank\">网站</a> 阅读发布说明并下载。"
+        "message": "使用独立的应用程序。<br> 请访问 <a href=\"https://github.com/srt3262/Flight-Commander/releases\" target=\"_blank\">网站</a> 阅读发布说明并下载。"
     },
     "eeprom_load_ok": {
         "message": "EEPROM <span style=\"color: #37a8db\">已加载</span>"

@@ -16,6 +16,10 @@ export function normalizeLtmTelemetry(state = {}, isReceiving = false) {
     missionActive && activeWaypointNumber > 0
       ? Math.trunc(activeWaypointNumber) - 1
       : null;
+  const altitudeCentimeters = finite(state.altitude);
+  const homeAltitudeCentimeters = finite(state.homeAltitude);
+  const altitudeMsl =
+    altitudeCentimeters === null ? null : altitudeCentimeters / 100;
 
   return {
     connected: isReceiving,
@@ -25,7 +29,13 @@ export function normalizeLtmTelemetry(state = {}, isReceiving = false) {
     modeName: state.flightmodeName ?? "Unknown",
     latitude: finite(state.latitude, 1e7),
     longitude: finite(state.longitude, 1e7),
-    relativeAltitude: finite(state.altitude, 100),
+    relativeAltitude:
+      altitudeCentimeters === null
+        ? null
+        : homeAltitudeCentimeters === null
+          ? altitudeMsl
+          : (altitudeCentimeters - homeAltitudeCentimeters) / 100,
+    altitudeMsl,
     climbRate: null,
     groundSpeed: finite(state.groundSpeed),
     airSpeed: finite(state.airspeed),

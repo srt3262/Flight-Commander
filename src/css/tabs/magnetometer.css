@@ -229,4 +229,30 @@ progress[value]::-webkit-progress-value {
 
 .tab-magnetometer .noUi-value {
     margin-top: 6px;
-} 
+}
+
+.tab-magnetometer .flight-commander-alignment-targets {
+    margin-bottom: 14px;
+    padding: 12px;
+    border-left: 4px solid #39a9dc;
+    border-radius: 4px;
+    background: rgba(57, 169, 220, 0.12);
+}
+
+.tab-magnetometer .flight-commander-alignment-targets label,
+.tab-magnetometer .flight-commander-alignment-targets select {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.tab-magnetometer .flight-commander-alignment-targets p,
+.tab-magnetometer .rtk-alignment-preview-note {
+    margin: 8px 0 0;
+    line-height: 1.45;
+}
+
+.tab-magnetometer .slider[disabled] {
+    opacity: 0.35;
+    pointer-events: none;
+}

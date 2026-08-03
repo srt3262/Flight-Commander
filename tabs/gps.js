@@ -45,6 +45,12 @@ import {
     HEADING_SOURCE_MOVING_BASELINE,
     encodeHeadingConfig,
 } from '../js/flightCommander/headingFusion';
+import {
+    UART_GPS_PRESETS,
+    UART_RTK_ROVER_PRESET_ID,
+    detectUartGpsPreset,
+    uartRtkRoverNextAction,
+} from '../js/flightCommander/uartGpsPresets';
 
 
 const gpsTab = {};
@@ -448,83 +454,17 @@ gpsTab.initialize = function (callback) {
         gps_ubx_sbas_e.val(FC.MISC.gps_ubx_sbas);
 
         // GPS Preset Configuration
-        const GPS_PRESETS = {
-            m8: {
-                name: "u-blox M8",
-                galileo: true,
-                glonass: true,
-                beidou: true,
-                rate: 8,
-                description: [
-                    "4 GNSS constellations for maximum accuracy",
-                    "8Hz update rate (conservative for M8)",
-                    "Best for: Navigation, position hold, slower aircraft"
-                ]
-            },
-            'm9-precision': {
-                name: "u-blox M9 (Precision Mode)",
-                galileo: true,
-                glonass: false,
-                beidou: true,
-                rate: 5,
-                description: [
-                    "3 GNSS constellations (GPS+Galileo+Beidou) → 32 satellites",
-                    "5Hz update rate, HDOP ~1.0-1.3",
-                    "Best for: Long-range cruise, position hold, navigation missions"
-                ]
-            },
-            'm9-sport': {
-                name: "u-blox M9 (Sport Mode)",
-                galileo: true,
-                glonass: false,
-                beidou: true,
-                rate: 10,
-                description: [
-                    "3 GNSS constellations (GPS+Galileo+Beidou) → 16 satellites",
-                    "10Hz update rate (hardware limit), HDOP ~2.0-2.5",
-                    "Best for: Fast flying, racing, acrobatics, quick response"
-                ]
-            },
-            m10: {
-                name: "u-blox M10",
-                galileo: true,
-                glonass: false,
-                beidou: true,
-                rate: 8,
-                description: [
-                    "3 GNSS constellations (GPS+Galileo+Beidou)",
-                    "8Hz update rate (safe for M10 default CPU clock)",
-                    "Best for: General use, balanced performance"
-                ]
-            },
-            'm10-highperf': {
-                name: "u-blox M10 (High-Performance)",
-                galileo: true,
-                glonass: true,
-                beidou: true,
-                rate: 10,
-                description: [
-                    "4 GNSS constellations for maximum satellites",
-                    "10Hz update rate (requires high-performance CPU clock)",
-                    "Only use if you KNOW your M10 has high-performance clock enabled"
-                ]
-            },
-            manual: {
-                name: "Manual Settings",
-                description: [
-                    "Full control over constellation selection and update rate",
-                    "For advanced users and special requirements"
-                ]
-            }
-        };
+        const GPS_PRESETS = UART_GPS_PRESETS;
 
-        function detectGPSPreset(hwVersion) {
-            switch(hwVersion) {
-                case 0x48: return 'm8';
-                case 0x49: return 'm9-precision';
-                case 0x4A: return 'm10';
-                default:   return 'manual';
-            }
+        function updateRtkRoverGuidance() {
+            const selectedPreset = $('#gps_preset_mode').val();
+            const isRtkRover = selectedPreset === UART_RTK_ROVER_PRESET_ID;
+            $('#gpsRtkRoverGuidance').toggleClass('is-hidden', !isRtkRover);
+            if (!isRtkRover) return;
+            $('#gpsRtkRoverNextAction').text(uartRtkRoverNextAction({
+                portIdentifier: $port.val(),
+                supportsRtkUart,
+            }));
         }
 
         function applyGPSPreset(presetId) {
@@ -534,13 +474,14 @@ gpsTab.initialize = function (callback) {
                 $('.preset-controlled').prop('disabled', false);
                 $('#gps_ublox_nav_hz').prop('disabled', false);
                 $('#preset_info').hide();
+                updateRtkRoverGuidance();
                 return;
             }
 
             if (presetId === 'auto') {
                 // Try to auto-detect from FC
                 if (FC.GPS_DATA && FC.GPS_DATA.hwVersion) {
-                    const detectedPreset = detectGPSPreset(FC.GPS_DATA.hwVersion);
+                    const detectedPreset = detectUartGpsPreset(FC.GPS_DATA.hwVersion);
                     applyGPSPreset(detectedPreset);
                     $('#gps_preset_mode').val(detectedPreset);
                     GUI.log(i18n.getMessage('gpsAutoDetectSuccess') + ' ' + GPS_PRESETS[detectedPreset].name);
@@ -558,6 +499,13 @@ gpsTab.initialize = function (callback) {
             if (!preset) return;
 
             // Apply preset values (user can still adjust after applying)
+            if (preset.protocol) {
+                const protocolIndex = gpsProtocols.indexOf(preset.protocol);
+                if (protocolIndex >= 0) gps_protocol_e.val(String(protocolIndex)).trigger('change');
+            }
+            if (preset.baud && $baud.find(`option[value="${preset.baud}"]`).length) {
+                $baud.val(preset.baud);
+            }
             $('#gps_use_galileo').prop('checked', preset.galileo);
             $('#gps_use_glonass').prop('checked', preset.glonass);
             $('#gps_use_beidou').prop('checked', preset.beidou);
@@ -567,17 +515,19 @@ gpsTab.initialize = function (callback) {
             $('#preset_name').text(preset.name);
             $('#preset_details').html(preset.description.map(d => `<li>${d}</li>`).join(''));
             $('#preset_info').show();
+            updateRtkRoverGuidance();
         }
 
         // Set up preset mode handler (namespaced to prevent memory leaks)
         $('#gps_preset_mode').on('change.gpsTab', function() {
             applyGPSPreset($(this).val());
         });
+        $port.on('change.gpsTab', updateRtkRoverGuidance);
 
         // Hardware detection status indicator
         function updateHardwareStatus() {
             if (FC.GPS_DATA && FC.GPS_DATA.hwVersion && FC.GPS_DATA.hwVersion > 0) {
-                const detectedPreset = detectGPSPreset(FC.GPS_DATA.hwVersion);
+                const detectedPreset = detectUartGpsPreset(FC.GPS_DATA.hwVersion);
                 if (detectedPreset && detectedPreset !== 'manual' && GPS_PRESETS[detectedPreset]) {
                     $('#gps_hardware_name').text(GPS_PRESETS[detectedPreset].name + ' detected');
                     $('#gps_hardware_status').show();
@@ -589,7 +539,7 @@ gpsTab.initialize = function (callback) {
         $('#gps_apply_optimal').on('click.gpsTab', function(e) {
             e.preventDefault();
             if (FC.GPS_DATA && FC.GPS_DATA.hwVersion) {
-                const detectedPreset = detectGPSPreset(FC.GPS_DATA.hwVersion);
+                const detectedPreset = detectUartGpsPreset(FC.GPS_DATA.hwVersion);
                 if (detectedPreset && detectedPreset !== 'manual') {
                     $('#gps_preset_mode').val(detectedPreset).trigger('change');
                     GUI.log('Applied recommended settings for ' + GPS_PRESETS[detectedPreset].name);
@@ -1031,6 +981,7 @@ gpsTab.initialize = function (callback) {
 gpsTab.cleanup = function (callback) {
     // Remove all namespaced event handlers to prevent memory leaks
     $('#gps_preset_mode').off('.gpsTab');
+    $('#gps_port').off('.gpsTab');
     $('#gps_apply_optimal').off('.gpsTab');
     $('#center_button').off('.gpsTab');
     $('#gpsDronecanRefresh').off('.gpsTab');

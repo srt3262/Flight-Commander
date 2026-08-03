@@ -243,7 +243,7 @@
         "message": "Simulator Eingabe"
     },
     "sitlInavOutput": {
-        "message": "INAV Ausgabe"
+        "message": "Flight Commander Ausgabe"
     },
     "sitlLog": {
         "message": "Log"
@@ -306,13 +306,13 @@
         "message": "Aktivieren"
     },
     "sitlHelp": {
-        "message": "SITL (Software in the loop) erlaubt es INAV direkt auf dem PC ausgeführt zu werden, ohne einen Flight Controller für simulierte Flüge zu benötigen. Hierfür wurde INAV mit einem PC Compiler erstellt. Die Sensordaten werden durch einen Simulator bereitgestellt.<br/>Derzeit unterstützt werden:<br/><ul><li><a href=\"https://www.realflight.com\" target=\"_blank\">RealFlight</a><br/></li><li><a href=\"https://www.x-plane.com\" target=\"_blank\">X-Plane</a></li></ul>"
+        "message": "SITL (Software in the loop) erlaubt es Flight Commander direkt auf dem PC ausgeführt zu werden, ohne einen Flight Controller für simulierte Flüge zu benötigen. Hierfür wurde Flight Commander mit einem PC Compiler erstellt. Die Sensordaten werden durch einen Simulator bereitgestellt.<br/>Derzeit unterstützt werden:<br/><ul><li><a href=\"https://www.realflight.com\" target=\"_blank\">RealFlight</a><br/></li><li><a href=\"https://www.x-plane.com\" target=\"_blank\">X-Plane</a></li></ul>"
     },
     "sitlProfilesHelp": {
-        "message": "Profile werden lokal gespeichert. Die Profile enthalten nicht nur alle daten dieses Tabs, sondern auch die Konfigurationsdatei (\"EEPROM\") von INAV selbst. <br><span style=\"color: red\">Note:</span><br>Standard Profile können nicht überschrieben werden. Um Änderungen zu speichern, erstelle ein neues Profil. "
+        "message": "Profile werden lokal gespeichert. Die Profile enthalten nicht nur alle daten dieses Tabs, sondern auch die Konfigurationsdatei (\"EEPROM\") von Flight Commander selbst. <br><span style=\"color: red\">Note:</span><br>Standard Profile können nicht überschrieben werden. Um Änderungen zu speichern, erstelle ein neues Profil. "
     },
     "sitlEnableSimulatorHelp": {
-        "message": "Wenn diese Option deaktiviert wird, können nur UARTs (MSP/Configurator) verwendet werden. Nützlich um INAV zu konfigurieren, ohne den Simulator starten zu müssen."
+        "message": "Wenn diese Option deaktiviert wird, können nur UARTs (MSP/Configurator) verwendet werden. Nützlich um Flight Commander zu konfigurieren, ohne den Simulator starten zu müssen."
     },
     "sitlUseImuHelp": {
         "message": "Verwende IMU Sensor-Daten vom Simulator anstelle von Lage-Informationen. (Experimentell, nicht empfohlen)."
@@ -555,13 +555,13 @@
         "message": "INAV wird von einer großartigen Community aus Nutzern, Entwicklern und Unternehmen unterstützt. Hier eine kurze Liste: <a href=\"http://www.mateksys.com/\" target=\"_blank\">Mateksys</a>, <a href=\"https://www.speedybee.com/\" target=\"_blank\">SpeedyBee</a>, <a href=\"https://geprc.com/\" target=\"_blank\">GEPRC</a>. "
     },
     "defaultWelcomeText": {
-        "message": "Der Firmware-Quellcode kann <a href=\"https://github.com/iNavFlight\" title=\"www.github.com\" target=\"_blank\">hier</a> heruntergeladen werden<br />Das neueste binäre Firmware-Image ist <a href=\"https://github.com/iNavFlight/inav/releases\" title=\"www.github.com\" target=\"_blank\">hier</a> verfügbar.<br /><br />Die neuesten <strong>STM USB VCP Treiber</strong> können <a href=\"http://www.st.com/web/en/catalog/tools/PF257938\" title=\"http://www.st.com\" target=\"_blank\">hier</a> heruntergeladen werden<br />Das neueste <strong>Zadig</strong> für DFU-Flashing unter Windows kann <a href=\"http://zadig.akeo.ie/\" title=\"http://zadig.akeo.ie\" target=\"_blank\">hier</a> heruntergeladen werden<br />"
+        "message": "Der Firmware-Quellcode kann <a href=\"https://github.com/srt3262/Flight-Commander\" title=\"www.github.com\" target=\"_blank\">hier</a> heruntergeladen werden<br />Das neueste binäre Firmware-Image ist <a href=\"https://github.com/srt3262/Flight-Commander/releases\" title=\"www.github.com\" target=\"_blank\">hier</a> verfügbar.<br /><br />Die neuesten <strong>STM USB VCP Treiber</strong> können <a href=\"http://www.st.com/web/en/catalog/tools/PF257938\" title=\"http://www.st.com\" target=\"_blank\">hier</a> heruntergeladen werden<br />Das neueste <strong>Zadig</strong> für DFU-Flashing unter Windows kann <a href=\"http://zadig.akeo.ie/\" title=\"http://zadig.akeo.ie\" target=\"_blank\">hier</a> heruntergeladen werden<br />"
     },
     "defaultContributingHead": {
         "message": "Mitwirken"
     },
     "defaultContributingText": {
-        "message": "Wenn du INAV noch besser machen möchtest, kannst du auf viele Arten helfen, darunter:<br /><ul><li>Fragen anderer Nutzer in den Foren und im IRC beantworten.</li><li>Code zur Firmware und zum Configurator beitragen — neue Features, Fixes, Verbesserungen</li><li><a href=\"https://github.com/iNavFlight/inav/pulls\" target=\"_blank\">Neue Features/Fixes</a> testen und Feedback geben.</li><li>Bei <a href=\"https://github.com/iNavFlight/inav/issues\" target=\"_blank\">Issues helfen und Feature-Wünsche kommentieren</a>.</li></ul>"
+        "message": "Wenn du INAV noch besser machen möchtest, kannst du auf viele Arten helfen, darunter:<br /><ul><li>Fragen anderer Nutzer in den Foren und im IRC beantworten.</li><li>Code zur Firmware und zum Configurator beitragen — neue Features, Fixes, Verbesserungen</li><li><a href=\"https://github.com/srt3262/Flight-Commander/pulls\" target=\"_blank\">Neue Features/Fixes</a> testen und Feedback geben.</li><li>Bei <a href=\"https://github.com/srt3262/Flight-Commander/issues\" target=\"_blank\">Issues helfen und Feature-Wünsche kommentieren</a>.</li></ul>"
     },
     "defaultChangelogHead": {
         "message": "Configurator - Changelog"
@@ -2697,7 +2697,7 @@
         "message": "<strong>Recovery / Verbindung verloren<strong>"
     },
     "firmwareFlasherRecoveryText": {
-        "message": "Falls du die Verbindung zu deinem Board verloren hast, befolge diese Schritte, um sie wiederherzustellen: <ul><li>Ausschalten</li><li>'Keine Reboot-Sequenz' aktivieren, 'Vollständige Chip-Löschung' aktivieren.</li><li>Die BOOT-Pins brücken oder den BOOT-Knopf halten.</li><li>Einschalten (die Activity-LED blinkt bei korrekter Ausführung NICHT).</li><li>Alle STM32-Treiber und falls nötig Zadig installieren (siehe Abschnitt <a href=\"https://github.com/iNavFlight/inav/blob/master/docs/USB%20Flashing.md\"target=\"_blank\">USB Flashing</a> im INAV-Handbuch).</li><li>Configurator schließen, alle laufenden Chrome-Instanzen schließen, alle Chrome-Apps schließen, Configurator neu starten.</li><li>BOOT-Knopf loslassen, falls dein FC einen hat.</li><li>Mit der korrekten Firmware flashen (mit manueller Baudrate, falls im Handbuch deines FC angegeben).</li><li>Ausschalten.</li><li>BOOT-Brücke entfernen.</li><li>Einschalten (die Activity-LED sollte blinken).</li><li>Normal verbinden.</li></ul>"
+        "message": "Falls du die Verbindung zu deinem Board verloren hast, befolge diese Schritte, um sie wiederherzustellen: <ul><li>Ausschalten</li><li>'Keine Reboot-Sequenz' aktivieren, 'Vollständige Chip-Löschung' aktivieren.</li><li>Die BOOT-Pins brücken oder den BOOT-Knopf halten.</li><li>Einschalten (die Activity-LED blinkt bei korrekter Ausführung NICHT).</li><li>Alle STM32-Treiber und falls nötig Zadig installieren (siehe Abschnitt <a href=\"https://github.com/srt3262/Flight-Commander/blob/main/docs/FIRMWARE_FLASHING.md\"target=\"_blank\">USB Flashing</a> im INAV-Handbuch).</li><li>Configurator schließen, alle laufenden Chrome-Instanzen schließen, alle Chrome-Apps schließen, Configurator neu starten.</li><li>BOOT-Knopf loslassen, falls dein FC einen hat.</li><li>Mit der korrekten Firmware flashen (mit manueller Baudrate, falls im Handbuch deines FC angegeben).</li><li>Ausschalten.</li><li>BOOT-Brücke entfernen.</li><li>Einschalten (die Activity-LED sollte blinken).</li><li>Normal verbinden.</li></ul>"
     },
     "firmwareFlasherButtonLeave": {
         "message": "Firmware-Flasher verlassen"
@@ -4812,7 +4812,7 @@
         "message": "Neue Configurator-Version verfügbar."
     },
     "appUpdateNotificationDescription": {
-        "message": "Bitte besuche die <a href=\"https://github.com/iNavFlight/inav-configurator/releases\" target=\"_blank\">Website</a>, um die Release Notes zu lesen und herunterzuladen."
+        "message": "Bitte besuche die <a href=\"https://github.com/srt3262/Flight-Commander/releases\" target=\"_blank\">Website</a>, um die Release Notes zu lesen und herunterzuladen."
     },
     "closeUpdateBtn": {
         "message": "Schließen"
@@ -5223,7 +5223,7 @@
         "message": "Aktionsmenü"
     },
     "useOnlyStandalone": {
-        "message": "Eigenständige Anwendung verwenden.<br> Bitte besuche die <a href=\"https://github.com/iNavFlight/inav-configurator/releases\" target=\"_blank\">Website</a>, um die Release Notes zu lesen und herunterzuladen."
+        "message": "Eigenständige Anwendung verwenden.<br> Bitte besuche die <a href=\"https://github.com/srt3262/Flight-Commander/releases\" target=\"_blank\">Website</a>, um die Release Notes zu lesen und herunterzuladen."
     },
     "eeprom_load_ok": {
         "message": "EEPROM <span style=\"color: #37a8db\">geladen</span>"

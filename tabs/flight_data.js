@@ -940,15 +940,15 @@ flightData.render = function (state) {
     this.unitSystem,
     { decimals: 1 },
   ));
-  $('#flightDataGroundSpeed').text(formatGroundControlValue(
-    state.groundSpeed,
-    'groundSpeed',
+  $('#flightDataAltitudeMsl').text(formatGroundControlValue(
+    state.altitudeMsl,
+    'altitudeMsl',
     this.unitSystem,
     { decimals: 1 },
   ));
-  $('#flightDataAirSpeed').text(formatGroundControlValue(
-    state.airSpeed,
-    'airSpeed',
+  $('#flightDataGroundSpeed').text(formatGroundControlValue(
+    state.groundSpeed,
+    'groundSpeed',
     this.unitSystem,
     { decimals: 1 },
   ));

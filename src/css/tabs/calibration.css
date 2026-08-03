@@ -227,6 +227,37 @@
     background: rgba(55, 168, 219, 0.1);
 }
 
+.compass-orientation-notice {
+    display: grid;
+    gap: 6px;
+    margin-bottom: 9px;
+    padding: 9px 10px;
+    border-left: 3px solid #dca22a;
+    background: rgba(220, 162, 42, 0.12);
+    line-height: 1.4;
+}
+
+.compass-orientation-notice.is-ready {
+    border-left-color: #45bb77;
+    background: rgba(69, 187, 119, 0.1);
+}
+
+.compass-orientation-notice p {
+    margin: 0;
+}
+
+.compass-orientation-notice button {
+    min-height: 34px;
+    border-color: #c88f1f !important;
+    background: linear-gradient(#e7b64f, #c88f1f) !important;
+    color: #17232a !important;
+    font-weight: 700;
+}
+
+.compass-orientation-notice button:disabled {
+    opacity: 0.55;
+}
+
 .compass-calibration-summary {
     margin-bottom: 9px;
     padding: 8px 10px;

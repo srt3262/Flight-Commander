@@ -68,6 +68,7 @@ function targetStatus(source, fallbackCalibrated) {
 
 export function enumerateCompassCalibrationTargets({
     supportsHeadingFusion = false,
+    activeSensors = null,
     sensorConfig = {},
     calibrationData = {},
     headingConfig = null,
@@ -77,14 +78,22 @@ export function enumerateCompassCalibrationTargets({
 } = {}) {
     const legacyZero = legacyVector(calibrationData.magZero, 0);
     const legacyGain = legacyVector(calibrationData.magGain, 1024);
+    const activeSensorsMask = Number(activeSensors);
+    const legacyMagDetected = (
+        activeSensors !== null
+        && activeSensors !== undefined
+        && Number.isFinite(activeSensorsMask)
+    )
+        ? (activeSensorsMask & (1 << 2)) !== 0
+        : Number(sensorConfig.magnetometer) !== 0;
 
     if (!supportsHeadingFusion || !headingConfig?.sources) {
-        if (Number(sensorConfig.magnetometer) === 0) return [];
+        if (!legacyMagDetected) return [];
         return [{
             index: HEADING_SOURCE_ONBOARD_MAG,
             key: 'legacy-primary',
             title: 'Primary / onboard compass',
-            description: 'Compass reported through the standard INAV magnetometer configuration.',
+            description: 'Compass reported through the standard firmware magnetometer configuration.',
             zero: legacyZero,
             gain: legacyGain,
             zeroUnit: 'raw',
@@ -100,7 +109,7 @@ export function enumerateCompassCalibrationTargets({
     const onboardEnabled = Boolean(headingConfig.sources[HEADING_SOURCE_ONBOARD_MAG]?.enabled);
     if (
         onboardEnabled
-        && (Number(sensorConfig.magnetometer) !== 0 || sourceIsLive(onboardSource))
+        && (legacyMagDetected || sourceIsLive(onboardSource))
     ) {
         targets.push({
             index: HEADING_SOURCE_ONBOARD_MAG,

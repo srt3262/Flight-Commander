@@ -51,8 +51,8 @@ test('Ground Control exposes all telemetry below two persistent side-by-side pan
   assert.deepEqual(cards.map(({ label }) => label), [
     'Mode',
     'Relative altitude',
+    'Altitude (MSL)',
     'Ground speed',
-    'Air speed',
     'Heading',
     'Climb',
     'GPS',
@@ -65,6 +65,13 @@ test('Ground Control exposes all telemetry below two persistent side-by-side pan
     'Mission progress',
     'Next waypoint',
   ]);
+  assert.match(
+    groundControlHtml,
+    /Relative altitude[\s\S]*?Altitude \(MSL\)[\s\S]*?Ground speed/,
+  );
+  assert.doesNotMatch(groundControlHtml, /Air speed|flightDataAirSpeed/);
+  assert.match(groundControlSource, /state\.altitudeMsl/);
+  assert.doesNotMatch(groundControlSource, /#flightDataAirSpeed/);
 
   assert.match(groundControlHtml, /id="flightDataVisuals"[^>]*data-primary="map"/);
   assert.match(
@@ -169,8 +176,8 @@ test('unit switching converts every Ground Control display and input boundary', 
   assert.doesNotMatch(groundControlSource, /flightCommanderGroundControlUnits/);
   for (const quantity of [
     'relativeAltitude',
+    'altitudeMsl',
     'groundSpeed',
-    'airSpeed',
     'climbRate',
     'distanceToWaypoint',
   ]) {

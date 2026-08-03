@@ -68,6 +68,7 @@ test("exposes immutable labels, multipliers, and readable HUD tape steps", () =>
 
 test("converts only display quantities from canonical SI values", () => {
   assert.equal(convertGroundControlValue(100, "relativeAltitude", "metric"), 100);
+  assert.equal(convertGroundControlValue(100, "altitudeMsl", "metric"), 100);
   assert.equal(
     convertGroundControlValue(100, "relativeAltitude", "imperial"),
     100 * METERS_TO_FEET,
@@ -127,6 +128,7 @@ test("keeps unavailable and non-finite telemetry unavailable", () => {
 test("creates a converted display snapshot without mutating canonical SI state", () => {
   const canonical = {
     relativeAltitude: 30,
+    altitudeMsl: 130,
     groundSpeed: 10,
     airSpeed: 12,
     climbRate: -1.5,
@@ -140,6 +142,7 @@ test("creates a converted display snapshot without mutating canonical SI state",
   assert.deepEqual(canonical, original);
   assert.notEqual(display, canonical);
   assert.equal(display.relativeAltitude, 30 * METERS_TO_FEET);
+  assert.equal(display.altitudeMsl, 130 * METERS_TO_FEET);
   assert.equal(
     display.groundSpeed,
     10 * METERS_PER_SECOND_TO_MILES_PER_HOUR,

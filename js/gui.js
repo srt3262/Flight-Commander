@@ -7,6 +7,7 @@ import { scaleRangeInt } from './helpers';
 import i18n from './localization';
 import mspDeduplicationQueue from "./msp/mspDeduplicationQueue";
 import mspQueue from './serial_queue';
+import { documentationUrlForTab } from './flightCommander/documentation';
 
 var GUI_control = function () {
     this.connecting_to = false;
@@ -156,8 +157,12 @@ GUI_control.prototype.content_ready = function (callback) {
 
     // Insert a documentation button next to the tab title
     const tabTitle = $('div#content .tab_title').first();
+    const activeNavigationItem = $('#tabs li.active[class*="tab_"]').first();
+    const activeTabClass = Array.from(activeNavigationItem[0]?.classList ?? [])
+        .find((className) => className.startsWith('tab_'));
+    const activeTabName = activeTabClass?.slice(4) ?? '';
     const documentationDiv = $('<div>').addClass('cf_doc_version_bt');
-    $('<a>').attr('href', 'https://github.com/srt3262/Flight-Commander/tree/main/docs')
+    $('<a>').attr('href', documentationUrlForTab(activeTabName))
         .attr('target', '_blank').attr('id', 'button-documentation')
         .html(i18n.getMessage('documentation')).appendTo(documentationDiv);
     documentationDiv.insertAfter(tabTitle);

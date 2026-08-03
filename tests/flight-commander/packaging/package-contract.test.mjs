@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import test from "node:test";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -61,6 +61,14 @@ const gpsSource = readFileSync(
   resolve(projectRoot, "tabs/gps.js"),
   "utf8",
 );
+const magnetometerHtml = readFileSync(
+  resolve(projectRoot, "tabs/magnetometer.html"),
+  "utf8",
+);
+const magnetometerSource = readFileSync(
+  resolve(projectRoot, "tabs/magnetometer.js"),
+  "utf8",
+);
 const calibrationHtml = readFileSync(
   resolve(projectRoot, "tabs/calibration.html"),
   "utf8",
@@ -117,6 +125,22 @@ const documentationHub = readFileSync(
   resolve(projectRoot, "docs/README.md"),
   "utf8",
 );
+const documentationRouter = readFileSync(
+  resolve(projectRoot, "js/flightCommander/documentation.js"),
+  "utf8",
+);
+const settingsReference = readFileSync(
+  resolve(projectRoot, "docs/SETTINGS_REFERENCE.md"),
+  "utf8",
+);
+const sitlHtml = readFileSync(
+  resolve(projectRoot, "tabs/sitl.html"),
+  "utf8",
+);
+const sitlSource = readFileSync(
+  resolve(projectRoot, "js/sitl.js"),
+  "utf8",
+);
 const firmwareFlasherHtml = readFileSync(
   resolve(projectRoot, "tabs/firmware_flasher.html"),
   "utf8",
@@ -170,6 +194,17 @@ const bundledFirmwarePath = resolve(
 
 function fileSha256(path) {
   return createHash("sha256").update(readFileSync(path)).digest("hex");
+}
+
+function sourceFiles(directory, extensions) {
+  return readdirSync(resolve(projectRoot, directory), { withFileTypes: true })
+    .flatMap((entry) => {
+      const relativePath = `${directory}/${entry.name}`;
+      if (entry.isDirectory()) return sourceFiles(relativePath, extensions);
+      return extensions.some((extension) => entry.name.endsWith(extension))
+        ? [relativePath]
+        : [];
+    });
 }
 
 function relativeLuminance(hexColor) {
@@ -337,9 +372,16 @@ test("documentation and support stay on Flight Commander-owned resources", () =>
     "https://github.com/srt3262/Flight-Commander/tree/main/docs";
   const retiredDocumentationUrl =
     "https://github.com/iNavFlight/inav/wiki";
+  const userFacingSources = [
+    "index.html",
+    ...sourceFiles("tabs", [".html", ".js"]),
+    ...sourceFiles("locale", [".json"]),
+    ...sourceFiles("js/flightCommander", [".js"]),
+  ].map((path) => readFileSync(resolve(projectRoot, path), "utf8")).join("\n");
 
   assert.match(rendererEntry, new RegExp(documentationUrl));
-  assert.match(guiSource, new RegExp(documentationUrl));
+  assert.match(guiSource, /documentationUrlForTab/);
+  assert.match(documentationRouter, new RegExp(documentationUrl));
   assert.doesNotMatch(
     rendererEntry,
     new RegExp(`href=["']${retiredDocumentationUrl}["']`),
@@ -354,6 +396,36 @@ test("documentation and support stay on Flight Commander-owned resources", () =>
   );
   assert.match(documentationHub, /USB RTK base and NTRIP workflows/);
   assert.match(documentationHub, /Heading fusion, compass sources, calibration/);
+  assert.match(documentationRouter, /cli: documentUrl\('CLI\.md'\)/);
+  assert.match(documentationRouter, /settings: documentUrl\('SETTINGS_REFERENCE\.md'\)/);
+  assert.doesNotMatch(
+    userFacingSources,
+    /https:\/\/github\.com\/iNavFlight/,
+    "a user-facing product link still routes to upstream INAV documentation or support",
+  );
+
+  for (const match of documentationHub.matchAll(/\]\(([^)#]+\.md)(?:#[^)]+)?\)/g)) {
+    assert.equal(
+      existsSync(resolve(projectRoot, "docs", match[1])),
+      true,
+      `documentation hub target is missing: ${match[1]}`,
+    );
+  }
+
+  const graphicalSettingNames = new Set(
+    sourceFiles("tabs", [".html"])
+      .flatMap((path) => [
+        ...readFileSync(resolve(projectRoot, path), "utf8")
+          .matchAll(/\bdata-setting=["']([^"']+)["']/g),
+      ])
+      .map((match) => match[1]),
+  );
+  assert.equal(graphicalSettingNames.size, 246);
+  for (const settingName of graphicalSettingNames) {
+    const anchor = settingName.toLowerCase().replace(/[^a-z0-9_-]+/g, "-");
+    assert.match(settingsReference, new RegExp(`<a id=["']${anchor}["']></a>`));
+    assert.ok(settingsReference.includes(`### \`${settingName}\``));
+  }
 });
 
 test("weighted heading fusion and moving-baseline setup are release surfaces", () => {
@@ -385,6 +457,42 @@ test("weighted heading fusion and moving-baseline setup are release surfaces", (
   assert.match(firmwareInfoHtml, /data-fc-feature="movingBaselineYaw"/);
 });
 
+test("UART RTK rover selection and per-module alignment ship in the release UI", () => {
+  assert.match(gpsHtml, /value="f9-rtk-rover"/);
+  assert.match(gpsHtml, /u-blox F9P \/ F9-series \(RTK Rover\)/);
+  assert.match(gpsHtml, /id="gpsRtkRoverGuidance"/);
+  assert.match(gpsSource, /UART_GPS_PRESETS/);
+  assert.match(gpsSource, /uartRtkRoverNextAction/);
+
+  assert.match(magnetometerHtml, /id="alignmentTarget"/);
+  assert.match(magnetometerHtml, /Generic u-blox F9P \/ F9-series RTK \(UART\)/);
+  assert.match(magnetometerHtml, /Generic DroneCAN RTK GPS module/);
+  assert.match(magnetometerHtml, /Dual RTK GPS moving-baseline pair/);
+  assert.match(magnetometerSource, /enumerateAlignmentTargets/);
+  assert.match(magnetometerSource, /writeFlightCommanderAlignmentAngles/);
+  assert.match(magnetometerSource, /saveFlightCommanderHeadingConfig/);
+  assert.match(magnetometerSource, /createGenericRtkModel/);
+});
+
+test("SITL presents a Flight Commander-owned operator surface", () => {
+  assert.match(sitlHtml, /Flight Commander SITL/);
+  assert.match(sitlHtml, /Flight Commander Output/);
+  assert.match(sitlSource, /Flight Commander SITL/);
+  assert.doesNotMatch(sitlHtml, /run INAV|INAV Output/);
+
+  for (const localePath of sourceFiles("locale", [".json"])) {
+    const messages = JSON.parse(readFileSync(resolve(projectRoot, localePath), "utf8"));
+    for (const key of [
+      "sitlInavOutput",
+      "sitlHelp",
+      "sitlProfilesHelp",
+      "sitlEnableSimulatorHelp",
+    ]) {
+      assert.doesNotMatch(messages[key]?.message ?? "", /\bINAV\b/);
+    }
+  }
+});
+
 test("application remains dark-only", () => {
   assert.match(rendererEntry, /<html[^>]+data-theme="dark"/);
   assert.doesNotMatch(rendererEntry, /id="applicationTheme"/);
@@ -401,6 +509,9 @@ test("application remains dark-only", () => {
 test("firmware selection, identity, and feature gates are packaged together", () => {
   assert.equal(packageManifest.flightCommander.bundledFirmwareVersion, "2.0.1");
   assert.equal(packageManifest.flightCommander.firmwareChangedInRelease, false);
+  assert.equal(packageManifest.flightCommander.bundledFirmwareSourceAvailable, false);
+  assert.equal(packageManifest.flightCommander.bundledFirmwareSourceVersion, null);
+  assert.equal(packageManifest.flightCommander.bundledFirmwareSourceDirectory, null);
   assert.equal(existsSync(bundledFirmwarePath), true);
   assert.ok(readFileSync(bundledFirmwarePath).length > 1024 * 1024);
   assert.equal(
@@ -480,7 +591,7 @@ test("all requested large-prop INAV presets are wired into the release source", 
 });
 
 test("landing page reports the current Flight Commander release", () => {
-  assert.equal(packageManifest.version, "2.0.4");
+  assert.equal(packageManifest.version, "2.0.5");
   assert.equal(manifest.version, packageManifest.version);
   assert.match(
     landingHtml,
@@ -511,9 +622,16 @@ test("release policy distinguishes software-only updates from firmware rebuilds"
     releaseWorkflow,
     /Configurator and firmware major versions must match/,
   );
+  assert.match(
+    releaseWorkflow,
+    /Every release after the one-time Configurator 2\.0\.5 legacy exception must publish exact firmware source/,
+  );
+  assert.match(releaseWorkflow, /bundledFirmwareSourceAvailable/);
+  assert.match(releaseWorkflow, /bundledFirmwareSourceVersion/);
+  assert.match(releaseWorkflow, /bundledFirmwareSourceDirectory/);
 });
 
-test("coordinated releases publish Windows, source, and firmware downloads", () => {
+test("source-backed releases publish Configurator and firmware binaries plus both sources", () => {
   assert.match(
     releaseWorkflow,
     /Flight-Commander-Configurator-Windows-x64-v\$version\.zip/,
@@ -526,17 +644,23 @@ test("coordinated releases publish Windows, source, and firmware downloads", () 
     releaseWorkflow,
     /Flight-Commander-Firmware-\$firmwareVersion-MICOAIR743-BENCH-ONLY\.hex/,
   );
-  assert.match(releaseWorkflow, /git archive --format=zip/);
-  assert.match(releaseWorkflow, /schemaVersion = 5/);
-  assert.match(releaseWorkflow, /assets\.firmware/);
-  assert.match(releaseWorkflow, /Expected four candidate files/);
   assert.match(
     releaseWorkflow,
-    /gh release create \$tag \$windowsArchivePath \$sourceArchivePath \$firmwarePath/,
+    /Flight-Commander-Firmware-Source-v\$firmwareVersion\.zip/,
+  );
+  assert.match(releaseWorkflow, /git archive --format=zip/);
+  assert.match(releaseWorkflow, /schemaVersion = 6/);
+  assert.match(releaseWorkflow, /assets\.firmware/);
+  assert.match(releaseWorkflow, /firmwareSourceAvailable = \$firmwareSourceAvailable/);
+  assert.match(releaseWorkflow, /\$releaseAssets\['firmwareSource'\]/);
+  assert.match(releaseWorkflow, /\$expectedCandidateFileCount = if \(\$firmwareSourceAvailable\) \{ 5 \} else \{ 4 \}/);
+  assert.match(
+    releaseWorkflow,
+    /gh release create \$tag @releaseAssetPaths/,
   );
   assert.match(
     releaseWorkflow,
-    /Expected exactly three published release assets/,
+    /\$expectedPublishedAssetCount = if \(\$firmwareSourceAvailable\) \{ 4 \} else \{ 3 \}/,
   );
   assert.doesNotMatch(releaseWorkflow, /Firmware-Package|firmwarePackageDirectory/);
 });

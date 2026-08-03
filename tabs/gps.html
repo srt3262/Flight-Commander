@@ -51,6 +51,7 @@
                                 <option value="m9-sport">u-blox M9 (Sport Mode)</option>
                                 <option value="m10">u-blox M10</option>
                                 <option value="m10-highperf">u-blox M10 (High-Performance)</option>
+                                <option value="f9-rtk-rover">u-blox F9P / F9-series (RTK Rover)</option>
                             </select>
                             <label for="gps_preset_mode">
                                 <span data-i18n="gpsPresetMode">GPS Configuration Preset</span>
@@ -67,6 +68,11 @@
                         <div class="preset-info" id="preset_info" style="display: none; padding: 5px; margin: 5px 0; background: #f0f0f0; border-radius: 3px;">
                             <strong><span id="preset_name"></span></strong>
                             <ul id="preset_details" style="margin: 5px 0; padding-left: 20px;"></ul>
+                        </div>
+                        <div id="gpsRtkRoverGuidance" class="gps-rtk-rover-guidance is-hidden" role="status">
+                            <strong>UART RTK rover setup</strong>
+                            <p id="gpsRtkRoverNextAction"></p>
+                            <p>The receiver on the aircraft is the <strong>rover</strong>. Configure the NTRIP stream or surveyed base later in <strong>Ground Control → RTK correction setup</strong>.</p>
                         </div>
                         <!-- GPS Update Rate -->
                         <div class="number gps-setting-row">

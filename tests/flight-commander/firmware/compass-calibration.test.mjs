@@ -6,6 +6,10 @@ import {
   enumerateCompassCalibrationTargets,
 } from '../../../js/flightCommander/compassCalibration.js';
 import { createDefaultHeadingConfig } from '../../../js/flightCommander/headingFusion.js';
+import {
+  ALIGN_CW90_DEG,
+  onboardCompassOrientationRequirement,
+} from '../../../js/flightCommander/compassOrientation.js';
 
 const legacyCalibration = {
   magZero: { X: 12, Y: -8, Z: 3 },
@@ -21,6 +25,16 @@ test('legacy INAV exposes one configured primary compass with current values', (
   assert.deepEqual(targets[0].zero, [12, -8, 3]);
   assert.deepEqual(targets[0].gain, [1010, 1030, 995]);
   assert.equal(targets[0].calibrated, true);
+});
+
+test('auto magnetometer setting still exposes a physically detected onboard compass', () => {
+  const targets = enumerateCompassCalibrationTargets({
+    activeSensors: 1 << 2,
+    sensorConfig: { magnetometer: 0 },
+    calibrationData: legacyCalibration,
+  });
+  assert.equal(targets.length, 1);
+  assert.equal(targets[0].key, 'legacy-primary');
 });
 
 test('Flight Commander lists each enabled and detected physical compass independently', () => {
@@ -77,4 +91,69 @@ test('calibration state gives active and failed sessions precedence', () => {
   assert.equal(compassCalibrationState({ failed: true, calibrated: true }).tone, 'error');
   assert.equal(compassCalibrationState({ calibrated: true }).tone, 'ready');
   assert.equal(compassCalibrationState({ calibrated: false }).tone, 'warning');
+});
+
+test('MICOAIR743 onboard IST8310 requires unflipped CW90 before calibration', () => {
+  const badDefault = onboardCompassOrientationRequirement({
+    config: { target: 'MICOAIR743', boardIdentifier: 'M743' },
+    sensorConfig: { magnetometer: 1 },
+    sensorAlignment: { align_mag: 0 },
+    customAngles: { roll: 0, pitch: 0, yaw: 0 },
+  });
+  assert.equal(badDefault.alignMag, ALIGN_CW90_DEG);
+  assert.equal(badDefault.needsCorrection, true);
+
+  const corrected = onboardCompassOrientationRequirement({
+    config: { target: 'MICOAIR743' },
+    sensorConfig: { magnetometer: 1 },
+    sensorAlignment: { align_mag: ALIGN_CW90_DEG },
+    customAngles: { roll: 0, pitch: 0, yaw: 0 },
+  });
+  assert.equal(corrected.ready, true);
+  assert.equal(corrected.label, 'CW90 (unflipped)');
+});
+
+test('custom mag angles override the MICOAIR743 preset and keep calibration blocked', () => {
+  const requirement = onboardCompassOrientationRequirement({
+    config: { target: 'MICOAIR743' },
+    sensorConfig: { magnetometer: 1 },
+    sensorAlignment: { align_mag: ALIGN_CW90_DEG },
+    customAngles: { roll: 0, pitch: 0, yaw: 900 },
+  });
+  assert.equal(requirement.needsCorrection, true);
+
+  assert.equal(onboardCompassOrientationRequirement({
+    config: { target: 'MICOAIR743V2' },
+    sensorConfig: { magnetometer: 1 },
+    sensorAlignment: { align_mag: 0 },
+    customAngles: { roll: 0, pitch: 0, yaw: 0 },
+  }), null);
+
+  assert.equal(onboardCompassOrientationRequirement({
+    config: { target: 'MICOAIR743_EXTMAG', boardIdentifier: 'M743' },
+    activeSensors: 1 << 2,
+    sensorConfig: { magnetometer: 1 },
+    sensorAlignment: { align_mag: 0 },
+    customAngles: { roll: 0, pitch: 0, yaw: 0 },
+  }), null);
+});
+
+test('MICOAIR743 orientation guard follows detected hardware instead of the AUTO selector value', () => {
+  const detected = onboardCompassOrientationRequirement({
+    config: { target: 'MICOAIR743' },
+    activeSensors: 1 << 2,
+    sensorConfig: { magnetometer: 0 },
+    sensorAlignment: { align_mag: 0 },
+    customAngles: { roll: 0, pitch: 0, yaw: 0 },
+  });
+  assert.equal(detected.needsCorrection, true);
+
+  const absent = onboardCompassOrientationRequirement({
+    config: { target: 'MICOAIR743' },
+    activeSensors: 0,
+    sensorConfig: { magnetometer: 1 },
+    sensorAlignment: { align_mag: 0 },
+    customAngles: { roll: 0, pitch: 0, yaw: 0 },
+  });
+  assert.equal(absent, null);
 });

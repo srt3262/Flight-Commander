@@ -53,6 +53,25 @@ reboot before calibration. With the aircraft disarmed, use **Calibrate enabled
 compasses** in GPS (or the normal Compass Calibration action), then rotate the
 complete aircraft slowly through all orientations for the full 30-second run.
 
+### MICOAIR743 onboard IST8310 orientation
+
+The onboard IST8310 is mounted at an unflipped 90-degree yaw rotation relative
+to the MICOAIR743 flight-controller axes. A neutral/default magnetometer
+alignment can select an inherited flipped transform; calibration cannot repair
+that fixed axis error because calibration estimates offsets and per-axis gain,
+not sensor mounting rotation.
+
+Flight Commander 2.0.5 detects the board and physical onboard compass before a
+calibration run. If the stored rotation is not **CW90 (unflipped)**, Calibration
+blocks the run and offers **Apply orientation, reset calibration, and reboot**.
+Use that once, reconnect, and then perform the normal compass calibration. The
+orientation and calibration are stored in the controller and do not need to be
+repeated at each startup. Recalibrate after changing the airframe installation,
+power wiring, nearby magnetic hardware, compass module, or firmware defaults.
+
+The guard does not apply to the `MICOAIR743_EXTMAG` target because the mounting
+rotation of an external compass depends on its actual installation.
+
 One calibration command samples every enabled physical compass concurrently,
 but each result is independent:
 

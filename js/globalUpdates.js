@@ -4,6 +4,10 @@ import CONFIGURATOR from './data_storage';
 import FC from './fc';
 import { globalSettings } from './globalSettings';
 import i18n from './localization';
+import {
+    FLIGHT_COMMANDER_DOCUMENTATION_FILE_BASE_URL,
+    FLIGHT_COMMANDER_REPOSITORY_URL,
+} from './flightCommander/documentation';
 
 var update = {
 
@@ -14,29 +18,17 @@ var update = {
     },
 
     firmwareVersion: function() {
+        globalSettings.docsTreeLocation = FLIGHT_COMMANDER_DOCUMENTATION_FILE_BASE_URL;
+        globalSettings.configuratorTreeLocation = `${FLIGHT_COMMANDER_REPOSITORY_URL}/blob/main/`;
+
         if (CONFIGURATOR.connectionValid) {
             const fork = FC.CONFIG.flightCommanderFirmware;
             const identity = fork
                 ? `Flight Commander Firmware ${fork.firmwareVersion ?? 'unknown'}`
                 : `Official INAV compatibility mode ${FC.CONFIG.flightControllerVersion}`;
             $('#logo .firmware_version').text(`${identity} [${FC.CONFIG.target}]`);
-            globalSettings.docsTreeLocation = 'https://github.com/iNavFlight/inav/blob/' + FC.CONFIG.flightControllerVersion + '/docs/';
-            globalSettings.configuratorTreeLocation = 'https://github.com/iNavFlight/inav-configurator/tree/' + FC.CONFIG.flightControllerVersion + '/';
-
-            // If this is a master branch firmware, this will find a 404 as there is no tag tree. So default to master for docs.
-            $.ajax({
-                url: globalSettings.docsTreeLocation + 'Settings.md',
-                method: "HEAD",
-                statusCode: {
-                    404: function () {
-                        globalSettings.docsTreeLocation = 'https://github.com/iNavFlight/inav/blob/master/docs/';
-                    }
-                }
-            });
         } else {
             $('#logo .firmware_version').text(i18n.getMessage('fcNotConnected'));
-
-            globalSettings.docsTreeLocation = 'https://github.com/iNavFlight/inav/blob/master/docs/';
         }
     }
 };

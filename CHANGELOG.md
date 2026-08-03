@@ -1,5 +1,45 @@
 # Changelog
 
+## 2.0.5
+
+- Added an explicit **u-blox F9P / F9-series (RTK Rover)** preset to the UART
+  GPS workflow. It selects UBLOX, 115200 baud, the four major constellations,
+  and an 8 Hz navigation rate, then points the operator to the applicable
+  Ground Control correction workflow.
+- Added independently selectable Alignment Tool targets for the compass on a
+  UART RTK module, the selected DroneCAN RTK-module compass, and dual-RTK
+  moving-baseline yaw. Generic 3D previews clearly distinguish compass
+  mounting rotation from GNSS antenna position.
+- Added a MICOAIR743 onboard IST8310 orientation guard. Calibration detects the
+  physical onboard compass, blocks learning coefficients under the incorrect
+  axes, applies and persists **CW90 (unflipped)**, clears stale calibration,
+  reboots, and then permits the normal calibration. The external-magnetometer
+  target is explicitly excluded.
+- Replaced Ground Control's Air Speed tile with **Altitude (MSL)** and placed it
+  directly beside Relative Altitude, with Metric/Imperial conversion across
+  MAVLink, MSP, and LTM telemetry paths.
+- Replaced CLI, settings, page, tuning, OSD, and translated support links with
+  Flight Commander-owned GitHub documentation. Added a first-party operator
+  manual, comprehensive CLI command guide, and generated reference for all 246
+  graphical firmware settings.
+- Reworded the complete SITL operator surface and translated SITL help as
+  Flight Commander while retaining explicit upstream provenance only in the
+  source/reconstruction documentation and Official INAV compatibility mode.
+- Retains the explicit firmware actions introduced in 2.0.4: **Select Local
+  Firmware File**, **Download Online Firmware**, **Flash Selected Firmware**,
+  and the separately identified offline fallback.
+- This is a software-only Configurator 2.0.5 release. The verified MICOAIR743
+  firmware remains truthfully versioned 2.0.1. The Configurator persists the
+  board-specific compass rotation through the existing firmware setting; the
+  compiled Flight Commander firmware source required for a new default binary
+  is not present in the repository, so the old HEX is neither patched nor
+  relabeled.
+- Added a fail-closed firmware-source retention policy. Configurator 2.0.5 is
+  the sole legacy exception because the existing Firmware 2.0.1 source is
+  already unavailable. Every later release must publish the Windows package,
+  Configurator source, firmware HEX, and exact matching firmware source; a
+  firmware-changing release cannot pass without source from the tested commit.
+
 ## 2.0.4
 
 - Corrected Flight Commander firmware catalog merging so a published online

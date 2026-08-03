@@ -3,14 +3,19 @@
         <div class="tab_title" data-i18n="tabSitl">SITL</div>
         <div class="note" style="margin-bottom: 20px;">
             <div class="note_spacer">
-                <p data-i18n="sitlHelp"></p>
+                <p>
+                    Flight Commander SITL (Software in the loop) runs the included
+                    Flight Commander-compatible flight-control simulation runtime on
+                    this computer without a physical flight controller. RealFlight and
+                    X-Plane can supply simulated sensor and aircraft data.
+                </p>
             </div>
         </div>
         <div class="leftWrapper">
             <div class="gui_box grey">
                 <div class="gui_box_titlebar">
                     <div class="spacer_box_title" data-i18n="sitlProfiles"></div>
-                    <div class="helpicon cf_tip" data-i18n_title="sitlProfilesHelp"></div>
+                    <div class="helpicon cf_tip" title="Profiles are saved locally and include this page's options plus the simulation runtime configuration (EEPROM). Standard profiles cannot be overwritten; create a new profile to save changes."></div>
                 </div>
                 <div class="sitlProfile_box">
                     <div class="sitlProfile_select">
@@ -35,7 +40,7 @@
                     <div class="checkbox">
                         <input type="checkbox" id="sitlEnableSim" class="toggle" data-live="true">
                         <label for="enableSim"><span data-i18n="sitlEnableSim"></span></label>
-                        <div class="helpicon cf_tip" data-i18n_title="sitlEnableSimulatorHelp"></div>
+                        <div class="helpicon cf_tip" title="When disabled, the Flight Commander-compatible SITL runtime starts without RealFlight or X-Plane so its MSP/UART interfaces can be configured independently."></div>
                     </div>
                     <div class="select">
                         <select id="simulator"></select>
@@ -77,7 +82,7 @@
                         <thead>
                             <tr>
                                 <th style="width: 100px" data-i18n="sitlSimInput"></th>
-                                <th style="width: 100px" data-i18n="sitlInavOutput"></th>
+                                <th style="width: 100px">Flight Commander Output</th>
                             </tr>
                         </thead>
                         <tbody class="mapTableBody">

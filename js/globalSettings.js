@@ -1,3 +1,8 @@
+import {
+    FLIGHT_COMMANDER_DOCUMENTATION_FILE_BASE_URL,
+    FLIGHT_COMMANDER_REPOSITORY_URL,
+} from './flightCommander/documentation';
+
 const UnitType = {
     none: "none",
     OSD: "OSD",
@@ -18,8 +23,8 @@ var globalSettings = {
     // Show colours for profiles
     showProfileParameters: null,
     // tree target for documents
-    docsTreeLocation: 'master',
-    configuratorTreeLocation: 'master',
+    docsTreeLocation: FLIGHT_COMMANDER_DOCUMENTATION_FILE_BASE_URL,
+    configuratorTreeLocation: `${FLIGHT_COMMANDER_REPOSITORY_URL}/blob/main/`,
     cliAutocomplete: true,
     assistnowApiKey: null,
     assistnowOfflineData: [],

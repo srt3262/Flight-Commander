@@ -1,4 +1,4 @@
-import { readFile, readdir } from 'node:fs/promises';
+import { readFile, readdir, stat } from 'node:fs/promises';
 
 const SEMVER_PATTERN = /^(\d+)\.(\d+)\.(\d+)(?:[-+].*)?$/;
 
@@ -16,6 +16,12 @@ export function validateFlightCommanderVersions(packageJson) {
     packageJson.flightCommander?.bundledFirmwareVersion;
   const firmwareChangedInRelease =
     packageJson.flightCommander?.firmwareChangedInRelease;
+  const bundledFirmwareSourceAvailable =
+    packageJson.flightCommander?.bundledFirmwareSourceAvailable;
+  const bundledFirmwareSourceVersion =
+    packageJson.flightCommander?.bundledFirmwareSourceVersion;
+  const bundledFirmwareSourceDirectory =
+    packageJson.flightCommander?.bundledFirmwareSourceDirectory;
   const bundledFirmwareMatch = SEMVER_PATTERN.exec(
     bundledFirmwareVersion ?? '',
   );
@@ -52,11 +58,57 @@ export function validateFlightCommanderVersions(packageJson) {
     );
   }
 
+  if (typeof bundledFirmwareSourceAvailable !== 'boolean') {
+    throw new Error(
+      'package.json must declare flightCommander.bundledFirmwareSourceAvailable as a boolean.',
+    );
+  }
+
+  const legacyMissingSourceException =
+    packageJson.version === '2.0.5'
+    && bundledFirmwareVersion === '2.0.1'
+    && firmwareChangedInRelease === false
+    && bundledFirmwareSourceAvailable === false;
+  if (!bundledFirmwareSourceAvailable && !legacyMissingSourceException) {
+    throw new Error(
+      'Every release after the one-time Configurator 2.0.5 legacy exception must publish the exact source for its bundled firmware.',
+    );
+  }
+
+  if (bundledFirmwareSourceAvailable) {
+    if (bundledFirmwareSourceVersion !== bundledFirmwareVersion) {
+      throw new Error(
+        'The bundled firmware source version must exactly match the bundled firmware HEX version.',
+      );
+    }
+    if (
+      typeof bundledFirmwareSourceDirectory !== 'string'
+      || !/^[A-Za-z0-9._/-]+$/.test(bundledFirmwareSourceDirectory)
+      || bundledFirmwareSourceDirectory.startsWith('/')
+      || bundledFirmwareSourceDirectory.split('/').includes('..')
+    ) {
+      throw new Error(
+        'A source-backed firmware release must declare a safe repository-relative bundledFirmwareSourceDirectory.',
+      );
+    }
+  } else if (
+    bundledFirmwareSourceVersion !== null
+    || bundledFirmwareSourceDirectory !== null
+  ) {
+    throw new Error(
+      'Unavailable firmware source must use null source version and directory declarations.',
+    );
+  }
+
   return {
     configuratorMajor,
     firmwareMajor,
     bundledFirmwareVersion,
     firmwareChangedInRelease,
+    bundledFirmwareSourceAvailable,
+    bundledFirmwareSourceVersion,
+    bundledFirmwareSourceDirectory,
+    legacyMissingSourceException,
   };
 }
 
@@ -67,7 +119,24 @@ const {
   firmwareMajor,
   bundledFirmwareVersion,
   firmwareChangedInRelease,
+  bundledFirmwareSourceAvailable,
+  bundledFirmwareSourceVersion,
+  bundledFirmwareSourceDirectory,
+  legacyMissingSourceException,
 } = validateFlightCommanderVersions(packageJson);
+
+if (bundledFirmwareSourceAvailable) {
+  const sourceDirectory = new URL(
+    `../${bundledFirmwareSourceDirectory.replace(/\/?$/, '/')}`,
+    import.meta.url,
+  );
+  const sourceStat = await stat(sourceDirectory);
+  if (!sourceStat.isDirectory() || (await readdir(sourceDirectory)).length === 0) {
+    throw new Error(
+      `Bundled firmware source directory is missing or empty: ${bundledFirmwareSourceDirectory}`,
+    );
+  }
+}
 
 const expectedFirmwareFilename =
   `Flight-Commander-Firmware-${bundledFirmwareVersion}-MICOAIR743-BENCH-ONLY.hex`;
@@ -90,5 +159,10 @@ if (packageJson.name !== 'flight-commander' || packageJson.productName !== 'Flig
 console.log(
   `Flight Commander version contract OK: Configurator ${packageJson.version}, ` +
   `bundled firmware ${bundledFirmwareVersion}, firmware major ${firmwareMajor}, ` +
-  `${firmwareChangedInRelease ? 'coordinated firmware rebuild' : 'software-only release'}.`,
+  `${firmwareChangedInRelease ? 'coordinated firmware rebuild' : 'software-only release'}, ` +
+  `${bundledFirmwareSourceAvailable
+    ? `firmware source ${bundledFirmwareSourceVersion} retained`
+    : legacyMissingSourceException
+      ? 'one-time legacy firmware-source exception'
+      : 'firmware source unavailable'}.`,
 );

@@ -99,10 +99,15 @@
 
             <div class="config-section gui_box grey">
                 <div class="spacer_box">
+                    <div id="flightCommanderAlignmentTargets" class="flight-commander-alignment-targets is-hidden">
+                        <label for="alignmentTarget"><strong>Alignment target</strong></label>
+                        <select id="alignmentTarget"></select>
+                        <p id="alignmentTargetDescription"></p>
+                    </div>
                     <div id="alignment-info" class="info-box">
                         <span data-i18n="magnetometerInfo"></span>
                     </div>
-                    <div class="select" style="display: flex; justify-content: left;">
+                    <div id="legacyMagPresetControl" class="select" style="display: flex; justify-content: left;">
                         <select id="magalign" class="magalign" style="width: 210px; flex-grow: 0; flex-shrink: 0">
                             <option value="0">Default</option>
                             <!-- list generated here -->
@@ -141,10 +146,16 @@
                             <option value="27">QMC5833</option>
                             <option value="28">SPEEDYEBEE BZ-251</option>
                             <option value="29">WS-M181</option>
+                            <option value="30">Generic u-blox F9P / F9-series RTK (UART)</option>
+                            <option value="31">Generic DroneCAN RTK GPS module</option>
+                            <option value="32">Dual RTK GPS moving-baseline pair</option>
                             <!-- list generated here -->
                         </select>
-                        <label for="element_to_show" data-i18n="magnetometerElementToShow"></label>
+                        <label for="element_to_show">Hardware preview (visual only)</label>
                     </div>
+                    <p id="rtkAlignmentPreviewNote" class="rtk-alignment-preview-note is-hidden">
+                        RTK antenna orientation does not rotate its position solution. These controls apply to an integrated compass or to moving-baseline yaw, as identified by the selected alignment target.
+                    </p>
 
                     <table class="axis-table">
                         <thead>

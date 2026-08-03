@@ -206,6 +206,8 @@ export function normalizeInavTelemetry(fc = {}) {
     latitude: scaledNumber(gps.lat, 1e7),
     longitude: scaledNumber(gps.lon, 1e7),
     relativeAltitude: finiteNumber(sensors.altitude),
+    altitudeMsl:
+      finiteNumber(gps.fix) > 0 ? finiteNumber(gps.alt) : null,
     climbRate: finiteNumber(sensors.verticalSpeed),
     groundSpeed: scaledNumber(gps.speed, 100),
     airSpeed: scaledNumber(sensors.air_speed, 100),

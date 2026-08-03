@@ -214,7 +214,7 @@
         "message": "シミュレータ入力"
     },
     "sitlInavOutput": {
-        "message": "INAV出力"
+        "message": "Flight Commander出力"
     },
     "sitlLog": {
         "message": "ログ"
@@ -277,13 +277,13 @@
         "message": "有効"
     },
     "sitlHelp": {
-        "message": "SITL (Software in the loop) は、フライトコントローラを使用せずに、INAVを完全にPC上のソフトウェアで実行し、完全なFPV飛行をシミュレートすることができます。このため、INAVは通常のPC用コンパイラでコンパイルされます。センサーは、シミュレータが提供するデータによって置き換えられます。<br/>現在サポートされるものは以下の通りです:<br/><ul><li><a href=\"https://www.realflight.com\" target=\"_blank\">RealFlight</a><br/></li><li><a href=\"https://www.x-plane.com\" target=\"_blank\">X-Plane</a></li></ul>"
+        "message": "SITL (Software in the loop) は、フライトコントローラを使用せずに、Flight Commanderを完全にPC上のソフトウェアで実行し、完全なFPV飛行をシミュレートすることができます。このため、Flight Commanderは通常のPC用コンパイラでコンパイルされます。センサーは、シミュレータが提供するデータによって置き換えられます。<br/>現在サポートされるものは以下の通りです:<br/><ul><li><a href=\"https://www.realflight.com\" target=\"_blank\">RealFlight</a><br/></li><li><a href=\"https://www.x-plane.com\" target=\"_blank\">X-Plane</a></li></ul>"
     },
     "sitlProfilesHelp": {
-        "message": "プロファイルはローカルに保存されます。プロファイルには、このタブの全データだけでなく、INAV本体の設定ファイル (\"EEPROM\") も含まれます。 <br><span style=\"color: red\">注:</span><br> 標準プロファイルは上書きできません。変更を保存するには、新しいプロファイルを作成してください。 "
+        "message": "プロファイルはローカルに保存されます。プロファイルには、このタブの全データだけでなく、Flight Commander本体の設定ファイル (\"EEPROM\") も含まれます。 <br><span style=\"color: red\">注:</span><br> 標準プロファイルは上書きできません。変更を保存するには、新しいプロファイルを作成してください。 "
     },
     "sitlEnableSimulatorHelp": {
-        "message": "このオプションを無効にすると、UARTS (MSP/Configurator) のみが使用可能になります。シミュレータを起動せずにINAVを設定するのに最適です。"
+        "message": "このオプションを無効にすると、UARTS (MSP/Configurator) のみが使用可能になります。シミュレータを起動せずにFlight Commanderを設定するのに最適です。"
     },
     "sitlUseImuHelp": {
         "message": "シミュレータからの姿勢制御データを直接使用する代わりに、シミュレータからのIMUセンサーのデータを使用します。 (実験的なもので非推奨)"
@@ -526,13 +526,13 @@
         "message": "INAVはユーザ、開発者、企業の素晴らしいコミュニティによって支えられています。<br />以下はその一覧です: <a href=\"http://www.mateksys.com/\" target=\"_blank\">Mateksys</a>, <a href=\"https://www.speedybee.com/\" target=\"_blank\">SpeedyBee</a>, <a href=\"https://geprc.com/\" target=\"_blank\">GEPRC</a>. "
     },
     "defaultWelcomeText": {
-        "message": "ファームウェアのソースコードのダウンロード先は<a href=\"https://github.com/iNavFlight\" title=\"www.github.com\" target=\"_blank\">こちら</a><br />最新のファームウェアバイナリーファイルのダウンロード先は<a href=\"https://github.com/iNavFlight/inav/releases\" title=\"www.github.com\" target=\"_blank\">こちら</a><br /><br />最新の <strong>STM USB VCPドライバ</strong> のダウンロード先は<a href=\"http://www.st.com/web/en/catalog/tools/PF257938\" title=\"http://www.st.com\" target=\"_blank\">こちら</a><br />最新のWindows用 <strong>Zadig</strong> USBドライバインストーラのダウンロード先は<a href=\"http://zadig.akeo.ie/\" title=\"http://zadig.akeo.ie\" target=\"_blank\">こちら</a><br />"
+        "message": "ファームウェアのソースコードのダウンロード先は<a href=\"https://github.com/srt3262/Flight-Commander\" title=\"www.github.com\" target=\"_blank\">こちら</a><br />最新のファームウェアバイナリーファイルのダウンロード先は<a href=\"https://github.com/srt3262/Flight-Commander/releases\" title=\"www.github.com\" target=\"_blank\">こちら</a><br /><br />最新の <strong>STM USB VCPドライバ</strong> のダウンロード先は<a href=\"http://www.st.com/web/en/catalog/tools/PF257938\" title=\"http://www.st.com\" target=\"_blank\">こちら</a><br />最新のWindows用 <strong>Zadig</strong> USBドライバインストーラのダウンロード先は<a href=\"http://zadig.akeo.ie/\" title=\"http://zadig.akeo.ie\" target=\"_blank\">こちら</a><br />"
     },
     "defaultContributingHead": {
         "message": "開発への協力・貢献"
     },
     "defaultContributingText": {
-        "message": "INAVを今後より良く改善したい場合は、以下を含む様々な方法で支援できます:<br /><ul><li>フォーラムやIRCで他のユーザの質問に回答する。</li><li>ファームウェアやConfiguratorへのコード提供。</li><li><a href=\"https://github.com/iNavFlight/inav/pulls\" target=\"_blank\">新機能と修正</a>、テスト、フィードバックの提供。</li><li><a href=\"https://github.com/iNavFlight/inav/issues\" target=\"_blank\">問題の解決や新機能リクエストに関する議論</a>に協力。</li></ul>"
+        "message": "INAVを今後より良く改善したい場合は、以下を含む様々な方法で支援できます:<br /><ul><li>フォーラムやIRCで他のユーザの質問に回答する。</li><li>ファームウェアやConfiguratorへのコード提供。</li><li><a href=\"https://github.com/srt3262/Flight-Commander/pulls\" target=\"_blank\">新機能と修正</a>、テスト、フィードバックの提供。</li><li><a href=\"https://github.com/srt3262/Flight-Commander/issues\" target=\"_blank\">問題の解決や新機能リクエストに関する議論</a>に協力。</li></ul>"
     },
     "defaultChangelogHead": {
         "message": "Configurator - 変更履歴"
@@ -2644,7 +2644,7 @@
         "message": "<strong>リカバリー / 通信ロスト</strong>"
     },
     "firmwareFlasherRecoveryText": {
-        "message": "FCボードとの通信が切断された場合、次の手順で通信を復旧してください: <ul><li>電源をOFFにする</li><li>『再起動シーケンスなし』を有効にし、『チップメモリの完全消去』を有効にします。</li><li>BOOTピンをジャンパーで接続するか、BOOTボタンを押し続けます。</li><li>電源をONにします。(正しく行われればアクティビティLEDは点滅しません)</li><li>必要に応じて、すべてのSTM32ドライバとZadigをインストールします。(INAVマニュアルの<a href=\"https://github.com/iNavFlight/inav/blob/master/docs/USB%20Flashing.md\"target=\"_blank\">USB Flashing</a>章を参照)</li><li>Configuratorを閉じ、すべてのChromeブラウザとChromeアプリを終了してから、Configuratorを再起動します。</li><li>FCボードにBOOTボタンがある場合は、ここでボタンを放します。</li><li>正しいファームウェアで書き込みします。(FCボードのマニュアルに指定がある場合は手動で伝送速度[ボーレート]を設定)</li><li>電源をOFFにします。</li> <li>BOOTジャンパーを取り外します。</li><li>電源をONにします。(アクティビティLEDが点滅するはずです)</li><li>再度、通常通りに接続してください。</li></ul>"
+        "message": "FCボードとの通信が切断された場合、次の手順で通信を復旧してください: <ul><li>電源をOFFにする</li><li>『再起動シーケンスなし』を有効にし、『チップメモリの完全消去』を有効にします。</li><li>BOOTピンをジャンパーで接続するか、BOOTボタンを押し続けます。</li><li>電源をONにします。(正しく行われればアクティビティLEDは点滅しません)</li><li>必要に応じて、すべてのSTM32ドライバとZadigをインストールします。(INAVマニュアルの<a href=\"https://github.com/srt3262/Flight-Commander/blob/main/docs/FIRMWARE_FLASHING.md\"target=\"_blank\">USB Flashing</a>章を参照)</li><li>Configuratorを閉じ、すべてのChromeブラウザとChromeアプリを終了してから、Configuratorを再起動します。</li><li>FCボードにBOOTボタンがある場合は、ここでボタンを放します。</li><li>正しいファームウェアで書き込みします。(FCボードのマニュアルに指定がある場合は手動で伝送速度[ボーレート]を設定)</li><li>電源をOFFにします。</li> <li>BOOTジャンパーを取り外します。</li><li>電源をONにします。(アクティビティLEDが点滅するはずです)</li><li>再度、通常通りに接続してください。</li></ul>"
     },
     "firmwareFlasherButtonLeave": {
         "message": "ファームフラッシャーより退避"
@@ -4516,7 +4516,7 @@
         "message": "新しいバージョンのConfiguratorが利用可能です。"
     },
     "appUpdateNotificationDescription": {
-        "message": "リリースノートの確認とダウンロードは、<a href=\"https://github.com/iNavFlight/inav-configurator/releases\" target=\"_blank\">こちらのウェブサイト</a>をご覧ください。"
+        "message": "リリースノートの確認とダウンロードは、<a href=\"https://github.com/srt3262/Flight-Commander/releases\" target=\"_blank\">こちらのウェブサイト</a>をご覧ください。"
     },
     "closeUpdateBtn": {
         "message": "閉じる"
@@ -4927,7 +4927,7 @@
         "message": "実行メニュー"
     },
     "useOnlyStandalone": {
-        "message": "スタンドアロンアプリケーションを使用してください。<br>リリースノートの確認とダウンロードは<a href=\"https://github.com/iNavFlight/inav-configurator/releases\" target=\"_blank\">こちらのウェブサイト</a>をご覧ください。"
+        "message": "スタンドアロンアプリケーションを使用してください。<br>リリースノートの確認とダウンロードは<a href=\"https://github.com/srt3262/Flight-Commander/releases\" target=\"_blank\">こちらのウェブサイト</a>をご覧ください。"
     },
     "eeprom_load_ok": {
         "message": "EEPROMが <span style=\"color: #37a8db\">読み込まれました</span>"

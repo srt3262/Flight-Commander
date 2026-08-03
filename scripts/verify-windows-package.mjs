@@ -671,7 +671,7 @@ const rendererText = [
 const flightCommanderDocumentationUrl =
   "https://github.com/srt3262/Flight-Commander/tree/main/docs";
 const retiredInavDocumentationUrl =
-  /["']https:\/\/github\.com\/iNavFlight\/inav\/wiki["']/;
+  /https:\/\/github\.com\/iNavFlight/;
 const documentationUrlOccurrences =
   rendererText.split(flightCommanderDocumentationUrl).length - 1;
 if (documentationUrlOccurrences < 2) {
@@ -682,7 +682,7 @@ if (documentationUrlOccurrences < 2) {
 }
 if (retiredInavDocumentationUrl.test(rendererText)) {
   fail(
-    "the active renderer still contains the retired top-level INAV documentation route",
+    "the active renderer still contains an upstream INAV documentation/support route",
   );
 }
 
@@ -810,6 +810,13 @@ for (const marker of [
   "Finalize refined fixed base",
   "Calibrate this compass",
   "External / UART GPS-module compass",
+  "u-blox F9P / F9-series (RTK Rover)",
+  "Generic DroneCAN RTK GPS module",
+  "MICOAIR743 onboard compass orientation must be corrected first",
+  "Apply orientation, reset calibration, and reboot",
+  "Altitude (MSL)",
+  "Flight Commander Output",
+  "SETTINGS_REFERENCE.md",
   "Aircraft standby",
   "Capability bitmap",
   "ArduPilot support has been removed",

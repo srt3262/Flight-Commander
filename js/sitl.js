@@ -176,7 +176,7 @@ var SITLProcess = {
         }
 
         if (callback) {
-            callback( sitlExePath + " " + args.join(" ") + "\n");
+            callback("Flight Commander SITL " + args.join(" ") + "\n");
         }
         this.spawn(sitlExePath, args);
     },

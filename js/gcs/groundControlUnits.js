@@ -49,6 +49,7 @@ const PROFILES = Object.freeze({
 
 const QUANTITY_PROFILE_KEYS = Object.freeze({
   altitude: "altitude",
+  altitudeMsl: "altitude",
   relativeAltitude: "altitude",
   distance: "distance",
   distanceToWaypoint: "distance",
@@ -139,6 +140,11 @@ export function toGroundControlDisplayState(state = {}, unitSystem) {
     relativeAltitude: convertGroundControlValue(
       source.relativeAltitude,
       "relativeAltitude",
+      unitSystem,
+    ),
+    altitudeMsl: convertGroundControlValue(
+      source.altitudeMsl,
+      "altitudeMsl",
       unitSystem,
     ),
     groundSpeed: convertGroundControlValue(

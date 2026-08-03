@@ -23,7 +23,15 @@ same major version.
 - Any firmware release that includes Configurator changes must ship the matching
   Configurator release with both a named source ZIP and a portable Windows x64
   ZIP. Both archives must come from the same tested Configurator commit.
-- The release workflow treats either missing archive, filename mismatch,
+- Every release after Configurator 2.0.5 must also publish an exact firmware
+  source ZIP matching the firmware HEX. Software-only releases continue to
+  publish the retained source for the unchanged HEX.
+- Configurator 2.0.5 is the one-time legacy exception: the custom Firmware
+  2.0.1 source was not retained and cannot be reconstructed exactly from its
+  compiled HEX. This exception cannot be reused by 2.0.6 or any later release.
+- A firmware-changing release is blocked unless the rebuilt source lives in a
+  versioned repository directory and is packaged from the exact tested commit.
+- The release workflow treats any missing required archive, filename mismatch,
   checksum mismatch, or size mismatch as a publication failure.
 
 For major version 2, `package.json` declares
@@ -31,7 +39,10 @@ For major version 2, `package.json` declares
 `flightCommander.firmwareChangedInRelease`. The test suite runs
 `scripts/check-flight-commander-version.mjs` and rejects a mismatched major,
 an undeclared release type, or a firmware-changing release whose firmware
-version does not exactly match the Configurator version.
+version does not exactly match the Configurator version. It also validates the
+`bundledFirmwareSourceAvailable`, `bundledFirmwareSourceVersion`, and
+`bundledFirmwareSourceDirectory` declarations and rejects every post-2.0.5
+release without exact firmware source.
 The firmware has the reciprocal
 `FLIGHT_COMMANDER_CONFIGURATOR_VERSION_MAJOR` compile-time contract.
 
@@ -40,3 +51,4 @@ Verified Configurator assets use these canonical names:
 - `Flight-Commander-Configurator-Source-vX.Y.Z.zip`
 - `Flight-Commander-Configurator-Windows-x64-vX.Y.Z.zip`
 - `Flight-Commander-Firmware-X.Y.Z-TARGET.hex`
+- `Flight-Commander-Firmware-Source-vX.Y.Z.zip`
