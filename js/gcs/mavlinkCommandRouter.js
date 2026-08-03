@@ -42,6 +42,7 @@ const MODE_CONFIRMATIONS = Object.freeze({
   "NAV LAUNCH": ["TAKEOFF", "THROW"],
 });
 const MISSION_RESUME_ABORT_MODES = Object.freeze(["NAV RTH", "NAV POSHOLD"]);
+const MISSION_ABORT_MODES = Object.freeze(["NAV POSHOLD", "NAV RTH"]);
 const PROFILE_SCHEMA_VERSION = 1;
 const PROFILE_STORAGE_KEY = "flightCommander.inavMavlinkProfiles.v1";
 const MSP_TIMEOUT_MS = 5000;
@@ -50,6 +51,7 @@ const UNAVAILABLE_CAPABILITIES = Object.freeze({
   canArm: false,
   canSetMode: false,
   canStartMission: false,
+  canAbortMission: false,
   canAbortMissionResume: false,
   canSetMissionCurrent: false,
   canResumeMission: false,
@@ -58,8 +60,13 @@ const UNAVAILABLE_CAPABILITIES = Object.freeze({
   canTakeoff: false,
   canRtl: false,
   canLand: false,
+  takeoffReason: "Launch / Takeoff is unavailable.",
+  rtlReason: "Return Home is unavailable.",
+  landReason: "Land is unavailable.",
   missionHoldMode: null,
   missionHoldReason: "Mission hold is unavailable.",
+  missionAbortMode: null,
+  missionAbortReason: "Mission abort is unavailable.",
 });
 
 export const MISSION_INTERRUPTION_ACTIONS = Object.freeze({
@@ -415,6 +422,40 @@ export class InavMavlinkCommandAdapter {
     };
   }
 
+  missionAbortCapability() {
+    const candidates = MISSION_ABORT_MODES.map((modeName) => ({
+      modeName,
+      capability: this.capabilityForMode(modeName),
+    }));
+    const selected = candidates.find(
+      ({ capability }) => capability.available && capability.confirmable,
+    );
+    if (selected) {
+      return {
+        available: true,
+        modeName: selected.modeName,
+        capability: selected.capability,
+        reason:
+          selected.modeName === "NAV POSHOLD"
+            ? "Abort Mission exits AUTO into the configured, heartbeat-confirmed NAV POSHOLD mode."
+            : "NAV POSHOLD is unavailable; Abort Mission exits AUTO into configured, heartbeat-confirmed NAV RTH.",
+      };
+    }
+    return {
+      available: false,
+      modeName: null,
+      capability: null,
+      reason:
+        "Flight Commander cannot safely abort a mission because no configured " +
+        "hold or return-home AUX mode has unique heartbeat confirmation. " +
+        candidates
+          .map(
+            ({ modeName, capability }) => `${modeName}: ${capability.reason}`,
+          )
+          .join(" "),
+    };
+  }
+
   capabilities() {
     const arm = this.capabilityForMode("ARM");
     const mission = this.capabilityForMode("NAV WP");
@@ -422,6 +463,7 @@ export class InavMavlinkCommandAdapter {
     const rtl = this.capabilityForMode("NAV RTH");
     const takeoff = this.capabilityForMode("NAV LAUNCH");
     const abort = this.missionResumeAbortCapability();
+    const missionAbort = this.missionAbortCapability();
     const configured = (this.profile.modeRanges ?? []).map(({ name, id }) =>
       this.capabilityForMode(
         normalizedName(name) || MODE_NAMES_BY_ID.get(Number(id)),
@@ -439,6 +481,7 @@ export class InavMavlinkCommandAdapter {
       canArm: arm.available,
       canSetMode: configured.some(({ available }) => available),
       canStartMission: mission.available,
+      canAbortMission: missionAbort.available,
       canResumeMission: mission.available && mission.confirmable,
       canAbortMissionResume: abort.available,
       canSetMissionCurrent: false,
@@ -447,12 +490,22 @@ export class InavMavlinkCommandAdapter {
       canTakeoff: takeoff.available,
       canRtl: rtl.available,
       canLand: false,
+      takeoffReason: takeoff.available
+        ? "Launch / Takeoff uses the configured INAV NAV LAUNCH AUX range."
+        : takeoff.reason,
+      rtlReason: rtl.available
+        ? "Return Home uses the configured INAV NAV RTH AUX range."
+        : rtl.reason,
+      landReason:
+        "The current Flight Commander Firmware does not expose a separately confirmable generic Land command. Use Return Home or a configured landing mission.",
       missionHoldMode: hold.available ? "NAV POSHOLD" : null,
       missionHoldReason: hold.available
         ? "Mission hold uses the configured INAV NAV POSHOLD AUX range."
         : hold.reason,
       missionResumeAbortMode: abort.modeName,
       missionResumeAbortReason: abort.reason,
+      missionAbortMode: missionAbort.modeName,
+      missionAbortReason: missionAbort.reason,
       missionResumeReason:
         mission.available && mission.confirmable
           ? "NAV WP can be selected and uniquely confirmed from heartbeat telemetry."
@@ -652,6 +705,40 @@ export class InavMavlinkCommandAdapter {
 
   startMission(options = {}) {
     return this.setMode("NAV WP", true, options);
+  }
+
+  async abortMission(options = {}) {
+    const capability = this.missionAbortCapability();
+    if (!capability.available) {
+      const error = new Error(capability.reason);
+      error.code = "INAV_MISSION_ABORT_UNAVAILABLE";
+      error.safeStateConfirmed = false;
+      throw error;
+    }
+    try {
+      const result = await this.setMode(capability.modeName, true, options);
+      if (result.confirmed !== true) {
+        throw new Error(
+          `INAV heartbeat telemetry did not confirm ${capability.modeName}.`,
+        );
+      }
+      return commandResult(result, {
+        abortMode: capability.modeName,
+        safeStateConfirmed: true,
+        missionAborted: true,
+      });
+    } catch (cause) {
+      const error = new Error(
+        `Flight Commander requested ${capability.modeName} to abort the mission, ` +
+          "but heartbeat telemetry did not confirm the safe non-mission state. " +
+          "Use the dedicated Return Home or Land control only after checking the displayed vehicle mode.",
+      );
+      error.code = "INAV_MISSION_ABORT_UNCONFIRMED";
+      error.cause = cause;
+      error.abortMode = capability.modeName;
+      error.safeStateConfirmed = false;
+      throw error;
+    }
   }
 
   async abortMissionResume(options = {}) {
@@ -1245,6 +1332,10 @@ export class MavlinkCommandRouter {
 
   startMission(options = {}) {
     return this.commandTarget("startMission").startMission(options);
+  }
+
+  abortMission(options = {}) {
+    return this.commandTarget("abortMission").abortMission(options);
   }
 
   abortMissionResume(options = {}) {

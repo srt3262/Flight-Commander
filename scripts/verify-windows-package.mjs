@@ -668,6 +668,24 @@ const rendererText = [
   ...rendererFiles.map((path) => readFileSync(path, "utf8")),
 ].join("\n");
 
+const flightCommanderDocumentationUrl =
+  "https://github.com/srt3262/Flight-Commander/tree/main/docs";
+const retiredInavDocumentationUrl =
+  /["']https:\/\/github\.com\/iNavFlight\/inav\/wiki["']/;
+const documentationUrlOccurrences =
+  rendererText.split(flightCommanderDocumentationUrl).length - 1;
+if (documentationUrlOccurrences < 2) {
+  fail(
+    "the active renderer does not route both Documentation & Support surfaces " +
+      "to Flight Commander documentation",
+  );
+}
+if (retiredInavDocumentationUrl.test(rendererText)) {
+  fail(
+    "the active renderer still contains the retired top-level INAV documentation route",
+  );
+}
+
 for (const contract of [
   {
     stem: "quad_x",
@@ -715,7 +733,7 @@ for (const marker of [
   "flightDataMapPane",
   "flightDataHudPane",
   "Make HUD major",
-  "flightCommanderGroundControlUnits",
+  "Switch Flight Commander's global display units between metric and imperial",
   "flightCommanderTheme",
   "flight-commander-theme-change",
   'Multirotor with 10" propellers',
@@ -763,6 +781,7 @@ for (const marker of [
   "Flight Commander Firmware",
   "Official INAV Firmware",
   "Flight-Commander-Firmware-",
+  "Latest compatible firmware",
   "FCFW",
   "MICOAIR743",
   "MICROAIR743",
@@ -772,6 +791,12 @@ for (const marker of [
   "Multirotor AutoTune",
   "Terrain-relative waypoints",
   "Mission streaming",
+  "Start Mission",
+  "Resume Mission",
+  "Abort Mission",
+  "Launch / Takeoff",
+  "Return Home (RTH / RTL)",
+  "The current Flight Commander Firmware does not expose a separately confirmable generic Land command",
   "Direct NTRIP → Aircraft",
   "Survey-in USB Base → Aircraft",
   "NTRIP-refined USB Base → Aircraft",

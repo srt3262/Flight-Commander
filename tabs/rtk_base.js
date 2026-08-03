@@ -2,6 +2,15 @@
 
 import GUI from "../js/gui.js";
 import store from "../js/store.js";
+import {
+  DEFAULT_GROUND_CONTROL_UNIT_SYSTEM,
+  convertGroundControlValue,
+  formatGroundControlLongDistance,
+  formatGroundControlValue,
+  groundControlDisplayToCanonicalValue,
+  groundControlUnitLabel,
+  normalizeGroundControlUnitSystem,
+} from "../js/gcs/groundControlUnits.js";
 import rtkBaseStation from "../js/rtk/rtkBaseStation.js";
 import { mountpointDistanceKm } from "../js/rtk/ntripSourcetable.js";
 import {
@@ -17,6 +26,40 @@ import {
 } from "../js/rtk/rtkWorkflow.js";
 
 const STORAGE_KEY = "flightCommander.rtkBase.v1";
+const RTK_DISTANCE_FIELDS = Object.freeze([
+  Object.freeze({
+    selector: "#rtkBaseSurveyAccuracy",
+    quantity: "distance",
+    minM: 0.0001,
+    maxM: 100,
+    stepM: 0.01,
+    decimals: 6,
+  }),
+  Object.freeze({
+    selector: "#rtkBaseHeight",
+    quantity: "altitude",
+    minM: -1000,
+    maxM: 20000,
+    stepM: 0.0001,
+    decimals: 6,
+  }),
+  Object.freeze({
+    selector: "#rtkBaseFixedAccuracy",
+    quantity: "distance",
+    minM: 0.0001,
+    maxM: 100,
+    stepM: 0.0001,
+    decimals: 6,
+  }),
+  Object.freeze({
+    selector: "#rtkNtripAltitude",
+    quantity: "altitude",
+    minM: -1000,
+    maxM: 20000,
+    stepM: 0.1,
+    decimals: 4,
+  }),
+]);
 const DEFAULTS = Object.freeze({
   workflow: RTK_WORKFLOWS.DIRECT_NTRIP,
   path: "",
@@ -82,6 +125,80 @@ function numberInput(selector) {
   return raw === "" ? Number.NaN : Number(raw);
 }
 
+function editableNumber(value, decimals = 6) {
+  if (!Number.isFinite(value)) return "";
+  return value.toFixed(decimals).replace(/(?:\.0+|(\.\d*?)0+)$/, "$1");
+}
+
+function distanceField(selector) {
+  return RTK_DISTANCE_FIELDS.find((field) => field.selector === selector);
+}
+
+function setCanonicalDistanceInput(selector, meters) {
+  const element = document.querySelector(selector);
+  if (!element) return;
+  const value = meters === "" || meters == null ? null : Number(meters);
+  element.dataset.canonicalMeters = Number.isFinite(value) ? String(value) : "";
+}
+
+function canonicalDistanceInput(selector, unitSystem) {
+  const field = distanceField(selector);
+  if (!field) return Number.NaN;
+  const meters = groundControlDisplayToCanonicalValue(
+    $(selector).val(),
+    field.quantity,
+    unitSystem,
+  );
+  return Number.isFinite(meters) ? meters : Number.NaN;
+}
+
+function captureDistanceInputs(unitSystem) {
+  for (const field of RTK_DISTANCE_FIELDS) {
+    setCanonicalDistanceInput(
+      field.selector,
+      canonicalDistanceInput(field.selector, unitSystem),
+    );
+  }
+}
+
+function renderDistanceInputs(unitSystem) {
+  for (const field of RTK_DISTANCE_FIELDS) {
+    const element = document.querySelector(field.selector);
+    if (!element) continue;
+    const canonical = String(element.dataset.canonicalMeters ?? "").trim();
+    const meters = canonical === "" ? null : Number(canonical);
+    const converted = Number.isFinite(meters)
+      ? convertGroundControlValue(meters, field.quantity, unitSystem)
+      : null;
+    $(element)
+      .val(editableNumber(converted, field.decimals))
+      .attr(
+        "min",
+        editableNumber(
+          convertGroundControlValue(field.minM, field.quantity, unitSystem),
+          6,
+        ),
+      )
+      .attr(
+        "max",
+        editableNumber(
+          convertGroundControlValue(field.maxM, field.quantity, unitSystem),
+          6,
+        ),
+      )
+      .attr(
+        "step",
+        editableNumber(
+          convertGroundControlValue(field.stepM, field.quantity, unitSystem),
+          6,
+        ),
+      );
+  }
+  $("[data-ground-control-distance-unit]").text(
+    groundControlUnitLabel("distance", unitSystem),
+  );
+}
+
 function escapeHtml(value) {
   return $("<div>").text(String(value ?? "")).html();
 }
@@ -105,10 +222,22 @@ const rtkBaseTab = {
   mountpoints: [],
   workflow: RTK_WORKFLOWS.DIRECT_NTRIP,
   mountToken: 0,
+  unitSystem: DEFAULT_GROUND_CONTROL_UNIT_SYSTEM,
+  renderCurrent: null,
+  renderMountpointsCurrent: null,
 };
 
-rtkBaseTab.mount = async function mount(container = "#flightDataRtkMount", callback) {
+rtkBaseTab.mount = async function mount(
+  container = "#flightDataRtkMount",
+  options = {},
+  callback,
+) {
+  if (typeof options === "function") {
+    callback = options;
+    options = {};
+  }
   this.cleanup();
+  this.unitSystem = normalizeGroundControlUnitSystem(options.unitSystem);
   const token = ++this.mountToken;
   const { default: html } = await import("./rtk_base.html?raw");
   if (token !== this.mountToken || !$(container).length) return false;
@@ -132,11 +261,11 @@ rtkBaseTab.processHtml = async function processHtml(callback, mountToken = this.
   $("#rtkBaseProfile").val(settings.profile);
   $("#rtkBaseMode").val(settings.mode);
   $("#rtkBaseSurveyDuration").val(settings.surveyInMinDurationS);
-  $("#rtkBaseSurveyAccuracy").val(settings.surveyInAccuracyM);
+  setCanonicalDistanceInput("#rtkBaseSurveyAccuracy", settings.surveyInAccuracyM);
   $("#rtkBaseLatitude").val(settings.latitude);
   $("#rtkBaseLongitude").val(settings.longitude);
-  $("#rtkBaseHeight").val(settings.ellipsoidHeightM);
-  $("#rtkBaseFixedAccuracy").val(settings.fixedPositionAccuracyM);
+  setCanonicalDistanceInput("#rtkBaseHeight", settings.ellipsoidHeightM);
+  setCanonicalDistanceInput("#rtkBaseFixedAccuracy", settings.fixedPositionAccuracyM);
   $("#rtkBasePersist").prop("checked", settings.persist);
   $("#rtkBaseForward").prop("checked", settings.forwarding);
   $("#rtkBaseGps").prop("checked", settings.constellations.gps);
@@ -154,7 +283,8 @@ rtkBaseTab.processHtml = async function processHtml(callback, mountToken = this.
   $("#rtkNtripGgaSource").val(settings.ntrip.ggaSource);
   $("#rtkNtripLatitude").val(settings.ntrip.ggaLatitude);
   $("#rtkNtripLongitude").val(settings.ntrip.ggaLongitude);
-  $("#rtkNtripAltitude").val(settings.ntrip.ggaAltitudeMsl);
+  setCanonicalDistanceInput("#rtkNtripAltitude", settings.ntrip.ggaAltitudeMsl);
+  renderDistanceInputs(this.unitSystem);
   $("#rtkNtripFreeOnly").prop("checked", settings.ntrip.freeOnly !== false);
   rtkBaseStation.setForwarding(settings.forwarding);
   if (!activeState.ntrip.connected) {
@@ -169,11 +299,11 @@ rtkBaseTab.processHtml = async function processHtml(callback, mountToken = this.
     profile: $("#rtkBaseProfile").val(),
     mode: $("#rtkBaseMode").val(),
     surveyInMinDurationS: numberInput("#rtkBaseSurveyDuration"),
-    surveyInAccuracyM: numberInput("#rtkBaseSurveyAccuracy"),
+    surveyInAccuracyM: canonicalDistanceInput("#rtkBaseSurveyAccuracy", this.unitSystem),
     latitude: numberInput("#rtkBaseLatitude"),
     longitude: numberInput("#rtkBaseLongitude"),
-    ellipsoidHeightM: numberInput("#rtkBaseHeight"),
-    fixedPositionAccuracyM: numberInput("#rtkBaseFixedAccuracy"),
+    ellipsoidHeightM: canonicalDistanceInput("#rtkBaseHeight", this.unitSystem),
+    fixedPositionAccuracyM: canonicalDistanceInput("#rtkBaseFixedAccuracy", this.unitSystem),
     persist: $("#rtkBasePersist").is(":checked"),
     forwarding: $("#rtkBaseForward").is(":checked"),
     correctionSource: $("#rtkCorrectionSource").val(),
@@ -194,7 +324,7 @@ rtkBaseTab.processHtml = async function processHtml(callback, mountToken = this.
       ggaSource: $("#rtkNtripGgaSource").val(),
       ggaLatitude: numberInput("#rtkNtripLatitude"),
       ggaLongitude: numberInput("#rtkNtripLongitude"),
-      ggaAltitudeMsl: numberInput("#rtkNtripAltitude"),
+      ggaAltitudeMsl: canonicalDistanceInput("#rtkNtripAltitude", this.unitSystem),
       freeOnly: $("#rtkNtripFreeOnly").is(":checked"),
     },
   });
@@ -398,14 +528,21 @@ rtkBaseTab.processHtml = async function processHtml(callback, mountToken = this.
     );
     $("#rtkBaseSurveyElapsed").text(survey ? `${survey.durationS} s` : "--");
     $("#rtkBaseSurveyMeanAccuracy").text(
-      survey ? `${survey.meanAccuracyM.toFixed(4)} m` : "--",
+      survey
+        ? formatGroundControlValue(
+          survey.meanAccuracyM,
+          "distance",
+          this.unitSystem,
+          { decimals: 4 },
+        )
+        : "--",
     );
     $("#rtkBaseSurveyObservations").text(survey?.observations ?? "--");
     $("#rtkBaseSerialBytes").text(state.stats.serialBytes);
     const position = state.receiverPosition;
     $("#rtkBaseReceiverPosition").text(
       position?.fixOk
-        ? `${position.carrierSolutionName} · ${position.latitude.toFixed(8)}, ${position.longitude.toFixed(8)} · ${position.ellipsoidHeightM.toFixed(3)} m ellipsoid`
+        ? `${position.carrierSolutionName} · ${position.latitude.toFixed(8)}, ${position.longitude.toFixed(8)} · ${formatGroundControlValue(position.ellipsoidHeightM, "altitude", this.unitSystem, { decimals: 3 })} ellipsoid`
         : "No valid receiver position",
     );
     $("#rtkNtripStreamStats").text(`${state.ntrip.bytes} bytes / ${state.ntrip.frames} RTCM frames`);
@@ -428,7 +565,7 @@ rtkBaseTab.processHtml = async function processHtml(callback, mountToken = this.
     );
     $("#rtkRefinementStability").text(
       Number.isFinite(refinement.stabilityM)
-        ? `${refinement.stabilityM.toFixed(4)} m RMS`
+        ? `${formatGroundControlValue(refinement.stabilityM, "distance", this.unitSystem, { decimals: 4 })} RMS`
         : "--",
     );
     const positioningMode = state.lastConfiguration?.mode === "ntrip-positioning";
@@ -499,7 +636,9 @@ rtkBaseTab.processHtml = async function processHtml(callback, mountToken = this.
         record.format,
         record.navigationSystems,
         record.country,
-        distance == null ? null : `${distance.toFixed(1)} km`,
+        distance == null
+          ? null
+          : formatGroundControlLongDistance(distance * 1000, this.unitSystem),
         record.requiresNmea ? "GGA required" : null,
         record.authentication && record.authentication !== "N"
           ? `auth ${record.authentication}`
@@ -520,6 +659,9 @@ rtkBaseTab.processHtml = async function processHtml(callback, mountToken = this.
     }
     $list.prop("disabled", false);
   };
+
+  this.renderCurrent = render;
+  this.renderMountpointsCurrent = renderMountpoints;
 
   applyProviderPreset(false);
 
@@ -684,8 +826,9 @@ rtkBaseTab.processHtml = async function processHtml(callback, mountToken = this.
       $("#rtkBaseMode").val("fixed");
       $("#rtkBaseLatitude").val(fixed.latitude.toFixed(9));
       $("#rtkBaseLongitude").val(fixed.longitude.toFixed(9));
-      $("#rtkBaseHeight").val(fixed.ellipsoidHeightM.toFixed(4));
-      $("#rtkBaseFixedAccuracy").val(fixed.fixedPositionAccuracyM.toFixed(4));
+      setCanonicalDistanceInput("#rtkBaseHeight", fixed.ellipsoidHeightM);
+      setCanonicalDistanceInput("#rtkBaseFixedAccuracy", fixed.fixedPositionAccuracyM);
+      renderDistanceInputs(this.unitSystem);
       $("#rtkCorrectionSource").val("usb-base");
       updateModeVisibility();
       saveSettings();
@@ -713,6 +856,14 @@ rtkBaseTab.processHtml = async function processHtml(callback, mountToken = this.
   if (callback) callback();
 };
 
+rtkBaseTab.setUnitSystem = function setUnitSystem(value) {
+  captureDistanceInputs(this.unitSystem);
+  this.unitSystem = normalizeGroundControlUnitSystem(value);
+  renderDistanceInputs(this.unitSystem);
+  this.renderCurrent?.();
+  this.renderMountpointsCurrent?.();
+};
+
 rtkBaseTab.cleanup = function cleanup(callback) {
   this.mountToken += 1;
   $(".tab-rtk-base").off(".rtkBase");
@@ -724,6 +875,9 @@ rtkBaseTab.cleanup = function cleanup(callback) {
   this.unsubscribe = null;
   if (this.renderTimer) clearInterval(this.renderTimer);
   this.renderTimer = null;
+  this.renderCurrent = null;
+  this.renderMountpointsCurrent = null;
+  this.unitSystem = DEFAULT_GROUND_CONTROL_UNIT_SYSTEM;
   if (callback) callback();
 };
 

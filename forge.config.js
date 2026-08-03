@@ -8,6 +8,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export default {
   packagerConfig: {
     executableName: "flight-commander",
+    overwrite: true,
     asar: false,
     icon: "images/flight-commander",
     appCopyright: "Copyright © 2026 Flight Commander contributors",

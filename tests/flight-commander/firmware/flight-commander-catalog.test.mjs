@@ -11,10 +11,10 @@ import {
 } from "../../../js/flightCommander/firmwareCatalog.js";
 
 describe("Flight Commander firmware catalog", () => {
-  test("uses the dedicated source repository and preserves the legacy target alias", () => {
+  test("uses Flight Commander releases and preserves the legacy target alias", () => {
     assert.equal(
       FLIGHT_COMMANDER_FIRMWARE_RELEASES_URL,
-      "https://api.github.com/repos/srt3262/Flight-Commander-Firmware/releases?per_page=20",
+      "https://api.github.com/repos/srt3262/Flight-Commander/releases?per_page=20",
     );
     assert.equal(normalizeFirmwareTarget("MICOAIR743"), "MICOAIR743");
     assert.equal(normalizeFirmwareTarget("MICROAIR743"), "MICOAIR743");

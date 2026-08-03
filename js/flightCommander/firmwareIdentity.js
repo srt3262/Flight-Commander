@@ -8,6 +8,10 @@ export const FLIGHT_COMMANDER_INFO_PAYLOAD_SIZE = 15;
 export const FIRMWARE_FAMILY_INAV = "inav";
 export const FIRMWARE_FAMILY_FLIGHT_COMMANDER = "flight-commander";
 
+export function isInavCompatibleFirmwareVariant(value) {
+  return value === "INAV" || value === FLIGHT_COMMANDER_INFO_SIGNATURE;
+}
+
 export const FLIGHT_COMMANDER_CAPABILITIES = Object.freeze({
   MULTIROTOR_AUTOTUNE: 1 << 0,
   TERRAIN_WAYPOINTS: 1 << 1,

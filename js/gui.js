@@ -157,7 +157,7 @@ GUI_control.prototype.content_ready = function (callback) {
     // Insert a documentation button next to the tab title
     const tabTitle = $('div#content .tab_title').first();
     const documentationDiv = $('<div>').addClass('cf_doc_version_bt');
-    $('<a>').attr('href', 'https://github.com/iNavFlight/inav/wiki')
+    $('<a>').attr('href', 'https://github.com/srt3262/Flight-Commander/tree/main/docs')
         .attr('target', '_blank').attr('id', 'button-documentation')
         .html(i18n.getMessage('documentation')).appendTo(documentationDiv);
     documentationDiv.insertAfter(tabTitle);

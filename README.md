@@ -117,10 +117,18 @@ it is waiting for a vehicle heartbeat. This means the serial transport is open,
 not that the aircraft link has been validated. Telemetry, mission reads, and
 vehicle commands stay disabled until a non-GCS autopilot heartbeat is received.
 
+## Documentation and support
+
+Flight Commander's maintained documentation starts in the
+[Documentation & Support hub](docs/README.md). It links the operating guides,
+release downloads, issue tracker, and contribution workflow owned by this
+project. INAV references are retained only where an inherited compatibility
+feature specifically requires upstream INAV behavior.
+
 ## Install
 
 The validated publication target for the reconstructed release is **Windows
-x64**. Every Configurator release publishes two explicit downloads on
+x64**. Every Configurator release publishes three explicit downloads on
 [GitHub Releases](https://github.com/srt3262/Flight-Commander/releases):
 
 - `Flight-Commander-Configurator-Windows-x64-vX.Y.Z.zip` is the portable
@@ -128,9 +136,18 @@ x64**. Every Configurator release publishes two explicit downloads on
   `flight-commander.exe`.
 - `Flight-Commander-Configurator-Source-vX.Y.Z.zip` is the matching source from
   the exact commit used to build and verify that Windows archive.
+- `Flight-Commander-Firmware-X.Y.Z-MICOAIR743-BENCH-ONLY.hex` is the directly
+  flashable firmware image under its truthful embedded firmware version. A
+  Configurator-only release may therefore publish a lower firmware version
+  without wrapping or relabeling the binary.
 
-When a firmware release requires Configurator changes, both Configurator
-downloads are mandatory companion assets for the coordinated release.
+Every published Configurator update advances its software version. If the
+update changes firmware, the firmware is rebuilt and its complete version must
+match the Configurator release. A strictly software-only update may reuse the
+verified firmware binary under its existing version, but Configurator and
+firmware always remain in the same major release series. When a firmware
+release requires Configurator changes, both Configurator downloads are
+mandatory companion assets for the coordinated release.
 
 Unless a release is explicitly marked as code-signed, Windows SmartScreen may
 show an unknown-publisher warning. Publishing a binary on GitHub does not itself

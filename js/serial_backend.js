@@ -57,6 +57,7 @@ import {
 import {
     FIRMWARE_FAMILY_FLIGHT_COMMANDER,
     applyFirmwareIdentity,
+    isInavCompatibleFirmwareVariant,
     probeFlightCommanderFirmware,
 } from './flightCommander/firmwareIdentity';
 
@@ -845,7 +846,7 @@ var SerialBackend = (function () {
 
                 MSP.send_message(MSPCodes.MSP_FC_VARIANT, false, false, function () {
                     const reportedVariant = FC.CONFIG.flightControllerIdentifier;
-                    if (reportedVariant === 'INAV' || reportedVariant === 'FCFW') {
+                    if (isInavCompatibleFirmwareVariant(reportedVariant)) {
                         MSP.send_message(MSPCodes.MSP_FC_VERSION, false, false, function () {
                             const reportedVersion = FC.CONFIG.flightControllerVersion;
                             GUI.log(i18n.getMessage('fcInfoReceived', [reportedVariant, reportedVersion]));

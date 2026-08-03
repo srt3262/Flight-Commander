@@ -38,6 +38,7 @@ import {
 import {
     FIRMWARE_FAMILY_FLIGHT_COMMANDER,
     applyFirmwareIdentity,
+    isInavCompatibleFirmwareVariant,
     probeFlightCommanderFirmware,
 } from './../js/flightCommander/firmwareIdentity';
 
@@ -96,6 +97,14 @@ firmwareFlasherTab.initialize = function (callback) {
     var firmwareBackend = 'inav';
     var loadedFirmwareFamily = null;
     var loadedFirmwareDescriptor = null;
+    var flightCommanderCatalogReady = {
+        releases: false,
+        bundled: false,
+    };
+
+    function flightCommanderCatalogIsReady() {
+        return flightCommanderCatalogReady.releases && flightCommanderCatalogReady.bundled;
+    }
 
     import('./firmware_flasher.html?raw').then(({default: html}) => GUI.load(html, function () {
         // translate to user-selected language
@@ -125,7 +134,7 @@ firmwareFlasherTab.initialize = function (callback) {
                 $('a.load_remote_file').text('Download Flight Commander Firmware').addClass('disabled');
                 $('a.flash_firmware').text('Flash Flight Commander Firmware').addClass('disabled');
                 buildFlightCommanderBoardOptions();
-                if (Array.isArray(firmwareFlasherTab.flightCommanderReleasesData)) {
+                if (flightCommanderCatalogIsReady()) {
                     firmwareFlasherTab.getTarget();
                 }
             } else {
@@ -431,6 +440,9 @@ firmwareFlasherTab.initialize = function (callback) {
         };
 
         var buildFlightCommanderBoardOptions = function() {
+            const previouslySelectedTarget = normalizeFirmwareTarget(
+                $('select[name="board"]').val(),
+            );
             const boards = $('select[name="board"]').empty();
             const versions = $('select[name="firmware_version"]').empty();
             boards.append($("<option value='0'>{0}</option>".format(
@@ -456,7 +468,13 @@ firmwareFlasherTab.initialize = function (callback) {
                         .text(target.name),
                 );
             }
-            $('a.auto_select_target').removeClass('disabled');
+            $('a.auto_select_target').toggleClass(
+                'disabled',
+                !flightCommanderCatalogIsReady(),
+            );
+            if (firmwareFlasherTab.releases[previouslySelectedTarget]?.length) {
+                boards.val(previouslySelectedTarget).trigger('change');
+            }
             if (!descriptors.length) {
                 $('span.progressLabel').text(
                     'No included or published Flight Commander Firmware image is available yet. ' +
@@ -564,29 +582,37 @@ firmwareFlasherTab.initialize = function (callback) {
 
         $.get(FLIGHT_COMMANDER_FIRMWARE_RELEASES_URL, function (releasesData) {
             firmwareFlasherTab.flightCommanderReleasesData = releasesData;
+            flightCommanderCatalogReady.releases = true;
             if (firmwareBackend === 'flight-commander') {
                 buildFlightCommanderBoardOptions();
-                firmwareFlasherTab.getTarget();
+                if (flightCommanderCatalogIsReady()) firmwareFlasherTab.getTarget();
             }
         }).fail(function () {
             firmwareFlasherTab.flightCommanderReleasesData = [];
+            flightCommanderCatalogReady.releases = true;
             if (firmwareBackend === 'flight-commander') {
                 buildFlightCommanderBoardOptions();
-                firmwareFlasherTab.getTarget();
+                if (flightCommanderCatalogIsReady()) firmwareFlasherTab.getTarget();
             }
         });
 
         window.electronAPI.listBundledFlightCommanderFirmware()
             .then((filenames) => {
                 firmwareFlasherTab.bundledFlightCommanderFirmware = filenames;
+                flightCommanderCatalogReady.bundled = true;
                 if (firmwareBackend === 'flight-commander') {
                     buildFlightCommanderBoardOptions();
-                    firmwareFlasherTab.getTarget();
+                    if (flightCommanderCatalogIsReady()) firmwareFlasherTab.getTarget();
                 }
             })
             .catch((error) => {
                 firmwareFlasherTab.bundledFlightCommanderFirmware = [];
+                flightCommanderCatalogReady.bundled = true;
                 console.warn('Unable to list bundled Flight Commander Firmware:', error);
+                if (firmwareBackend === 'flight-commander') {
+                    buildFlightCommanderBoardOptions();
+                    if (flightCommanderCatalogIsReady()) firmwareFlasherTab.getTarget();
+                }
             });
 
         $('select[name="board"]').on('change', function () {
@@ -624,6 +650,16 @@ firmwareFlasherTab.initialize = function (callback) {
                             )).data('summary', descriptor),
                         );
                     });
+                }
+                if (
+                    firmwareBackend === 'flight-commander'
+                    && firmwareFlasherTab.releases[target]?.length
+                ) {
+                    const latest = firmwareFlasherTab.releases[target][0];
+                    versions.val(latest.version).trigger('change');
+                    $('span.progressLabel').text(
+                        `Latest compatible firmware ${latest.version} selected for ${targetDisplay}.`,
+                    );
                 }
             }
         });
@@ -1366,34 +1402,51 @@ firmwareFlasherTab.onOpen = async function(openInfo) {
             }
 
             MSP.send_message(MSPCodes.MSP_FC_VARIANT, false, false, function () {
-                if (FC.CONFIG.flightControllerIdentifier == 'INAV') {
+                const reportedVariant = FC.CONFIG.flightControllerIdentifier;
+                if (isInavCompatibleFirmwareVariant(reportedVariant)) {
                     MSP.send_message(MSPCodes.MSP_FC_VERSION, false, false, function () {
-                        if (semver.lt(FC.CONFIG.flightControllerVersion, "5.0.0")) {
-                            GUI.log(i18n.getMessage('targetPrefetchFailOld'));
-                            firmwareFlasherTab.closeTempConnection();
-                        } else {
-                            probeFlightCommanderFirmware({
-                                MSP,
-                                MSPCodes,
-                                compatibleInavVersion: FC.CONFIG.flightControllerVersion,
-                            }).then(function(identity) {
-                                applyFirmwareIdentity(FC, identity);
-                                if (identity.family === FIRMWARE_FAMILY_FLIGHT_COMMANDER) {
-                                    GUI.log(
-                                        `Detected Flight Commander Firmware ${identity.firmwareVersion || 'unknown'} ` +
-                                        `(INAV ${identity.compatibleInavVersion} compatibility).`,
-                                    );
-                                } else {
-                                    GUI.log(`Detected official INAV ${FC.CONFIG.flightControllerVersion}.`);
+                        const reportedVersion = FC.CONFIG.flightControllerVersion;
+                        probeFlightCommanderFirmware({
+                            MSP,
+                            MSPCodes,
+                            compatibleInavVersion: reportedVariant === 'INAV'
+                                ? reportedVersion
+                                : '0.0.0',
+                        }).then(function(identity) {
+                            if (
+                                reportedVariant === 'FCFW'
+                                && (
+                                    identity.family !== FIRMWARE_FAMILY_FLIGHT_COMMANDER
+                                    || identity.protocolSupported !== true
+                                )
+                            ) {
+                                GUI.log(
+                                    'Cannot prefetch target: Flight Commander Firmware did not provide a supported FCFW identity contract.',
+                                );
+                                firmwareFlasherTab.closeTempConnection();
+                                return;
+                            }
+                            applyFirmwareIdentity(FC, identity);
+                            if (semver.lt(FC.CONFIG.flightControllerVersion, "5.0.0")) {
+                                GUI.log(i18n.getMessage('targetPrefetchFailOld'));
+                                firmwareFlasherTab.closeTempConnection();
+                                return;
+                            }
+                            if (identity.family === FIRMWARE_FAMILY_FLIGHT_COMMANDER) {
+                                GUI.log(
+                                    `Detected Flight Commander Firmware ${identity.firmwareVersion || 'unknown'} ` +
+                                    `(INAV ${identity.compatibleInavVersion} compatibility).`,
+                                );
+                            } else {
+                                GUI.log(`Detected official INAV ${FC.CONFIG.flightControllerVersion}.`);
+                            }
+                            mspHelper.getCraftName(function(name) {
+                                if (name) {
+                                    FC.CONFIG.name = name;
                                 }
-                                mspHelper.getCraftName(function(name) {
-                                    if (name) {
-                                        FC.CONFIG.name = name;
-                                    }
-                                    firmwareFlasherTab.onValidFirmware();
-                                });
+                                firmwareFlasherTab.onValidFirmware();
                             });
-                        }
+                        });
                     });
                 } else {
                     GUI.log(i18n.getMessage('targetPrefetchFailNonINAV'));

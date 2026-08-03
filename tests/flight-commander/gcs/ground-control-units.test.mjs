@@ -5,12 +5,16 @@ import {
   DEFAULT_GROUND_CONTROL_UNIT_SYSTEM,
   GROUND_CONTROL_UNIT_SYSTEMS,
   METERS_PER_SECOND_TO_MILES_PER_HOUR,
+  METERS_PER_MILE,
   METERS_TO_FEET,
   convertGroundControlValue,
   formatGroundControlValue,
+  formatGroundControlLongDistance,
   getGroundControlUnitProfile,
+  groundControlDisplayToCanonicalValue,
   groundControlUnitLabel,
   normalizeGroundControlUnitSystem,
+  resolveConfiguredUnitSystem,
   toGroundControlDisplayState,
 } from "../../../js/gcs/groundControlUnits.js";
 
@@ -20,6 +24,16 @@ test("normalizes the two supported unit systems with a metric fallback", () => {
   assert.equal(normalizeGroundControlUnitSystem(" IMPERIAL "), "imperial");
   assert.equal(normalizeGroundControlUnitSystem("OSD"), "metric");
   assert.equal(normalizeGroundControlUnitSystem(null), "metric");
+});
+
+test("follows Flight Commander's global unit option and OSD unit family", () => {
+  assert.equal(resolveConfiguredUnitSystem("imperial", 1), "imperial");
+  assert.equal(resolveConfiguredUnitSystem("metric", 0), "metric");
+  assert.equal(resolveConfiguredUnitSystem("OSD", 0), "imperial");
+  assert.equal(resolveConfiguredUnitSystem("OSD", 3), "imperial");
+  assert.equal(resolveConfiguredUnitSystem("OSD", 4), "imperial");
+  assert.equal(resolveConfiguredUnitSystem("OSD", 1), "metric");
+  assert.equal(resolveConfiguredUnitSystem("none", null), "metric");
 });
 
 test("exposes immutable labels, multipliers, and readable HUD tape steps", () => {
@@ -73,6 +87,25 @@ test("converts only display quantities from canonical SI values", () => {
   assert.equal(
     convertGroundControlValue(-2, "climbRate", "imperial"),
     -2 * METERS_TO_FEET,
+  );
+});
+
+test("converts editable display values back to canonical SI", () => {
+  assert.equal(
+    groundControlDisplayToCanonicalValue(32.80839895013123, "altitude", "imperial"),
+    10,
+  );
+  assert.equal(
+    groundControlDisplayToCanonicalValue(22.369362920544, "groundSpeed", "imperial"),
+    10,
+  );
+  assert.equal(
+    groundControlDisplayToCanonicalValue(10, "distance", "metric"),
+    10,
+  );
+  assert.equal(
+    groundControlDisplayToCanonicalValue("", "distance", "imperial"),
+    null,
   );
 });
 
@@ -139,4 +172,9 @@ test("formats symbols and spoken units consistently", () => {
     "feet per second",
   );
   assert.equal(formatGroundControlValue(null, "distance", "metric"), "--");
+  assert.equal(formatGroundControlLongDistance(12500, "metric"), "12.5 km");
+  assert.equal(
+    formatGroundControlLongDistance(METERS_PER_MILE * 12.5, "imperial"),
+    "12.5 mi",
+  );
 });

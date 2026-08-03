@@ -1,5 +1,37 @@
 # Changelog
 
+## 2.0.3
+
+- Corrected the sidebar Documentation & Support destination and every
+  page-level Documentation button to open Flight Commander's own GitHub
+  documentation hub instead of the INAV wiki.
+- Added a Flight Commander documentation index with direct routes to current
+  operating guides, releases, issue support, and contribution guidance.
+- Added source and packaged-application regression gates that require the
+  Flight Commander documentation URL and reject the retired top-level INAV
+  wiki destination.
+- Applied the selected metric/imperial preference to every Ground Control and
+  embedded RTK value, including takeoff altitude, editable base coordinates,
+  survey accuracy, receiver/refinement status, and mountpoint distance. Values
+  remain canonical SI internally for protocol and persistence safety.
+- Added a complete, always-visible vehicle command deck for Start Mission,
+  Resume Mission, Abort Mission, Launch/Takeoff, Return Home, and Land. Each
+  command remains disabled with a specific explanation until the connected
+  Flight Commander Firmware and cached AUX configuration can perform it
+  safely; mission abort confirms before exiting AUTO to POSHOLD or RTH.
+- Repaired Flight Commander Firmware target detection by accepting the `FCFW`
+  variant returned by the board, waiting for both bundled and online catalogs,
+  querying releases from the Flight Commander repository, and automatically
+  selecting the newest compatible MICOAIR743 image.
+- Publishes three separate downloads: the Windows x64 Configurator, matching
+  source, and the directly flashable unchanged Flight Commander Firmware 2.0.1
+  MICOAIR743 bench-only HEX under its truthful embedded version. This is a
+  software-only Configurator 2.0.3 release; no firmware binary was changed or
+  relabeled.
+- Added a release-policy gate: firmware-changing updates must rebuild firmware
+  at the exact Configurator version, while software-only updates may reuse a
+  verified firmware binary only within the same major version series.
+
 ## 2.0.2
 
 - Merged RTK setup into Ground Control below the live map, HUD, telemetry, and

@@ -123,6 +123,7 @@ describe("unsupported firmware command gates", () => {
       "canSetMode",
       "canArm",
       "canStartMission",
+      "canAbortMission",
       "canTakeoff",
       "canRtl",
       "canLand",
@@ -135,6 +136,7 @@ describe("unsupported firmware command gates", () => {
     assert.throws(() => router.setMode("GUIDED"), /support has been removed/);
     assert.throws(() => router.setArmed(true), /support has been removed/);
     assert.throws(() => router.startMission(), /support has been removed/);
+    assert.throws(() => router.abortMission(), /support has been removed/);
     assert.throws(() => router.takeoff(12), /support has been removed/);
     assert.throws(() => router.returnToLaunch(), /support has been removed/);
     assert.throws(() => router.land(), /support has been removed/);
@@ -270,11 +272,11 @@ describe("Flight Commander command routing", () => {
         sent.push({ name, payload });
         return 1;
       },
-      waitForState(predicate) {
+      waitForState(predicate, _timeout, label = "") {
         const next = {
           ...this.state,
           armed: true,
-          modeName: "AUTO",
+          modeName: label.includes("NAV POSHOLD") ? "POSHOLD" : "AUTO",
           rcChannels: [],
         };
         return predicate(next) ? Promise.resolve(next) : Promise.resolve(next);
@@ -305,12 +307,24 @@ describe("Flight Commander command routing", () => {
 
     assert.equal(router.capabilities().canArm, true);
     assert.equal(router.capabilities().canStartMission, true);
+    assert.equal(router.capabilities().canAbortMission, true);
+    assert.equal(router.capabilities().missionAbortMode, "NAV POSHOLD");
     assert.equal(router.capabilities().canTakeoff, true);
     assert.equal(router.capabilities().canLand, false);
+    assert.match(router.capabilities().takeoffReason, /NAV LAUNCH AUX range/);
+    assert.match(router.capabilities().rtlReason, /NAV RTH AUX range/);
+    assert.match(
+      router.capabilities().landReason,
+      /does not expose a separately confirmable generic Land command/,
+    );
 
     await router.startMission();
     assert.equal(sent.at(-1).name, "RcChannelsOverride");
     assert.equal(sent.at(-1).payload.chan6Raw, 1900);
+    const abortResult = await router.abortMission();
+    assert.equal(abortResult.abortMode, "NAV POSHOLD");
+    assert.equal(abortResult.safeStateConfirmed, true);
+    assert.equal(sent.at(-1).payload.chan8Raw, 1900);
     assert.throws(
       () => router.land(),
       /does not expose a generic Land command/,

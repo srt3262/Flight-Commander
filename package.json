@@ -2,7 +2,7 @@
   "name": "flight-commander",
   "productName": "Flight Commander",
   "description": "Flight Commander configurator, mission planner, firmware flasher, and ground control station.",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "packageManager": "yarn@1.22.22",
   "main": ".vite/build/main.js",
   "type": "module",
@@ -35,6 +35,7 @@
     "inavConfiguratorCommit": "4c343e38aba4ef655afd88e8339ef21d0c3c53ac",
     "firmwareMajor": 2,
     "bundledFirmwareVersion": "2.0.1",
+    "firmwareChangedInRelease": false,
     "reconstructionRelease": true,
     "binaryOracleVersion": "1.3.5"
   },

@@ -109,6 +109,14 @@ const rendererEntry = readFileSync(
   resolve(projectRoot, "index.html"),
   "utf8",
 );
+const guiSource = readFileSync(
+  resolve(projectRoot, "js/gui.js"),
+  "utf8",
+);
+const documentationHub = readFileSync(
+  resolve(projectRoot, "docs/README.md"),
+  "utf8",
+);
 const firmwareFlasherHtml = readFileSync(
   resolve(projectRoot, "tabs/firmware_flasher.html"),
   "utf8",
@@ -183,6 +191,7 @@ function contrastAgainstWhite(hexColor) {
 test("packaging starts from clean Vite output roots", () => {
   assert.match(forgeConfig, /prePackage:\s*async\s*\(\)\s*=>/);
   assert.match(forgeConfig, /cleanViteOutput\(__dirname\)/);
+  assert.match(forgeConfig, /overwrite:\s*true/);
   assert.match(cleanViteOutput, /["']\.vite\/build["']/);
   assert.match(cleanViteOutput, /["']\.vite\/renderer["']/);
   assert.match(
@@ -233,7 +242,10 @@ test("Windows verification follows the active renderer graph and rejects leftove
   assert.match(packageVerifier, /Auto protocol \(selected baud\)/);
   assert.match(packageVerifier, /flightDataMapPane/);
   assert.match(packageVerifier, /Make HUD major/);
-  assert.match(packageVerifier, /flightCommanderGroundControlUnits/);
+  assert.match(
+    packageVerifier,
+    /Switch Flight Commander's global display units between metric and imperial/,
+  );
   assert.match(packageVerifier, /flightCommanderTheme/);
   assert.match(packageVerifier, /flight-commander-theme-change/);
   assert.match(packageVerifier, /dark-only/);
@@ -320,6 +332,30 @@ test("native NTRIP and drone-off RTK base setup are release surfaces", () => {
   assert.match(ntripClientSource, /SOURCETABLE/);
 });
 
+test("documentation and support stay on Flight Commander-owned resources", () => {
+  const documentationUrl =
+    "https://github.com/srt3262/Flight-Commander/tree/main/docs";
+  const retiredDocumentationUrl =
+    "https://github.com/iNavFlight/inav/wiki";
+
+  assert.match(rendererEntry, new RegExp(documentationUrl));
+  assert.match(guiSource, new RegExp(documentationUrl));
+  assert.doesNotMatch(
+    rendererEntry,
+    new RegExp(`href=["']${retiredDocumentationUrl}["']`),
+  );
+  assert.doesNotMatch(
+    guiSource,
+    new RegExp(`["']${retiredDocumentationUrl}["']`),
+  );
+  assert.match(
+    documentationHub,
+    /https:\/\/github\.com\/srt3262\/Flight-Commander\/issues/,
+  );
+  assert.match(documentationHub, /USB RTK base and NTRIP workflows/);
+  assert.match(documentationHub, /Heading fusion, compass sources, calibration/);
+});
+
 test("weighted heading fusion and moving-baseline setup are release surfaces", () => {
   for (const sourceIndex of [0, 1, 2, 3]) {
     assert.match(gpsHtml, new RegExp(`headingSourceEnabled${sourceIndex}`));
@@ -364,6 +400,7 @@ test("application remains dark-only", () => {
 
 test("firmware selection, identity, and feature gates are packaged together", () => {
   assert.equal(packageManifest.flightCommander.bundledFirmwareVersion, "2.0.1");
+  assert.equal(packageManifest.flightCommander.firmwareChangedInRelease, false);
   assert.equal(existsSync(bundledFirmwarePath), true);
   assert.ok(readFileSync(bundledFirmwarePath).length > 1024 * 1024);
   assert.equal(
@@ -380,6 +417,10 @@ test("firmware selection, identity, and feature gates are packaged together", ()
   assert.doesNotMatch(firmwareFlasherHtml, /value="ardupilot"/i);
   assert.match(firmwareFlasherSource, /parsedHexContainsFlightCommanderIdentity/);
   assert.match(firmwareFlasherSource, /loadedFirmwareFamily !== firmwareBackend/);
+  assert.match(firmwareFlasherSource, /isInavCompatibleFirmwareVariant\(reportedVariant\)/);
+  assert.match(firmwareFlasherSource, /flightCommanderCatalogIsReady\(\)/);
+  assert.match(firmwareFlasherSource, /Latest compatible firmware/);
+  assert.match(firmwareFlasherSource, /versions\.val\(latest\.version\)\.trigger\('change'\)/);
   assert.match(
     firmwareFlasherSource,
     /flightCommanderReleasesData[\s\S]+firmwareFlasherTab\.getTarget\(\)/,
@@ -428,7 +469,7 @@ test("all requested large-prop INAV presets are wired into the release source", 
 });
 
 test("landing page reports the current Flight Commander release", () => {
-  assert.equal(packageManifest.version, "2.0.2");
+  assert.equal(packageManifest.version, "2.0.3");
   assert.equal(manifest.version, packageManifest.version);
   assert.match(
     landingHtml,
@@ -445,6 +486,22 @@ test("guarded push publication is tied to the current release version", () => {
   );
 });
 
+test("release policy distinguishes software-only updates from firmware rebuilds", () => {
+  assert.equal(
+    typeof packageManifest.flightCommander.firmwareChangedInRelease,
+    "boolean",
+  );
+  assert.match(releaseWorkflow, /firmwareChangedInRelease/);
+  assert.match(
+    releaseWorkflow,
+    /A firmware-changing release must rebuild firmware at the exact Configurator version/,
+  );
+  assert.match(
+    releaseWorkflow,
+    /Configurator and firmware major versions must match/,
+  );
+});
+
 test("coordinated releases publish Windows, source, and firmware downloads", () => {
   assert.match(
     releaseWorkflow,
@@ -456,14 +513,10 @@ test("coordinated releases publish Windows, source, and firmware downloads", () 
   );
   assert.match(
     releaseWorkflow,
-    /Flight-Commander-Firmware-Package-v\$version-MICOAIR743-BENCH-ONLY\.zip/,
-  );
-  assert.match(
-    releaseWorkflow,
     /Flight-Commander-Firmware-\$firmwareVersion-MICOAIR743-BENCH-ONLY\.hex/,
   );
   assert.match(releaseWorkflow, /git archive --format=zip/);
-  assert.match(releaseWorkflow, /schemaVersion = 3/);
+  assert.match(releaseWorkflow, /schemaVersion = 5/);
   assert.match(releaseWorkflow, /assets\.firmware/);
   assert.match(releaseWorkflow, /Expected four candidate files/);
   assert.match(
@@ -474,6 +527,7 @@ test("coordinated releases publish Windows, source, and firmware downloads", () 
     releaseWorkflow,
     /Expected exactly three published release assets/,
   );
+  assert.doesNotMatch(releaseWorkflow, /Firmware-Package|firmwarePackageDirectory/);
 });
 
 test("canonical Flight Commander visual assets match the verified 1.3.5 identity", () => {

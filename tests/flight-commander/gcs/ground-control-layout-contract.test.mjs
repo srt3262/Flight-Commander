@@ -8,6 +8,8 @@ const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
 const groundControlHtml = readFileSync(resolve(projectRoot, 'tabs/flight_data.html'), 'utf8');
 const hudCssSource = readFileSync(resolve(projectRoot, 'tabs/flight_hud-v1.3.5.css'), 'utf8');
 const groundControlSource = readFileSync(resolve(projectRoot, 'tabs/flight_data.js'), 'utf8');
+const rtkHtml = readFileSync(resolve(projectRoot, 'tabs/rtk_base.html'), 'utf8');
+const rtkSource = readFileSync(resolve(projectRoot, 'tabs/rtk_base.js'), 'utf8');
 const hudSource = readFileSync(resolve(projectRoot, 'tabs/flight_hud-v1.3.5.js'), 'utf8');
 const indexSource = readFileSync(resolve(projectRoot, 'index.html'), 'utf8');
 const guiSource = readFileSync(resolve(projectRoot, 'js/gui.js'), 'utf8');
@@ -140,7 +142,10 @@ test('telemetry fits under both views while RTK is reached by normal page scroll
 
 test('Ground Control owns RTK setup and remains available with the aircraft offline', () => {
   assert.match(groundControlSource, /import rtkBasePanel from ['"]\.\/rtk_base['"]/);
-  assert.match(groundControlSource, /rtkBasePanel\.mount\('#flightDataRtkMount'\)/);
+  assert.match(
+    groundControlSource,
+    /rtkBasePanel\.mount\('#flightDataRtkMount',\s*\{[\s\S]*?unitSystem: this\.unitSystem/,
+  );
   assert.match(groundControlSource, /if \(!this\.protocol \|\| !CONFIGURATOR\.connectionValid\)/);
   assert.match(groundControlSource, /Offline setup mode/);
 
@@ -156,8 +161,12 @@ test('Ground Control owns RTK setup and remains available with the aircraft offl
   assert.doesNotMatch(guiSource, /['"]rtk_base['"]/);
 });
 
-test('unit switching converts only Ground Control display boundaries', () => {
-  assert.match(groundControlSource, /flightCommanderGroundControlUnits/);
+test('unit switching converts every Ground Control display and input boundary', () => {
+  assert.match(groundControlSource, /globalSettings\.unitType/);
+  assert.match(groundControlSource, /store\.get\(\s*['"]unit_type['"]/);
+  assert.match(groundControlSource, /store\.set\(['"]unit_type['"], this\.unitSystem\)/);
+  assert.match(groundControlSource, /resolveConfiguredUnitSystem/);
+  assert.doesNotMatch(groundControlSource, /flightCommanderGroundControlUnits/);
   for (const quantity of [
     'relativeAltitude',
     'groundSpeed',
@@ -171,10 +180,45 @@ test('unit switching converts only Ground Control display boundaries', () => {
     );
   }
   assert.match(hudSource, /toGroundControlDisplayState/);
+  assert.match(
+    groundControlSource,
+    /groundControlDisplayToCanonicalValue\([\s\S]*?flightDataTakeoffAltitude[\s\S]*?mavlinkCommandRouter\.takeoff\(altitudeM\)/,
+  );
+  assert.match(groundControlSource, /rtkBasePanel\.setUnitSystem\(this\.unitSystem\)/);
+  assert.match(rtkSource, /groundControlDisplayToCanonicalValue/);
+  assert.match(rtkSource, /formatGroundControlLongDistance/);
+  assert.match(rtkSource, /formatGroundControlValue\([\s\S]*?survey\.meanAccuracyM/);
+  assert.match(rtkSource, /formatGroundControlValue\([\s\S]*?position\.ellipsoidHeightM/);
+  assert.match(rtkSource, /formatGroundControlValue\([\s\S]*?refinement\.stabilityM/);
+  assert.equal(
+    [...rtkHtml.matchAll(/<span data-ground-control-distance-unit>m<\/span>/g)].length,
+    4,
+  );
+  assert.doesNotMatch(rtkSource, /toFixed\([^)]*\)\} m/);
+  assert.doesNotMatch(rtkSource, /toFixed\([^)]*\)\} km/);
+});
+
+test('vehicle and mission commands stay visible with explicit safe actions', () => {
+  for (const [id, label] of [
+    ['flightDataStartMission', 'Start Mission'],
+    ['flightDataResumeMission', 'Resume Mission'],
+    ['flightDataAbortMission', 'Abort Mission'],
+    ['flightDataTakeoff', 'Launch / Takeoff'],
+    ['flightDataRtl', 'Return Home (RTH / RTL)'],
+    ['flightDataLand', 'Land'],
+  ]) {
+    assert.match(
+      groundControlHtml,
+      new RegExp(`id="${id}"[\\s\\S]*?>\\s*${label.replace(/[()/]/g, '\\$&')}\\s*<`),
+    );
+  }
   assert.doesNotMatch(
     groundControlSource,
-    /mavlinkCommandRouter\.takeoff\([\s\S]*?convertGroundControlValue/,
+    /\.fc-command-deck['"]\)\.addClass\(['"]is-hidden/,
   );
+  assert.match(groundControlSource, /dialog\.confirm\([\s\S]*?Abort the active mission/);
+  assert.match(groundControlSource, /mavlinkCommandRouter\.abortMission\(\)/);
+  assert.match(groundControlSource, /The stored mission will not be deleted/);
 });
 
 test('desktop minimum and responsive fallback both support the two-pane layout', () => {

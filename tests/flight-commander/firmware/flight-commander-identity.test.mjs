@@ -10,6 +10,7 @@ import {
   createInavFirmwareIdentity,
   firmwareFeatureSupport,
   inspectFlightCommanderInfo,
+  isInavCompatibleFirmwareVariant,
   probeFlightCommanderFirmware,
 } from "../../../js/flightCommander/firmwareIdentity.js";
 
@@ -28,6 +29,11 @@ function identityPayload({
 }
 
 describe("Flight Commander firmware identity", () => {
+  test("accepts both official INAV and the Flight Commander FCFW variant", () => {
+    assert.equal(isInavCompatibleFirmwareVariant("INAV"), true);
+    assert.equal(isInavCompatibleFirmwareVariant("FCFW"), true);
+    assert.equal(isInavCompatibleFirmwareVariant("ARDU"), false);
+  });
   test("parses the exact firmware 0.1.0 schema and little-endian capabilities", () => {
     const capabilities =
       FLIGHT_COMMANDER_CAPABILITIES.MULTIROTOR_AUTOTUNE |

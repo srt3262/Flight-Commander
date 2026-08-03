@@ -1,7 +1,7 @@
 "use strict";
 
 export const FLIGHT_COMMANDER_FIRMWARE_RELEASES_URL =
-  "https://api.github.com/repos/srt3262/Flight-Commander-Firmware/releases?per_page=20";
+  "https://api.github.com/repos/srt3262/Flight-Commander/releases?per_page=20";
 
 export const FLIGHT_COMMANDER_FIRMWARE_TARGETS = Object.freeze([
   Object.freeze({

@@ -19,19 +19,20 @@
                 <div class="fc-command-panel__heading">
                     <div>
                         <span class="fc-eyebrow">Vehicle actions</span>
-                        <strong>Mission and recovery controls</strong>
+                        <strong>Mission, launch, and recovery controls</strong>
                     </div>
                     <span id="flightDataCommandCapability">Waiting for a command-capable vehicle link.</span>
                 </div>
                 <div class="fc-command-panel__actions">
-                    <button id="flightDataStartMission" class="fc-button--primary" type="button">Start mission</button>
+                    <button id="flightDataStartMission" class="fc-button--primary" type="button">Start Mission</button>
+                    <button id="flightDataAbortMission" class="fc-button--danger" type="button">Abort Mission</button>
                     <label class="fc-inline-field" for="flightDataTakeoffAltitude">
                         <span>Takeoff altitude</span>
                         <input id="flightDataTakeoffAltitude" type="number" value="10" min="1" step="1">
-                        <span>m</span>
+                        <span id="flightDataTakeoffAltitudeUnit">m</span>
                     </label>
-                    <button id="flightDataTakeoff" type="button">Takeoff / launch</button>
-                    <button id="flightDataRtl" type="button">Return to launch (RTL)</button>
+                    <button id="flightDataTakeoff" type="button">Launch / Takeoff</button>
+                    <button id="flightDataRtl" type="button">Return Home (RTH / RTL)</button>
                     <button id="flightDataLand" type="button">Land</button>
                 </div>
             </section>
@@ -49,7 +50,7 @@
                 </div>
                 <div class="fc-command-panel__actions">
                     <button id="flightDataResumeMission" class="fc-button--primary" type="button" disabled>
-                        Resume mission from saved item
+                        Resume Mission
                     </button>
                     <button id="flightDataClearResume" type="button" disabled>Clear resume checkpoint</button>
                 </div>
@@ -58,13 +59,13 @@
 
         <section id="flightDataWorkspace" class="fc-flight-workspace" aria-label="Live map, HUD, and telemetry">
             <div class="fc-flight-view-toolbar" aria-label="Ground Control view controls">
-                <label class="fc-unit-switch" for="flightDataUnits" title="Switch live telemetry between metric and imperial units">
+                <label class="fc-unit-switch" for="flightDataUnits" title="Switch Flight Commander's global display units between metric and imperial">
                     <span>Metric</span>
                     <input
                         id="flightDataUnits"
                         type="checkbox"
                         role="switch"
-                        aria-label="Use imperial telemetry units"
+                        aria-label="Use imperial Ground Control units"
                     >
                     <span class="fc-unit-switch__track" aria-hidden="true">
                         <span class="fc-unit-switch__thumb"></span>

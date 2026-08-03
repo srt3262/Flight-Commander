@@ -26,7 +26,7 @@ jobs:
         github.event_name == 'workflow_dispatch' ||
         (
           github.event_name == 'push' &&
-          github.event.head_commit.message == 'Publish Flight Commander 2.0.2 release'
+          github.event.head_commit.message == 'Publish Flight Commander 2.0.3 release'
         )
       )
     runs-on: windows-latest
@@ -48,6 +48,7 @@ jobs:
       firmware_image_name: ${{ steps.candidate.outputs.firmware_image_name }}
       firmware_image_version: ${{ steps.candidate.outputs.firmware_image_version }}
       firmware_image_sha256: ${{ steps.candidate.outputs.firmware_image_sha256 }}
+      firmware_changed_in_release: ${{ steps.candidate.outputs.firmware_changed_in_release }}
       artifact_name: ${{ steps.candidate.outputs.artifact_name }}
       artifact_id: ${{ steps.upload.outputs.artifact-id }}
       artifact_digest: ${{ steps.upload.outputs.artifact-digest }}
@@ -164,6 +165,19 @@ jobs:
           if ($firmwareVersion -cnotmatch $semverPattern) {
             throw "The bundled firmware version is not strict SemVer: $firmwareVersion"
           }
+          $firmwareChangedValue = $manifest.flightCommander.firmwareChangedInRelease
+          if ($null -eq $firmwareChangedValue -or $firmwareChangedValue -isnot [bool]) {
+            throw 'flightCommander.firmwareChangedInRelease must be a boolean.'
+          }
+          [bool]$firmwareChangedInRelease = $firmwareChangedValue
+          $softwareMajor = [int]($version -split '\.')[0]
+          $firmwareMajor = [int]($firmwareVersion -split '\.')[0]
+          if ($softwareMajor -ne $firmwareMajor) {
+            throw 'Configurator and firmware major versions must match.'
+          }
+          if ($firmwareChangedInRelease -and $firmwareVersion -cne $version) {
+            throw 'A firmware-changing release must rebuild firmware at the exact Configurator version.'
+          }
 
           if (-not (Test-Path -LiteralPath out -PathType Container)) {
             throw 'The package output directory does not exist.'
@@ -187,7 +201,7 @@ jobs:
           $sourceArchiveName = "Flight-Commander-Configurator-Source-v$version.zip"
           $sourceArchivePath = Join-Path $candidateDirectory $sourceArchiveName
           $firmwareImageName = "Flight-Commander-Firmware-$firmwareVersion-MICOAIR743-BENCH-ONLY.hex"
-          $firmwareName = "Flight-Commander-Firmware-Package-v$version-MICOAIR743-BENCH-ONLY.zip"
+          $firmwareName = $firmwareImageName
           $firmwarePath = Join-Path $candidateDirectory $firmwareName
           $firmwareDirectory = Join-Path $env:GITHUB_WORKSPACE 'resources/firmware'
           $firmwareImages = @(
@@ -200,38 +214,12 @@ jobs:
             throw "Expected exactly the declared firmware image $firmwareImageName."
           }
 
-          Add-Type -AssemblyName System.IO.Compression.FileSystem
-          $firmwarePackageDirectory = Join-Path (
-            $env:RUNNER_TEMP
-          ) "flight-commander-firmware-$([Guid]::NewGuid().ToString('N'))"
-          $null = New-Item -ItemType Directory -Path $firmwarePackageDirectory
-          Copy-Item -LiteralPath $firmwareImages[0].FullName -Destination (
-            Join-Path $firmwarePackageDirectory $firmwareImageName
-          )
-          @"
-          Flight Commander firmware package for Configurator v$version
-
-          Included image: $firmwareImageName
-          Embedded firmware version: $firmwareVersion
-          Hardware target: MICOAIR743
-          Status: BENCH ONLY — remove propellers before flashing or testing.
-
-          The Configurator changed in v$version; the included flight-firmware
-          binary is unchanged and retains its truthful embedded version.
-          "@ | Set-Content -LiteralPath (
-            Join-Path $firmwarePackageDirectory 'README.txt'
-          ) -Encoding utf8
-          [System.IO.Compression.ZipFile]::CreateFromDirectory(
-            $firmwarePackageDirectory,
-            $firmwarePath,
-            [System.IO.Compression.CompressionLevel]::Optimal,
-            $false
-          )
-          Remove-Item -LiteralPath $firmwarePackageDirectory -Recurse -Force
+          Copy-Item -LiteralPath $firmwareImages[0].FullName -Destination $firmwarePath
           if (-not (Test-Path -LiteralPath $firmwarePath -PathType Leaf)) {
-            throw 'The versioned firmware package was not created.'
+            throw 'The truthful-version firmware HEX was not staged.'
           }
 
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
           [System.IO.Compression.ZipFile]::CreateFromDirectory(
             $package.FullName,
             $windowsArchivePath,
@@ -293,6 +281,14 @@ jobs:
           ) {
             throw 'The source archive firmware version does not match the release asset.'
           }
+          $sourceFirmwareChanged = $sourceManifest.flightCommander.firmwareChangedInRelease
+          if (
+            $null -eq $sourceFirmwareChanged -or
+            $sourceFirmwareChanged -isnot [bool] -or
+            [bool]$sourceFirmwareChanged -ne $firmwareChangedInRelease
+          ) {
+            throw 'The source archive firmware-change declaration does not match the release.'
+          }
           Remove-Item -LiteralPath $sourceExtractionDirectory -Recurse -Force
 
           $windowsArchiveFile = Get-Item -LiteralPath $windowsArchivePath
@@ -309,9 +305,10 @@ jobs:
           ).Hash.ToLowerInvariant()
           $artifactName = "flight-commander-release-$expectedSha"
           $releaseManifest = [ordered]@{
-            schemaVersion = 3
+            schemaVersion = 5
             version = $version
             commitSha = $expectedSha
+            firmwareChangedInRelease = $firmwareChangedInRelease
             assets = [ordered]@{
               windows = [ordered]@{
                 name = $windowsArchiveName
@@ -325,12 +322,9 @@ jobs:
               }
               firmware = [ordered]@{
                 name = $firmwareName
-                packageVersion = $version
                 imageName = $firmwareImageName
                 imageVersion = $firmwareVersion
-                imageSha256 = (
-                  Get-FileHash -LiteralPath $firmwareImages[0].FullName -Algorithm SHA256
-                ).Hash.ToLowerInvariant()
+                imageSha256 = $firmwareSha256
                 sha256 = $firmwareSha256
                 bytes = $firmwareFile.Length
               }
@@ -356,6 +350,7 @@ jobs:
           "firmware_image_name=$firmwareImageName" >> $env:GITHUB_OUTPUT
           "firmware_image_version=$firmwareVersion" >> $env:GITHUB_OUTPUT
           "firmware_image_sha256=$($releaseManifest.assets.firmware.imageSha256)" >> $env:GITHUB_OUTPUT
+          "firmware_changed_in_release=$($firmwareChangedInRelease.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
           "artifact_name=$artifactName" >> $env:GITHUB_OUTPUT
 
       - name: Upload immutable release candidate
@@ -405,6 +400,7 @@ jobs:
           FIRMWARE_IMAGE_NAME: ${{ needs.build.outputs.firmware_image_name }}
           FIRMWARE_IMAGE_VERSION: ${{ needs.build.outputs.firmware_image_version }}
           FIRMWARE_IMAGE_SHA256: ${{ needs.build.outputs.firmware_image_sha256 }}
+          FIRMWARE_CHANGED_IN_RELEASE: ${{ needs.build.outputs.firmware_changed_in_release }}
           RELEASE_ARTIFACT_DIGEST: ${{ needs.build.outputs.artifact_digest }}
         run: |
           $ErrorActionPreference = 'Stop'
@@ -427,6 +423,13 @@ jobs:
           $expectedFirmwareImageSha256 = (
             $env:FIRMWARE_IMAGE_SHA256.Trim().ToLowerInvariant()
           )
+          $firmwareChangedText = (
+            $env:FIRMWARE_CHANGED_IN_RELEASE.Trim().ToLowerInvariant()
+          )
+          if ($firmwareChangedText -notin @('true', 'false')) {
+            throw 'The build job returned an invalid firmware-change declaration.'
+          }
+          [bool]$firmwareChangedInRelease = $firmwareChangedText -eq 'true'
           $artifactDigest = $env:RELEASE_ARTIFACT_DIGEST.Trim().ToLowerInvariant()
           $semverPattern = '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$'
 
@@ -447,7 +450,7 @@ jobs:
           if ($sourceArchiveName -cne $expectedSourceArchiveName) {
             throw "Unexpected source archive name: $sourceArchiveName"
           }
-          $expectedFirmwareName = "Flight-Commander-Firmware-Package-v$version-MICOAIR743-BENCH-ONLY.zip"
+          $expectedFirmwareName = "Flight-Commander-Firmware-$firmwareVersion-MICOAIR743-BENCH-ONLY.hex"
           if ($firmwareName -cne $expectedFirmwareName) {
             throw "Unexpected firmware asset name: $firmwareName"
           }
@@ -458,6 +461,14 @@ jobs:
           if ($firmwareVersion -cnotmatch $semverPattern) {
             throw "The build job returned an invalid firmware version: $firmwareVersion"
           }
+          $softwareMajor = [int]($version -split '\.')[0]
+          $firmwareMajor = [int]($firmwareVersion -split '\.')[0]
+          if ($softwareMajor -ne $firmwareMajor) {
+            throw 'Configurator and firmware major versions must match.'
+          }
+          if ($firmwareChangedInRelease -and $firmwareVersion -cne $version) {
+            throw 'A firmware-changing release must publish a rebuilt, exactly version-matched firmware image.'
+          }
           if ($expectedWindowsArchiveSha256 -cnotmatch '^[0-9a-f]{64}$') {
             throw 'The build job returned an invalid Windows archive SHA-256.'
           }
@@ -465,7 +476,7 @@ jobs:
             throw 'The build job returned an invalid source archive SHA-256.'
           }
           if ($expectedFirmwareSha256 -cnotmatch '^[0-9a-f]{64}$') {
-            throw 'The build job returned an invalid firmware package SHA-256.'
+            throw 'The build job returned an invalid firmware HEX SHA-256.'
           }
           if ($expectedFirmwareImageSha256 -cnotmatch '^[0-9a-f]{64}$') {
             throw 'The build job returned an invalid firmware image SHA-256.'
@@ -527,10 +538,18 @@ jobs:
 
           $releaseManifest = Get-Content -LiteralPath $manifestPath -Raw |
             ConvertFrom-Json
+          $manifestFirmwareChanged = $releaseManifest.firmwareChangedInRelease
           if (
-            [int]$releaseManifest.schemaVersion -ne 3 -or
+            $null -eq $manifestFirmwareChanged -or
+            $manifestFirmwareChanged -isnot [bool]
+          ) {
+            throw 'Downloaded release manifest has no valid firmware-change declaration.'
+          }
+          if (
+            [int]$releaseManifest.schemaVersion -ne 5 -or
             [string]$releaseManifest.version -cne $version -or
             [string]$releaseManifest.commitSha -cne $expectedSha -or
+            [bool]$manifestFirmwareChanged -ne $firmwareChangedInRelease -or
             [string]$releaseManifest.assets.windows.name -cne $windowsArchiveName -or
             [string]$releaseManifest.assets.windows.sha256 -cne $expectedWindowsArchiveSha256 -or
             [long]$releaseManifest.assets.windows.bytes -ne $expectedWindowsArchiveBytes -or
@@ -538,7 +557,6 @@ jobs:
             [string]$releaseManifest.assets.source.sha256 -cne $expectedSourceArchiveSha256 -or
             [long]$releaseManifest.assets.source.bytes -ne $expectedSourceArchiveBytes -or
             [string]$releaseManifest.assets.firmware.name -cne $firmwareName -or
-            [string]$releaseManifest.assets.firmware.packageVersion -cne $version -or
             [string]$releaseManifest.assets.firmware.imageName -cne $firmwareImageName -or
             [string]$releaseManifest.assets.firmware.imageVersion -cne $firmwareVersion -or
             [string]$releaseManifest.assets.firmware.imageSha256 -cne $expectedFirmwareImageSha256 -or
@@ -576,50 +594,12 @@ jobs:
             Get-FileHash -LiteralPath $firmwarePath -Algorithm SHA256
           ).Hash.ToLowerInvariant()
           if ($actualFirmwareSha256 -cne $expectedFirmwareSha256) {
-            throw 'Firmware package SHA-256 changed after artifact upload/download.'
+            throw 'Firmware HEX SHA-256 changed after artifact upload/download.'
           }
-          $firmwareExtractionDirectory = Join-Path (
-            $env:RUNNER_TEMP
-          ) "flight-commander-firmware-verify-$([Guid]::NewGuid().ToString('N'))"
-          $null = New-Item -ItemType Directory -Path $firmwareExtractionDirectory
-          Add-Type -AssemblyName System.IO.Compression.FileSystem
-          [System.IO.Compression.ZipFile]::ExtractToDirectory(
-            $firmwarePath,
-            $firmwareExtractionDirectory
-          )
-          $firmwarePackageFiles = @(
-            Get-ChildItem -LiteralPath $firmwareExtractionDirectory -File
-          )
-          if (
-            $firmwarePackageFiles.Count -ne 2 -or
-            -not (Test-Path -LiteralPath (
-              Join-Path $firmwareExtractionDirectory $firmwareImageName
-            ) -PathType Leaf) -or
-            -not (Test-Path -LiteralPath (
-              Join-Path $firmwareExtractionDirectory 'README.txt'
-            ) -PathType Leaf)
-          ) {
-            throw 'The firmware package does not contain exactly the image and README.'
-          }
-          $actualFirmwareImageSha256 = (
-            Get-FileHash -LiteralPath (
-              Join-Path $firmwareExtractionDirectory $firmwareImageName
-            ) -Algorithm SHA256
-          ).Hash.ToLowerInvariant()
+          $actualFirmwareImageSha256 = $actualFirmwareSha256
           if ($actualFirmwareImageSha256 -cne $expectedFirmwareImageSha256) {
-            throw 'The firmware image changed inside its versioned package.'
+            throw 'The firmware image SHA-256 does not match its verified source.'
           }
-          $firmwareReadme = Get-Content -LiteralPath (
-            Join-Path $firmwareExtractionDirectory 'README.txt'
-          ) -Raw
-          if (
-            -not $firmwareReadme.Contains("Configurator v$version") -or
-            -not $firmwareReadme.Contains("Embedded firmware version: $firmwareVersion") -or
-            -not $firmwareReadme.Contains('BENCH ONLY')
-          ) {
-            throw 'The firmware package README is missing version or safety identity.'
-          }
-          Remove-Item -LiteralPath $firmwareExtractionDirectory -Recurse -Force
 
           $headers = @{
             Accept = 'application/vnd.github+json'
@@ -661,29 +641,25 @@ jobs:
           Assert-GitHubResourceMissing "releases/tags/$encodedTag" "Release $tag"
 
           $notesPath = Join-Path $env:RUNNER_TEMP 'flight-commander-release-notes.md'
+          $firmwareReleaseNote = if ($firmwareChangedInRelease) {
+            "Firmware was rebuilt for this release and exactly matches version $version."
+          } else {
+            "The unchanged compatible MICOAIR743 image remains truthfully versioned $firmwareVersion because these corrections require no flight-firmware binary change."
+          }
           @"
-          Flight Commander $version makes RTK setup part of Ground Control. The
-          live map and HUD remain side by side, the compact telemetry grid sits
-          immediately below them, and scrolling reveals a guided RTK setup for
-          direct NTRIP, a local survey-in base, or an NTRIP-refined survey base.
+          Flight Commander $version corrects its Documentation & Support routes,
+          applies the selected metric/imperial unit system to all Ground Control
+          and RTK values, and keeps the complete mission, launch, return-home, and
+          landing command surface visible with capability-specific safety gates.
 
-          Compass calibration now lives entirely in Calibration and creates a
-          control for every connected enabled onboard, external/UART GPS-module,
-          and DroneCAN compass. When a rotation run completes, the Configurator
-          reloads both legacy and Flight Commander extended coefficients instead
-          of leaving stale zero/1024 values on screen.
-
-          Ground Control can be opened while the aircraft is disconnected, so a
-          USB base can finish survey-in before the aircraft is powered. Existing
-          official INAV compatibility and Flight Commander Firmware capability
-          gates remain unchanged.
+          The firmware flasher now accepts the Flight Commander FCFW variant
+          during target discovery, waits for its bundled and online catalogs,
+          selects the newest compatible MICOAIR743 image, and retains the included
+          image as an offline fallback.
 
           This release contains three verified downloads: a portable Windows
           x64 Configurator ZIP, source from the exact tested commit, and a
-          Flight Commander Firmware package versioned v$version. The firmware
-          package contains the unchanged compatible $firmwareVersion MICOAIR743
-          bench-only image under its truthful embedded version because these
-          corrections require no flight-firmware binary change.
+          directly flashable Flight Commander Firmware HEX. $firmwareReleaseNote
 
           The Windows archive passed the complete repository source tests,
           packaged-application verification, clean ZIP extraction, and immutable
@@ -694,8 +670,7 @@ jobs:
 
           Windows ZIP SHA-256: $actualWindowsArchiveSha256
           Source ZIP SHA-256: $actualSourceArchiveSha256
-          Firmware package SHA-256: $actualFirmwareSha256
-          Contained firmware HEX SHA-256: $actualFirmwareImageSha256
+          Firmware HEX SHA-256: $actualFirmwareSha256
           GitHub Actions artifact digest: $artifactDigest
           "@ | Set-Content -LiteralPath $notesPath -Encoding utf8
 
@@ -744,5 +719,5 @@ jobs:
             $firmwareAsset.Count -ne 1 -or
             [long]$firmwareAsset[0].size -ne $expectedFirmwareBytes
           ) {
-            throw 'Published firmware asset does not match the verified package.'
+            throw 'Published firmware asset does not match the verified HEX.'
           }

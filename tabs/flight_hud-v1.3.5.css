@@ -71,6 +71,11 @@
     justify-content: flex-end;
 }
 
+.tab-flight-data .fc-button--danger:not(:disabled) {
+    border-color: #b8473d;
+    color: #8f2f27;
+}
+
 .tab-flight-data .fc-command-panel--resume .fc-command-panel__heading {
     flex-basis: 210px;
 }

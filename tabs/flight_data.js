@@ -18,12 +18,18 @@ import CONFIGURATOR from './../js/data_storage';
 import FC from './../js/fc';
 import { estimateInavMissionProgress } from './../js/gcs/inavMissionProgress';
 import {
+  convertGroundControlValue,
   DEFAULT_GROUND_CONTROL_UNIT_SYSTEM,
   GROUND_CONTROL_UNIT_SYSTEMS,
   formatGroundControlValue,
+  groundControlDisplayToCanonicalValue,
+  groundControlUnitLabel,
   normalizeGroundControlUnitSystem,
+  resolveConfiguredUnitSystem,
 } from './../js/gcs/groundControlUnits';
 import { mavlinkCommandRouter } from './../js/gcs/mavlinkCommandRouterInstance';
+import dialog from './../js/dialog';
+import { globalSettings } from './../js/globalSettings';
 import GUI from './../js/gui';
 import interval from './../js/intervals';
 import {
@@ -92,6 +98,11 @@ function format(value, decimals, suffix = '') {
   return Number.isFinite(value) ? `${value.toFixed(decimals)}${suffix}` : '--';
 }
 
+function formatEditableNumber(value, decimals = 6) {
+  if (!Number.isFinite(value)) return '';
+  return value.toFixed(decimals).replace(/(?:\.0+|(\.\d*?)0+)$/, '$1');
+}
+
 function missionCoordinate(item) {
   const latitude = Number(item?.latitude ?? item?.lat);
   const longitude = Number(item?.longitude ?? item?.lon);
@@ -131,6 +142,7 @@ const flightData = {
   mavlinkAttachmentGeneration: 0,
   mavlinkMissionAbortController: null,
   unitSystem: DEFAULT_GROUND_CONTROL_UNIT_SYSTEM,
+  takeoffAltitudeM: 10,
 };
 
 flightData.suspendGlobalLog = function () {
@@ -188,7 +200,9 @@ flightData.initialize = function (callback) {
       this.bindControls();
       this.configureProtocol();
       this.setupHud();
-      rtkBasePanel.mount('#flightDataRtkMount').then(() => {
+      rtkBasePanel.mount('#flightDataRtkMount', {
+        unitSystem: this.unitSystem,
+      }).then(() => {
         if (!isCurrentInitialization()) return;
         GUI.content_ready(callback);
         setTimeout(() => this.map?.updateSize(), 0);
@@ -241,29 +255,68 @@ flightData.applyMapStyle = function () {
 };
 
 flightData.loadStoredUnitSystem = function () {
-  this.unitSystem = normalizeGroundControlUnitSystem(
-    store.get(
-      'flightCommanderGroundControlUnits',
-      DEFAULT_GROUND_CONTROL_UNIT_SYSTEM,
-    ),
+  const configuredUnitType = globalSettings.unitType ?? store.get(
+    'unit_type',
+    DEFAULT_GROUND_CONTROL_UNIT_SYSTEM,
+  );
+  this.unitSystem = resolveConfiguredUnitSystem(
+    configuredUnitType,
+    globalSettings.osdUnits,
   );
   const imperial = this.unitSystem === GROUND_CONTROL_UNIT_SYSTEMS.IMPERIAL;
   $('#flightDataUnits')
     .prop('checked', imperial)
     .attr('aria-checked', String(imperial));
+  this.renderTakeoffAltitudeInput();
 };
 
 flightData.applyUnitSystem = function (value, persist = true) {
+  this.captureTakeoffAltitudeInput();
   this.unitSystem = normalizeGroundControlUnitSystem(value);
   const imperial = this.unitSystem === GROUND_CONTROL_UNIT_SYSTEMS.IMPERIAL;
   $('#flightDataUnits')
     .prop('checked', imperial)
     .attr('aria-checked', String(imperial));
   if (persist) {
-    store.set('flightCommanderGroundControlUnits', this.unitSystem);
+    globalSettings.unitType = this.unitSystem;
+    store.set('unit_type', this.unitSystem);
   }
+  this.renderTakeoffAltitudeInput();
+  rtkBasePanel.setUnitSystem(this.unitSystem);
   this.hud?.setUnitSystem(this.unitSystem);
   this.render(this.currentState());
+};
+
+flightData.captureTakeoffAltitudeInput = function () {
+  const altitudeM = groundControlDisplayToCanonicalValue(
+    $('#flightDataTakeoffAltitude').val(),
+    'altitude',
+    this.unitSystem,
+  );
+  if (Number.isFinite(altitudeM) && altitudeM > 0) {
+    this.takeoffAltitudeM = altitudeM;
+  }
+  return altitudeM;
+};
+
+flightData.renderTakeoffAltitudeInput = function () {
+  const displayAltitude = convertGroundControlValue(
+    this.takeoffAltitudeM,
+    'altitude',
+    this.unitSystem,
+  );
+  const minimumAltitude = convertGroundControlValue(
+    1,
+    'altitude',
+    this.unitSystem,
+  );
+  $('#flightDataTakeoffAltitude')
+    .val(formatEditableNumber(displayAltitude, 3))
+    .attr('min', formatEditableNumber(minimumAltitude, 3))
+    .attr('step', '1');
+  $('#flightDataTakeoffAltitudeUnit').text(
+    groundControlUnitLabel('altitude', this.unitSystem),
+  );
 };
 
 flightData.setupHud = function () {
@@ -360,6 +413,7 @@ flightData.configureProtocol = function () {
   this.unsubscribeResume?.();
   this.unsubscribeResume = null;
   this.invalidateMavlinkAttachment();
+  $('.fc-command-deck').removeClass('is-hidden');
 
   this.unsubscribeResume = missionResumeManager.subscribe((snapshot, context) => {
     this.renderResumeCheckpoint(snapshot);
@@ -370,7 +424,6 @@ flightData.configureProtocol = function () {
 
   if (!this.protocol || !CONFIGURATOR.connectionValid) {
     this.setCommandButtonsDisabled(true);
-    $('.fc-command-deck').addClass('is-hidden');
     $('#flightDataCommandCapability').text(
       'Connect an aircraft to use vehicle commands. RTK base and NTRIP setup remain available offline.',
     );
@@ -518,9 +571,16 @@ flightData.bindControls = function () {
     'Mission start confirmed or accepted by the vehicle.',
     'The Flight Commander NAV WP AUX request is now being transmitted continuously.',
   ));
+  $('#flightDataAbortMission').on('click', () => this.abortActiveMission());
   $('#flightDataTakeoff').on('click', () => this.runVehicleAction(
     'Sending takeoff / launch command',
-    () => mavlinkCommandRouter.takeoff(Number($('#flightDataTakeoffAltitude').val())),
+    () => {
+      const altitudeM = this.captureTakeoffAltitudeInput();
+      if (!Number.isFinite(altitudeM) || altitudeM <= 0) {
+        throw new Error('Enter a takeoff altitude greater than zero.');
+      }
+      return mavlinkCommandRouter.takeoff(altitudeM);
+    },
     'Takeoff / launch confirmed or accepted by the vehicle.',
     'The Flight Commander NAV LAUNCH AUX request is now being transmitted continuously.',
   ));
@@ -551,6 +611,29 @@ flightData.bindControls = function () {
       ? GROUND_CONTROL_UNIT_SYSTEMS.IMPERIAL
       : GROUND_CONTROL_UNIT_SYSTEMS.METRIC,
   ));
+};
+
+flightData.abortActiveMission = async function () {
+  if (this.protocol !== 'mavlink' || !CONFIGURATOR.connectionValid) {
+    this.setActionStatus(
+      'Mission abort requires a validated MAVLink telemetry connection.',
+      true,
+    );
+    return;
+  }
+  const capabilities = mavlinkCommandRouter.capabilities();
+  const safeMode = capabilities.missionAbortMode || 'a safe non-mission mode';
+  const confirmed = await dialog.confirm(
+    `Abort the active mission? Flight Commander will leave AUTO and command ${safeMode}. `
+      + 'The stored mission will not be deleted.',
+  );
+  if (!confirmed) return;
+  return this.runVehicleAction(
+    'Aborting the active mission',
+    () => mavlinkCommandRouter.abortMission(),
+    `Mission abort confirmed; the aircraft entered ${safeMode}.`,
+    `The ${safeMode} request is being transmitted. Verify the displayed mode and aircraft response.`,
+  );
 };
 
 flightData.runVehicleAction = async function (
@@ -586,7 +669,7 @@ flightData.runVehicleAction = async function (
 };
 
 flightData.setCommandButtonsDisabled = function (disabled) {
-  $('#flightDataSetMode, #flightDataArm, #flightDataStartMission, #flightDataTakeoff, #flightDataRtl, #flightDataLand')
+  $('#flightDataSetMode, #flightDataArm, #flightDataStartMission, #flightDataAbortMission, #flightDataTakeoff, #flightDataRtl, #flightDataLand')
     .prop('disabled', disabled);
 };
 
@@ -629,8 +712,8 @@ flightData.renderResumeCheckpoint = function (
       !mavlinkConnected || !snapshot.canResume || snapshot.resuming || operationBusy,
     )
     .text(snapshot.resuming
-      ? 'Resuming mission…'
-      : 'Resume mission from saved item')
+      ? 'Resuming Mission…'
+      : 'Resume Mission')
     .attr(
       'title',
       operationBusy && !snapshot.resuming
@@ -693,6 +776,7 @@ flightData.updateActionAvailability = function (state) {
         canArm: false,
         canSetMode: false,
         canStartMission: false,
+        canAbortMission: false,
         canTakeoff: false,
         canRtl: false,
         canLand: false,
@@ -703,6 +787,7 @@ flightData.updateActionAvailability = function (state) {
       canArm: false,
       canSetMode: false,
       canStartMission: false,
+      canAbortMission: false,
       canTakeoff: false,
       canRtl: false,
       canLand: false,
@@ -714,6 +799,7 @@ flightData.updateActionAvailability = function (state) {
       canArm: false,
       canSetMode: false,
       canStartMission: false,
+      canAbortMission: false,
       canTakeoff: false,
       canRtl: false,
       canLand: false,
@@ -724,6 +810,7 @@ flightData.updateActionAvailability = function (state) {
       canArm: false,
       canSetMode: false,
       canStartMission: false,
+      canAbortMission: false,
       canTakeoff: false,
       canRtl: false,
       canLand: false,
@@ -736,6 +823,13 @@ flightData.updateActionAvailability = function (state) {
   );
   $('#flightDataArm').prop('disabled', !linkReady || !capabilities.canArm);
   $('#flightDataTakeoff').prop('disabled', !linkReady || !capabilities.canTakeoff);
+  $('#flightDataTakeoffAltitude')
+    .prop('disabled', !linkReady || !capabilities.canTakeoff)
+    .attr('title', linkReady && capabilities.canTakeoff ? '' : capabilities.reason);
+  $('#flightDataAbortMission').prop(
+    'disabled',
+    !linkReady || !capabilities.canAbortMission,
+  );
   $('#flightDataRtl').prop('disabled', !linkReady || !capabilities.canRtl);
   $('#flightDataLand').prop('disabled', !linkReady || !capabilities.canLand);
   $('#flightDataStartMission').prop(
@@ -745,6 +839,39 @@ flightData.updateActionAvailability = function (state) {
       || !(Number(state.missionTotal) > 0 || this.mission.length > 0),
   );
   $('#flightDataCommandCapability').text(capabilities.reason);
+  const noMission = !(Number(state.missionTotal) > 0 || this.mission.length > 0);
+  $('#flightDataStartMission').attr(
+    'title',
+    !linkReady || !capabilities.canStartMission
+      ? capabilities.reason
+      : noMission
+        ? 'Load a mission before starting it.'
+        : '',
+  );
+  $('#flightDataAbortMission').attr(
+    'title',
+    linkReady && capabilities.canAbortMission
+      ? capabilities.missionAbortReason
+      : capabilities.missionAbortReason || capabilities.reason,
+  );
+  $('#flightDataTakeoff').attr(
+    'title',
+    linkReady && capabilities.canTakeoff
+      ? capabilities.takeoffReason || ''
+      : capabilities.takeoffReason || capabilities.reason,
+  );
+  $('#flightDataRtl').attr(
+    'title',
+    linkReady && capabilities.canRtl
+      ? capabilities.rtlReason || ''
+      : capabilities.rtlReason || capabilities.reason,
+  );
+  $('#flightDataLand').attr(
+    'title',
+    linkReady && capabilities.canLand
+      ? capabilities.landReason || ''
+      : capabilities.landReason || capabilities.reason,
+  );
 };
 
 flightData.currentState = function () {
@@ -1118,6 +1245,7 @@ flightData.cleanup = function (callback) {
   this.estimatedMissionCurrent = null;
   this.mavlinkWasConnected = false;
   this.unitSystem = DEFAULT_GROUND_CONTROL_UNIT_SYSTEM;
+  this.takeoffAltitudeM = 10;
   this.restoreGlobalLog();
   if (callback) callback();
 };

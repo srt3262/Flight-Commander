@@ -4,6 +4,7 @@ import {
   GROUND_CONTROL_UNIT_SYSTEMS,
   METERS_PER_SECOND_TO_MILES_PER_HOUR,
   METERS_TO_FEET,
+  resolveConfiguredUnitSystem,
 } from './../gcs/groundControlUnits.js';
 
 const SQUARE_METERS_TO_SQUARE_FEET = METERS_TO_FEET * METERS_TO_FEET;
@@ -11,13 +12,7 @@ const SQUARE_METERS_PER_ACRE = 4046.8564224;
 const METERS_PER_MILE = 1609.344;
 
 export function resolvePlannerUnitSystem(unitType, osdUnits) {
-  if (String(unitType).toLowerCase() === GROUND_CONTROL_UNIT_SYSTEMS.IMPERIAL) {
-    return GROUND_CONTROL_UNIT_SYSTEMS.IMPERIAL;
-  }
-  if (unitType === 'OSD' && [0, 3, 4].includes(Number(osdUnits))) {
-    return GROUND_CONTROL_UNIT_SYSTEMS.IMPERIAL;
-  }
-  return GROUND_CONTROL_UNIT_SYSTEMS.METRIC;
+  return resolveConfiguredUnitSystem(unitType, osdUnits);
 }
 
 export function plannerUnitLabels(unitSystem) {
