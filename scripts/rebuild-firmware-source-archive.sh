@@ -116,14 +116,15 @@ if [[ "${#target_directories[@]}" -ne 1 || "${target_directories[0]}" != 'MICOAI
     echo 'Firmware source must expose exactly one MICOAIR743 hardware target.' >&2
     exit 1
 fi
-if rg -n 'MICOAIR743_EXTMAG' \
+if grep -En 'MICOAIR743_EXTMAG' \
     "${target_root}/MICOAIR743/CMakeLists.txt" \
     "${target_root}/MICOAIR743/target.h" \
     "${target_root}/MICOAIR743/config.c"; then
     echo 'The retired external-compass firmware target is still present.' >&2
     exit 1
 fi
-rg -n 'mag_align\s*=\s*CW90_DEG' "${target_root}/MICOAIR743/config.c"
+grep -En 'mag_align[[:space:]]*=[[:space:]]*CW90_DEG' \
+    "${target_root}/MICOAIR743/config.c"
 
 bash "${source_root}/flight-commander/build-micoair743.sh" "${work_root}/build"
 rebuilt_firmware="${work_root}/build/${firmware_name}"
