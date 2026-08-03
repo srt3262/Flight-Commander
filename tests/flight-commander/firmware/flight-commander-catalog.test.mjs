@@ -3,8 +3,10 @@ import { describe, test } from "node:test";
 
 import {
   FLIGHT_COMMANDER_FIRMWARE_RELEASES_URL,
+  bundledFlightCommanderDescriptors,
   catalogByTarget,
   flightCommanderReleaseDescriptors,
+  mergeFlightCommanderDescriptors,
   normalizeFirmwareTarget,
   parseFlightCommanderFirmwareFilename,
   parsedHexContainsFlightCommanderIdentity,
@@ -85,6 +87,38 @@ describe("Flight Commander firmware catalog", () => {
     assert.equal(descriptors[0].target_id, "MICOAIR743");
     assert.equal(descriptors[0].digest, "sha256:abc");
     assert.equal(catalogByTarget(descriptors).MICOAIR743.length, 1);
+  });
+
+  test("prefers the downloadable online release over a same-version bundled fallback", () => {
+    const filename =
+      "Flight-Commander-Firmware-2.0.1-MICOAIR743-BENCH-ONLY.hex";
+    const bundled = bundledFlightCommanderDescriptors([filename]);
+    const online = flightCommanderReleaseDescriptors([
+      {
+        draft: false,
+        prerelease: false,
+        tag_name: "v2.0.4",
+        name: "Flight Commander 2.0.4",
+        html_url: "https://example.invalid/release",
+        published_at: "2026-08-02T20:00:00Z",
+        body: "Software-only release with the compatible firmware asset.",
+        assets: [
+          {
+            name: filename,
+            browser_download_url: "https://example.invalid/firmware.hex",
+          },
+        ],
+      },
+    ]);
+
+    const merged = mergeFlightCommanderDescriptors(bundled, online);
+    assert.equal(merged.length, 1);
+    assert.equal(merged[0].bundled, undefined);
+    assert.equal(merged[0].url, "https://example.invalid/firmware.hex");
+    assert.equal(
+      mergeFlightCommanderDescriptors(online, bundled)[0].url,
+      "https://example.invalid/firmware.hex",
+    );
   });
 
   test("requires the compiled FCFW marker before a HEX can be offered as fork firmware", () => {

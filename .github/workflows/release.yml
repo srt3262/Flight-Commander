@@ -26,7 +26,7 @@ jobs:
         github.event_name == 'workflow_dispatch' ||
         (
           github.event_name == 'push' &&
-          github.event.head_commit.message == 'Publish Flight Commander 2.0.3 release'
+          github.event.head_commit.message == 'Publish Flight Commander 2.0.4 release'
         )
       )
     runs-on: windows-latest
@@ -647,15 +647,15 @@ jobs:
             "The unchanged compatible MICOAIR743 image remains truthfully versioned $firmwareVersion because these corrections require no flight-firmware binary change."
           }
           @"
-          Flight Commander $version corrects its Documentation & Support routes,
-          applies the selected metric/imperial unit system to all Ground Control
-          and RTK values, and keeps the complete mission, launch, return-home, and
-          landing command surface visible with capability-specific safety gates.
+          Flight Commander $version corrects firmware-source selection in the
+          flasher. When the same MICOAIR743 firmware version is available online
+          and inside the Configurator, the published online asset is now selected
+          for download instead of being discarded in favor of the packaged copy.
 
-          The firmware flasher now accepts the Flight Commander FCFW variant
-          during target discovery, waits for its bundled and online catalogs,
-          selects the newest compatible MICOAIR743 image, and retains the included
-          image as an offline fallback.
+          The action bar now clearly separates Select Local Firmware File,
+          Download Online Firmware, and Flash Selected Firmware. The packaged
+          image is identified only as an offline fallback and can be loaded
+          automatically if the selected online download fails.
 
           This release contains three verified downloads: a portable Windows
           x64 Configurator ZIP, source from the exact tested commit, and a

@@ -781,7 +781,11 @@ for (const marker of [
   "Flight Commander Firmware",
   "Official INAV Firmware",
   "Flight-Commander-Firmware-",
-  "Latest compatible firmware",
+  "Latest compatible online firmware",
+  "Select Local Firmware File",
+  "Download Online Firmware",
+  "Flash Selected Firmware",
+  "Use Offline Firmware Copy",
   "FCFW",
   "MICOAIR743",
   "MICROAIR743",
@@ -819,6 +823,7 @@ for (const marker of [
   }
 }
 for (const retiredRuntime of [
+  "Load included Flight Commander Firmware",
   "flightCommanderGroundControlMinorPosition",
   "flightDataMinorDragHandle",
   "Reset minor view",

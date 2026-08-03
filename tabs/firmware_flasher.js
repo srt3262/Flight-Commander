@@ -128,11 +128,11 @@ firmwareFlasherTab.initialize = function (callback) {
 
             if (firmwareBackend === 'flight-commander') {
                 $('#firmware_backend_description').text(
-                    'Flight Commander Firmware uses the same detected INAV hardware target and STM32/DFU flashing path. Only verified FCFW images are accepted.',
+                    'Choose a verified online release or select a local HEX file, then flash the selected image. The verified offline copy is used only when an online release is unavailable.',
                 );
-                $('a.load_file').text('Load local Flight Commander HEX').removeClass('disabled');
-                $('a.load_remote_file').text('Download Flight Commander Firmware').addClass('disabled');
-                $('a.flash_firmware').text('Flash Flight Commander Firmware').addClass('disabled');
+                $('a.load_file').text('Select Local Firmware File').removeClass('disabled');
+                $('a.load_remote_file').text('Download Online Firmware').addClass('disabled');
+                $('a.flash_firmware').text('Flash Selected Firmware').addClass('disabled');
                 buildFlightCommanderBoardOptions();
                 if (flightCommanderCatalogIsReady()) {
                     firmwareFlasherTab.getTarget();
@@ -158,8 +158,8 @@ firmwareFlasherTab.initialize = function (callback) {
         function enable_load_online_button(summary = null) {
             const label = firmwareBackend === 'flight-commander'
                 ? summary?.bundled
-                    ? 'Load included Flight Commander Firmware'
-                    : 'Download Flight Commander Firmware'
+                    ? 'Use Offline Firmware Copy'
+                    : 'Download Online Firmware'
                 : i18n.getMessage('firmwareFlasherButtonLoadOnline');
             $(".load_remote_file").text(label).removeClass('disabled');
         }
@@ -452,14 +452,17 @@ firmwareFlasherTab.initialize = function (callback) {
                 i18n.getMessage('firmwareFlasherOptionLabelSelectFirmwareVersion'),
             )));
 
-            const descriptors = mergeFlightCommanderDescriptors(
-                bundledFlightCommanderDescriptors(
-                    firmwareFlasherTab.bundledFlightCommanderFirmware || [],
-                ),
-                flightCommanderReleaseDescriptors(
-                    firmwareFlasherTab.flightCommanderReleasesData || [],
-                ),
+            const bundledDescriptors = bundledFlightCommanderDescriptors(
+                firmwareFlasherTab.bundledFlightCommanderFirmware || [],
             );
+            const onlineDescriptors = flightCommanderReleaseDescriptors(
+                firmwareFlasherTab.flightCommanderReleasesData || [],
+            );
+            const descriptors = mergeFlightCommanderDescriptors(
+                bundledDescriptors,
+                onlineDescriptors,
+            );
+            firmwareFlasherTab.bundledReleases = catalogByTarget(bundledDescriptors);
             firmwareFlasherTab.releases = catalogByTarget(descriptors);
             for (const target of FLIGHT_COMMANDER_FIRMWARE_TARGETS) {
                 boards.append(
@@ -641,12 +644,16 @@ firmwareFlasherTab.initialize = function (callback) {
 
                 if (typeof firmwareFlasherTab.releases[target]?.forEach === 'function') {
                     firmwareFlasherTab.releases[target].forEach(function(descriptor) {
+                        const source = descriptor.bundled
+                            ? 'Offline fallback'
+                            : 'Online release';
                         versions.append(
-                            $("<option value='{0}'>{0} - {1} - {2} ({3})</option>".format(
+                            $("<option value='{0}'>{0} - {1} - {2} ({3}; {4})</option>".format(
                                 descriptor.version,
                                 descriptor.target,
                                 descriptor.date,
                                 descriptor.status,
+                                source,
                             )).data('summary', descriptor),
                         );
                     });
@@ -658,7 +665,9 @@ firmwareFlasherTab.initialize = function (callback) {
                     const latest = firmwareFlasherTab.releases[target][0];
                     versions.val(latest.version).trigger('change');
                     $('span.progressLabel').text(
-                        `Latest compatible firmware ${latest.version} selected for ${targetDisplay}.`,
+                        latest.bundled
+                            ? `Online firmware is unavailable. Verified offline firmware ${latest.version} is ready for ${targetDisplay}.`
+                            : `Latest compatible online firmware ${latest.version} selected for ${targetDisplay}. Click Download Online Firmware.`,
                     );
                 }
             }
@@ -698,8 +707,11 @@ firmwareFlasherTab.initialize = function (callback) {
                             filename: basename,
                             local: true,
                         })) {
+                            const flashAction = firmwareBackend === 'flight-commander'
+                                ? 'Flash Selected Firmware'
+                                : i18n.getMessage('firmwareFlasherFlashFirmware');
                             $('span.progressLabel').text(
-                                `Loaded local ${firmwareBackend === 'flight-commander' ? 'Flight Commander Firmware' : 'INAV'}: (${data.bytes_total} bytes)`,
+                                `Local ${firmwareBackend === 'flight-commander' ? 'Flight Commander Firmware' : 'INAV'} file selected (${data.bytes_total} bytes). Click ${flashAction}.`,
                             );
                         }
                     });
@@ -747,8 +759,17 @@ firmwareFlasherTab.initialize = function (callback) {
                     })) {
                         var url;
 
-                        const sourceLabel = summary.bundled ? 'Loaded Included Firmware' : 'Loaded Online Firmware';
-                        $('span.progressLabel').html('<a class="save_firmware" href="#" title="Save Firmware">' + sourceLabel + ': (' + data.bytes_total + ' bytes)</a>');
+                        const sourceLabel = summary.bundled
+                            ? 'Offline firmware copy loaded'
+                            : 'Online firmware downloaded';
+                        const flashAction = firmwareBackend === 'flight-commander'
+                            ? 'Flash Selected Firmware'
+                            : i18n.getMessage('firmwareFlasherFlashFirmware');
+                        $('span.progressLabel').html(
+                            '<a class="save_firmware" href="#" title="Save Firmware">' +
+                            sourceLabel + ' (' + data.bytes_total + ' bytes)</a>. Click ' +
+                            flashAction + '.',
+                        );
 
                         if (summary.commit) {
                             $.get('https://api.github.com/repos/iNavFlight/inav/commits/' + summary.commit, function (data) {
@@ -799,6 +820,33 @@ firmwareFlasherTab.initialize = function (callback) {
             }
 
             function failed_to_load() {
+                const fallback = firmwareBackend === 'flight-commander' && !summary?.bundled
+                    ? firmwareFlasherTab.bundledReleases?.[
+                        normalizeFirmwareTarget(summary?.target_id)
+                    ]?.find((descriptor) => descriptor.version === summary?.version)
+                    : null;
+                if (fallback) {
+                    $('span.progressLabel').text(
+                        'Online download failed. Loading the verified offline firmware copy.',
+                    );
+                    fileName = fallback.file;
+                    window.electronAPI.readBundledFlightCommanderFirmware(fallback.file)
+                        .then((response) => {
+                            if (response.error) {
+                                throw new Error(response.error);
+                            }
+                            process_hex(response.data, fallback);
+                            enable_load_online_button(summary);
+                        })
+                        .catch(() => {
+                            $('span.progressLabel').text(
+                                'Online firmware download failed and the offline copy could not be loaded. Select a local firmware file or try again.',
+                            );
+                            $('a.flash_firmware').addClass('disabled');
+                            enable_load_online_button(summary);
+                        });
+                    return;
+                }
                 $('span.progressLabel').text(i18n.getMessage('firmwareFlasherFailedToLoadOnlineFirmware'));
                 $('a.flash_firmware').addClass('disabled');
                 enable_load_online_button(summary);

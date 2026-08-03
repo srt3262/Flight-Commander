@@ -110,16 +110,16 @@ export function bundledFlightCommanderDescriptors(filenames = []) {
 }
 
 export function mergeFlightCommanderDescriptors(...collections) {
-  const merged = [];
-  const seen = new Set();
+  const merged = new Map();
   for (const descriptor of collections.flat()) {
     if (!descriptor) continue;
     const key = `${normalizeFirmwareTarget(descriptor.target_id)}:${descriptor.version}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    merged.push(descriptor);
+    const current = merged.get(key);
+    if (!current || (current.bundled === true && descriptor.bundled !== true)) {
+      merged.set(key, descriptor);
+    }
   }
-  return merged.sort((left, right) =>
+  return [...merged.values()].sort((left, right) =>
     right.version.localeCompare(left.version, undefined, { numeric: true }),
   );
 }

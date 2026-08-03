@@ -419,8 +419,14 @@ test("firmware selection, identity, and feature gates are packaged together", ()
   assert.match(firmwareFlasherSource, /loadedFirmwareFamily !== firmwareBackend/);
   assert.match(firmwareFlasherSource, /isInavCompatibleFirmwareVariant\(reportedVariant\)/);
   assert.match(firmwareFlasherSource, /flightCommanderCatalogIsReady\(\)/);
-  assert.match(firmwareFlasherSource, /Latest compatible firmware/);
+  assert.match(firmwareFlasherSource, /Latest compatible online firmware/);
   assert.match(firmwareFlasherSource, /versions\.val\(latest\.version\)\.trigger\('change'\)/);
+  assert.match(firmwareFlasherSource, /Select Local Firmware File/);
+  assert.match(firmwareFlasherSource, /Download Online Firmware/);
+  assert.match(firmwareFlasherSource, /Flash Selected Firmware/);
+  assert.match(firmwareFlasherSource, /Use Offline Firmware Copy/);
+  assert.match(firmwareFlasherSource, /Online download failed\. Loading the verified offline firmware copy\./);
+  assert.doesNotMatch(firmwareFlasherSource, /Load included Flight Commander Firmware/);
   assert.match(
     firmwareFlasherSource,
     /flightCommanderReleasesData[\s\S]+firmwareFlasherTab\.getTarget\(\)/,
@@ -432,6 +438,11 @@ test("firmware selection, identity, and feature gates are packaged together", ()
   assert.match(firmwareCatalogSource, /MICROAIR743/);
   assert.match(packageVerifier, /intelHexPayload/);
   assert.match(packageVerifier, /the packaged firmware differs from the verified source firmware image/);
+  assert.match(packageVerifier, /Latest compatible online firmware/);
+  assert.match(packageVerifier, /Select Local Firmware File/);
+  assert.match(packageVerifier, /Download Online Firmware/);
+  assert.match(packageVerifier, /Flash Selected Firmware/);
+  assert.match(packageVerifier, /Load included Flight Commander Firmware/);
   assert.match(firmwareInfoHtml, /Firmware Capabilities/);
   assert.match(firmwareInfoHtml, /data-fc-feature="multirotorAutotune"/);
   assert.match(firmwareInfoHtml, /data-fc-feature="terrainWaypoints"/);
@@ -469,7 +480,7 @@ test("all requested large-prop INAV presets are wired into the release source", 
 });
 
 test("landing page reports the current Flight Commander release", () => {
-  assert.equal(packageManifest.version, "2.0.3");
+  assert.equal(packageManifest.version, "2.0.4");
   assert.equal(manifest.version, packageManifest.version);
   assert.match(
     landingHtml,

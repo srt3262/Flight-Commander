@@ -34,9 +34,9 @@
       </div>
       <div class="column half text2">
         <div class="wrap">
-          <h2>Flight Commander 2.0.3</h2>
+          <h2>Flight Commander 2.0.4</h2>
           <div>
-            Flight Commander 2.0.3 combines Ground Control and guided RTK setup
+            Flight Commander 2.0.4 combines Ground Control and guided RTK setup
             in one workspace, keeps its map and HUD side by side, and discovers
             every connected enabled compass in Calibration. Ground Control and
             RTK values now consistently follow the selected metric or imperial
@@ -45,8 +45,11 @@
             Documentation and Support now opens Flight Commander's own
             documentation hub and issue tracker instead of the INAV wiki. The
             flasher now recognizes the board's <code>FCFW</code> identity,
-            waits for both online and bundled firmware catalogs, and selects
-            the latest compatible image for the detected target.
+            waits for both online and offline firmware catalogs, and selects
+            the latest compatible online image for the detected target. Its
+            actions now explicitly separate selecting a local firmware file,
+            downloading online firmware, and flashing the selected image; the
+            packaged firmware copy is reserved for offline recovery.
             Connected Flight Commander Firmware is identified through the
             versioned <code>FCFW</code> extension; fork-only features remain
             disabled unless the firmware explicitly advertises their

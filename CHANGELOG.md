@@ -1,5 +1,21 @@
 # Changelog
 
+## 2.0.4
+
+- Corrected Flight Commander firmware catalog merging so a published online
+  firmware asset takes precedence over the same-version packaged fallback.
+  Version 2.0.3 incorrectly discarded the online descriptor and therefore
+  presented the included image as the primary choice.
+- Replaced the ambiguous firmware-source buttons with three explicit actions:
+  `Select Local Firmware File`, `Download Online Firmware`, and
+  `Flash Selected Firmware`.
+- Clearly identifies online releases and offline fallbacks in the firmware
+  version selector. If an online firmware download fails, the Configurator can
+  automatically load the verified packaged copy for the same target/version.
+- This is a software-only Configurator 2.0.4 release. The verified MICOAIR743
+  firmware remains truthfully versioned 2.0.1 and is still published as the
+  third separate release download.
+
 ## 2.0.3
 
 - Corrected the sidebar Documentation & Support destination and every

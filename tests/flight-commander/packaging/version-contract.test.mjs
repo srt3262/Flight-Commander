@@ -7,7 +7,7 @@ import {
 
 function manifest(overrides = {}) {
   return {
-    version: '2.0.3',
+    version: '2.0.4',
     flightCommander: {
       firmwareMajor: 2,
       bundledFirmwareVersion: '2.0.1',
@@ -29,11 +29,11 @@ test('firmware-changing releases require an exact rebuilt firmware version', () 
     validateFlightCommanderVersions(manifest({
       flightCommander: {
         firmwareMajor: 2,
-        bundledFirmwareVersion: '2.0.3',
+        bundledFirmwareVersion: '2.0.4',
         firmwareChangedInRelease: true,
       },
     })).bundledFirmwareVersion,
-    '2.0.3',
+    '2.0.4',
   );
   assert.throws(
     () => validateFlightCommanderVersions(manifest({
