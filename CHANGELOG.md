@@ -1,5 +1,16 @@
 # Changelog
 
+## 3.0.2
+
+- Replaced the failed 3.0.1 firmware artifact set with a coordinated 3.0.2
+  build produced directly from the retained firmware source ZIP.
+- Corrected the firmware release manifest, source identity, byte count, and
+  SHA-256 chain so the CI and release workflows rebuild and compare the exact
+  published MICOAIR743 HEX before packaging or publication.
+- Retained the 3.0.1 compass baseline, heading correction, independent source
+  alignments, diagnostics, compact GPS priority controls, and standalone
+  online-flasher firmware behavior without reintroducing bundled firmware.
+
 ## 3.0.1
 
 - Corrected the magnetic heading correction sign so estimated-minus-measured

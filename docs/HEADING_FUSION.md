@@ -1,6 +1,6 @@
 # Heading fusion and moving-baseline yaw
 
-Flight Commander Firmware 3.0.1 can keep four heading sources live at the
+Flight Commander Firmware 3.0.2 can keep four heading sources live at the
 same time. The Configurator exposes them only when the connected controller
 advertises `HEADING_FUSION`; moving-baseline controls additionally require
 `MOVING_BASELINE_YAW`.
@@ -55,7 +55,7 @@ the complete aircraft slowly through all orientations for the full run.
 
 ### MICOAIR743 onboard IST8310 orientation
 
-Flight Commander 3.0.1 retains the official INAV 9.1.0 MICOAIR743 target,
+Flight Commander 3.0.2 retains the official INAV 9.1.0 MICOAIR743 target,
 compass drivers, default alignment behavior, calibration path, and IMU code
 without a Flight Commander orientation override. The Alignment tab continues
 to show the active target alignment and diagnostics, and operators may edit the

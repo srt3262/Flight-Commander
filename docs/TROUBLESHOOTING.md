@@ -66,7 +66,7 @@ recovery deliberately.
 ## MICOAIR743 heading is roughly 90 degrees wrong or drifts after calibration
 
 Open Alignment and record the active INAV target alignment plus the live axis
-diagnostics. Flight Commander 3.0.1 does not force a MICOAIR743 compass
+diagnostics. Flight Commander 3.0.2 does not force a MICOAIR743 compass
 rotation; it preserves the official INAV 9.1.0 target behavior and the normal
 editable alignment settings. Verify the board is installed as represented,
 apply only the measured installation correction, save and reboot, then complete
