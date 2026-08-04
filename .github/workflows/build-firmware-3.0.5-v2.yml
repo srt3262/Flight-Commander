@@ -1,0 +1,186 @@
+name: Build Flight Commander 3.0.5 compass tilt firmware v2
+
+"on":
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flight-commander-compass-3.0.5-v2-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  RELEASE_VERSION: 3.0.5
+  FIRMWARE_TARGET: MICOAIR743
+
+jobs:
+  firmware:
+    name: Build and verify corrected MICOAIR743 tilt firmware
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+
+      - name: Install build dependencies
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends cmake ninja-build python3 unzip zip xz-utils
+
+      - name: Prepare and validate patched source
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p work/source dist
+          unzip -q release/firmware/Flight-Commander-Firmware-Source-v3.0.3.zip -d work/source
+          mv work/source/Flight-Commander-Firmware-Source-v3.0.3 \
+             work/source/Flight-Commander-Firmware-Source-v${RELEASE_VERSION}
+          base64 --decode release-candidate/compass-v3.0.5.patch.gz.b64 \
+            | gzip --decompress > work/compass.patch
+          source_root="$GITHUB_WORKSPACE/work/source/Flight-Commander-Firmware-Source-v${RELEASE_VERSION}"
+          cd "${source_root}"
+          rm -f RELEASE-MANIFEST.json
+          git apply --check "$GITHUB_WORKSPACE/work/compass.patch"
+          git apply "$GITHUB_WORKSPACE/work/compass.patch"
+
+          # git apply from an untracked extracted tree can omit newly added files.
+          # Install the verifier explicitly while still requiring all existing-file
+          # changes from the patch to be present.
+          mkdir -p flight-commander
+          cp "$GITHUB_WORKSPACE/release-candidate/verify-compass-3.0.5.py" \
+             flight-commander/verify-compass-release.py
+          chmod +x flight-commander/verify-compass-release.py
+
+          grep -q 'set(FLIGHT_COMMANDER_FIRMWARE_VERSION 3.0.5)' CMakeLists.txt
+          grep -q 'FLIGHT_COMMANDER_VERSION_PATCH 5' src/main/build/flight_commander.h
+          grep -q 'FLIGHT_COMMANDER_MICOAIR743_ONBOARD_IST8310' src/main/target/MICOAIR743/target.h
+          grep -q 'mag->magADCRaw\[X\] = -nativeY' src/main/drivers/compass/compass_ist8310.c
+          grep -q 'mag->magADCRaw\[Y\] =  nativeX' src/main/drivers/compass/compass_ist8310.c
+          grep -q 'mag->magADCRaw\[Z\] =  nativeZ' src/main/drivers/compass/compass_ist8310.c
+          if grep -q 'mag->magADCRaw\[Z\] = -nativeZ' src/main/drivers/compass/compass_ist8310.c; then
+            echo 'The inverted onboard Z mapping is still present.' >&2
+            exit 1
+          fi
+          grep -q 'sensorCalibrationSolveForOffset(&calState, candidateZeroFloat)' src/main/sensors/compass.c
+          grep -q 'Flight-Commander-Firmware-3.0.5-MICOAIR743.hex' flight-commander/build-micoair743.sh
+          python3 -m py_compile flight-commander/verify-compass-release.py
+
+          cat > COMPASS-3.0.5-README.md <<'EOF'
+          # Flight Commander Firmware 3.0.5 — MICOAIR743 Compass Tilt Bench Build
+
+          Version 3.0.4 confirmed fresh IST8310 samples, plausible calibration,
+          smooth level yaw, and the correct horizontal X/Y mapping. Physical roll
+          and pitch testing then isolated the remaining error to the onboard Z sign.
+
+          Version 3.0.5 preserves X=-nativeY and Y=nativeX, and changes only the
+          MICOAIR743 onboard vertical mapping to Z=nativeZ for INAV body-down tilt
+          compensation. Use onboard compass alignment CW 0 degrees.
+          EOF
+
+      - name: Install pinned Arm GNU Toolchain 13.2.1
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive=arm-gnu-toolchain-13.2.rel1-x86_64-arm-none-eabi.tar.xz
+          url=https://developer.arm.com/-/media/Files/downloads/gnu/13.2.rel1/binrel/${archive}
+          curl --fail --location --retry 3 --output /tmp/${archive} "${url}"
+          echo "6cd1bbc1d9ae57312bcd169ae283153a9572bd6a8e4eeae2fedfbc33b115fdbb  /tmp/${archive}" \
+            | sha256sum --check --strict
+          tar -xJf /tmp/${archive} -C /tmp
+          echo "/tmp/arm-gnu-toolchain-13.2.Rel1-x86_64-arm-none-eabi/bin" >> "$GITHUB_PATH"
+
+      - name: Build firmware with warnings as errors
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_root="$GITHUB_WORKSPACE/work/source/Flight-Commander-Firmware-Source-v${RELEASE_VERSION}"
+          source_revision="$({
+            cd "${source_root}"
+            find . -type f ! -path './RELEASE-MANIFEST.json' -print0 \
+              | LC_ALL=C sort -z | xargs -0 sha256sum
+          } | sha1sum | cut -d' ' -f1)"
+          source_tree="$({
+            printf 'flight-commander-source-tree-v1\n'
+            cd "${source_root}"
+            find . -type f ! -path './RELEASE-MANIFEST.json' -print0 \
+              | LC_ALL=C sort -z | xargs -0 sha256sum
+          } | sha1sum | cut -d' ' -f1)"
+          source_date_epoch="$(date -u +%s)"
+          export FLIGHT_COMMANDER_SOURCE_REVISION="${source_revision}"
+          export SOURCE_DATE_EPOCH="${source_date_epoch}"
+          bash "${source_root}/flight-commander/build-micoair743.sh" "$GITHUB_WORKSPACE/work/build"
+          built_hex="$GITHUB_WORKSPACE/work/build/Flight-Commander-Firmware-${RELEASE_VERSION}-${FIRMWARE_TARGET}.hex"
+          test -s "${built_hex}"
+          firmware_sha256="$(sha256sum "${built_hex}" | cut -d' ' -f1)"
+          firmware_bytes="$(stat -c '%s' "${built_hex}")"
+
+          python3 - "${source_root}/RELEASE-MANIFEST.json" \
+            "${source_revision}" "${source_tree}" "${source_date_epoch}" \
+            "${firmware_sha256}" "${firmware_bytes}" <<'PY'
+          import json
+          import pathlib
+          import sys
+
+          output, revision, tree, epoch, digest, size = sys.argv[1:]
+          manifest = {
+              "schema": 1,
+              "product": "Flight Commander Firmware",
+              "version": "3.0.5",
+              "target": "MICOAIR743",
+              "inav_release": "9.1.0",
+              "inav_commit": "e519b69b02e27c8bdc03b4a0889f1baaae211a54",
+              "source_revision": revision,
+              "source_tree": tree,
+              "source_hash_scheme": "sha1(sorted sha256sum records, excluding RELEASE-MANIFEST.json)",
+              "source_tree_hash_scheme": "sha1('flight-commander-source-tree-v1\\n' plus sorted sha256sum records, excluding RELEASE-MANIFEST.json)",
+              "source_date_epoch": int(epoch),
+              "capabilities": "0x00001fff",
+              "artifact": {
+                  "filename": "Flight-Commander-Firmware-3.0.5-MICOAIR743.hex",
+                  "sha256": digest,
+                  "bytes": int(size),
+              },
+          }
+          pathlib.Path(output).write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+          PY
+
+          cp "${built_hex}" "$GITHUB_WORKSPACE/dist/Flight-Commander-Firmware-${RELEASE_VERSION}-${FIRMWARE_TARGET}.hex"
+          cd "$GITHUB_WORKSPACE/work/source"
+          zip -X -q -r "$GITHUB_WORKSPACE/dist/Flight-Commander-Firmware-Source-v${RELEASE_VERSION}.zip" \
+            "Flight-Commander-Firmware-Source-v${RELEASE_VERSION}"
+          source_sha256="$(sha256sum "$GITHUB_WORKSPACE/dist/Flight-Commander-Firmware-Source-v${RELEASE_VERSION}.zip" | cut -d' ' -f1)"
+
+          python3 - "$GITHUB_WORKSPACE/dist/firmware-metadata.json" \
+            "${firmware_sha256}" "${source_sha256}" "${source_revision}" "${source_tree}" <<'PY'
+          import json
+          import pathlib
+          import sys
+
+          output, firmware_sha, source_sha, revision, tree = sys.argv[1:]
+          data = {
+              "version": "3.0.5",
+              "target": "MICOAIR743",
+              "firmware_sha256": firmware_sha,
+              "source_sha256": source_sha,
+              "source_revision": revision,
+              "source_tree": tree,
+          }
+          pathlib.Path(output).write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+          PY
+
+          unzip -tq "$GITHUB_WORKSPACE/dist/Flight-Commander-Firmware-Source-v${RELEASE_VERSION}.zip"
+          python3 "${source_root}/flight-commander/verify-compass-release.py" "${built_hex}"
+          sha256sum "$GITHUB_WORKSPACE/dist/"*
+
+      - name: Upload firmware and source
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: flight-commander-3.0.5-firmware-v2
+          path: dist/**
+          if-no-files-found: error
+          retention-days: 7
