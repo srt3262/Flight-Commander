@@ -47,44 +47,66 @@ jobs:
           source_root="$GITHUB_WORKSPACE/work/source/Flight-Commander-Firmware-Source-v${RELEASE_VERSION}"
           cd "${source_root}"
           rm -f RELEASE-MANIFEST.json
-
           git apply --check "$GITHUB_WORKSPACE/work/compass-3.0.4.patch"
           git apply "$GITHUB_WORKSPACE/work/compass-3.0.4.patch"
-          git apply --check "$GITHUB_WORKSPACE/release-candidate/compass-v3.0.5-delta.patch"
-          git apply "$GITHUB_WORKSPACE/release-candidate/compass-v3.0.5-delta.patch"
-
-          # Install the standalone verifier explicitly so the source package is
-          # self-contained even if a new-file patch is handled differently by git.
-          cp "$GITHUB_WORKSPACE/release-candidate/verify-compass-3.0.5.py" \
-             flight-commander/verify-compass-release.py
-          chmod +x flight-commander/verify-compass-release.py
 
           python3 - <<'PY'
           from pathlib import Path
 
-          root = Path('.')
-          cmake = (root / 'CMakeLists.txt').read_text()
-          version = (root / 'src/main/build/flight_commander.h').read_text()
-          build = (root / 'flight-commander/build-micoair743.sh').read_text()
-          driver = (root / 'src/main/drivers/compass/compass_ist8310.c').read_text()
-          target = (root / 'src/main/target/MICOAIR743/target.h').read_text()
-          calibration = (root / 'src/main/sensors/compass.c').read_text()
+          def replace_exact(path: str, old: str, new: str) -> None:
+              file = Path(path)
+              text = file.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected one occurrence, found {count}: {old!r}')
+              file.write_text(text.replace(old, new), encoding='utf-8')
 
-          assert 'set(FLIGHT_COMMANDER_FIRMWARE_VERSION 3.0.5)' in cmake
-          assert '#define FLIGHT_COMMANDER_VERSION_PATCH 5' in version
-          assert 'Flight-Commander-Firmware-3.0.5-MICOAIR743.hex' in build
-          assert 'FLIGHT_COMMANDER_MICOAIR743_ONBOARD_IST8310' in target
-          assert 'sensorCalibrationSolveForOffset(&calState, candidateZeroFloat)' in calibration
+          replace_exact(
+              'CMakeLists.txt',
+              'set(FLIGHT_COMMANDER_FIRMWARE_VERSION 3.0.4)',
+              'set(FLIGHT_COMMANDER_FIRMWARE_VERSION 3.0.5)',
+          )
+          replace_exact(
+              'flight-commander/build-micoair743.sh',
+              'Flight-Commander-Firmware-3.0.4-MICOAIR743.hex',
+              'Flight-Commander-Firmware-3.0.5-MICOAIR743.hex',
+          )
+          replace_exact(
+              'src/main/build/flight_commander.h',
+              '#define FLIGHT_COMMANDER_VERSION_PATCH 4',
+              '#define FLIGHT_COMMANDER_VERSION_PATCH 5',
+          )
+          replace_exact(
+              'src/main/drivers/compass/compass_ist8310.c',
+              '        mag->magADCRaw[Z] = -nativeZ * IST8310_LSB_TO_MILLIGAUSS;',
+              '        mag->magADCRaw[Z] =  nativeZ * IST8310_LSB_TO_MILLIGAUSS;',
+          )
+          replace_exact(
+              'src/main/target/MICOAIR743/target.h',
+              '// (-native Y, native X, -native Z), so 0 degrees means no additional',
+              '// (-native Y, native X, native Z), so 0 degrees means no additional',
+          )
 
+          driver = Path('src/main/drivers/compass/compass_ist8310.c').read_text(encoding='utf-8')
           start = driver.index('if (isMicoAirOnboard)')
           end = driver.index('#endif', start)
           onboard = driver[start:end]
-          assert 'mag->magADCRaw[X] = -nativeY * IST8310_LSB_TO_MILLIGAUSS;' in onboard
-          assert 'mag->magADCRaw[Y] =  nativeX * IST8310_LSB_TO_MILLIGAUSS;' in onboard
-          assert 'mag->magADCRaw[Z] =  nativeZ * IST8310_LSB_TO_MILLIGAUSS;' in onboard
-          assert 'mag->magADCRaw[Z] = -nativeZ * IST8310_LSB_TO_MILLIGAUSS;' not in onboard
+          required = (
+              'mag->magADCRaw[X] = -nativeY * IST8310_LSB_TO_MILLIGAUSS;',
+              'mag->magADCRaw[Y] =  nativeX * IST8310_LSB_TO_MILLIGAUSS;',
+              'mag->magADCRaw[Z] =  nativeZ * IST8310_LSB_TO_MILLIGAUSS;',
+          )
+          for line in required:
+              if line not in onboard:
+                  raise SystemExit(f'missing onboard mapping: {line}')
+          if 'mag->magADCRaw[Z] = -nativeZ * IST8310_LSB_TO_MILLIGAUSS;' in onboard:
+              raise SystemExit('inverted onboard Z mapping remains')
           print(onboard)
           PY
+
+          cp "$GITHUB_WORKSPACE/release-candidate/verify-compass-3.0.5.py" \
+             flight-commander/verify-compass-release.py
+          chmod +x flight-commander/verify-compass-release.py
 
           cat > COMPASS-3.0.5-README.md <<'EOF'
           # Flight Commander Firmware 3.0.5 — MICOAIR743 Compass Tilt Bench Build
@@ -118,22 +140,23 @@ jobs:
         run: |
           set -euxo pipefail
           source_root="$GITHUB_WORKSPACE/work/source/Flight-Commander-Firmware-Source-v${RELEASE_VERSION}"
+          find "${source_root}" -type d -name __pycache__ -prune -exec rm -rf {} +
+
           source_revision="$({
             cd "${source_root}"
-            find . -type f ! -path './RELEASE-MANIFEST.json' ! -path '*/__pycache__/*' -print0 \
+            find . -type f ! -path './RELEASE-MANIFEST.json' -print0 \
               | LC_ALL=C sort -z | xargs -0 sha256sum
           } | sha1sum | cut -d' ' -f1)"
           source_tree="$({
             printf 'flight-commander-source-tree-v1\n'
             cd "${source_root}"
-            find . -type f ! -path './RELEASE-MANIFEST.json' ! -path '*/__pycache__/*' -print0 \
+            find . -type f ! -path './RELEASE-MANIFEST.json' -print0 \
               | LC_ALL=C sort -z | xargs -0 sha256sum
           } | sha1sum | cut -d' ' -f1)"
           source_date_epoch="$(date -u +%s)"
           export FLIGHT_COMMANDER_SOURCE_REVISION="${source_revision}"
           export SOURCE_DATE_EPOCH="${source_date_epoch}"
 
-          find "${source_root}" -type d -name __pycache__ -prune -exec rm -rf {} +
           bash "${source_root}/flight-commander/build-micoair743.sh" "$GITHUB_WORKSPACE/work/build"
           built_hex="$GITHUB_WORKSPACE/work/build/Flight-Commander-Firmware-${RELEASE_VERSION}-${FIRMWARE_TARGET}.hex"
           test -s "${built_hex}"
@@ -157,8 +180,8 @@ jobs:
               "inav_commit": "e519b69b02e27c8bdc03b4a0889f1baaae211a54",
               "source_revision": revision,
               "source_tree": tree,
-              "source_hash_scheme": "sha1(sorted sha256sum records, excluding RELEASE-MANIFEST.json and __pycache__)",
-              "source_tree_hash_scheme": "sha1('flight-commander-source-tree-v1\\n' plus sorted sha256sum records, excluding RELEASE-MANIFEST.json and __pycache__)",
+              "source_hash_scheme": "sha1(sorted sha256sum records, excluding RELEASE-MANIFEST.json)",
+              "source_tree_hash_scheme": "sha1('flight-commander-source-tree-v1\\n' plus sorted sha256sum records, excluding RELEASE-MANIFEST.json)",
               "source_date_epoch": int(epoch),
               "capabilities": "0x00001fff",
               "artifact": {
