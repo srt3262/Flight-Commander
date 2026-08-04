@@ -40,6 +40,8 @@ jobs:
 
       - name: Build exact firmware and finalize 3.0.3
         id: prepare
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
         run: bash scripts/prepare-flight-commander-3.0.3.sh
 
   verify:
