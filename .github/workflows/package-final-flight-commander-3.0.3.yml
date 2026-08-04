@@ -1,62 +1,39 @@
-name: Prepare Flight Commander 3.0.3 coordinated release
+name: Package finalized Flight Commander 3.0.3
 
 "on":
-  push:
+  pull_request:
     branches:
-      - agent/package-3.0.3
+      - main
 
-permissions: {}
+permissions:
+  contents: read
 
 concurrency:
-  group: flight-commander-3.0.3-preparation
+  group: flight-commander-3.0.3-final-packaging
   cancel-in-progress: false
 
+env:
+  FINAL_SHA: 97dd54ee61713be06d977f0f76727c0a85212734
+
 jobs:
-  prepare:
-    name: Build firmware and finalize coordinated source
-    if: github.event.head_commit.message == 'Stage Flight Commander 3.0.3 coordinated build'
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    permissions:
-      contents: write
-      actions: write
-    outputs:
-      commit_sha: ${{ steps.prepare.outputs.commit_sha }}
-
-    steps:
-      - name: Check out staged source
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          ref: ${{ github.sha }}
-          fetch-depth: 1
-          persist-credentials: true
-
-      - name: Expand pinned 3.0.3 preparation inputs
-        run: |
-          set -euo pipefail
-          cat scripts/prepare-flight-commander-3.0.3-bundle.part* | base64 --decode > "${RUNNER_TEMP}/prepare-flight-commander-3.0.3.tar.gz"
-          printf '%s  %s\n' '9c43c0c9c83c38187ef05f6c63754df7047e6d45172cc44188d74cfa0ac0254b' "${RUNNER_TEMP}/prepare-flight-commander-3.0.3.tar.gz" | sha256sum --check --strict
-          tar -xzf "${RUNNER_TEMP}/prepare-flight-commander-3.0.3.tar.gz" -C .
-
-      - name: Build exact firmware and finalize 3.0.3
-        id: prepare
-        run: bash scripts/prepare-flight-commander-3.0.3.sh
-
   verify:
-    name: Verify final source and reproducible firmware
-    needs: prepare
+    name: Verify exact source and reproducible firmware
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    permissions:
-      contents: read
 
     steps:
-      - name: Check out finalized source
+      - name: Check out finalized release source
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          ref: ${{ needs.prepare.outputs.commit_sha }}
+          ref: ${{ env.FINAL_SHA }}
           fetch-depth: 1
           persist-credentials: false
+
+      - name: Verify exact finalized revision
+        run: |
+          set -euo pipefail
+          [[ "$(git rev-parse HEAD)" == "${FINAL_SHA}" ]]
+          [[ "$(node -p "require('./package.json').version")" == '3.0.3' ]]
 
       - name: Set up Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
@@ -81,33 +58,27 @@ jobs:
       - name: Rebuild firmware byte-for-byte from published source ZIP
         run: bash scripts/rebuild-firmware-source-archive.sh
 
-  package-windows:
-    name: Package and verify all 3.0.3 release assets
-    needs:
-      - prepare
-      - verify
+  package:
+    name: Build and verify coordinated Windows release candidate
+    needs: verify
     runs-on: windows-latest
     timeout-minutes: 55
-    permissions:
-      contents: read
 
     steps:
-      - name: Check out finalized source
+      - name: Check out finalized release source
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          ref: ${{ needs.prepare.outputs.commit_sha }}
+          ref: ${{ env.FINAL_SHA }}
           fetch-depth: 1
           persist-credentials: false
 
       - name: Verify exact finalized revision
         shell: pwsh
-        env:
-          EXPECTED_SHA: ${{ needs.prepare.outputs.commit_sha }}
         run: |
           $ErrorActionPreference = 'Stop'
           $actual = (git rev-parse HEAD).Trim().ToLowerInvariant()
-          if ($actual -cne $env:EXPECTED_SHA.Trim().ToLowerInvariant()) {
-            throw "Checkout $actual does not match finalized commit $env:EXPECTED_SHA."
+          if ($actual -cne $env:FINAL_SHA.Trim().ToLowerInvariant()) {
+            throw "Checkout $actual does not match $env:FINAL_SHA."
           }
 
       - name: Set up Node.js
@@ -136,10 +107,8 @@ jobs:
       - name: Verify packaged application
         run: yarn verify:windows
 
-      - name: Create and verify coordinated release candidate
+      - name: Create and verify all coordinated assets
         shell: pwsh
-        env:
-          EXPECTED_SHA: ${{ needs.prepare.outputs.commit_sha }}
         run: |
           $ErrorActionPreference = 'Stop'
           Add-Type -AssemblyName System.IO.Compression.FileSystem
@@ -148,10 +117,10 @@ jobs:
           $version = [string]$manifest.version
           $firmwareVersion = [string]$manifest.flightCommander.firmwareReleaseVersion
           if ($version -cne '3.0.3' -or $firmwareVersion -cne $version) {
-            throw "Expected coordinated version 3.0.3; Configurator=$version firmware=$firmwareVersion."
+            throw "Expected coordinated 3.0.3 versions; Configurator=$version firmware=$firmwareVersion."
           }
           if (-not [bool]$manifest.flightCommander.firmwareChangedInRelease) {
-            throw 'The coordinated 3.0.3 release must declare a firmware change.'
+            throw '3.0.3 must declare a firmware change.'
           }
 
           $packages = @(
@@ -159,12 +128,11 @@ jobs:
               Where-Object { $_.Name -like '*-win32-x64' }
           )
           if ($packages.Count -ne 1) {
-            throw "Expected exactly one win32-x64 package directory; found $($packages.Count)."
+            throw "Expected one Windows x64 package; found $($packages.Count)."
           }
-          $package = $packages[0]
 
           $candidate = Join-Path $env:GITHUB_WORKSPACE 'release-candidate'
-          $bundleStaging = Join-Path $env:RUNNER_TEMP 'flight-commander-complete-bundle'
+          $bundleStaging = Join-Path $env:RUNNER_TEMP 'fc303-complete'
           New-Item -ItemType Directory -Path $candidate | Out-Null
           New-Item -ItemType Directory -Path $bundleStaging | Out-Null
 
@@ -181,15 +149,16 @@ jobs:
           $completePath = Join-Path $candidate $completeName
 
           [System.IO.Compression.ZipFile]::CreateFromDirectory(
-            $package.FullName,
+            $packages[0].FullName,
             $windowsPath,
             [System.IO.Compression.CompressionLevel]::Optimal,
             $false
           )
+
           & git archive --format=zip "--prefix=FC-Configurator-Source-v$version/" `
-            "--output=$sourcePath" $env:EXPECTED_SHA
+            "--output=$sourcePath" $env:FINAL_SHA
           if ($LASTEXITCODE -ne 0) {
-            throw "Configurator source archive failed with exit code $LASTEXITCODE."
+            throw "Source archive failed with exit code $LASTEXITCODE."
           }
 
           $repositoryFirmware = Join-Path $env:GITHUB_WORKSPACE (
@@ -202,26 +171,26 @@ jobs:
           Copy-Item -LiteralPath $repositoryFirmwareSource -Destination $firmwareSourcePath
 
           $firmwareHash = (Get-FileHash -LiteralPath $firmwarePath -Algorithm SHA256).Hash.ToLowerInvariant()
-          $sourceHash = (Get-FileHash -LiteralPath $firmwareSourcePath -Algorithm SHA256).Hash.ToLowerInvariant()
+          $firmwareSourceHash = (Get-FileHash -LiteralPath $firmwareSourcePath -Algorithm SHA256).Hash.ToLowerInvariant()
           if ($firmwareHash -cne [string]$manifest.flightCommander.firmwareReleaseSha256) {
-            throw 'Packaged firmware SHA-256 does not match package.json.'
+            throw 'Firmware SHA-256 does not match package.json.'
           }
-          if ($sourceHash -cne [string]$manifest.flightCommander.firmwareSourceSha256) {
-            throw 'Packaged firmware-source SHA-256 does not match package.json.'
+          if ($firmwareSourceHash -cne [string]$manifest.flightCommander.firmwareSourceSha256) {
+            throw 'Firmware-source SHA-256 does not match package.json.'
           }
 
-          $windowsExtract = Join-Path $env:RUNNER_TEMP 'flight-commander-windows-extract'
+          $windowsExtract = Join-Path $env:RUNNER_TEMP 'fc303-windows-extract'
           [System.IO.Compression.ZipFile]::ExtractToDirectory($windowsPath, $windowsExtract)
           node scripts/verify-windows-package.mjs $windowsExtract
           if ($LASTEXITCODE -ne 0) {
-            throw "Extracted Windows package verification failed with exit code $LASTEXITCODE."
+            throw "Extracted Windows verification failed with exit code $LASTEXITCODE."
           }
 
-          $configuratorSourceExtract = Join-Path $env:RUNNER_TEMP 'flight-commander-configurator-source-extract'
-          [System.IO.Compression.ZipFile]::ExtractToDirectory($sourcePath, $configuratorSourceExtract)
-          $sourceRoots = @(Get-ChildItem -LiteralPath $configuratorSourceExtract)
+          $sourceExtract = Join-Path $env:RUNNER_TEMP 'fc303-source-extract'
+          [System.IO.Compression.ZipFile]::ExtractToDirectory($sourcePath, $sourceExtract)
+          $sourceRoots = @(Get-ChildItem -LiteralPath $sourceExtract)
           if ($sourceRoots.Count -ne 1 -or -not $sourceRoots[0].PSIsContainer) {
-            throw 'Configurator source ZIP must contain exactly one top-level directory.'
+            throw 'Configurator source ZIP must contain one top-level directory.'
           }
           $sourceManifest = Get-Content -LiteralPath (
             Join-Path $sourceRoots[0].FullName 'package.json'
@@ -229,15 +198,24 @@ jobs:
           if ([string]$sourceManifest.version -cne $version) {
             throw 'Configurator source ZIP contains the wrong version.'
           }
+          foreach ($temporaryPath in @(
+            '.github/workflows/prepare-flight-commander-3.0.3.yml',
+            '.github/workflows/export-source-for-packaging.yml',
+            'scripts/prepare-flight-commander-3.0.3-bundle.part00'
+          )) {
+            if (Test-Path -LiteralPath (Join-Path $sourceRoots[0].FullName $temporaryPath)) {
+              throw "Temporary preparation input leaked into source ZIP: $temporaryPath"
+            }
+          }
 
-          $firmwareSourceExtract = Join-Path $env:RUNNER_TEMP 'flight-commander-firmware-source-extract'
+          $firmwareSourceExtract = Join-Path $env:RUNNER_TEMP 'fc303-firmware-source-extract'
           [System.IO.Compression.ZipFile]::ExtractToDirectory($firmwareSourcePath, $firmwareSourceExtract)
           $firmwareSourceRoots = @(Get-ChildItem -LiteralPath $firmwareSourceExtract)
           if (
             $firmwareSourceRoots.Count -ne 1 -or
             $firmwareSourceRoots[0].Name -cne "Flight-Commander-Firmware-Source-v$version"
           ) {
-            throw 'Firmware source ZIP contains the wrong canonical root.'
+            throw 'Firmware source ZIP has the wrong canonical root.'
           }
           $firmwareReleaseManifest = Get-Content -LiteralPath (
             Join-Path $firmwareSourceRoots[0].FullName 'RELEASE-MANIFEST.json'
@@ -249,7 +227,7 @@ jobs:
             [string]$firmwareReleaseManifest.artifact.sha256 -cne $firmwareHash -or
             [long]$firmwareReleaseManifest.artifact.bytes -ne (Get-Item -LiteralPath $firmwarePath).Length
           ) {
-            throw 'Firmware source manifest does not match the coordinated firmware artifact.'
+            throw 'Firmware source manifest does not match the firmware artifact.'
           }
 
           foreach ($path in @($windowsPath, $sourcePath, $firmwarePath, $firmwareSourcePath)) {
@@ -262,8 +240,8 @@ jobs:
             $false
           )
 
-          $sumPaths = @($windowsPath, $sourcePath, $firmwarePath, $firmwareSourcePath, $completePath)
-          $sumLines = foreach ($path in $sumPaths) {
+          $assetPaths = @($windowsPath, $sourcePath, $firmwarePath, $firmwareSourcePath, $completePath)
+          $sumLines = foreach ($path in $assetPaths) {
             $hash = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant()
             "$hash  $([IO.Path]::GetFileName($path))"
           }
@@ -272,12 +250,12 @@ jobs:
           $releaseManifest = [ordered]@{
             schemaVersion = 1
             version = $version
-            commitSha = $env:EXPECTED_SHA
+            commitSha = $env:FINAL_SHA
             firmwareSourceRevision = [string]$manifest.flightCommander.firmwareSourceRevision
             firmwareSourceTree = [string]$manifest.flightCommander.firmwareSourceTree
             assets = @{}
           }
-          foreach ($path in $sumPaths) {
+          foreach ($path in $assetPaths) {
             $file = Get-Item -LiteralPath $path
             $releaseManifest.assets[$file.Name] = [ordered]@{
               sha256 = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -287,13 +265,13 @@ jobs:
           $releaseManifest | ConvertTo-Json -Depth 8 |
             Set-Content -LiteralPath (Join-Path $candidate 'release-candidate-manifest.json') -Encoding utf8
 
-          Get-ChildItem -LiteralPath $candidate | Format-Table Name, Length
+          Get-ChildItem -LiteralPath $candidate | Sort-Object Name | Format-Table Name, Length
 
-      - name: Upload verified coordinated release candidate
-        id: upload
+      - name: Upload verified coordinated 3.0.3 release candidate
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: flight-commander-3.0.3-release-candidate-${{ needs.prepare.outputs.commit_sha }}
+          name: flight-commander-3.0.3-final-${{ env.FINAL_SHA }}
           path: release-candidate/**
           if-no-files-found: error
+          compression-level: 0
           retention-days: 7
