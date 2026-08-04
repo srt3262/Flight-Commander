@@ -39,6 +39,15 @@ jobs:
           tar -xzf "${RUNNER_TEMP}/prepare-flight-commander-3.0.3.tar.gz" -C .
           python3 - <<'PY'
           from pathlib import Path
+
+          release_path = Path('.github/workflows/release.yml')
+          release_source = release_path.read_text()
+          current_trigger = "Publish Flight Commander 3.0.3 release"
+          prior_trigger = "Publish Flight Commander 3.0.2 release"
+          if release_source.count(current_trigger) != 2:
+              raise SystemExit('Unexpected pre-authorized release trigger contract.')
+          release_path.write_text(release_source.replace(current_trigger, prior_trigger))
+
           path = Path('scripts/prepare-flight-commander-3.0.3.sh')
           source = path.read_text()
           needle = 'git add -A\n'
