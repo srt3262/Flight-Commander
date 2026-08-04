@@ -40,25 +40,35 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
 
+          path = Path('scripts/prepare-flight-commander-3.0.3.sh')
+          source = path.read_text()
+
+          clean_needle = 'git diff --cached --quiet\n\n'
+          trigger_transition = clean_needle + """python3 - <<'PYRELEASE'
+          from pathlib import Path
           release_path = Path('.github/workflows/release.yml')
           release_source = release_path.read_text()
-          current_trigger = "Publish Flight Commander 3.0.3 release"
-          prior_trigger = "Publish Flight Commander 3.0.2 release"
+          current_trigger = 'Publish Flight Commander 3.0.3 release'
+          prior_trigger = 'Publish Flight Commander 3.0.2 release'
           if release_source.count(current_trigger) != 2:
               raise SystemExit('Unexpected pre-authorized release trigger contract.')
           release_path.write_text(release_source.replace(current_trigger, prior_trigger))
+          PYRELEASE
 
-          path = Path('scripts/prepare-flight-commander-3.0.3.sh')
-          source = path.read_text()
-          needle = 'git add -A\n'
-          replacement = (
+          """
+          if source.count(clean_needle) != 1:
+              raise SystemExit('Unexpected clean-worktree contract.')
+          source = source.replace(clean_needle, trigger_transition, 1)
+
+          stage_needle = 'git add -A\n'
+          stage_replacement = (
               '# Workflow YAML is retained from the pre-authorized branch head.\n'
               'git checkout HEAD -- .github/workflows\n'
               'git add -A\n'
           )
-          if source.count(needle) != 1:
+          if source.count(stage_needle) != 1:
               raise SystemExit('Unexpected finalizer staging contract.')
-          path.write_text(source.replace(needle, replacement, 1))
+          path.write_text(source.replace(stage_needle, stage_replacement, 1))
           PY
 
       - name: Build exact firmware, verify retained source, and push final source
