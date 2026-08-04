@@ -1,0 +1,52 @@
+name: Inspect Flight Commander 3.0.3 Actions
+
+"on":
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  inspect:
+    name: Export 3.0.3 workflow-run metadata
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Query workflow runs for the packaging branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error \
+            --header "Authorization: Bearer ${GH_TOKEN}" \
+            --header "Accept: application/vnd.github+json" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs?branch=agent%2Fpackage-3.0.3&per_page=100" \
+            > action-runs.json
+          jq '[.workflow_runs[] | {
+            id,
+            name,
+            event,
+            status,
+            conclusion,
+            run_number,
+            head_branch,
+            head_sha,
+            created_at,
+            updated_at,
+            jobs_url,
+            artifacts_url
+          }]' action-runs.json > action-runs-filtered.json
+          cat action-runs-filtered.json
+
+      - name: Upload workflow-run metadata
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: flight-commander-3.0.3-action-inspection-${{ github.sha }}
+          path: action-runs-filtered.json
+          if-no-files-found: error
+          retention-days: 1
