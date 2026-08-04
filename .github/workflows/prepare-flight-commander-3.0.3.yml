@@ -1,0 +1,299 @@
+name: Prepare Flight Commander 3.0.3 coordinated release
+
+"on":
+  push:
+    branches:
+      - agent/package-3.0.3
+
+permissions: {}
+
+concurrency:
+  group: flight-commander-3.0.3-preparation
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Build firmware and finalize coordinated source
+    if: github.event.head_commit.message == 'Stage Flight Commander 3.0.3 coordinated build'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write
+      actions: write
+    outputs:
+      commit_sha: ${{ steps.prepare.outputs.commit_sha }}
+
+    steps:
+      - name: Check out staged source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: true
+
+      - name: Expand pinned 3.0.3 preparation inputs
+        run: |
+          set -euo pipefail
+          cat scripts/prepare-flight-commander-3.0.3-bundle.part* | base64 --decode > "${RUNNER_TEMP}/prepare-flight-commander-3.0.3.tar.gz"
+          printf '%s  %s\n' '9c43c0c9c83c38187ef05f6c63754df7047e6d45172cc44188d74cfa0ac0254b' "${RUNNER_TEMP}/prepare-flight-commander-3.0.3.tar.gz" | sha256sum --check --strict
+          tar -xzf "${RUNNER_TEMP}/prepare-flight-commander-3.0.3.tar.gz" -C .
+
+      - name: Build exact firmware and finalize 3.0.3
+        id: prepare
+        run: bash scripts/prepare-flight-commander-3.0.3.sh
+
+  verify:
+    name: Verify final source and reproducible firmware
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out finalized source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ needs.prepare.outputs.commit_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: yarn
+          cache-dependency-path: yarn.lock
+
+      - name: Enable pinned Yarn
+        run: |
+          set -euo pipefail
+          corepack enable
+          corepack prepare yarn@1.22.22 --activate
+          [[ "$(yarn --version)" == '1.22.22' ]]
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile --non-interactive
+
+      - name: Run complete source tests
+        run: yarn test
+
+      - name: Rebuild firmware byte-for-byte from published source ZIP
+        run: bash scripts/rebuild-firmware-source-archive.sh
+
+  package-windows:
+    name: Package and verify all 3.0.3 release assets
+    needs:
+      - prepare
+      - verify
+    runs-on: windows-latest
+    timeout-minutes: 55
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out finalized source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ needs.prepare.outputs.commit_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify exact finalized revision
+        shell: pwsh
+        env:
+          EXPECTED_SHA: ${{ needs.prepare.outputs.commit_sha }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $actual = (git rev-parse HEAD).Trim().ToLowerInvariant()
+          if ($actual -cne $env:EXPECTED_SHA.Trim().ToLowerInvariant()) {
+            throw "Checkout $actual does not match finalized commit $env:EXPECTED_SHA."
+          }
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: yarn
+          cache-dependency-path: yarn.lock
+
+      - name: Enable pinned Yarn
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          corepack enable
+          corepack prepare yarn@1.22.22 --activate
+          if ((yarn --version).Trim() -cne '1.22.22') {
+            throw 'Yarn 1.22.22 was not activated.'
+          }
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile --non-interactive
+
+      - name: Package Windows x64
+        run: yarn package:windows
+
+      - name: Verify packaged application
+        run: yarn verify:windows
+
+      - name: Create and verify coordinated release candidate
+        shell: pwsh
+        env:
+          EXPECTED_SHA: ${{ needs.prepare.outputs.commit_sha }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+
+          $manifest = Get-Content -LiteralPath package.json -Raw | ConvertFrom-Json
+          $version = [string]$manifest.version
+          $firmwareVersion = [string]$manifest.flightCommander.firmwareReleaseVersion
+          if ($version -cne '3.0.3' -or $firmwareVersion -cne $version) {
+            throw "Expected coordinated version 3.0.3; Configurator=$version firmware=$firmwareVersion."
+          }
+          if (-not [bool]$manifest.flightCommander.firmwareChangedInRelease) {
+            throw 'The coordinated 3.0.3 release must declare a firmware change.'
+          }
+
+          $packages = @(
+            Get-ChildItem -LiteralPath out -Directory |
+              Where-Object { $_.Name -like '*-win32-x64' }
+          )
+          if ($packages.Count -ne 1) {
+            throw "Expected exactly one win32-x64 package directory; found $($packages.Count)."
+          }
+          $package = $packages[0]
+
+          $candidate = Join-Path $env:GITHUB_WORKSPACE 'release-candidate'
+          $bundleStaging = Join-Path $env:RUNNER_TEMP 'flight-commander-complete-bundle'
+          New-Item -ItemType Directory -Path $candidate | Out-Null
+          New-Item -ItemType Directory -Path $bundleStaging | Out-Null
+
+          $windowsName = "FC-Windows-v$version.zip"
+          $sourceName = "FC-Configurator-Source-v$version.zip"
+          $firmwareName = "FC-Firmware-v$version-MICOAIR743.hex"
+          $firmwareSourceName = "FC-Firmware-Source-v$version.zip"
+          $completeName = "Flight-Commander-v$version.zip"
+
+          $windowsPath = Join-Path $candidate $windowsName
+          $sourcePath = Join-Path $candidate $sourceName
+          $firmwarePath = Join-Path $candidate $firmwareName
+          $firmwareSourcePath = Join-Path $candidate $firmwareSourceName
+          $completePath = Join-Path $candidate $completeName
+
+          [System.IO.Compression.ZipFile]::CreateFromDirectory(
+            $package.FullName,
+            $windowsPath,
+            [System.IO.Compression.CompressionLevel]::Optimal,
+            $false
+          )
+          & git archive --format=zip "--prefix=FC-Configurator-Source-v$version/" `
+            "--output=$sourcePath" $env:EXPECTED_SHA
+          if ($LASTEXITCODE -ne 0) {
+            throw "Configurator source archive failed with exit code $LASTEXITCODE."
+          }
+
+          $repositoryFirmware = Join-Path $env:GITHUB_WORKSPACE (
+            "release/firmware/Flight-Commander-Firmware-$version-MICOAIR743.hex"
+          )
+          $repositoryFirmwareSource = Join-Path $env:GITHUB_WORKSPACE (
+            "release/firmware/Flight-Commander-Firmware-Source-v$version.zip"
+          )
+          Copy-Item -LiteralPath $repositoryFirmware -Destination $firmwarePath
+          Copy-Item -LiteralPath $repositoryFirmwareSource -Destination $firmwareSourcePath
+
+          $firmwareHash = (Get-FileHash -LiteralPath $firmwarePath -Algorithm SHA256).Hash.ToLowerInvariant()
+          $sourceHash = (Get-FileHash -LiteralPath $firmwareSourcePath -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($firmwareHash -cne [string]$manifest.flightCommander.firmwareReleaseSha256) {
+            throw 'Packaged firmware SHA-256 does not match package.json.'
+          }
+          if ($sourceHash -cne [string]$manifest.flightCommander.firmwareSourceSha256) {
+            throw 'Packaged firmware-source SHA-256 does not match package.json.'
+          }
+
+          $windowsExtract = Join-Path $env:RUNNER_TEMP 'flight-commander-windows-extract'
+          [System.IO.Compression.ZipFile]::ExtractToDirectory($windowsPath, $windowsExtract)
+          node scripts/verify-windows-package.mjs $windowsExtract
+          if ($LASTEXITCODE -ne 0) {
+            throw "Extracted Windows package verification failed with exit code $LASTEXITCODE."
+          }
+
+          $configuratorSourceExtract = Join-Path $env:RUNNER_TEMP 'flight-commander-configurator-source-extract'
+          [System.IO.Compression.ZipFile]::ExtractToDirectory($sourcePath, $configuratorSourceExtract)
+          $sourceRoots = @(Get-ChildItem -LiteralPath $configuratorSourceExtract)
+          if ($sourceRoots.Count -ne 1 -or -not $sourceRoots[0].PSIsContainer) {
+            throw 'Configurator source ZIP must contain exactly one top-level directory.'
+          }
+          $sourceManifest = Get-Content -LiteralPath (
+            Join-Path $sourceRoots[0].FullName 'package.json'
+          ) -Raw | ConvertFrom-Json
+          if ([string]$sourceManifest.version -cne $version) {
+            throw 'Configurator source ZIP contains the wrong version.'
+          }
+
+          $firmwareSourceExtract = Join-Path $env:RUNNER_TEMP 'flight-commander-firmware-source-extract'
+          [System.IO.Compression.ZipFile]::ExtractToDirectory($firmwareSourcePath, $firmwareSourceExtract)
+          $firmwareSourceRoots = @(Get-ChildItem -LiteralPath $firmwareSourceExtract)
+          if (
+            $firmwareSourceRoots.Count -ne 1 -or
+            $firmwareSourceRoots[0].Name -cne "Flight-Commander-Firmware-Source-v$version"
+          ) {
+            throw 'Firmware source ZIP contains the wrong canonical root.'
+          }
+          $firmwareReleaseManifest = Get-Content -LiteralPath (
+            Join-Path $firmwareSourceRoots[0].FullName 'RELEASE-MANIFEST.json'
+          ) -Raw | ConvertFrom-Json
+          if (
+            [string]$firmwareReleaseManifest.version -cne $version -or
+            [string]$firmwareReleaseManifest.source_revision -cne [string]$manifest.flightCommander.firmwareSourceRevision -or
+            [string]$firmwareReleaseManifest.source_tree -cne [string]$manifest.flightCommander.firmwareSourceTree -or
+            [string]$firmwareReleaseManifest.artifact.sha256 -cne $firmwareHash -or
+            [long]$firmwareReleaseManifest.artifact.bytes -ne (Get-Item -LiteralPath $firmwarePath).Length
+          ) {
+            throw 'Firmware source manifest does not match the coordinated firmware artifact.'
+          }
+
+          foreach ($path in @($windowsPath, $sourcePath, $firmwarePath, $firmwareSourcePath)) {
+            Copy-Item -LiteralPath $path -Destination $bundleStaging
+          }
+          [System.IO.Compression.ZipFile]::CreateFromDirectory(
+            $bundleStaging,
+            $completePath,
+            [System.IO.Compression.CompressionLevel]::Optimal,
+            $false
+          )
+
+          $sumPaths = @($windowsPath, $sourcePath, $firmwarePath, $firmwareSourcePath, $completePath)
+          $sumLines = foreach ($path in $sumPaths) {
+            $hash = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$hash  $([IO.Path]::GetFileName($path))"
+          }
+          $sumLines | Set-Content -LiteralPath (Join-Path $candidate 'SHA256SUMS.txt') -Encoding ascii
+
+          $releaseManifest = [ordered]@{
+            schemaVersion = 1
+            version = $version
+            commitSha = $env:EXPECTED_SHA
+            firmwareSourceRevision = [string]$manifest.flightCommander.firmwareSourceRevision
+            firmwareSourceTree = [string]$manifest.flightCommander.firmwareSourceTree
+            assets = @{}
+          }
+          foreach ($path in $sumPaths) {
+            $file = Get-Item -LiteralPath $path
+            $releaseManifest.assets[$file.Name] = [ordered]@{
+              sha256 = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+              bytes = $file.Length
+            }
+          }
+          $releaseManifest | ConvertTo-Json -Depth 8 |
+            Set-Content -LiteralPath (Join-Path $candidate 'release-candidate-manifest.json') -Encoding utf8
+
+          Get-ChildItem -LiteralPath $candidate | Format-Table Name, Length
+
+      - name: Upload verified coordinated release candidate
+        id: upload
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: flight-commander-3.0.3-release-candidate-${{ needs.prepare.outputs.commit_sha }}
+          path: release-candidate/**
+          if-no-files-found: error
+          retention-days: 7
