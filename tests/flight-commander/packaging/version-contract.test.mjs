@@ -8,15 +8,15 @@ import {
 function manifest(overrides = {}) {
   const { flightCommander = {}, ...rootOverrides } = overrides;
   return {
-    version: '3.0.2',
+    version: '3.0.3',
     flightCommander: {
       firmwareMajor: 3,
-      firmwareReleaseVersion: '3.0.2',
+      firmwareReleaseVersion: '3.0.3',
       firmwareReleaseSha256: 'a'.repeat(64),
       firmwareChangedInRelease: true,
       firmwareSourceAvailable: true,
-      firmwareSourceVersion: '3.0.2',
-      firmwareSourceArchive: 'release/firmware/Flight-Commander-Firmware-Source-v3.0.2.zip',
+      firmwareSourceVersion: '3.0.3',
+      firmwareSourceArchive: 'release/firmware/Flight-Commander-Firmware-Source-v3.0.3.zip',
       firmwareSourceSha256: 'b'.repeat(64),
       firmwareSourceRevision: 'c'.repeat(40),
       firmwareSourceTree: 'd'.repeat(40),
@@ -28,18 +28,18 @@ function manifest(overrides = {}) {
 
 test('coordinated releases identify the standalone published firmware asset', () => {
   const result = validateFlightCommanderVersions(manifest());
-  assert.equal(result.firmwareReleaseVersion, '3.0.2');
+  assert.equal(result.firmwareReleaseVersion, '3.0.3');
   assert.equal(result.firmwareReleaseSha256, 'a'.repeat(64));
   assert.equal(
     result.firmwareSourceArchive,
-    'release/firmware/Flight-Commander-Firmware-Source-v3.0.2.zip',
+    'release/firmware/Flight-Commander-Firmware-Source-v3.0.3.zip',
   );
 });
 
 test('firmware-changing releases require the exact Configurator version', () => {
   assert.throws(
     () => validateFlightCommanderVersions(manifest({
-      version: '3.0.3',
+      version: '3.0.4',
     })),
     /same version/,
   );
@@ -47,10 +47,10 @@ test('firmware-changing releases require the exact Configurator version', () => 
 
 test('software-only releases may reuse a published firmware within the same major', () => {
   const result = validateFlightCommanderVersions(manifest({
-    version: '3.0.3',
+    version: '3.0.4',
     flightCommander: { firmwareChangedInRelease: false },
   }));
-  assert.equal(result.firmwareReleaseVersion, '3.0.2');
+  assert.equal(result.firmwareReleaseVersion, '3.0.3');
   assert.equal(result.firmwareChangedInRelease, false);
 });
 
@@ -63,7 +63,7 @@ test('firmware source is mandatory and must match the published HEX version', ()
   );
   assert.throws(
     () => validateFlightCommanderVersions(manifest({
-      flightCommander: { firmwareSourceVersion: '3.0.3' },
+      flightCommander: { firmwareSourceVersion: '3.0.4' },
     })),
     /source version must exactly match/,
   );
@@ -73,7 +73,7 @@ test('firmware source must use the release-only path and exact identities', () =
   assert.throws(
     () => validateFlightCommanderVersions(manifest({
       flightCommander: {
-        firmwareSourceArchive: 'resources/firmware-source/Flight-Commander-Firmware-Source-v3.0.2.zip',
+        firmwareSourceArchive: 'resources/firmware-source/Flight-Commander-Firmware-Source-v3.0.3.zip',
       },
     })),
     /canonical release-only path/,

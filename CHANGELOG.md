@@ -1,5 +1,21 @@
 # Changelog
 
+## 3.0.3
+
+- Restored the normal INAV-style 3D aircraft/module alignment preview for every
+  onboard, UART, DroneCAN, and moving-baseline target, with a prominent front
+  arrow and compact target-specific guidance instead of oversized schematics.
+- Reworded the Flight Commander / official INAV flasher warning around exact
+  detected-controller target compatibility, corrected overflowing GPS and
+  alignment text, and assigned unique default heading priorities 1 through 4
+  with descending weights of 100, 75, 50, and 25.
+- Removed Flight Commander's second onboard-compass calibration rejection layer
+  so the official INAV solver owns and saves onboard calibration results. The
+  protected INAV 9.1.0 MICOAIR743 target and IST8310 handedness correction remain
+  unchanged; selecting explicit 0-degree alignment remains distinct from Default.
+- Published coordinated Configurator, Windows, MICOAIR743 firmware, and exact
+  reproducible firmware-source artifacts at version 3.0.3.
+
 ## 3.0.2
 
 - Replaced the failed 3.0.1 firmware artifact set with a coordinated 3.0.2

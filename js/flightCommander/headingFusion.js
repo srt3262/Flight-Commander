@@ -109,8 +109,8 @@ export function createDefaultHeadingConfig() {
         sources: [
             { enabled: true, priority: 1, weight: 100, yawOffsetCentidegrees: 0 },
             { enabled: false, priority: 2, weight: 75, yawOffsetCentidegrees: 0 },
-            { enabled: false, priority: 3, weight: 75, yawOffsetCentidegrees: 0 },
-            { enabled: false, priority: 1, weight: 100, yawOffsetCentidegrees: 0 },
+            { enabled: false, priority: 3, weight: 50, yawOffsetCentidegrees: 0 },
+            { enabled: false, priority: 4, weight: 25, yawOffsetCentidegrees: 0 },
         ],
         expectedBaselineCm: 50,
         baselineToleranceCm: 20,

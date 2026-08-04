@@ -191,6 +191,9 @@ const manifest = JSON.parse(
 const packageManifest = JSON.parse(
   readFileSync(resolve(projectRoot, "package.json"), "utf8"),
 );
+const englishMessages = JSON.parse(
+  readFileSync(resolve(projectRoot, "locale/en/messages.json"), "utf8"),
+);
 const linuxDesktop = readFileSync(
   resolve(projectRoot, "assets/linux/flight-commander.desktop"),
   "utf8",
@@ -462,7 +465,7 @@ test("weighted heading fusion and moving-baseline setup are release surfaces", (
   assert.doesNotMatch(gpsHtml, /headingSourceYaw/);
   assert.doesNotMatch(gpsHtml, /id="(?:external|dronecan)Mag(?:Roll|Pitch|Yaw)"/);
   assert.doesNotMatch(gpsHtml, /heading-source-table/);
-  assert.match(gpsHtml, /Mounting alignment is configured only in Alignment Tool/);
+  assert.doesNotMatch(gpsHtml, /heading-alignment-location|Mounting alignment is configured only/i);
   assert.match(gpsHtml, /UART GPS-module compass/);
   assert.match(gpsHtml, /DroneCAN GPS-module compass/);
   assert.match(gpsHtml, /Moving-baseline GNSS yaw/);
@@ -480,7 +483,7 @@ test("weighted heading fusion and moving-baseline setup are release surfaces", (
   assert.match(headingFusionSource, /calibrationFailedMask/);
   assert.match(headingFusionSource, /HEADING_CONFIG_SCHEMA = 2/);
   assert.match(headingFusionSource, /dronecanMagCalibrationNodeId/);
-  assert.match(gpsHtml, /does not infer yaw from two ordinary latitude\/longitude fixes/);
+  assert.match(gpsHtml, /two ordinary position fixes are not enough/);
   assert.match(gpsSource, /loadFlightCommanderHeadingStatus/);
   assert.match(gpsSource, /encodeHeadingConfig/);
   assert.match(gpsSource, /clearLegacyCompassYawOffsets/);
@@ -510,9 +513,11 @@ test("UART RTK rover selection and per-module alignment ship in the release UI",
   assert.match(magnetometerHtml, /X forward/);
   assert.match(magnetometerHtml, /Y right/);
   assert.match(magnetometerHtml, /Z down/);
-  assert.match(magnetometerHtml, /MEASURED BASE → ROVER VECTOR/);
-  assert.match(magnetometerHtml, /UART GNSS/);
-  assert.match(magnetometerHtml, /CAN-H/);
+  assert.match(magnetometerHtml, /id="moduleFrontIndicator"/);
+  assert.match(magnetometerHtml, /id="moduleFrontArrowGlyph"/);
+  assert.match(magnetometerHtml, /MODULE FRONT/);
+  assert.doesNotMatch(magnetometerHtml, /alignmentTechnicalPreview|data-preview-target|<svg/i);
+  assert.doesNotMatch(magnetometerHtml, /MEASURED BASE → ROVER VECTOR|UART GNSS|CAN-H/);
   assert.doesNotMatch(magnetometerHtml, /Generic DroneCAN RTK GPS module/);
   assert.match(magnetometerSource, /enumerateAlignmentTargets/);
   assert.match(magnetometerSource, /createAlignmentDrafts/);
@@ -523,10 +528,16 @@ test("UART RTK rover selection and per-module alignment ship in the release UI",
   assert.match(magnetometerSource, /data-alignment-summary-target/);
   assert.match(magnetometerSource, /renderAlignmentDiagnostics/);
   assert.match(magnetometerSource, /saveFlightCommanderHeadingConfig/);
-  assert.doesNotMatch(magnetometerSource, /createGenericRtkModel/);
+  assert.match(magnetometerSource, /targetPreviewModelNames/);
+  assert.match(magnetometerSource, /'matek_m10q'/);
+  assert.match(magnetometerSource, /'holybro_m9n_micro'/);
+  assert.match(magnetometerSource, /i === 32/);
+  assert.match(magnetometerSource, /obj\.scene\.clone\(true\)/);
+  assert.match(magnetometerSource, /moduleFrontArrowGlyph/);
+  assert.doesNotMatch(magnetometerSource, /alignmentTechnicalPreview|technicalPreview|createGenericRtkModel/);
   assert.match(alignmentTargetsSource, /label: 'Onboard compass'/);
-  assert.match(alignmentTargetsSource, /active INAV target magnetometer alignment/);
-  assert.match(alignmentTargetsSource, /does not override the target/);
+  assert.match(alignmentTargetsSource, /Active INAV target magnetometer alignment/);
+  assert.doesNotMatch(alignmentTargetsSource, /does not override the target/);
   assert.match(alignmentTargetsSource, /automatic selection is ambiguous/);
   assert.match(alignmentTargetsSource, /externalMagAlignmentDecidegrees/);
   assert.match(alignmentTargetsSource, /dronecanMagAlignmentDecidegrees/);
@@ -566,13 +577,13 @@ test("application remains dark-only", () => {
 });
 
 test("firmware is release-only and the flasher exposes local, online, then flash", () => {
-  assert.equal(packageManifest.flightCommander.firmwareReleaseVersion, "3.0.2");
+  assert.equal(packageManifest.flightCommander.firmwareReleaseVersion, "3.0.3");
   assert.equal(packageManifest.flightCommander.firmwareChangedInRelease, true);
   assert.equal(packageManifest.flightCommander.firmwareSourceAvailable, true);
-  assert.equal(packageManifest.flightCommander.firmwareSourceVersion, "3.0.2");
+  assert.equal(packageManifest.flightCommander.firmwareSourceVersion, "3.0.3");
   assert.equal(
     packageManifest.flightCommander.firmwareSourceArchive,
-    "release/firmware/Flight-Commander-Firmware-Source-v3.0.2.zip",
+    "release/firmware/Flight-Commander-Firmware-Source-v3.0.3.zip",
   );
   const releaseFirmwareIsPresent = existsSync(firmwareReleasePath);
   const releaseSourceIsPresent = existsSync(firmwareSourcePath);
@@ -604,6 +615,13 @@ test("firmware is release-only and the flasher exposes local, online, then flash
   );
   assert.match(firmwareFlasherHtml, /value="flight-commander">Flight Commander Firmware/);
   assert.match(firmwareFlasherHtml, /value="inav">Official INAV Firmware/);
+  const flasherWarning = englishMessages.firmwareFlasherWarningText?.message ?? "";
+  const flasherRecovery = englishMessages.firmwareFlasherRecoveryText?.message ?? "";
+  assert.match(flasherWarning, /Flash only firmware built for the detected controller target/);
+  assert.match(flasherWarning, /Flight Commander Firmware and official INAV Firmware/);
+  assert.doesNotMatch(flasherWarning, /non-iNAV|INAV manual/i);
+  assert.match(flasherRecovery, /Flight Commander USB flashing guide/);
+  assert.doesNotMatch(flasherRecovery, /INAV manual/i);
   assert.doesNotMatch(firmwareFlasherHtml, /value="ardupilot"/i);
   assert.match(firmwareFlasherSource, /parsedHexContainsFlightCommanderIdentity/);
   assert.match(firmwareFlasherSource, /loadedFirmwareFamily !== firmwareBackend/);
@@ -666,7 +684,7 @@ test("all requested large-prop INAV presets are wired into the release source", 
 });
 
 test("landing page reports the current Flight Commander release", () => {
-  assert.equal(packageManifest.version, "3.0.2");
+  assert.equal(packageManifest.version, "3.0.3");
   assert.equal(manifest.version, packageManifest.version);
   assert.match(
     landingHtml,

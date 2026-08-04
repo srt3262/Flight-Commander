@@ -488,14 +488,7 @@ magnetometerTab.initialize = function (callback) {
             .text(target.warning || '')
             .toggleClass('is-hidden', !target.warning);
         $('#align_mag_xxx').text(target.setting);
-        const technicalPreview = target.previewKind !== 'onboard';
-        $('#canvas_wrapper')
-            .toggleClass('technical-preview-active', technicalPreview)
-            .attr('data-active-alignment-preview', target.previewKind);
-        $('#alignmentTechnicalPreview').toggleClass('is-hidden', !technicalPreview);
-        $('[data-preview-target]').each(function () {
-            $(this).toggleClass('is-active', $(this).attr('data-preview-target') === target.previewKind);
-        });
+        $('#canvas_wrapper').attr('data-active-alignment-preview', target.previewKind);
         renderAlignmentDiagnostics();
     }
 
@@ -646,10 +639,6 @@ magnetometerTab.initialize = function (callback) {
         $('#alignmentTargetDescription').text(target.description);
         renderAlignmentTargetIdentity(target);
         renderAlignmentDraftSummary();
-        $('#rtkAlignmentPreviewNote').toggleClass(
-            'is-hidden',
-            target.id === ALIGNMENT_TARGET_LEGACY_MAG,
-        );
         updateMagCliString();
     }
 
@@ -1108,32 +1097,25 @@ magnetometerTab.initialize3D = function () {
 
     let _renderPending = false;
     this.render3D = function () {
-
         const previewKind = self.alignmentTargets
             .find((target) => target.id === self.alignmentTarget)?.previewKind;
-        const $activeDiagram = $(`[data-preview-target="${previewKind}"]`);
-        $('#alignmentPreviewRoll').text(`${Number(self.alignmentConfig.roll).toFixed(1)}°`);
-        $('#alignmentPreviewPitch').text(`${Number(self.alignmentConfig.pitch).toFixed(1)}°`);
-        $('#alignmentPreviewYaw').text(`${Number(self.alignmentConfig.yaw).toFixed(1)}°`);
-        $activeDiagram.find('[data-orientation-rotor]').each(function () {
-            const centerX = Number(this.dataset.centerX);
-            const centerY = Number(this.dataset.centerY);
-            this.setAttribute(
-                'transform',
-                `rotate(${Number(self.alignmentConfig.yaw)} ${centerX} ${centerY})`,
-            );
-        });
+        $('#moduleFrontArrowGlyph').css(
+            'transform',
+            `rotate(${Number(self.alignmentConfig.yaw)}deg)`,
+        );
+        $('#moduleFrontIndicator').toggleClass(
+            'is-moving-baseline',
+            previewKind === 'moving-baseline',
+        );
 
         if (!magModels || !fc)
             return;
 
-        const technicalPreview = self.elementToShow >= 30;
-        modelWrapper.visible = !technicalPreview;
-
+        modelWrapper.visible = true;
         magModels.forEach((model, index) => {
-            model.visible = !technicalPreview && index === self.elementToShow;
+            model.visible = index === self.elementToShow;
         });
-        fc.visible = !technicalPreview;
+        fc.visible = true;
 
         var magRotation = new THREE.Euler(-THREE.MathUtils.degToRad(self.alignmentConfig.pitch-180), THREE.MathUtils.degToRad(-180 - self.alignmentConfig.yaw), THREE.MathUtils.degToRad(self.alignmentConfig.roll), 'YXZ');
         var matrix = (new THREE.Matrix4()).makeRotationFromEuler(magRotation);
@@ -1226,10 +1208,15 @@ magnetometerTab.initialize3D = function () {
     //Load the models
     const manager = new THREE.LoadingManager();
     const loader = new GLTFLoader(manager);
-
-    const magModelNames = ['xyz', 'ak8963c', 'ak8963n', 'ak8975', 'ak8975c', 'bn_880', 'diatone_mamba_m10_pro', 'flywoo_goku_m10_pro_v3', 'foxeer_m10q_120', 'foxeer_m10q_180', 'foxeer_m10q_250', 
-        'geprc_gep_m10_dq', 'gy271', 'gy273', 'hglrc_m100', 'qmc5883', 'holybro_m9n_micro', 'holybro_m9n_micro', 'ist8308', 'ist8310', 'lis3mdl', 
+    const legacyMagModelNames = ['xyz', 'ak8963c', 'ak8963n', 'ak8975', 'ak8975c', 'bn_880', 'diatone_mamba_m10_pro', 'flywoo_goku_m10_pro_v3', 'foxeer_m10q_120', 'foxeer_m10q_180', 'foxeer_m10q_250',
+        'geprc_gep_m10_dq', 'gy271', 'gy273', 'hglrc_m100', 'qmc5883', 'holybro_m9n_micro', 'holybro_m9n_micro', 'ist8308', 'ist8310', 'lis3mdl',
         'mag3110', 'matek_m8q', 'matek_m9n', 'matek_m10q', 'mlx90393', 'mp9250', 'qmc5883', 'flywoo_goku_m10_pro_v3', 'ws_m181'];
+    const targetPreviewModelNames = [
+        'matek_m10q',          // UART RTK GPS-module compass
+        'holybro_m9n_micro',   // DroneCAN GPS-module compass
+        'matek_m10q',          // moving-baseline Base + Rover pair
+    ];
+    const magModelNames = [...legacyMagModelNames, ...targetPreviewModelNames];
     magModels = [];
     //Load the UAV model
     import(`./../resources/models/model_${model_file}.gltf`).then(({default: model}) => {
@@ -1245,16 +1232,26 @@ magnetometerTab.initialize3D = function () {
             {
                 import(`./../resources/models/model_${name}.glb`).then(({default: magModel}) => {
                     loader.load(magModel, (obj) => {
-                        const gps = obj.scene;
-                        const scaleFactor = i==0 ? 0.03 : 0.04;
-                        gps.scale.set(scaleFactor, scaleFactor, scaleFactor);
-                        gps.position.set(gpsOffset[0], gpsOffset[1] + 0.5, gpsOffset[2]);
-                        gps.traverse(child => {
-                        if (child.material) child.material.metalness = 0;
-                        });
-                        gps.rotation.y = 3 * Math.PI / 2;
-                        modelScene.add(gps);
-                        magModels[i]=gps;
+                        const moduleGroup = new THREE.Group();
+                        const addModule = (moduleScene, xOffset = 0) => {
+                            const scaleFactor = i === 0 ? 0.03 : i === 32 ? 0.034 : 0.04;
+                            moduleScene.scale.set(scaleFactor, scaleFactor, scaleFactor);
+                            moduleScene.position.set(xOffset, 0, 0);
+                            moduleScene.rotation.y = 3 * Math.PI / 2;
+                            moduleScene.traverse(child => {
+                                if (child.material) child.material.metalness = 0;
+                            });
+                            moduleGroup.add(moduleScene);
+                        };
+                        if (i === 32) {
+                            addModule(obj.scene, -2.2);
+                            addModule(obj.scene.clone(true), 2.2);
+                        } else {
+                            addModule(obj.scene);
+                        }
+                        moduleGroup.position.set(gpsOffset[0], gpsOffset[1] + 0.5, gpsOffset[2]);
+                        modelScene.add(moduleGroup);
+                        magModels[i] = moduleGroup;
                         this.resize3D();
                     });
                 });

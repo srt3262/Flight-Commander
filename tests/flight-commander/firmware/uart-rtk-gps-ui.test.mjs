@@ -88,12 +88,21 @@ test('Alignment Tool enumerates UART, DroneCAN, and moving-baseline RTK targets'
     );
     assert.equal(targets[0].label, 'Onboard compass');
     assert.doesNotMatch(targets[0].label, /external/i);
-    assert.match(targets[0].description, /active INAV target/);
-    assert.match(targets[0].description, /does not override/);
+    assert.match(targets[0].description, /Active INAV target/);
+    assert.doesNotMatch(targets[0].description, /does not override/i);
     assert.match(targets[1].label, /External I²C compass/);
     assert.match(targets[2].label, /node 42/);
     assert.deepEqual(targets[3].axes, ['yaw']);
     assert.deepEqual(targets.map((target) => target.previewIndex), [0, 30, 31, 32]);
+    assert.deepEqual(
+        targets.map((target) => target.previewTitle),
+        [
+            'Onboard compass',
+            'UART RTK GPS-module compass',
+            'DroneCAN GPS-module compass',
+            'Moving-baseline GPS pair',
+        ],
+    );
     assert.equal(targets[1].setting, 'externalMagAlignmentDecidegrees');
     assert.equal(targets[2].setting, 'dronecanMagAlignmentDecidegrees');
     assert.match(targets[3].binding, /Base→Rover/);
