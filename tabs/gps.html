@@ -161,10 +161,7 @@
                     </div>
                     <div class="spacer_box heading-fusion-config">
                         <p class="heading-fusion-intro">
-                            Priority 1 is the primary authority and disagreement anchor. All healthy enabled sources
-                            inside the disagreement limit contribute according to weight; invalid or stale sources are
-                            removed automatically and the next priority becomes primary. Enabled sources must use
-                            unique priorities, and each enabled magnetic compass must be calibrated before it contributes.
+                            Priority 1 is primary. Healthy enabled sources contribute by weight; use each priority once.
                         </p>
                         <div class="heading-live-summary">
                             <strong>Fused heading:</strong> <span id="headingFusedValue">Waiting for data…</span>
@@ -216,14 +213,12 @@
                             <fieldset>
                                 <legend>UART GPS-module compass</legend>
                                 <label><span>Compass hardware</span><select id="externalMagHardware"></select></label>
-                                <p>The GPS UART carries GNSS data; its compass uses the module cable's SDA/SCL wires on the flight controller's external I²C1 connector. Enabling or changing this source requires Save and Reboot, followed by compass calibration.</p>
-                                <p class="heading-alignment-location"><strong>Mounting alignment is configured only in Alignment Tool.</strong> This page does not apply an additional yaw correction.</p>
+                                <p>GNSS uses UART; the module compass uses external I²C1. Save, reboot, then calibrate.</p>
                             </fieldset>
 
                             <fieldset>
                                 <legend>DroneCAN compass binding</legend>
-                                <p>Select the exact compass node in the DroneCAN GPS / RTK panel. Automatic selection is locked in Alignment Tool whenever more than one eligible compass node is detected.</p>
-                                <p class="heading-alignment-location"><strong>Each selected node's mounting alignment is configured only in Alignment Tool.</strong> It is never shared with the onboard or external-I²C compass.</p>
+                                <p>Choose the compass node in DroneCAN GPS / RTK.</p>
                             </fieldset>
 
                             <fieldset id="movingBaselineConfig">
@@ -240,8 +235,7 @@
                                 <label><span>Allowed length error</span><input id="movingBaselineTolerance" type="number" min="0.01" max="9.99" step="0.01"> m</label>
                                 <label><span>Maximum heading accuracy</span><input id="movingBaselineAccuracy" type="number" min="0.10" max="45" step="0.01"> °</label>
                                 <label><span>Require RTK Fixed</span><input id="movingBaselineFixedOnly" type="checkbox"></label>
-                                <p>Both GNSS units must be configured as a real moving-base pair and the rover must emit a relative-heading solution. Flight Commander does not infer yaw from two ordinary latitude/longitude fixes.</p>
-                                <p class="heading-alignment-location">Configure the Base→Rover yaw alignment only in Alignment Tool.</p>
+                                <p>Requires a real relative-heading solution; two ordinary position fixes are not enough.</p>
                             </fieldset>
 
                             <fieldset>

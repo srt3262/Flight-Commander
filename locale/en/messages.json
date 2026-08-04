@@ -10,11 +10,11 @@
         "message": "English",
         "_comment": "Don't translate!"
     },
-	  "language_bg": {
+    "language_bg": {
         "message": "Български",
         "_comment": "Don't translate!"
     },
-	  "language_uk": {
+    "language_uk": {
         "message": "українська",
         "_comment": "Don't translate!"
     },
@@ -2698,13 +2698,13 @@
         "message": "Warning"
     },
     "firmwareFlasherWarningText": {
-        "message": "Please do <span style=\"color: red\">not</span> try to flash <strong>non-iNAV</strong> hardware with this firmware flasher.<br />Do <span style=\"color: red\">not</span> <strong>disconnect</strong> the board or <strong>turn off</strong> your computer while flashing.<br /><br /><strong>Note: </strong>STM32 bootloader is stored in ROM, it cannot be bricked.<br /><!--strong>Note: </strong><span style=\"color: red\">Auto-Connect</span> is always disabled while you are inside firmware flasher.<br / --><strong>Note: </strong>Make sure you have a backup; some upgrades/downgrades will wipe your configuration.<br /><strong>Note:</strong> If you have problems flashing try disconnecting all cables from your FC first, try rebooting, upgrade chrome, upgrade drivers.<br /><strong>Note:</strong> When flashing boards that have directly connected USB sockets (Matek H743-SLIM, Holybro Kakute etc) ensure you have read the USB Flashing section of the INAV manual and have the correct software and drivers installed"
+        "message": "Flash only firmware built for the detected controller target. Flight Commander Firmware and official INAV Firmware use the same target-specific STM32 flashing path, but the selected HEX must match this exact board.<br />Do <span style=\"color: red\">not</span> <strong>disconnect</strong> the board or <strong>turn off</strong> your computer while flashing.<br /><br /><strong>Before flashing:</strong> make a backup because some upgrades or downgrades erase configuration.<br /><strong>Recovery:</strong> disconnect peripherals, enter STM32 DFU/BOOT mode, and follow the <a href=\"https://github.com/srt3262/Flight-Commander/blob/main/docs/FIRMWARE_FLASHING.md\" target=\"_blank\">Flight Commander USB flashing guide</a>."
     },
     "firmwareFlasherRecoveryHead": {
         "message": "<strong>Recovery / Lost communication<strong>"
     },
     "firmwareFlasherRecoveryText": {
-        "message": "If you have lost communication with your board follow these steps to restore communication: <ul><li>Power off</li><li>Enable 'No reboot sequence', enable 'Full chip erase'.</li><li>Jumper the BOOT pins or hold BOOT button.</li><li>Power on (activity LED will NOT flash if done correctly).</li><li>Install all STM32 drivers and Zadig if required (see <a href=\"https://github.com/srt3262/Flight-Commander/blob/main/docs/FIRMWARE_FLASHING.md\"target=\"_blank\">USB Flashing</a> section of INAV manual).</li><li>Close configurator, Close all running chrome instances, Close all Chrome apps, Restart Configurator.</li><li>Release BOOT button if your FC has one.</li><li>Flash with correct firmware (using manual baud rate if specified in your FC's manual).</li><li>Power off.</li><li>Remove BOOT jumper.</li><li>Power on (activity LED should flash).</li><li>Connect normally.</li></ul>"
+        "message": "If you have lost communication with your board follow these steps to restore communication: <ul><li>Power off.</li><li>Enable 'No reboot sequence' and 'Full chip erase'.</li><li>Jumper the BOOT pins or hold the BOOT button.</li><li>Power on; the activity LED normally stays off in DFU mode.</li><li>Install the required STM32 drivers and Zadig if needed; follow the <a href=\"https://github.com/srt3262/Flight-Commander/blob/main/docs/FIRMWARE_FLASHING.md\" target=\"_blank\">Flight Commander USB flashing guide</a>.</li><li>Close other software that may be using the controller USB port, then restart Flight Commander.</li><li>Release the BOOT button if applicable.</li><li>Flash the correct target-specific firmware.</li><li>Power off, remove the BOOT jumper, power on, and connect normally.</li></ul>"
     },
     "firmwareFlasherButtonLeave": {
         "message": "Leave Firmware Flasher"

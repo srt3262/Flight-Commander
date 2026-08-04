@@ -17,6 +17,13 @@ import {
 
 const enabledCan = { gpsNodeId: 42, magNodeId: 73 };
 
+
+test('default heading priorities are unique and weights follow priority order', () => {
+  const config = createDefaultHeadingConfig();
+  assert.deepEqual(config.sources.map((source) => source.priority), [1, 2, 3, 4]);
+  assert.deepEqual(config.sources.map((source) => source.weight), [100, 75, 50, 25]);
+});
+
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }

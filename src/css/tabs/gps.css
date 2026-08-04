@@ -297,7 +297,12 @@
 
 .tab-gps .heading-source-grid {
     display: grid;
-    grid-template-columns: minmax(210px, 2fr) minmax(64px, 0.55fr) minmax(90px, 0.75fr) minmax(82px, 0.7fr) minmax(170px, 1.55fr);
+    grid-template-columns:
+        minmax(170px, 2fr)
+        minmax(56px, 0.5fr)
+        minmax(72px, 0.65fr)
+        minmax(72px, 0.65fr)
+        minmax(120px, 1.4fr);
     align-items: center;
     gap: 10px;
     min-width: 0;
@@ -414,12 +419,6 @@
     margin: 9px 0 0;
     line-height: 1.4;
     opacity: 0.88;
-}
-
-.tab-gps .heading-config-sections .heading-alignment-location {
-    padding: 8px 9px;
-    border-left: 3px solid #37a8db;
-    background: rgba(55, 168, 219, 0.08);
 }
 
 @media (max-width: 1200px) {

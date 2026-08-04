@@ -1,37 +1,39 @@
 {
     "manifest_version": 2,
     "minimum_chrome_version": "38",
-    "version": "3.0.2",
+    "version": "3.0.3",
     "author": "Flight Commander contributors",
     "name": "Flight Commander",
     "short_name": "Flight Commander",
     "description": "Flight Commander configurator, mission planner, firmware flasher, and ground control station",
-
     "offline_enabled": true,
-
     "default_locale": "en",
-
     "app": {
         "background": {
-            "scripts": ["eventPage.js"],
+            "scripts": [
+                "eventPage.js"
+            ],
             "persistent": false
         }
     },
-
     "sandbox": {
-    "pages": ["tabs/map.html"]
+        "pages": [
+            "tabs/map.html"
+        ]
     },
-    
     "sockets": {
         "udp": {
-            "send": ["*"],
-            "bind": ["*"]
+            "send": [
+                "*"
+            ],
+            "bind": [
+                "*"
+            ]
         }
     },
-
     "permissions": [
         "https://www.google-analytics.com/",
-        "https://maps.googleapis.com/*",    
+        "https://maps.googleapis.com/*",
         "https://*.github.com/",
         "https://*.githubusercontent.com/",
         "https://*.amazonaws.com/",
@@ -46,13 +48,23 @@
         "fileSystem.retainEntries",
         "notifications",
         "alwaysOnTopWindows",
-        {"usbDevices": [
-            {"vendorId": 1155, "productId": 57105},
-            {"vendorId": 11836, "productId": 57105},
-            {"vendorId": 12619, "productId": 262}
-        ]}
+        {
+            "usbDevices": [
+                {
+                    "vendorId": 1155,
+                    "productId": 57105
+                },
+                {
+                    "vendorId": 11836,
+                    "productId": 57105
+                },
+                {
+                    "vendorId": 12619,
+                    "productId": 262
+                }
+            ]
+        }
     ],
-
     "icons": {
         "128": "images/flight_commander_128.png"
     }
