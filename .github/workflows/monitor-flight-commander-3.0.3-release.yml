@@ -4,6 +4,12 @@ name: Monitor Flight Commander 3.0.3 release publication
   push:
     branches:
       - agent/inspect-3.0.3-actions
+  pull_request:
+    branches:
+      - main
+    types:
+      - reopened
+      - synchronize
 
 permissions:
   actions: write
@@ -16,7 +22,10 @@ concurrency:
 jobs:
   monitor:
     name: Locate, dispatch, and verify public 3.0.3 release
-    if: github.event.head_commit.message == 'Monitor Flight Commander 3.0.3 release publication'
+    if: >-
+      (github.event_name == 'push' &&
+       github.event.head_commit.message == 'Monitor Flight Commander 3.0.3 release publication') ||
+      (github.event_name == 'pull_request' && github.event.action == 'reopened')
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
