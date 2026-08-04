@@ -39,6 +39,10 @@ export const EXTERNAL_MAG_HARDWARE = Object.freeze([
     { value: 15, label: 'MLX90393' },
 ]);
 
+const EXTERNAL_MAG_HARDWARE_VALUES = new Set(
+    EXTERNAL_MAG_HARDWARE.map(({ value }) => value),
+);
+
 function viewOf(payload) {
     if (payload instanceof DataView) return payload;
     if (payload instanceof ArrayBuffer) return new DataView(payload);
@@ -76,6 +80,24 @@ function normalizeSource(source, index) {
             18000,
         ),
     };
+}
+
+export function clearLegacyCompassYawOffsets(config) {
+    if (!Array.isArray(config?.sources)) return false;
+
+    let changed = false;
+    for (const sourceIndex of [
+        HEADING_SOURCE_ONBOARD_MAG,
+        HEADING_SOURCE_EXTERNAL_I2C_MAG,
+        HEADING_SOURCE_DRONECAN_MAG,
+    ]) {
+        const source = config.sources[sourceIndex];
+        if (source && Number(source.yawOffsetCentidegrees) !== 0) {
+            source.yawOffsetCentidegrees = 0;
+            changed = true;
+        }
+    }
+    return changed;
 }
 
 export function createDefaultHeadingConfig() {
@@ -204,6 +226,10 @@ export function validateHeadingConfig(config, dronecanConfig = {}) {
             127,
         ),
     };
+    clearLegacyCompassYawOffsets(normalized);
+    if (!EXTERNAL_MAG_HARDWARE_VALUES.has(normalized.externalMagHardware)) {
+        throw new RangeError('External compass hardware is not supported on the MICOAIR743 external I²C1 connector.');
+    }
     for (const [label, values] of [
         ['External compass alignment', normalized.externalMagAlignmentDecidegrees],
         ['External compass zero', normalized.externalMagZero],

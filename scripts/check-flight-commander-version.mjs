@@ -1,207 +1,158 @@
 import { createHash } from 'node:crypto';
-import { readFile, readdir, stat } from 'node:fs/promises';
+import { access, readFile, readdir, stat } from 'node:fs/promises';
 
 const SEMVER_PATTERN = /^(\d+)\.(\d+)\.(\d+)(?:[-+].*)?$/;
 
 export function validateFlightCommanderVersions(packageJson) {
   const versionMatch = SEMVER_PATTERN.exec(packageJson.version ?? '');
   if (!versionMatch) {
-    throw new Error(
-      `Flight Commander package version is not semantic: ${packageJson.version}`,
-    );
+    throw new Error(`Flight Commander package version is not semantic: ${packageJson.version}`);
   }
 
   const configuratorMajor = Number(versionMatch[1]);
   const firmwareMajor = Number(packageJson.flightCommander?.firmwareMajor);
-  const bundledFirmwareVersion =
-    packageJson.flightCommander?.bundledFirmwareVersion;
-  const bundledFirmwareSha256 =
-    packageJson.flightCommander?.bundledFirmwareSha256;
-  const firmwareChangedInRelease =
-    packageJson.flightCommander?.firmwareChangedInRelease;
-  const bundledFirmwareSourceAvailable =
-    packageJson.flightCommander?.bundledFirmwareSourceAvailable;
-  const bundledFirmwareSourceVersion =
-    packageJson.flightCommander?.bundledFirmwareSourceVersion;
-  const bundledFirmwareSourceArchive =
-    packageJson.flightCommander?.bundledFirmwareSourceArchive;
-  const bundledFirmwareSourceSha256 =
-    packageJson.flightCommander?.bundledFirmwareSourceSha256;
-  const bundledFirmwareSourceRevision =
-    packageJson.flightCommander?.bundledFirmwareSourceRevision;
-  const bundledFirmwareSourceTree =
-    packageJson.flightCommander?.bundledFirmwareSourceTree;
-  const bundledFirmwareMatch = SEMVER_PATTERN.exec(
-    bundledFirmwareVersion ?? '',
-  );
+  const firmwareReleaseVersion = packageJson.flightCommander?.firmwareReleaseVersion;
+  const firmwareReleaseSha256 = packageJson.flightCommander?.firmwareReleaseSha256;
+  const firmwareChangedInRelease = packageJson.flightCommander?.firmwareChangedInRelease;
+  const firmwareSourceAvailable = packageJson.flightCommander?.firmwareSourceAvailable;
+  const firmwareSourceVersion = packageJson.flightCommander?.firmwareSourceVersion;
+  const firmwareSourceArchive = packageJson.flightCommander?.firmwareSourceArchive;
+  const firmwareSourceSha256 = packageJson.flightCommander?.firmwareSourceSha256;
+  const firmwareSourceRevision = packageJson.flightCommander?.firmwareSourceRevision;
+  const firmwareSourceTree = packageJson.flightCommander?.firmwareSourceTree;
+  const firmwareVersionMatch = SEMVER_PATTERN.exec(firmwareReleaseVersion ?? '');
 
   if (!Number.isInteger(firmwareMajor) || firmwareMajor < 1) {
-    throw new Error(
-      'package.json must declare flightCommander.firmwareMajor.',
-    );
+    throw new Error('package.json must declare flightCommander.firmwareMajor.');
   }
-
   if (configuratorMajor !== firmwareMajor) {
     throw new Error(
-      `Flight Commander major-version mismatch: Configurator ${configuratorMajor}, Firmware ${firmwareMajor}. ` +
-      'A major transition must release both products together at X.0.0.',
+      `Flight Commander major-version mismatch: Configurator ${configuratorMajor}, Firmware ${firmwareMajor}.`,
     );
   }
-
-  if (!bundledFirmwareMatch || Number(bundledFirmwareMatch[1]) !== firmwareMajor) {
+  if (!firmwareVersionMatch || Number(firmwareVersionMatch[1]) !== firmwareMajor) {
     throw new Error(
-      'package.json must declare a semantic bundledFirmwareVersion in the active firmware major.',
+      'package.json must declare a semantic firmwareReleaseVersion in the active firmware major.',
     );
   }
-
-  if (!/^[0-9a-f]{64}$/.test(bundledFirmwareSha256 ?? '')) {
+  if (!/^[0-9a-f]{64}$/.test(firmwareReleaseSha256 ?? '')) {
     throw new Error(
-      'package.json must declare the exact lowercase SHA-256 of the bundled firmware HEX.',
+      'package.json must declare the exact lowercase SHA-256 of the published firmware HEX.',
     );
   }
-
   if (typeof firmwareChangedInRelease !== 'boolean') {
     throw new Error(
       'package.json must declare flightCommander.firmwareChangedInRelease as a boolean.',
     );
   }
-
-  if (firmwareChangedInRelease && bundledFirmwareVersion !== packageJson.version) {
+  if (firmwareChangedInRelease && firmwareReleaseVersion !== packageJson.version) {
     throw new Error(
-      `Firmware-changing release ${packageJson.version} must bundle a newly built ` +
-      `firmware image with the exact same version; received ${bundledFirmwareVersion}.`,
+      `Firmware-changing release ${packageJson.version} must publish a newly built firmware image with the same version; received ${firmwareReleaseVersion}.`,
     );
   }
-
-  if (typeof bundledFirmwareSourceAvailable !== 'boolean') {
+  if (typeof firmwareSourceAvailable !== 'boolean') {
     throw new Error(
-      'package.json must declare flightCommander.bundledFirmwareSourceAvailable as a boolean.',
+      'package.json must declare flightCommander.firmwareSourceAvailable as a boolean.',
     );
   }
-
-  const legacyMissingSourceException =
-    packageJson.version === '2.0.5'
-    && bundledFirmwareVersion === '2.0.1'
-    && firmwareChangedInRelease === false
-    && bundledFirmwareSourceAvailable === false
-    && bundledFirmwareSha256 === 'd49316e3d7d2a0a8cda70e02e916cab63458a5cd1013a91e20545c5dbbc21aab';
-  if (!bundledFirmwareSourceAvailable && !legacyMissingSourceException) {
+  if (!firmwareSourceAvailable) {
+    throw new Error('Every Flight Commander release must publish its exact firmware source.');
+  }
+  if (firmwareSourceVersion !== firmwareReleaseVersion) {
     throw new Error(
-      'Every release after the one-time Configurator 2.0.5 legacy exception must publish the exact source for its bundled firmware.',
+      'The published firmware source version must exactly match the published firmware HEX version.',
     );
   }
-
-  if (bundledFirmwareSourceAvailable) {
-    if (bundledFirmwareSourceVersion !== bundledFirmwareVersion) {
-      throw new Error(
-        'The bundled firmware source version must exactly match the bundled firmware HEX version.',
-      );
-    }
-    if (
-      typeof bundledFirmwareSourceArchive !== 'string'
-      || !/^[A-Za-z0-9._/-]+$/.test(bundledFirmwareSourceArchive)
-      || bundledFirmwareSourceArchive.startsWith('/')
-      || bundledFirmwareSourceArchive.split('/').includes('..')
-      || bundledFirmwareSourceArchive !==
-        `resources/firmware-source/Flight-Commander-Firmware-Source-v${bundledFirmwareVersion}.zip`
-    ) {
-      throw new Error(
-        'A source-backed firmware release must declare its canonical safe repository-relative bundledFirmwareSourceArchive.',
-      );
-    }
-    if (!/^[0-9a-f]{64}$/.test(bundledFirmwareSourceSha256 ?? '')) {
-      throw new Error(
-        'A source-backed firmware release must declare the exact lowercase SHA-256 of its source ZIP.',
-      );
-    }
-    if (!/^[0-9a-f]{40}$/.test(bundledFirmwareSourceRevision ?? '')) {
-      throw new Error(
-        'A source-backed firmware release must declare its exact 40-character source revision.',
-      );
-    }
-    if (!/^[0-9a-f]{40}$/.test(bundledFirmwareSourceTree ?? '')) {
-      throw new Error(
-        'A source-backed firmware release must declare its exact 40-character source tree.',
-      );
-    }
-  } else if (
-    bundledFirmwareSourceVersion !== null
-    || bundledFirmwareSourceArchive !== null
-    || bundledFirmwareSourceSha256 !== null
-    || bundledFirmwareSourceRevision !== null
-    || bundledFirmwareSourceTree !== null
-  ) {
+  const canonicalSourceArchive =
+    `release/firmware/Flight-Commander-Firmware-Source-v${firmwareReleaseVersion}.zip`;
+  if (firmwareSourceArchive !== canonicalSourceArchive) {
     throw new Error(
-      'Unavailable firmware source must use null source metadata declarations.',
+      `Firmware source must use the canonical release-only path ${canonicalSourceArchive}.`,
     );
+  }
+  if (!/^[0-9a-f]{64}$/.test(firmwareSourceSha256 ?? '')) {
+    throw new Error(
+      'package.json must declare the exact lowercase SHA-256 of the firmware source ZIP.',
+    );
+  }
+  if (!/^[0-9a-f]{40}$/.test(firmwareSourceRevision ?? '')) {
+    throw new Error('Firmware source must declare its exact 40-character source revision.');
+  }
+  if (!/^[0-9a-f]{40}$/.test(firmwareSourceTree ?? '')) {
+    throw new Error('Firmware source must declare its exact 40-character source tree.');
   }
 
   return {
     configuratorMajor,
     firmwareMajor,
-    bundledFirmwareVersion,
-    bundledFirmwareSha256,
+    firmwareReleaseVersion,
+    firmwareReleaseSha256,
     firmwareChangedInRelease,
-    bundledFirmwareSourceAvailable,
-    bundledFirmwareSourceVersion,
-    bundledFirmwareSourceArchive,
-    bundledFirmwareSourceSha256,
-    bundledFirmwareSourceRevision,
-    bundledFirmwareSourceTree,
-    legacyMissingSourceException,
+    firmwareSourceAvailable,
+    firmwareSourceVersion,
+    firmwareSourceArchive,
+    firmwareSourceSha256,
+    firmwareSourceRevision,
+    firmwareSourceTree,
   };
+}
+
+async function exists(url) {
+  try {
+    await access(url);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 const packageJson = JSON.parse(
   await readFile(new URL('../package.json', import.meta.url), 'utf8'),
 );
-const {
-  firmwareMajor,
-  bundledFirmwareVersion,
-  bundledFirmwareSha256,
-  firmwareChangedInRelease,
-  bundledFirmwareSourceAvailable,
-  bundledFirmwareSourceVersion,
-  bundledFirmwareSourceArchive,
-  bundledFirmwareSourceSha256,
-  legacyMissingSourceException,
-} = validateFlightCommanderVersions(packageJson);
+const release = validateFlightCommanderVersions(packageJson);
 
-if (bundledFirmwareSourceAvailable) {
-  const sourceArchive = new URL(`../${bundledFirmwareSourceArchive}`, import.meta.url);
-  const sourceStat = await stat(sourceArchive);
-  if (!sourceStat.isFile() || sourceStat.size === 0) {
+for (const forbiddenDirectory of ['../resources/firmware/', '../resources/firmware-source/']) {
+  if (await exists(new URL(forbiddenDirectory, import.meta.url))) {
     throw new Error(
-      `Bundled firmware source archive is missing or empty: ${bundledFirmwareSourceArchive}`,
+      `${forbiddenDirectory} is forbidden: firmware must never be bundled with the Configurator.`,
     );
   }
-  const actualSourceSha256 = createHash('sha256')
-    .update(await readFile(sourceArchive))
-    .digest('hex');
-  if (actualSourceSha256 !== bundledFirmwareSourceSha256) {
-    throw new Error('Bundled firmware source archive SHA-256 does not match package.json.');
-  }
 }
 
-const expectedFirmwareFilename =
-  `Flight-Commander-Firmware-${bundledFirmwareVersion}-MICOAIR743.hex`;
-const bundledFirmwareFiles = (await readdir(
-  new URL('../resources/firmware/', import.meta.url),
-)).filter((name) => name.toLowerCase().endsWith('.hex'));
-if (
-  bundledFirmwareFiles.length !== 1 ||
-  bundledFirmwareFiles[0] !== expectedFirmwareFilename
-) {
-  throw new Error(
-    `Expected exactly the declared bundled firmware image ${expectedFirmwareFilename}.`,
-  );
-}
-const bundledFirmware = new URL(`../resources/firmware/${expectedFirmwareFilename}`, import.meta.url);
-const actualFirmwareSha256 = createHash('sha256')
-  .update(await readFile(bundledFirmware))
-  .digest('hex');
-if (actualFirmwareSha256 !== bundledFirmwareSha256) {
-  throw new Error('Bundled firmware HEX SHA-256 does not match package.json.');
+const releaseDirectory = new URL('../release/firmware/', import.meta.url);
+if (await exists(releaseDirectory)) {
+  const expectedFirmwareFilename =
+    `Flight-Commander-Firmware-${release.firmwareReleaseVersion}-MICOAIR743.hex`;
+  const expectedSourceFilename =
+    `Flight-Commander-Firmware-Source-v${release.firmwareReleaseVersion}.zip`;
+  const releaseFiles = (await readdir(releaseDirectory)).sort();
+  const expectedFiles = [expectedFirmwareFilename, expectedSourceFilename].sort();
+  if (JSON.stringify(releaseFiles) !== JSON.stringify(expectedFiles)) {
+    throw new Error(
+      `release/firmware must contain exactly ${expectedFiles.join(' and ')}.`,
+    );
+  }
+
+  const firmwareUrl = new URL(`../release/firmware/${expectedFirmwareFilename}`, import.meta.url);
+  const sourceUrl = new URL(`../${release.firmwareSourceArchive}`, import.meta.url);
+  for (const url of [firmwareUrl, sourceUrl]) {
+    const fileStat = await stat(url);
+    if (!fileStat.isFile() || fileStat.size === 0) {
+      throw new Error(`Release-only firmware artifact is missing or empty: ${url.pathname}`);
+    }
+  }
+  const actualFirmwareSha256 = createHash('sha256')
+    .update(await readFile(firmwareUrl))
+    .digest('hex');
+  const actualSourceSha256 = createHash('sha256')
+    .update(await readFile(sourceUrl))
+    .digest('hex');
+  if (actualFirmwareSha256 !== release.firmwareReleaseSha256) {
+    throw new Error('Published firmware HEX SHA-256 does not match package.json.');
+  }
+  if (actualSourceSha256 !== release.firmwareSourceSha256) {
+    throw new Error('Published firmware source ZIP SHA-256 does not match package.json.');
+  }
 }
 
 if (packageJson.name !== 'flight-commander' || packageJson.productName !== 'Flight Commander') {
@@ -210,11 +161,6 @@ if (packageJson.name !== 'flight-commander' || packageJson.productName !== 'Flig
 
 console.log(
   `Flight Commander version contract OK: Configurator ${packageJson.version}, ` +
-  `bundled firmware ${bundledFirmwareVersion}, firmware major ${firmwareMajor}, ` +
-  `${firmwareChangedInRelease ? 'coordinated firmware rebuild' : 'software-only release'}, ` +
-  `${bundledFirmwareSourceAvailable
-    ? `firmware source ${bundledFirmwareSourceVersion} retained`
-    : legacyMissingSourceException
-      ? 'one-time legacy firmware-source exception'
-      : 'firmware source unavailable'}.`,
+  `published firmware ${release.firmwareReleaseVersion}, firmware major ${release.firmwareMajor}, ` +
+  'firmware excluded from the Configurator and retained only as GitHub release assets.',
 );

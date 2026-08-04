@@ -7,6 +7,7 @@ import {
   HEADING_SOURCE_DRONECAN_MAG,
   HEADING_SOURCE_EXTERNAL_I2C_MAG,
   HEADING_SOURCE_MOVING_BASELINE,
+  clearLegacyCompassYawOffsets,
   createDefaultHeadingConfig,
   decodeHeadingConfig,
   decodeHeadingStatus,
@@ -23,6 +24,7 @@ function clone(value) {
 test('heading configuration round-trips the exact 71-byte firmware schema with per-node CAN calibration', () => {
   const config = createDefaultHeadingConfig();
   config.sources[0].yawOffsetCentidegrees = -1234;
+  config.sources[HEADING_SOURCE_MOVING_BASELINE].yawOffsetCentidegrees = 567;
   config.externalMagAlignmentDecidegrees = [-900, 125, 3600];
   config.externalMagZero = [-120, 44, 918];
   config.externalMagGain = [988, 1024, 1102];
@@ -33,7 +35,24 @@ test('heading configuration round-trips the exact 71-byte firmware schema with p
 
   const encoded = encodeHeadingConfig(config, enabledCan);
   assert.equal(encoded.byteLength, HEADING_CONFIG_PAYLOAD_SIZE);
-  assert.deepEqual(decodeHeadingConfig(encoded), config);
+  const expected = clone(config);
+  expected.sources[0].yawOffsetCentidegrees = 0;
+  assert.deepEqual(decodeHeadingConfig(encoded), expected);
+});
+
+test('legacy compass yaw offsets are removed while moving-baseline alignment remains independent', () => {
+  const config = createDefaultHeadingConfig();
+  config.sources[0].yawOffsetCentidegrees = 9000;
+  config.sources[HEADING_SOURCE_EXTERNAL_I2C_MAG].yawOffsetCentidegrees = -1200;
+  config.sources[HEADING_SOURCE_DRONECAN_MAG].yawOffsetCentidegrees = 450;
+  config.sources[HEADING_SOURCE_MOVING_BASELINE].yawOffsetCentidegrees = 2750;
+
+  assert.equal(clearLegacyCompassYawOffsets(config), true);
+  assert.deepEqual(
+    config.sources.map(({ yawOffsetCentidegrees }) => yawOffsetCentidegrees),
+    [0, 0, 0, 2750],
+  );
+  assert.equal(clearLegacyCompassYawOffsets(config), false);
 });
 
 test('enabled heading sources form an unambiguous priority order', () => {
@@ -47,6 +66,15 @@ test('enabled heading sources form an unambiguous priority order', () => {
 
   config.sources[HEADING_SOURCE_EXTERNAL_I2C_MAG].priority = 2;
   assert.doesNotThrow(() => encodeHeadingConfig(config, enabledCan));
+});
+
+test('external compass hardware is limited to the target-scoped I2C1 driver set', () => {
+  const config = createDefaultHeadingConfig();
+  config.externalMagHardware = 13;
+  assert.throws(
+    () => encodeHeadingConfig(config, enabledCan),
+    /not supported on the MICOAIR743 external I²C1 connector/,
+  );
 });
 
 test('CAN compass and moving-baseline modes fail closed without assigned nodes', () => {

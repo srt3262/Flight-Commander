@@ -35,8 +35,8 @@ same major version.
 - The release workflow treats any missing required archive, filename mismatch,
   checksum mismatch, or size mismatch as a publication failure.
 
-For major version 2, `package.json` declares
-`flightCommander.firmwareMajor: 2`. It also declares
+For major version 3, `package.json` declares
+`flightCommander.firmwareMajor: 3`. It also declares
 `flightCommander.firmwareChangedInRelease`. The test suite runs
 `scripts/check-flight-commander-version.mjs` and rejects a mismatched major,
 an undeclared release type, or a firmware-changing release whose firmware
@@ -48,9 +48,16 @@ and rejects every post-2.0.5 release without exact firmware source.
 The firmware has the reciprocal
 `FLIGHT_COMMANDER_CONFIGURATOR_VERSION_MAJOR` compile-time contract.
 
-Verified Configurator assets use these canonical names:
+Every release is delivered as one
+`Flight-Commander-vX.Y.Z.zip`. That outer archive contains
+exactly these four canonical files:
 
-- `Flight-Commander-Configurator-Source-vX.Y.Z.zip`
-- `Flight-Commander-Configurator-Windows-x64-vX.Y.Z.zip`
-- `Flight-Commander-Firmware-X.Y.Z-TARGET.hex`
-- `Flight-Commander-Firmware-Source-vX.Y.Z.zip`
+- `FC-Configurator-Source-vX.Y.Z.zip`
+- `FC-Windows-vX.Y.Z.zip`
+- `FC-Firmware-vX.Y.Z-TARGET.hex`
+- `FC-Firmware-Source-vX.Y.Z.zip`
+
+The GitHub release may additionally expose the exact same verified firmware
+HEX as a standalone service asset. That duplicate is required by the
+Configurator's **Download Online Firmware** action; it does not replace the
+single four-component release bundle delivered to users.

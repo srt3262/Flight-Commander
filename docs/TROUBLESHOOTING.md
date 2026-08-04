@@ -25,10 +25,10 @@ boot-loop problem.
 
 - Verify the family is **Flight Commander Firmware** when the connected board
   reports `FCFW`.
-- Wait for online and offline catalogs to finish loading before auto-target.
+- Wait for online and bundled catalogs to finish loading before auto-target.
 - Confirm the detected target/alias exists in the selected release.
-- Use **Download Online Firmware** for GitHub, **Select Local Firmware File**
-  for a disk HEX, or **Use Offline Firmware Copy** only as fallback.
+- Use **Download Online Firmware** for GitHub, **Use Bundled Firmware** for the
+  installed verified image, or **Select Local Firmware File** for a disk HEX.
 - Never select a different target merely to populate the version list.
 
 See [Firmware flashing](FIRMWARE_FLASHING.md).
@@ -65,14 +65,14 @@ recovery deliberately.
 
 ## MICOAIR743 heading is roughly 90 degrees wrong or drifts after calibration
 
-Open Calibration and read the onboard-orientation notice. The MICOAIR743
-IST8310 must use **CW90 (unflipped)**. If Flight Commander offers **Apply
-orientation, reset calibration, and reboot**, use it before calibrating again.
-This clears coefficients learned under the wrong axes, saves the corrected
-rotation, and reboots. After reconnecting, complete one normal calibration away
-from steel, wiring current, speakers, magnets, vehicles, and reinforced
-concrete. Do not compensate for this board-level error by entering an arbitrary
-declination or by rotating the entire flight-controller alignment.
+Open Alignment and record the active INAV target alignment plus the live axis
+diagnostics. Flight Commander 3.0.1 does not force a MICOAIR743 compass
+rotation; it preserves the official INAV 9.1.0 target behavior and the normal
+editable alignment settings. Verify the board is installed as represented,
+apply only the measured installation correction, save and reboot, then complete
+one normal calibration away from steel, wiring current, speakers, magnets,
+vehicles, and reinforced concrete. Do not mask a fixed axis error with magnetic
+declination.
 
 ## Ground Control command is visible but disabled
 

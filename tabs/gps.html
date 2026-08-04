@@ -1,7 +1,8 @@
 <div class="tab-gps toolbar_fixed_bottom">
     <div class="content_wrapper">
         <div class="tab_title" data-i18n="tabGPS">GPS</div>
-        <div class="cf_column third_left">
+        <div class="gps-layout">
+        <div class="cf_column third_left gps-status-column">
             <div class="spacer_right">
 
                 <div class="config-section gui_box grey">
@@ -173,75 +174,56 @@
                             Configure and save heading sources here. Calibration buttons and per-compass values are shown
                             automatically in the Calibration tab after reboot.
                         </p>
-                        <div class="heading-source-table-wrap">
-                            <table class="cf_table heading-source-table">
-                                <thead>
-                                    <tr>
-                                        <th>Heading source</th>
-                                        <th>Enabled</th>
-                                        <th>Priority<br><small>1 = primary</small></th>
-                                        <th>Weight</th>
-                                        <th>Yaw offset</th>
-                                        <th>Live state</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr data-heading-source="0">
-                                        <td>Onboard IST8310 compass</td>
-                                        <td><input id="headingSourceEnabled0" type="checkbox"></td>
-                                        <td><select id="headingSourcePriority0"></select></td>
-                                        <td><input id="headingSourceWeight0" type="number" min="0" max="100" step="1"></td>
-                                        <td><input id="headingSourceYaw0" type="number" min="-180" max="180" step="0.01"> °</td>
-                                        <td id="headingSourceStatus0">Waiting</td>
-                                    </tr>
-                                    <tr data-heading-source="1">
-                                        <td>UART GPS-module compass <small>(external I²C1)</small></td>
-                                        <td><input id="headingSourceEnabled1" type="checkbox"></td>
-                                        <td><select id="headingSourcePriority1"></select></td>
-                                        <td><input id="headingSourceWeight1" type="number" min="0" max="100" step="1"></td>
-                                        <td><input id="headingSourceYaw1" type="number" min="-180" max="180" step="0.01"> °</td>
-                                        <td id="headingSourceStatus1">Waiting</td>
-                                    </tr>
-                                    <tr data-heading-source="2">
-                                        <td>DroneCAN GPS-module compass</td>
-                                        <td><input id="headingSourceEnabled2" type="checkbox"></td>
-                                        <td><select id="headingSourcePriority2"></select></td>
-                                        <td><input id="headingSourceWeight2" type="number" min="0" max="100" step="1"></td>
-                                        <td><input id="headingSourceYaw2" type="number" min="-180" max="180" step="0.01"> °</td>
-                                        <td id="headingSourceStatus2">Waiting</td>
-                                    </tr>
-                                    <tr data-heading-source="3">
-                                        <td>Moving-baseline GNSS yaw</td>
-                                        <td><input id="headingSourceEnabled3" type="checkbox"></td>
-                                        <td><select id="headingSourcePriority3"></select></td>
-                                        <td><input id="headingSourceWeight3" type="number" min="0" max="100" step="1"></td>
-                                        <td><input id="headingSourceYaw3" type="number" min="-180" max="180" step="0.01"> °</td>
-                                        <td id="headingSourceStatus3">Waiting</td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                        <div class="heading-source-group">
+                            <div class="heading-source-grid heading-source-grid-header" aria-hidden="true">
+                                <span>Heading source</span>
+                                <span>Enabled</span>
+                                <span>Priority <small>1 = primary</small></span>
+                                <span>Weight</span>
+                                <span>Live status</span>
+                            </div>
+                            <article class="heading-source-card heading-source-grid" data-heading-source="0">
+                                <div class="heading-source-name"><strong>Onboard IST8310 compass</strong><small>Flight-controller I²C2 sensor</small></div>
+                                <label><span class="heading-source-mobile-label">Enabled</span><input id="headingSourceEnabled0" type="checkbox"></label>
+                                <label><span class="heading-source-mobile-label">Priority</span><select id="headingSourcePriority0"></select></label>
+                                <label><span class="heading-source-mobile-label">Weight</span><input id="headingSourceWeight0" type="number" min="0" max="100" step="1"></label>
+                                <span id="headingSourceStatus0" class="heading-source-status">Waiting</span>
+                            </article>
+                            <article class="heading-source-card heading-source-grid" data-heading-source="1">
+                                <div class="heading-source-name"><strong>UART GPS-module compass</strong><small>Separate external-I²C1 compass wires</small></div>
+                                <label><span class="heading-source-mobile-label">Enabled</span><input id="headingSourceEnabled1" type="checkbox"></label>
+                                <label><span class="heading-source-mobile-label">Priority</span><select id="headingSourcePriority1"></select></label>
+                                <label><span class="heading-source-mobile-label">Weight</span><input id="headingSourceWeight1" type="number" min="0" max="100" step="1"></label>
+                                <span id="headingSourceStatus1" class="heading-source-status">Waiting</span>
+                            </article>
+                            <article class="heading-source-card heading-source-grid" data-heading-source="2">
+                                <div class="heading-source-name"><strong>DroneCAN GPS-module compass</strong><small>Selected CAN compass node</small></div>
+                                <label><span class="heading-source-mobile-label">Enabled</span><input id="headingSourceEnabled2" type="checkbox"></label>
+                                <label><span class="heading-source-mobile-label">Priority</span><select id="headingSourcePriority2"></select></label>
+                                <label><span class="heading-source-mobile-label">Weight</span><input id="headingSourceWeight2" type="number" min="0" max="100" step="1"></label>
+                                <span id="headingSourceStatus2" class="heading-source-status">Waiting</span>
+                            </article>
+                            <article class="heading-source-card heading-source-grid" data-heading-source="3">
+                                <div class="heading-source-name"><strong>Moving-baseline GNSS yaw</strong><small>Base→Rover antenna-pair solution</small></div>
+                                <label><span class="heading-source-mobile-label">Enabled</span><input id="headingSourceEnabled3" type="checkbox"></label>
+                                <label><span class="heading-source-mobile-label">Priority</span><select id="headingSourcePriority3"></select></label>
+                                <label><span class="heading-source-mobile-label">Weight</span><input id="headingSourceWeight3" type="number" min="0" max="100" step="1"></label>
+                                <span id="headingSourceStatus3" class="heading-source-status">Waiting</span>
+                            </article>
                         </div>
 
                         <div class="heading-config-sections">
                             <fieldset>
                                 <legend>UART GPS-module compass</legend>
                                 <label><span>Compass hardware</span><select id="externalMagHardware"></select></label>
-                                <div class="heading-axis-grid">
-                                    <label><span>Roll alignment</span><input id="externalMagRoll" type="number" min="-180" max="360" step="0.1"> °</label>
-                                    <label><span>Pitch alignment</span><input id="externalMagPitch" type="number" min="-180" max="360" step="0.1"> °</label>
-                                    <label><span>Yaw alignment</span><input id="externalMagYaw" type="number" min="-180" max="360" step="0.1"> °</label>
-                                </div>
                                 <p>The GPS UART carries GNSS data; its compass uses the module cable's SDA/SCL wires on the flight controller's external I²C1 connector. Enabling or changing this source requires Save and Reboot, followed by compass calibration.</p>
+                                <p class="heading-alignment-location"><strong>Mounting alignment is configured only in Alignment Tool.</strong> This page does not apply an additional yaw correction.</p>
                             </fieldset>
 
                             <fieldset>
-                                <legend>DroneCAN compass mounting</legend>
-                                <div class="heading-axis-grid">
-                                    <label><span>Roll alignment</span><input id="dronecanMagRoll" type="number" min="-180" max="360" step="0.1"> °</label>
-                                    <label><span>Pitch alignment</span><input id="dronecanMagPitch" type="number" min="-180" max="360" step="0.1"> °</label>
-                                    <label><span>Yaw alignment</span><input id="dronecanMagYaw" type="number" min="-180" max="360" step="0.1"> °</label>
-                                </div>
-                                <p>DroneCAN MagneticFieldStrength2 is body-frame data. Use these values only when the module's published mounting orientation is not aligned with the aircraft. Flight Commander applies its own per-node hard-iron offset and per-axis gain calibration before this mounting rotation.</p>
+                                <legend>DroneCAN compass binding</legend>
+                                <p>Select the exact compass node in the DroneCAN GPS / RTK panel. Automatic selection is locked in Alignment Tool whenever more than one eligible compass node is detected.</p>
+                                <p class="heading-alignment-location"><strong>Each selected node's mounting alignment is configured only in Alignment Tool.</strong> It is never shared with the onboard or external-I²C compass.</p>
                             </fieldset>
 
                             <fieldset id="movingBaselineConfig">
@@ -259,6 +241,7 @@
                                 <label><span>Maximum heading accuracy</span><input id="movingBaselineAccuracy" type="number" min="0.10" max="45" step="0.01"> °</label>
                                 <label><span>Require RTK Fixed</span><input id="movingBaselineFixedOnly" type="checkbox"></label>
                                 <p>Both GNSS units must be configured as a real moving-base pair and the rover must emit a relative-heading solution. Flight Commander does not infer yaw from two ordinary latitude/longitude fixes.</p>
+                                <p class="heading-alignment-location">Configure the Base→Rover yaw alignment only in Alignment Tool.</p>
                             </fieldset>
 
                             <fieldset>
@@ -411,7 +394,7 @@
             </div>
         </div>
 
-        <div class="cf_column twothird">
+        <div class="cf_column twothird gps-main-column">
             <div class="gui_box grey gps_map">
                 <div class="gui_box_titlebar" style="margin-bottom: 0;">
                     <div class="spacer_box_title" data-i18n="gpsMapHead"></div>
@@ -422,7 +405,8 @@
                     </div>
                 </div>
             </div>
-
+            <div id="flightCommanderGpsWorkspace" class="flight-commander-gps-workspace" aria-label="Flight Commander GPS and heading configuration"></div>
+        </div>
         </div>
     </div>
     <div class="content_toolbar">

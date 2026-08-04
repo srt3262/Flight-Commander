@@ -34,23 +34,24 @@
       </div>
       <div class="column half text2">
         <div class="wrap">
-          <h2>Flight Commander 2.0.6</h2>
+          <h2>Flight Commander 3.0.1</h2>
           <div>
-            Flight Commander 2.0.6 ships coordinated Configurator and firmware
-            builds with matching downloadable source. The single supported
-            MICOAIR743 firmware target uses its onboard IST8310 at the
-            board-correct CW90 orientation, so a normal calibration learns
-            magnetic offsets instead of compensating for incorrect axes.
-            There is no separate external-compass firmware target. Ground
-            Control places Relative Altitude beside Altitude (MSL), and the GPS
-            and Alignment workflows retain the UART, DroneCAN, and
-            moving-baseline RTK module controls introduced in 2.0.5.
+            Flight Commander 3.0.1 ships coordinated Configurator and firmware
+            builds with matching downloadable source. Its MICOAIR743 firmware
+            is built from the official INAV 9.1.0 target and preserves that
+            release's target, compass, calibration, bus, and IMU behavior.
+            Flight Commander adds its complete feature set around that
+            baseline, including weighted heading fusion and UART/DroneCAN
+            moving-baseline RTK yaw. The GPS and Alignment workflows retain
+            per-source diagnostics and editable installation offsets without
+            forcing a board-specific compass orientation.
             The CLI, page help, settings help, OSD, tuning, and SITL surfaces
             now use Flight Commander's comprehensive first-party GitHub manual;
             all 246 graphical setting links are indexed there. SITL no longer
             presents inherited INAV product wording. Firmware Flasher keeps
-            local selection, online download, flashing, and offline recovery
-            as distinct actions.
+            local firmware selection, online firmware download, and flashing
+            as the three explicit actions. Firmware is never bundled inside
+            the Configurator.
             Connected Flight Commander Firmware is identified through the
             versioned <code>FCFW</code> extension; fork-only features remain
             disabled unless the firmware explicitly advertises their

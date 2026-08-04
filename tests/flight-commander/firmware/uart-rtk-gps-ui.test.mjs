@@ -12,12 +12,19 @@ import {
     ALIGNMENT_TARGET_LEGACY_MAG,
     ALIGNMENT_TARGET_MOVING_BASELINE,
     ALIGNMENT_TARGET_UART_RTK,
+    applyAlignmentDrafts,
+    createAlignmentDrafts,
     enumerateAlignmentTargets,
+    readAlignmentDraft,
     readFlightCommanderAlignmentAngles,
+    updateAlignmentDraft,
+    updateAlignmentDraftAxis,
     writeFlightCommanderAlignmentAngles,
 } from '../../../js/flightCommander/alignmentTargets.js';
 import {
     createDefaultHeadingConfig,
+    decodeHeadingConfig,
+    encodeHeadingConfig,
     HEADING_SOURCE_MOVING_BASELINE,
 } from '../../../js/flightCommander/headingFusion.js';
 
@@ -81,12 +88,34 @@ test('Alignment Tool enumerates UART, DroneCAN, and moving-baseline RTK targets'
     );
     assert.equal(targets[0].label, 'Onboard compass');
     assert.doesNotMatch(targets[0].label, /external/i);
-    assert.match(targets[0].description, /MICOAIR743/);
-    assert.match(targets[0].description, /CW90/);
-    assert.match(targets[1].label, /UART RTK GPS-module compass/);
+    assert.match(targets[0].description, /active INAV target/);
+    assert.match(targets[0].description, /does not override/);
+    assert.match(targets[1].label, /External I²C compass/);
     assert.match(targets[2].label, /node 42/);
     assert.deepEqual(targets[3].axes, ['yaw']);
     assert.deepEqual(targets.map((target) => target.previewIndex), [0, 30, 31, 32]);
+    assert.equal(targets[1].setting, 'externalMagAlignmentDecidegrees');
+    assert.equal(targets[2].setting, 'dronecanMagAlignmentDecidegrees');
+    assert.match(targets[3].binding, /Base→Rover/);
+});
+
+test('Alignment Tool locks ambiguous DroneCAN automatic compass selection', () => {
+    const headingConfig = createDefaultHeadingConfig();
+    const targets = enumerateAlignmentTargets({
+        supportsDronecanGps: true,
+        headingConfig,
+        dronecanConfig: { magNodeId: 0 },
+        dronecanStatus: {
+            nodes: [
+                { nodeId: 41, capabilities: 1 << 3 },
+                { nodeId: 42, capabilities: 1 << 3 },
+            ],
+        },
+    });
+    const canTarget = targets.find((target) => target.id === ALIGNMENT_TARGET_DRONECAN_RTK);
+    assert.equal(canTarget.editable, false);
+    assert.match(canTarget.label, /ambiguous/);
+    assert.match(canTarget.warning, /locked/);
 });
 
 test('per-module alignment values round-trip in the firmware heading schema', () => {
@@ -122,4 +151,90 @@ test('per-module alignment values round-trip in the firmware heading schema', ()
         readFlightCommanderAlignmentAngles(headingConfig, ALIGNMENT_TARGET_MOVING_BASELINE),
         { roll: 0, pitch: 0, yaw: -90 },
     );
+});
+
+test('per-source alignment drafts cannot leak into another module', () => {
+    const headingConfig = createDefaultHeadingConfig();
+    headingConfig.externalMagAlignmentDecidegrees = [100, 200, 300];
+    headingConfig.dronecanMagAlignmentDecidegrees = [-100, -200, -300];
+    headingConfig.sources[HEADING_SOURCE_MOVING_BASELINE].yawOffsetCentidegrees = 4500;
+    const targets = enumerateAlignmentTargets({
+        supportsRtkUart: true,
+        supportsDronecanGps: true,
+        supportsMovingBaseline: true,
+        headingConfig,
+        dronecanConfig: { magNodeId: 42 },
+    });
+    const drafts = createAlignmentDrafts({
+        targets,
+        headingConfig,
+        legacyAngles: { roll: 1, pitch: 2, yaw: 3 },
+    });
+
+    updateAlignmentDraft(drafts, ALIGNMENT_TARGET_UART_RTK, {
+        roll: 11,
+        pitch: 22,
+        yaw: 33,
+    });
+    assert.deepEqual(
+        readAlignmentDraft(drafts, ALIGNMENT_TARGET_DRONECAN_RTK),
+        { roll: -10, pitch: -20, yaw: -30 },
+    );
+    assert.deepEqual(
+        readAlignmentDraft(drafts, ALIGNMENT_TARGET_MOVING_BASELINE),
+        { roll: 0, pitch: 0, yaw: 45 },
+    );
+
+    applyAlignmentDrafts(headingConfig, drafts);
+    const persisted = decodeHeadingConfig(encodeHeadingConfig(
+        headingConfig,
+        { gpsNodeId: 42, magNodeId: 42 },
+    ));
+    assert.deepEqual(persisted.externalMagAlignmentDecidegrees, [110, 220, 330]);
+    assert.deepEqual(persisted.dronecanMagAlignmentDecidegrees, [-100, -200, -300]);
+    assert.equal(
+        persisted.sources[HEADING_SOURCE_MOVING_BASELINE].yawOffsetCentidegrees,
+        4500,
+    );
+});
+
+test('editing and revisiting every alignment target preserves four independent values', () => {
+    const headingConfig = createDefaultHeadingConfig();
+    const targets = enumerateAlignmentTargets({
+        supportsRtkUart: true,
+        supportsDronecanGps: true,
+        supportsMovingBaseline: true,
+        headingConfig,
+        dronecanConfig: { magNodeId: 42 },
+    });
+    const drafts = createAlignmentDrafts({
+        targets,
+        headingConfig,
+        legacyAngles: { roll: 1, pitch: 2, yaw: 3 },
+    });
+
+    for (const [targetId, values] of [
+        [ALIGNMENT_TARGET_LEGACY_MAG, { roll: 4, pitch: 5, yaw: 6 }],
+        [ALIGNMENT_TARGET_UART_RTK, { roll: 11, pitch: 12, yaw: 13 }],
+        [ALIGNMENT_TARGET_DRONECAN_RTK, { roll: 21, pitch: 22, yaw: 23 }],
+        [ALIGNMENT_TARGET_MOVING_BASELINE, { roll: 0, pitch: 0, yaw: 31 }],
+    ]) {
+        for (const axis of ['roll', 'pitch', 'yaw']) {
+            updateAlignmentDraftAxis(drafts, targetId, axis, values[axis]);
+        }
+    }
+
+    assert.deepEqual(readAlignmentDraft(drafts, ALIGNMENT_TARGET_LEGACY_MAG), { roll: 4, pitch: 5, yaw: 6 });
+    assert.deepEqual(readAlignmentDraft(drafts, ALIGNMENT_TARGET_UART_RTK), { roll: 11, pitch: 12, yaw: 13 });
+    assert.deepEqual(readAlignmentDraft(drafts, ALIGNMENT_TARGET_DRONECAN_RTK), { roll: 21, pitch: 22, yaw: 23 });
+    assert.deepEqual(readAlignmentDraft(drafts, ALIGNMENT_TARGET_MOVING_BASELINE), { roll: 0, pitch: 0, yaw: 31 });
+
+    applyAlignmentDrafts(headingConfig, drafts);
+    const reloaded = decodeHeadingConfig(encodeHeadingConfig(
+        headingConfig,
+        { gpsNodeId: 42, magNodeId: 42 },
+    ));
+    assert.deepEqual(reloaded.externalMagAlignmentDecidegrees, [110, 120, 130]);
+    assert.deepEqual(reloaded.dronecanMagAlignmentDecidegrees, [210, 220, 230]);
+    assert.equal(reloaded.sources[HEADING_SOURCE_MOVING_BASELINE].yawOffsetCentidegrees, 3100);
 });

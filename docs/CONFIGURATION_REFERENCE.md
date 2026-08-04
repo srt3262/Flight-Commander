@@ -56,12 +56,14 @@ The target selector includes:
 - DroneCAN RTK GPS-module compass alignment when supported;
 - dual-RTK moving-baseline yaw offset when supported.
 
-Select the actual target, choose a visual hardware preview when useful, and
-enter the measured roll/pitch/yaw installation rotation. The generic F9 and
-DroneCAN previews are visual aids, not auto-identification of a specific
-commercial module. For a GNSS module without a magnetometer, roll/pitch/yaw
-compass alignment is irrelevant; only a configured moving-baseline yaw offset
-applies to GNSS heading.
+Select the actual target and enter its measured roll/pitch/yaw installation
+rotation. Each target keeps an independent draft and saved field; changing one
+preview does not rotate or overwrite another module. The F9, DroneCAN, and
+moving-baseline graphics are connection-aware schematics, not automatic
+identification of a specific commercial module. For a GNSS module without a
+magnetometer, roll/pitch/yaw compass alignment is irrelevant; only a configured
+moving-baseline yaw offset applies to GNSS heading. The GPS tab intentionally
+has no duplicate orientation fields.
 
 ## Configuration
 

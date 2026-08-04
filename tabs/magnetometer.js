@@ -17,9 +17,12 @@ import interval from './../js/intervals';
 import { firmwareFeatureSupport } from './../js/flightCommander/firmwareIdentity';
 import {
     ALIGNMENT_TARGET_LEGACY_MAG,
+    applyAlignmentDrafts,
+    createAlignmentDrafts,
     enumerateAlignmentTargets,
-    readFlightCommanderAlignmentAngles,
-    writeFlightCommanderAlignmentAngles,
+    readAlignmentDraft,
+    updateAlignmentDraft,
+    updateAlignmentDraftAxis,
 } from './../js/flightCommander/alignmentTargets';
 
 const magnetometerTab = {};
@@ -56,7 +59,10 @@ magnetometerTab.initialize = function (callback) {
     self.legacyAlignmentConfig = null;
     self.alignmentTarget = ALIGNMENT_TARGET_LEGACY_MAG;
     self.alignmentTargets = [];
+    self.alignmentDrafts = new Map();
+    self.isPopulatingAlignmentControls = false;
     self.elementToShow = 0;
+    self.legacyPreviewIndex = 0;
     //========================
     // Load chain
     // =======================
@@ -108,13 +114,15 @@ magnetometerTab.initialize = function (callback) {
                 console.error('Failed to get align_mag_yaw:', err);
                 callback();
             });
-        }
+        },
+        mspHelper.loadCalibrationData,
     ];
     if (supportsDronecanConfig) {
         loadChain.push(mspHelper.loadDronecanConfig);
     }
     if (supportsHeadingFusion) {
         loadChain.push(mspHelper.loadFlightCommanderHeadingConfig);
+        loadChain.push(mspHelper.loadFlightCommanderHeadingStatus);
     }
 
     loadChainer.setChain(loadChain);
@@ -136,7 +144,7 @@ magnetometerTab.initialize = function (callback) {
 
     var saveChain = [
         function (callback) {
-            commitCurrentAlignmentTarget();
+            commitAllAlignmentTargets();
             FC.BOARD_ALIGNMENT.pitch = self.boardAlignmentConfig.pitch * 10;
             FC.BOARD_ALIGNMENT.roll = self.boardAlignmentConfig.roll * 10;
             FC.BOARD_ALIGNMENT.yaw = self.boardAlignmentConfig.yaw * 10;
@@ -347,51 +355,115 @@ magnetometerTab.initialize = function (callback) {
         self.pageElements.comment_sensor_mag_angles.css("display", self.isSavePreset ? "none" : "");
     }
 
-    //Called when roll values change
-    function updateRollAxis(value) {
-        self.alignmentConfig.roll = Number(value);
-        if (self.pageElements.roll_slider[0].noUiSlider && !_settingSlider) { _settingSlider = true; self.pageElements.roll_slider[0].noUiSlider.set(self.alignmentConfig.roll); _settingSlider = false; }
-        self.pageElements.orientation_mag_roll.val(self.alignmentConfig.roll);
-        updateMagCliString();
-        self.render3D();
-    }
-
-    //Called when pitch values change
-    function updatePitchAxis(value) {
-        self.alignmentConfig.pitch = Number(value);
-        if (self.pageElements.pitch_slider[0].noUiSlider && !_settingSlider) { _settingSlider = true; self.pageElements.pitch_slider[0].noUiSlider.set(self.alignmentConfig.pitch); _settingSlider = false; }
-        self.pageElements.orientation_mag_pitch.val(self.alignmentConfig.pitch);
-        updateMagCliString();
-        self.render3D();
-    }
-
-    //Called when yaw values change
-    function updateYawAxis(value) {
-        self.alignmentConfig.yaw = Number(value);
-        if (self.pageElements.yaw_slider[0].noUiSlider && !_settingSlider) { _settingSlider = true; self.pageElements.yaw_slider[0].noUiSlider.set(self.alignmentConfig.yaw); _settingSlider = false; }
-        self.pageElements.orientation_mag_yaw.val(self.alignmentConfig.yaw);
-        updateMagCliString();
-        self.render3D();
-    }
-
-    function commitCurrentAlignmentTarget() {
-        if (self.alignmentTarget === ALIGNMENT_TARGET_LEGACY_MAG) {
-            self.legacyAlignmentConfig = { ...self.alignmentConfig };
-            self.legacyIsSavePreset = self.isSavePreset;
-            return;
-        }
-        if (FC.HEADING_CONFIG) {
-            writeFlightCommanderAlignmentAngles(
-                FC.HEADING_CONFIG,
+    function updateCurrentAlignmentDraft() {
+        if (self.alignmentDrafts.has(self.alignmentTarget)) {
+            updateAlignmentDraft(
+                self.alignmentDrafts,
                 self.alignmentTarget,
                 self.alignmentConfig,
             );
         }
     }
 
+    function renderAlignmentDraftSummary() {
+        const $summary = $('#alignmentDraftSummary').empty();
+        if (!$summary.length) return;
+        for (const target of self.alignmentTargets) {
+            if (!self.alignmentDrafts.has(target.id)) continue;
+            const angles = readAlignmentDraft(self.alignmentDrafts, target.id);
+            const visibleAxes = target.axes
+                .map((axis) => `${axis[0].toUpperCase()} ${Number(angles[axis]).toFixed(1)}°`)
+                .join(' · ');
+            $('<button/>', {
+                type: 'button',
+                'data-alignment-summary-target': target.id,
+                'aria-pressed': target.id === self.alignmentTarget ? 'true' : 'false',
+            })
+                .toggleClass('is-active', target.id === self.alignmentTarget)
+                .append($('<strong/>').text(target.label.replace(/ · .*/, '')))
+                .append($('<span/>').text(visibleAxes))
+                .append($('<em/>').text(target.id === self.alignmentTarget ? 'Editing' : 'Select'))
+                .appendTo($summary);
+        }
+    }
+
+    function populateAlignmentControls(config) {
+        self.isPopulatingAlignmentControls = true;
+        self.alignmentConfig = {
+            roll: Number(config.roll),
+            pitch: Number(config.pitch),
+            yaw: Number(config.yaw),
+        };
+        for (const axis of ['roll', 'pitch', 'yaw']) {
+            const slider = self.pageElements[`${axis}_slider`]?.[0]?.noUiSlider;
+            if (slider) slider.set(self.alignmentConfig[axis]);
+            self.pageElements[`orientation_mag_${axis}`]?.val(self.alignmentConfig[axis]);
+        }
+        self.isPopulatingAlignmentControls = false;
+        renderAlignmentDraftSummary();
+        updateMagCliString();
+        self.render3D();
+    }
+
+    function updateAlignmentAxis(axis, value) {
+        if (self.isPopulatingAlignmentControls) return;
+        const numericValue = Number(value);
+        if (self.alignmentDrafts.has(self.alignmentTarget)) {
+            self.alignmentConfig = updateAlignmentDraftAxis(
+                self.alignmentDrafts,
+                self.alignmentTarget,
+                axis,
+                numericValue,
+            );
+        } else {
+            self.alignmentConfig = { ...self.alignmentConfig, [axis]: numericValue };
+        }
+
+        const slider = self.pageElements[`${axis}_slider`]?.[0]?.noUiSlider;
+        if (slider && !_settingSlider) {
+            _settingSlider = true;
+            slider.set(numericValue);
+            _settingSlider = false;
+        }
+        self.pageElements[`orientation_mag_${axis}`]?.val(numericValue);
+        renderAlignmentDraftSummary();
+        updateMagCliString();
+        self.render3D();
+    }
+
+    //Called when roll values change
+    function updateRollAxis(value) {
+        updateAlignmentAxis('roll', value);
+    }
+
+    //Called when pitch values change
+    function updatePitchAxis(value) {
+        updateAlignmentAxis('pitch', value);
+    }
+
+    //Called when yaw values change
+    function updateYawAxis(value) {
+        updateAlignmentAxis('yaw', value);
+    }
+
+    function commitCurrentAlignmentTarget() {
+        updateCurrentAlignmentDraft();
+        if (self.alignmentTarget === ALIGNMENT_TARGET_LEGACY_MAG) {
+            self.legacyAlignmentConfig = { ...self.alignmentConfig };
+            self.legacyIsSavePreset = self.isSavePreset;
+        }
+    }
+
+    function commitAllAlignmentTargets() {
+        commitCurrentAlignmentTarget();
+        if (FC.HEADING_CONFIG) {
+            applyAlignmentDrafts(FC.HEADING_CONFIG, self.alignmentDrafts);
+        }
+    }
+
     function setAxisAvailability(target) {
         for (const axis of ['roll', 'pitch', 'yaw']) {
-            const enabled = target.axes.includes(axis);
+            const enabled = target.editable !== false && target.axes.includes(axis);
             self.pageElements[`orientation_mag_${axis}`].prop('disabled', !enabled);
             const sliderElement = self.pageElements[`${axis}_slider`][0];
             if (sliderElement) {
@@ -401,6 +473,153 @@ magnetometerTab.initialize = function (callback) {
         }
     }
 
+    function renderAlignmentTargetIdentity(target) {
+        $('#alignmentSourceName').text(target.previewTitle);
+        $('#alignmentPreviewCanvasTitle').text(target.previewTitle);
+        $('#alignmentSourceTransport').text(target.transport);
+        $('#alignmentSourceBinding').text(target.binding);
+        $('#alignmentPreviewCanvasBinding').text(target.binding);
+        $('#alignmentSourceSetting').text(target.setting);
+        $('#alignmentPreviewDetail').text(target.previewDetail);
+        $('#alignmentSourceState')
+            .text(target.editable === false ? 'Selection required' : 'Independent source')
+            .toggleClass('requires-selection', target.editable === false);
+        $('#alignmentSourceWarning')
+            .text(target.warning || '')
+            .toggleClass('is-hidden', !target.warning);
+        $('#align_mag_xxx').text(target.setting);
+        const technicalPreview = target.previewKind !== 'onboard';
+        $('#canvas_wrapper')
+            .toggleClass('technical-preview-active', technicalPreview)
+            .attr('data-active-alignment-preview', target.previewKind);
+        $('#alignmentTechnicalPreview').toggleClass('is-hidden', !technicalPreview);
+        $('[data-preview-target]').each(function () {
+            $(this).toggleClass('is-active', $(this).attr('data-preview-target') === target.previewKind);
+        });
+        renderAlignmentDiagnostics();
+    }
+
+    function diagnosticVector(values, digits = 0) {
+        if (!Array.isArray(values) || values.length !== 3 || values.some((value) => !Number.isFinite(Number(value)))) {
+            return '—';
+        }
+        return ['X', 'Y', 'Z']
+            .map((axis, index) => `${axis} ${Number(values[index]).toFixed(digits)}`)
+            .join(' · ');
+    }
+
+    function objectVector(values) {
+        if (!values) return null;
+        return [values.X, values.Y, values.Z].map(Number);
+    }
+
+    function renderAlignmentDiagnostics() {
+        const target = self.alignmentTargets.find((entry) => entry.id === self.alignmentTarget);
+        if (!target) return;
+        const sourceIndex = Number(target.sourceIndex);
+        const source = FC.HEADING_STATUS?.sources?.[sourceIndex];
+        const config = FC.HEADING_CONFIG?.sources?.[sourceIndex];
+        const angles = self.alignmentDrafts.has(target.id)
+            ? readAlignmentDraft(self.alignmentDrafts, target.id)
+            : self.alignmentConfig;
+        $('#alignmentDiagnosticAngles').text(
+            `R ${Number(angles.roll).toFixed(1)}° · P ${Number(angles.pitch).toFixed(1)}° · Y ${Number(angles.yaw).toFixed(1)}°`,
+        );
+
+        let state = config?.enabled === false ? 'Disabled' : 'Unavailable / stale';
+        let stateClass = 'is-stale';
+        if (source?.calibrationFailed) {
+            state = 'Calibration failed';
+            stateClass = 'is-error';
+        } else if (source?.rejected) {
+            state = 'Rejected by fusion';
+            stateClass = 'is-warning';
+        } else if (source?.active) {
+            state = 'Active in fused heading';
+            stateClass = 'is-active';
+        } else if (source?.healthy) {
+            state = 'Healthy standby';
+            stateClass = 'is-healthy';
+        } else if (!supportsHeadingFusion && sourceIndex === 0) {
+            state = 'INAV onboard compass';
+            stateClass = 'is-healthy';
+        }
+        $('#alignmentDiagnosticState')
+            .text(state)
+            .removeClass('is-stale is-error is-warning is-active is-healthy')
+            .addClass(stateClass);
+
+        const sourceHeading = source && source.ageMs !== 0xffff
+            ? `${(Number(source.headingCentidegrees) / 100).toFixed(2)}°`
+            : sourceIndex === 0 && Number.isFinite(Number(FC.SENSOR_DATA?.kinematics?.[2]))
+                ? `${Number(FC.SENSOR_DATA.kinematics[2]).toFixed(2)}° aircraft`
+                : '—';
+        $('#alignmentDiagnosticHeading').text(sourceHeading);
+        $('#alignmentDiagnosticFused').text(
+            FC.HEADING_STATUS?.activeMask
+                ? `${(Number(FC.HEADING_STATUS.fusedHeadingCentidegrees) / 100).toFixed(2)}° · primary ${Number(FC.HEADING_STATUS.anchorSource) + 1}`
+                : '—',
+        );
+        $('#alignmentDiagnosticSample').text(
+            source && source.ageMs !== 0xffff
+                ? `${source.ageMs} ms old · quality ${source.quality}%`
+                : 'No current source sample',
+        );
+
+        let calibration = '—';
+        if (sourceIndex < 3) {
+            if (source?.calibrating) calibration = 'Calibrating';
+            else if (source?.calibrationFailed) calibration = 'Failed / rejected';
+            else if (source?.calibrated) calibration = 'Calibrated';
+            else calibration = 'Calibration required';
+        } else {
+            calibration = 'Not applicable (GNSS yaw)';
+        }
+        $('#alignmentDiagnosticCalibration').text(calibration);
+
+        let vector = '—';
+        let zero = '—';
+        let gain = '—';
+        let detail = 'Diagnostics update independently of unsaved alignment edits.';
+        if (sourceIndex === 0) {
+            vector = diagnosticVector(FC.SENSOR_DATA?.magnetometer, 3);
+            zero = diagnosticVector(objectVector(FC.CALIBRATION_DATA?.magZero));
+            gain = diagnosticVector(objectVector(FC.CALIBRATION_DATA?.magGain));
+            detail = 'Live vector is the standard INAV onboard magnetometer sample. Zero and gain are the saved onboard calibration.';
+        } else if (sourceIndex === 1) {
+            zero = diagnosticVector(FC.HEADING_CONFIG?.externalMagZero);
+            gain = diagnosticVector(FC.HEADING_CONFIG?.externalMagGain);
+            vector = sourceHeading === '—' ? '—' : `heading vector → ${sourceHeading}`;
+            detail = 'External-I²C heading, sample health, age, quality, calibration zero, and calibration gain are reported independently.';
+        } else if (sourceIndex === 2) {
+            zero = diagnosticVector(FC.HEADING_CONFIG?.dronecanMagZeroMilliGauss);
+            gain = diagnosticVector(FC.HEADING_CONFIG?.dronecanMagGainMilliGauss);
+            vector = sourceHeading === '—' ? '—' : `heading vector → ${sourceHeading}`;
+            detail = `DroneCAN diagnostic values are bound to ${target.binding}.`;
+        } else {
+            const status = FC.HEADING_STATUS;
+            vector = status
+                ? `Base→Rover ${Number(status.baselineHeadingCentidegrees / 100).toFixed(2)}°`
+                : '—';
+            zero = status
+                ? `${Number(status.baselineDistanceCm / 100).toFixed(2)} m baseline`
+                : '—';
+            gain = status
+                ? `${Number(status.baselineAccuracyCentidegrees / 100).toFixed(2)}° accuracy`
+                : '—';
+            detail = status
+                ? `${status.baselineFixed ? 'RTK Fixed' : 'Not RTK Fixed'} · provider ${status.baselineProvider} · node ${status.baselineNodeId || '—'}`
+                : 'Waiting for moving-baseline status.';
+        }
+        $('#alignmentDiagnosticVector').text(vector);
+        $('#alignmentDiagnosticZero').text(zero);
+        $('#alignmentDiagnosticGain').text(gain);
+        $('#alignmentDiagnosticVectorLabel').text(sourceIndex === 3 ? 'Relative heading' : 'Live vector');
+        $('#alignmentDiagnosticZeroLabel').text(sourceIndex === 3 ? 'Baseline length' : 'Calibration zero');
+        $('#alignmentDiagnosticGainLabel').text(sourceIndex === 3 ? 'Heading accuracy' : 'Calibration gain');
+        $('#alignmentDiagnosticDetail').text(detail);
+    }
+
     function switchAlignmentTarget(targetId) {
         const target = self.alignmentTargets.find((entry) => entry.id === targetId);
         if (!target) return;
@@ -408,26 +627,25 @@ magnetometerTab.initialize = function (callback) {
         self.alignmentTarget = target.id;
 
         if (target.id === ALIGNMENT_TARGET_LEGACY_MAG) {
-            self.alignmentConfig = { ...self.legacyAlignmentConfig };
             self.isSavePreset = self.legacyIsSavePreset;
-            $('#legacyMagPresetControl').removeClass('is-hidden');
+            $('#legacyMagPresetControl').removeClass('is-hidden').prop('hidden', false);
+            $('#legacyHardwarePreviewControl').removeClass('is-hidden').prop('hidden', false);
             if (self.isSavePreset) enableSavePreset();
             else disableSavePreset();
+            self.elementToShow = self.legacyPreviewIndex;
+            $('#element_to_show').val(String(self.legacyPreviewIndex));
         } else {
-            self.alignmentConfig = readFlightCommanderAlignmentAngles(
-                FC.HEADING_CONFIG,
-                target.id,
-            );
             self.isSavePreset = false;
-            $('#legacyMagPresetControl').addClass('is-hidden');
+            $('#legacyMagPresetControl').addClass('is-hidden').prop('hidden', true);
+            $('#legacyHardwarePreviewControl').addClass('is-hidden').prop('hidden', true);
+            self.elementToShow = target.previewIndex;
         }
 
         setAxisAvailability(target);
-        updateRollAxis(self.alignmentConfig.roll);
-        updatePitchAxis(self.alignmentConfig.pitch);
-        updateYawAxis(self.alignmentConfig.yaw);
+        populateAlignmentControls(readAlignmentDraft(self.alignmentDrafts, target.id));
         $('#alignmentTargetDescription').text(target.description);
-        $('#element_to_show').val(String(target.previewIndex)).trigger('change');
+        renderAlignmentTargetIdentity(target);
+        renderAlignmentDraftSummary();
         $('#rtkAlignmentPreviewNote').toggleClass(
             'is-hidden',
             target.id === ALIGNMENT_TARGET_LEGACY_MAG,
@@ -524,6 +742,12 @@ magnetometerTab.initialize = function (callback) {
             supportsMovingBaseline,
             headingConfig: FC.HEADING_CONFIG,
             dronecanConfig: FC.DRONECAN_CONFIG,
+            dronecanStatus: FC.DRONECAN_STATUS,
+        });
+        self.alignmentDrafts = createAlignmentDrafts({
+            targets: self.alignmentTargets,
+            headingConfig: FC.HEADING_CONFIG,
+            legacyAngles: self.legacyAlignmentConfig,
         });
         const $alignmentTarget = $('#alignmentTarget').empty();
         for (const target of self.alignmentTargets) {
@@ -535,6 +759,7 @@ magnetometerTab.initialize = function (callback) {
             self.alignmentTargets.length === 1,
         );
         $('#alignmentTargetDescription').text(self.alignmentTargets[0].description);
+        renderAlignmentTargetIdentity(self.alignmentTargets[0]);
 
 
         self.pageElements.orientation_board_roll.on('change', function () {
@@ -609,8 +834,9 @@ magnetometerTab.initialize = function (callback) {
         const elementToShow = $("#element_to_show");
         elementToShow.on('change', function () {
             const value = parseInt($(this).val());
+            if (self.alignmentTarget !== ALIGNMENT_TARGET_LEGACY_MAG) return;
             self.elementToShow = value;
-            $('#rtkAlignmentPreviewNote').toggleClass('is-hidden', value < 30);
+            self.legacyPreviewIndex = value;
             self.render3D();
         });
 
@@ -619,12 +845,14 @@ magnetometerTab.initialize = function (callback) {
         }
 
         self.pageElements.orientation_mag_e.on('change', function () {
+            if (self.alignmentTarget !== ALIGNMENT_TARGET_LEGACY_MAG) return;
             FC.SENSOR_ALIGNMENT.align_mag = parseInt($(this).val());
             const degrees = getAxisDegreeWithPresetAndBoardOrientation(FC.SENSOR_ALIGNMENT.align_mag);
             presetUpdated(degrees);
         });
 
         self.pageElements.orientation_mag_e.on('mousedown', function () {
+            if (self.alignmentTarget !== ALIGNMENT_TARGET_LEGACY_MAG) return;
             const degrees = getAxisDegreeWithPresetAndBoardOrientation(FC.SENSOR_ALIGNMENT.align_mag);
             presetUpdated(degrees);
         });
@@ -717,6 +945,12 @@ magnetometerTab.initialize = function (callback) {
         $('#alignmentTarget').on('change.magnetometerTab', function () {
             switchAlignmentTarget($(this).val());
         });
+        $('#alignmentDraftSummary').on('click.magnetometerTab', '[data-alignment-summary-target]', function () {
+            const targetId = String($(this).attr('data-alignment-summary-target'));
+            $('#alignmentTarget').val(targetId);
+            switchAlignmentTarget(targetId);
+        });
+        renderAlignmentDraftSummary();
         setAxisAvailability(self.alignmentTargets[0]);
         
 
@@ -726,11 +960,24 @@ magnetometerTab.initialize = function (callback) {
 	            self.roll_e.text(i18n.getMessage('initialSetupAttitude', [FC.SENSOR_DATA.kinematics[0]]));
 	            self.pitch_e.text(i18n.getMessage('initialSetupAttitude', [FC.SENSOR_DATA.kinematics[1]]));
                 self.heading_e.text(i18n.getMessage('initialSetupAttitude', [FC.SENSOR_DATA.kinematics[2]]));
+                renderAlignmentDiagnostics();
                 self.render3D();
             });
         }
 
         interval.add('setup_data_pull_fast', get_fast_data, 40);
+
+        function get_alignment_diagnostics() {
+            MSP.send_message(MSPCodes.MSP_RAW_IMU, false, false, function () {
+                if (supportsHeadingFusion) {
+                    mspHelper.loadFlightCommanderHeadingStatus(renderAlignmentDiagnostics);
+                } else {
+                    renderAlignmentDiagnostics();
+                }
+            });
+        }
+
+        interval.add('alignment_diagnostics_pull', get_alignment_diagnostics, 250, true);
 
         GUI.content_ready(callback);
     }
@@ -862,11 +1109,31 @@ magnetometerTab.initialize3D = function () {
     let _renderPending = false;
     this.render3D = function () {
 
+        const previewKind = self.alignmentTargets
+            .find((target) => target.id === self.alignmentTarget)?.previewKind;
+        const $activeDiagram = $(`[data-preview-target="${previewKind}"]`);
+        $('#alignmentPreviewRoll').text(`${Number(self.alignmentConfig.roll).toFixed(1)}°`);
+        $('#alignmentPreviewPitch').text(`${Number(self.alignmentConfig.pitch).toFixed(1)}°`);
+        $('#alignmentPreviewYaw').text(`${Number(self.alignmentConfig.yaw).toFixed(1)}°`);
+        $activeDiagram.find('[data-orientation-rotor]').each(function () {
+            const centerX = Number(this.dataset.centerX);
+            const centerY = Number(this.dataset.centerY);
+            this.setAttribute(
+                'transform',
+                `rotate(${Number(self.alignmentConfig.yaw)} ${centerX} ${centerY})`,
+            );
+        });
+
         if (!magModels || !fc)
             return;
 
-        magModels.forEach( (m,i) => m.visible = i == self.elementToShow );
-        fc.visible = true;
+        const technicalPreview = self.elementToShow >= 30;
+        modelWrapper.visible = !technicalPreview;
+
+        magModels.forEach((model, index) => {
+            model.visible = !technicalPreview && index === self.elementToShow;
+        });
+        fc.visible = !technicalPreview;
 
         var magRotation = new THREE.Euler(-THREE.MathUtils.degToRad(self.alignmentConfig.pitch-180), THREE.MathUtils.degToRad(-180 - self.alignmentConfig.yaw), THREE.MathUtils.degToRad(self.alignmentConfig.roll), 'YXZ');
         var matrix = (new THREE.Matrix4()).makeRotationFromEuler(magRotation);
@@ -879,7 +1146,8 @@ magnetometerTab.initialize3D = function () {
           matrix.premultiply(matrix1);  //preset specifies orientation relative to FC, align_max_xxx specify absolute orientation
         }
 */
-        magModels.forEach( (m,i) => m.rotation.setFromRotationMatrix(matrix) );
+        const selectedModel = magModels[self.elementToShow];
+        if (selectedModel) selectedModel.rotation.setFromRotationMatrix(matrix);
         fc.rotation.setFromRotationMatrix(matrix1);
 
         // draw — throttled to one render per animation frame
@@ -959,54 +1227,6 @@ magnetometerTab.initialize3D = function () {
     const manager = new THREE.LoadingManager();
     const loader = new GLTFLoader(manager);
 
-    function createGenericRtkModel(kind) {
-        const group = new THREE.Group();
-        const pcbMaterial = new THREE.MeshStandardMaterial({ color: 0x176d55, roughness: 0.72 });
-        const caseMaterial = new THREE.MeshStandardMaterial({ color: 0x252b31, roughness: 0.62 });
-        const antennaMaterial = new THREE.MeshStandardMaterial({ color: 0xe4e7e9, roughness: 0.82 });
-        const arrowMaterial = new THREE.MeshStandardMaterial({ color: 0x39a9dc, roughness: 0.48 });
-
-        function addArrow(parent, z = -25) {
-            const arrow = new THREE.Mesh(new THREE.ConeGeometry(5, 16, 3), arrowMaterial);
-            arrow.rotation.x = Math.PI / 2;
-            arrow.position.set(0, 8, z);
-            parent.add(arrow);
-        }
-
-        function addPuck(parent, x = 0) {
-            const body = new THREE.Mesh(new THREE.CylinderGeometry(27, 27, 10, 32), caseMaterial);
-            body.position.set(x, 5, 0);
-            parent.add(body);
-            const antenna = new THREE.Mesh(new THREE.CylinderGeometry(21, 21, 4, 32), antennaMaterial);
-            antenna.position.set(x, 12, 0);
-            parent.add(antenna);
-        }
-
-        if (kind === 'uart') {
-            const board = new THREE.Mesh(new THREE.BoxGeometry(50, 3, 50), pcbMaterial);
-            board.position.y = 1.5;
-            group.add(board);
-            const patch = new THREE.Mesh(new THREE.BoxGeometry(36, 7, 36), antennaMaterial);
-            patch.position.y = 6.5;
-            group.add(patch);
-            const receiver = new THREE.Mesh(new THREE.BoxGeometry(15, 3, 10), caseMaterial);
-            receiver.position.set(0, 3.5, 21);
-            group.add(receiver);
-            addArrow(group, -25);
-        } else if (kind === 'dronecan') {
-            addPuck(group);
-            addArrow(group, -28);
-        } else {
-            addPuck(group, -34);
-            addPuck(group, 34);
-            const baseline = new THREE.Mesh(new THREE.BoxGeometry(68, 2, 3), arrowMaterial);
-            baseline.position.y = 15;
-            group.add(baseline);
-            addArrow(group, -31);
-        }
-        return group;
-    }
-
     const magModelNames = ['xyz', 'ak8963c', 'ak8963n', 'ak8975', 'ak8975c', 'bn_880', 'diatone_mamba_m10_pro', 'flywoo_goku_m10_pro_v3', 'foxeer_m10q_120', 'foxeer_m10q_180', 'foxeer_m10q_250', 
         'geprc_gep_m10_dq', 'gy271', 'gy273', 'hglrc_m100', 'qmc5883', 'holybro_m9n_micro', 'holybro_m9n_micro', 'ist8308', 'ist8310', 'lis3mdl', 
         'mag3110', 'matek_m8q', 'matek_m9n', 'matek_m10q', 'mlx90393', 'mp9250', 'qmc5883', 'flywoo_goku_m10_pro_v3', 'ws_m181'];
@@ -1040,19 +1260,6 @@ magnetometerTab.initialize3D = function () {
                 });
             });
 
-            [
-                [30, 'uart'],
-                [31, 'dronecan'],
-                [32, 'moving-baseline'],
-            ].forEach(([index, kind]) => {
-                const gps = createGenericRtkModel(kind);
-                gps.scale.set(0.04, 0.04, 0.04);
-                gps.position.set(gpsOffset[0], gpsOffset[1] + 0.5, gpsOffset[2]);
-                gps.visible = index === self.elementToShow;
-                modelScene.add(gps);
-                magModels[index] = gps;
-            });
-
             //Load the FC model
             import('./../resources/models/model_fc.gltf').then(({default: fcModel}) => {
                 loader.load(fcModel, (obj) => {
@@ -1076,6 +1283,7 @@ magnetometerTab.initialize3D = function () {
 magnetometerTab.cleanup = function (callback) {
     $(window).off('resize', this.resize3D);
     $('#alignmentTarget').off('.magnetometerTab');
+    $('#alignmentDraftSummary').off('.magnetometerTab');
 
     if (callback) callback();
 };

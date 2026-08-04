@@ -4,20 +4,22 @@ Firmware flashing writes the flight controller. A wrong family or hardware
 target can make the normal application firmware unbootable. Remove propellers,
 use stable USB power, and preserve a backup before continuing.
 
-## The three firmware actions
+## The three firmware sources
 
 Flight Commander separates source selection from flashing:
 
-1. **Select Local Firmware File** opens a `.hex` file from the computer and
+1. **Download Online Firmware** downloads the selected compatible HEX asset
+   from Flight Commander's GitHub release catalog, then verifies its published
+   byte count and SHA-256 before accepting it.
+2. **Use Bundled Firmware** loads the exact verified image packaged with the
+   installed Configurator. It never contacts GitHub.
+3. **Select Local Firmware File** opens a `.hex` file from the computer and
    validates its family, embedded identity, and target metadata.
-2. **Download Online Firmware** downloads the selected compatible release from
-   Flight Commander's GitHub release catalog. The downloaded image becomes the
-   current selection; it is not flashed immediately.
-3. **Flash Selected Firmware** writes the already selected and validated image.
 
-When GitHub is unavailable, **Use Offline Firmware Copy** can select the exact
-verified image packaged with the Configurator. An offline copy is a fallback,
-not a claim that it is newer than a published online image.
+These buttons are independent. Selecting a firmware version does not silently
+change **Download Online Firmware** into the bundled action, and a failed online
+download does not automatically substitute the bundled image. After one source
+is loaded and validated, **Flash Selected Firmware** writes that selected image.
 
 ## Select firmware family
 
@@ -46,12 +48,13 @@ interchangeable.
 The version list can contain:
 
 - an **Online release**, downloadable from GitHub;
-- an **Offline fallback**, packaged and checksum-verified with Configurator;
+- a **Bundled copy**, packaged and checksum-verified with Configurator;
 - a **Local file**, chosen by the operator.
 
-When an online and offline image have the same target and version, the online
-release is presented as the primary catalog entry. The offline copy remains
-available only if download fails or the operator explicitly chooses it.
+When online and bundled images have the same target and version, the version is
+listed once and both source buttons remain available. GitHub releases keep the
+single four-component release ZIP as the normal human download and also expose
+the standalone verified HEX required by **Download Online Firmware**.
 
 Configurator and firmware can have different minor/patch versions only for a
 declared software-only Configurator release. The HEX filename and embedded
@@ -74,7 +77,7 @@ firmware identity must always tell the truth. See
 3. Connect the board directly by a reliable USB cable.
 4. Select the correct firmware family.
 5. Auto-detect or manually confirm the exact target.
-6. Choose an online version, local HEX, or offline fallback.
+6. Choose a version, then load it from Online, Bundled, or Local firmware.
 7. Read the selection summary and confirm family, target, version, and source.
 8. Enable full erase when required.
 9. Press **Flash Selected Firmware** once. Do not disconnect or power down while

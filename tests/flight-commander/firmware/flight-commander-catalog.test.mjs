@@ -1,15 +1,15 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { describe, test } from "node:test";
 
 import {
   FLIGHT_COMMANDER_FIRMWARE_RELEASES_URL,
-  bundledFlightCommanderDescriptors,
   catalogByTarget,
   flightCommanderReleaseDescriptors,
-  mergeFlightCommanderDescriptors,
   normalizeFirmwareTarget,
   parseFlightCommanderFirmwareFilename,
   parsedHexContainsFlightCommanderIdentity,
+  verifyFlightCommanderOnlinePayload,
 } from "../../../js/flightCommander/firmwareCatalog.js";
 
 describe("Flight Commander firmware catalog", () => {
@@ -75,7 +75,8 @@ describe("Flight Commander firmware catalog", () => {
           {
             name: "Flight-Commander-Firmware-0.1.0-MICOAIR743-BENCH-ONLY.hex",
             browser_download_url: "https://example.invalid/firmware.hex",
-            digest: "sha256:abc",
+            digest: `sha256:${"a".repeat(64)}`,
+            size: 1234,
           },
           { name: "Flight-Commander-Firmware-0.1.0-source.zip" },
         ],
@@ -85,39 +86,63 @@ describe("Flight Commander firmware catalog", () => {
     assert.equal(descriptors.length, 1);
     assert.equal(descriptors[0].status, "bench-only");
     assert.equal(descriptors[0].target_id, "MICOAIR743");
-    assert.equal(descriptors[0].digest, "sha256:abc");
+    assert.equal(descriptors[0].digest, `sha256:${"a".repeat(64)}`);
+    assert.equal(descriptors[0].bytes, 1234);
     assert.equal(catalogByTarget(descriptors).MICOAIR743.length, 1);
   });
 
-  test("prefers the downloadable online release over a same-version bundled fallback", () => {
-    const filename =
-      "Flight-Commander-Firmware-2.0.6-MICOAIR743.hex";
-    const bundled = bundledFlightCommanderDescriptors([filename]);
+  test("uses the standalone GitHub HEX as the only managed firmware source", () => {
+    const filename = "Flight-Commander-Firmware-3.0.0-MICOAIR743.hex";
     const online = flightCommanderReleaseDescriptors([
       {
         draft: false,
         prerelease: false,
-        tag_name: "v2.0.6",
-        name: "Flight Commander 2.0.6",
-        html_url: "https://example.invalid/release",
-        published_at: "2026-08-02T20:00:00Z",
-        body: "Software-only release with the compatible firmware asset.",
+        tag_name: "v3.0.0",
         assets: [
           {
             name: filename,
             browser_download_url: "https://example.invalid/firmware.hex",
+            digest: `sha256:${"a".repeat(64)}`,
+            size: 1234,
           },
         ],
       },
     ]);
 
-    const merged = mergeFlightCommanderDescriptors(bundled, online);
-    assert.equal(merged.length, 1);
-    assert.equal(merged[0].bundled, undefined);
-    assert.equal(merged[0].url, "https://example.invalid/firmware.hex");
+    assert.equal(online.length, 1);
+    assert.equal(online[0].version, "3.0.0");
+    assert.equal(online[0].url, "https://example.invalid/firmware.hex");
+    assert.equal(online[0].bytes, 1234);
+    assert.equal(catalogByTarget(online).MICOAIR743.length, 1);
+    assert.equal('bundled' in online[0], false);
+  });
+
+  test("verifies online byte count and GitHub SHA-256 before decoding the HEX", async () => {
+    const hex = ":020000040800F2\n:00000001FF\n";
+    const payload = new TextEncoder().encode(hex);
+    const digest = createHash("sha256").update(payload).digest("hex");
+    const descriptor = {
+      bytes: payload.byteLength,
+      digest: `sha256:${digest}`,
+    };
+
     assert.equal(
-      mergeFlightCommanderDescriptors(online, bundled)[0].url,
-      "https://example.invalid/firmware.hex",
+      await verifyFlightCommanderOnlinePayload(payload, descriptor),
+      hex,
+    );
+    await assert.rejects(
+      verifyFlightCommanderOnlinePayload(payload, {
+        ...descriptor,
+        bytes: payload.byteLength + 1,
+      }),
+      /size mismatch/,
+    );
+    await assert.rejects(
+      verifyFlightCommanderOnlinePayload(payload, {
+        ...descriptor,
+        digest: `sha256:${"0".repeat(64)}`,
+      }),
+      /SHA-256 verification failed/,
     );
   });
 

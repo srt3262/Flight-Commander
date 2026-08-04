@@ -1,6 +1,6 @@
 # Heading fusion and moving-baseline yaw
 
-Flight Commander Firmware 2.0.6 can keep four heading sources live at the
+Flight Commander Firmware 3.0.1 can keep four heading sources live at the
 same time. The Configurator exposes them only when the connected controller
 advertises `HEADING_FUSION`; moving-baseline controls additionally require
 `MOVING_BASELINE_YAW`.
@@ -8,8 +8,8 @@ advertises `HEADING_FUSION`; moving-baseline controls additionally require
 | Source | Data path | Calibration and validity |
 | --- | --- | --- |
 | Onboard compass | MICOAIR743 IST8310 on I²C2 | Uses the normal compass alignment, declination, and calibration |
-| UART GPS-module compass | The GPS position stream uses UART; the module's separate SDA/SCL wires use the MICOAIR743 external I²C1 connector | Select hardware and mounting alignment in GPS, then run compass calibration |
-| DroneCAN GPS-module compass | Selected CAN node publishing `uavcan.equipment.ahrs.MagneticFieldStrength2` | Flight Commander stores a hard-iron offset and per-axis gain for the selected node, then applies mounting rotation, freshness, magnitude, and yaw-offset guards |
+| UART GPS-module compass | The GPS position stream uses UART; the module's separate SDA/SCL wires use the MICOAIR743 external I²C1 connector | Select hardware in GPS, set only this module's mounting alignment in Alignment Tool, then run compass calibration |
+| DroneCAN GPS-module compass | Selected CAN node publishing `uavcan.equipment.ahrs.MagneticFieldStrength2` | Flight Commander stores a hard-iron offset and per-axis gain for the selected node, then applies that node's Alignment Tool rotation, freshness, and magnitude guards |
 | Moving-baseline GNSS yaw | u-blox `UBX-NAV-RELPOSNED` on UART or `ardupilot.gnss.RelPosHeading` from the selected DroneCAN GPS node | Requires valid relative heading, acceptable accuracy and antenna separation, and RTK Fixed when that option is enabled |
 
 A combined GPS/compass CAN module can be assigned to both the GPS and compass
@@ -48,31 +48,20 @@ heading, baseline distance, accuracy, provider, node, and fixed state.
 
 ## Compass calibration
 
-After selecting compass hardware, CAN nodes, and mounting alignment, save and
-reboot before calibration. With the aircraft disarmed, use **Calibrate enabled
-compasses** in GPS (or the normal Compass Calibration action), then rotate the
-complete aircraft slowly through all orientations for the full 30-second run.
+After selecting compass hardware and CAN nodes in GPS, set each module's
+mounting alignment independently in Alignment Tool, then save and reboot. With
+the aircraft disarmed, start calibration from the Calibration tab and rotate
+the complete aircraft slowly through all orientations for the full run.
 
 ### MICOAIR743 onboard IST8310 orientation
 
-The onboard IST8310 is mounted at an unflipped 90-degree yaw rotation relative
-to the MICOAIR743 flight-controller axes. A neutral/default magnetometer
-alignment can select an inherited flipped transform; calibration cannot repair
-that fixed axis error because calibration estimates offsets and per-axis gain,
-not sensor mounting rotation.
-
-Flight Commander 2.0.6 sets the board-correct orientation in firmware and the
-Configurator also detects the board and physical onboard compass before a
-calibration run. If the stored rotation is not **CW90 (unflipped)**, Calibration
-blocks the run and offers **Apply orientation, reset calibration, and reboot**.
-Use that once, reconnect, and then perform the normal compass calibration. The
-orientation and calibration are stored in the controller and do not need to be
-repeated at each startup. Recalibrate after changing the airframe installation,
-power wiring, nearby magnetic hardware, compass module, or firmware defaults.
-
-The release has one MICOAIR743 firmware target and one fixed onboard-compass
-profile. GPS-module compasses remain independent peripherals whose mounting
-rotation and calibration follow their actual installation.
+Flight Commander 3.0.1 retains the official INAV 9.1.0 MICOAIR743 target,
+compass drivers, default alignment behavior, calibration path, and IMU code
+without a Flight Commander orientation override. The Alignment tab continues
+to show the active target alignment and diagnostics, and operators may edit the
+normal INAV alignment settings when installation-specific testing requires it.
+Recalibrate after changing alignment, the airframe installation, power wiring,
+nearby magnetic hardware, compass module, or firmware defaults.
 
 One calibration command samples every enabled physical compass concurrently,
 but each result is independent:
@@ -86,9 +75,12 @@ but each result is independent:
   new calibration.
 
 An enabled magnetic source is excluded from fusion and blocks the calibrated
-state until its calibration is valid. The GPS table distinguishes calibrating,
-calibration-required, and calibration-failed states. A failed CAN run leaves
-its gains invalid instead of silently reusing the previous module's values.
+state until its calibration is valid. The GPS source cards distinguish
+calibrating, calibration-required, and calibration-failed states. A calibration
+candidate is committed only after adequate samples, three-axis coverage, finite
+solver output, and balanced gains pass plausibility checks. A failed run keeps
+the last plausible calibration for the same sensor binding; a different CAN
+node cannot inherit it.
 Moving-baseline yaw is not a magnetometer, so it uses antenna geometry,
 alignment, accuracy, and carrier-fix validation instead of compass calibration.
 
@@ -119,8 +111,8 @@ UART or DroneCAN solution with the better reported heading accuracy.
 4. In GPS, enable moving-baseline yaw, choose automatic/UART/DroneCAN input,
    enter expected separation and tolerance, set an accuracy limit, and leave
    **Require RTK Fixed** enabled for initial testing.
-5. Choose unique priorities and weights. Use the yaw offset to describe the
-   measured antenna vector relative to aircraft forward.
+5. Choose unique priorities and weights in GPS. In Alignment Tool, select the
+   moving-baseline pair and set its yaw relative to aircraft forward.
 6. Save and reboot. With propellers removed, rotate the aircraft through known
    headings and deliberately interrupt each source to verify failover and live
    rejection state before controlled flight testing.

@@ -16,10 +16,6 @@ import {
     compassCalibrationState,
     enumerateCompassCalibrationTargets,
 } from './../js/flightCommander/compassCalibration';
-import {
-    MICOAIR743_ONBOARD_COMPASS_PROFILE,
-    onboardCompassOrientationRequirement,
-} from './../js/flightCommander/compassOrientation';
 
 const COMPASS_POLL_INTERVAL = 'compass_calibration_status';
 const COMPASS_FALLBACK_DURATION_MS = 31000;
@@ -29,7 +25,6 @@ const calibrationTab = {
     compassSession: null,
     supportsHeadingFusion: false,
     supportsDronecanConfig: false,
-    compassCustomAngles: { roll: null, pitch: null, yaw: null },
 };
 
 calibrationTab.model = (function () {
@@ -80,23 +75,6 @@ calibrationTab.initialize = function (callback) {
     const loadChain = [
         mspHelper.queryFcStatus,
         mspHelper.loadSensorConfig,
-        mspHelper.loadSensorAlignment,
-        function loadCompassCustomAlignment(callback) {
-            Promise.all([
-                mspHelper.getSetting('align_mag_roll'),
-                mspHelper.getSetting('align_mag_pitch'),
-                mspHelper.getSetting('align_mag_yaw'),
-            ]).then(([roll, pitch, yaw]) => {
-                calibrationTab.compassCustomAngles = {
-                    roll: roll?.value ?? null,
-                    pitch: pitch?.value ?? null,
-                    yaw: yaw?.value ?? null,
-                };
-            }).catch((error) => {
-                console.error('Unable to read compass custom alignment:', error);
-                calibrationTab.compassCustomAngles = { roll: null, pitch: null, yaw: null };
-            }).finally(callback);
-        },
         mspHelper.loadCalibrationData,
     ];
     if (supportsHeadingFusion) {
@@ -159,40 +137,6 @@ calibrationTab.initialize = function (callback) {
         });
     }
 
-    function compassOrientationRequirement() {
-        return onboardCompassOrientationRequirement({
-            config: FC.CONFIG,
-            activeSensors: FC.CONFIG.activeSensors,
-            sensorConfig: FC.SENSOR_CONFIG,
-            sensorAlignment: FC.SENSOR_ALIGNMENT,
-            customAngles: calibrationTab.compassCustomAngles,
-        });
-    }
-
-    function renderCompassOrientation() {
-        const requirement = compassOrientationRequirement();
-        const $notice = $('#compassOrientationNotice');
-        if (!requirement) {
-            $notice.addClass('is-hidden').removeClass('is-ready');
-            return;
-        }
-
-        $notice.removeClass('is-hidden').toggleClass('is-ready', requirement.ready);
-        $('#compassOrientationTitle').text(
-            requirement.ready
-                ? 'MICOAIR743 onboard compass orientation verified'
-                : 'MICOAIR743 onboard compass orientation must be corrected first',
-        );
-        $('#compassOrientationBody').text(
-            requirement.ready
-                ? `The onboard ${requirement.sensor} is using ${requirement.label}. Calibration can now solve offsets and scale without reversing or tilting the heading.`
-                : `This board's onboard ${requirement.sensor} requires ${requirement.label}. The active configuration does not match, so calibration alone cannot produce a trustworthy heading. Apply the board profile, reboot, then run calibration.`,
-        );
-        $('#applyCompassOrientation')
-            .toggleClass('is-hidden', requirement.ready)
-            .prop('disabled', Boolean(calibrationTab.compassSession));
-    }
-
     function vectorRow(label, values, unit) {
         const $row = $('<div>').addClass('compass-value-row');
         $('<span>').text(label).appendTo($row);
@@ -209,10 +153,7 @@ calibrationTab.initialize = function (callback) {
     function renderCompassTargets() {
         const targets = compassTargets();
         const session = calibrationTab.compassSession;
-        const orientation = compassOrientationRequirement();
         const $list = $('#compassCalibrationList').empty();
-
-        renderCompassOrientation();
 
         for (const target of targets) {
             const status = compassCalibrationState(target);
@@ -238,18 +179,24 @@ calibrationTab.initialize = function (callback) {
             if (target.nodeId) details.push(`CAN node ${target.nodeId}`);
             if (target.ageMs !== null) details.push(`last sample ${target.ageMs} ms ago`);
             if (details.length) $('<p>').addClass('compass-card-meta').text(details.join(' · ')).appendTo($card);
+            if (target.calibrationIssue) {
+                $('<p>')
+                    .addClass('compass-card-calibration-error')
+                    .text(`${target.calibrationIssue} This result will not be used for heading fusion.`)
+                    .appendTo($card);
+            }
             $('<button>')
                 .attr({
                     type: 'button',
                     'data-compass-calibrate': target.index,
                 })
                 .addClass('compass-calibrate-button')
-                .prop('disabled', Boolean(session) || Boolean(orientation?.needsCorrection))
+                .prop('disabled', Boolean(session))
                 .text(
                     session
                         ? 'Calibration in progress…'
-                        : orientation?.needsCorrection && target.index === 0
-                            ? 'Apply orientation first'
+                        : target.invalidCalibration
+                            ? 'Replace invalid calibration'
                             : 'Calibrate this compass',
                 )
                 .appendTo($card);
@@ -258,17 +205,17 @@ calibrationTab.initialize = function (callback) {
 
         const $summary = $('#compassCalibrationSummary')
             .removeClass('is-ready is-warning is-error is-working');
-        if (orientation?.needsCorrection) {
-            $summary.addClass('is-error').text(
-                'Compass calibration is blocked until the MICOAIR743 onboard-sensor orientation is corrected and the controller reboots.',
-            );
-        } else if (session) {
+        if (session) {
             $summary.addClass('is-working').text(
                 'Calibration is running for every enabled compass. Keep rotating the entire aircraft through all axes.',
             );
         } else if (targets.length === 0) {
             $summary.addClass('is-warning').text(
                 'No enabled, connected magnetic compass was detected. Enable the compass in GPS or sensor configuration, save and reboot, then return here.',
+            );
+        } else if (targets.some((target) => target.invalidCalibration)) {
+            $summary.addClass('is-error').text(
+                'At least one saved compass calibration is physically implausible and has been rejected. Recalibrate it with the corrected firmware before flight.',
             );
         } else if (targets.some((target) => target.failed)) {
             $summary.addClass('is-error').text(
@@ -281,6 +228,30 @@ calibrationTab.initialize = function (callback) {
         } else {
             $summary.addClass('is-ready').text(
                 `All ${targets.length} connected compass${targets.length === 1 ? '' : 'es'} report calibrated values.`,
+            );
+        }
+    }
+
+    function discardInvalidCompassCalibrations() {
+        const invalidTargets = compassTargets().filter((target) => target.invalidCalibration);
+        for (const target of invalidTargets) {
+            if (target.key === 'legacy-primary' || target.key === 'onboard') {
+                for (const axis of ['X', 'Y', 'Z']) {
+                    FC.CALIBRATION_DATA.magZero[axis] = 0;
+                    FC.CALIBRATION_DATA.magGain[axis] = 1024;
+                }
+            } else if (target.key === 'external-i2c' && FC.HEADING_CONFIG) {
+                FC.HEADING_CONFIG.externalMagZero = [0, 0, 0];
+                FC.HEADING_CONFIG.externalMagGain = [1024, 1024, 1024];
+            } else if (target.key === 'dronecan' && FC.HEADING_CONFIG) {
+                FC.HEADING_CONFIG.dronecanMagZeroMilliGauss = [0, 0, 0];
+                FC.HEADING_CONFIG.dronecanMagGainMilliGauss = [0, 0, 0];
+                FC.HEADING_CONFIG.dronecanMagCalibrationNodeId = 0;
+            }
+        }
+        if (invalidTargets.length > 0) {
+            GUI.log(
+                `<span class="error">Discarded ${invalidTargets.length} implausible compass calibration result${invalidTargets.length === 1 ? '' : 's'} instead of saving unsafe values.</span>`,
             );
         }
     }
@@ -359,11 +330,6 @@ calibrationTab.initialize = function (callback) {
     function startCompassCalibration(event) {
         event.preventDefault();
         if (calibrationTab.compassSession) return;
-        if (compassOrientationRequirement()?.needsCorrection) {
-            GUI.log('<span class="error">Apply the MICOAIR743 onboard compass orientation and reboot before calibration.</span>');
-            renderCompassTargets();
-            return;
-        }
         const sourceIndex = Number(event.currentTarget.dataset.compassCalibrate);
         const target = compassTargets().find((candidate) => candidate.index === sourceIndex);
         if (!target) {
@@ -392,41 +358,6 @@ calibrationTab.initialize = function (callback) {
             GUI.log(`Compass calibration started from ${target.title}; every enabled physical compass is being solved.`);
         });
         interval.add(COMPASS_POLL_INTERVAL, pollCompassCalibration, 500, true);
-    }
-
-    function applyCompassOrientation(event) {
-        event.preventDefault();
-        const requirement = compassOrientationRequirement();
-        if (!requirement?.needsCorrection || calibrationTab.compassSession) return;
-
-        $('#applyCompassOrientation, .compass-calibrate-button').prop('disabled', true);
-        $('#compassOrientationTitle').text('Applying MICOAIR743 compass orientation…');
-        $('#compassOrientationBody').text(
-            'Saving the unflipped 90° board profile, clearing stale compass calibration, and rebooting the controller.',
-        );
-
-        FC.SENSOR_ALIGNMENT.align_mag = MICOAIR743_ONBOARD_COMPASS_PROFILE.alignMag;
-        ['X', 'Y', 'Z'].forEach((axis) => {
-            FC.CALIBRATION_DATA.magZero[axis] = 0;
-            FC.CALIBRATION_DATA.magGain[axis] = 1024;
-        });
-
-        const orientationChainer = new MSPChainerClass();
-        orientationChainer.setChain([
-            mspHelper.saveSensorAlignment,
-            (callback) => mspHelper.setSetting('align_mag_roll', 0, callback),
-            (callback) => mspHelper.setSetting('align_mag_pitch', 0, callback),
-            (callback) => mspHelper.setSetting('align_mag_yaw', 0, callback),
-            mspHelper.saveCalibrationData,
-            mspHelper.saveToEeprom,
-        ]);
-        orientationChainer.setExitPoint(function rebootWithCorrectOrientation() {
-            GUI.log('MICOAIR743 onboard compass orientation saved as CW90 (unflipped). Rebooting before calibration.');
-            GUI.tab_switch_cleanup(function () {
-                MSP.send_message(MSPCodes.MSP_SET_REBOOT, false, false, reinitialize);
-            });
-        });
-        orientationChainer.execute();
     }
 
     function checkFinishAccCalibrate() {
@@ -501,6 +432,7 @@ calibrationTab.initialize = function (callback) {
             FC.CALIBRATION_DATA.accGain[axis] = 4096;
             FC.CALIBRATION_DATA.accZero[axis] = 0;
         });
+        discardInvalidCompassCalibrations();
         saveChainer.execute();
     }
 
@@ -514,6 +446,7 @@ calibrationTab.initialize = function (callback) {
         $('#calibrateButtonSave').on('click.calibrationTab', function (event) {
             event.preventDefault();
             FC.CALIBRATION_DATA.opflow.Scale = parseFloat($('[name=OpflowScale]').val());
+            discardInvalidCompassCalibrations();
             saveChainer.execute();
         });
 
@@ -526,8 +459,6 @@ calibrationTab.initialize = function (callback) {
             '.compass-calibrate-button',
             startCompassCalibration,
         );
-        $('#applyCompassOrientation').on('click.calibrationTab', applyCompassOrientation);
-
         $('#opflow_btn').on('click.calibrationTab', function (event) {
             event.preventDefault();
             MSP.send_message(MSPCodes.MSP2_INAV_OPFLOW_CALIBRATION, false, false, function () {
@@ -577,7 +508,7 @@ calibrationTab.cleanup = function (callback) {
     interval.remove('opflow_calibration_interval');
     this.compassSession?.modal?.close();
     this.compassSession = null;
-    $('#compassCalibrationList, #applyCompassOrientation, #opflow_btn, #modal-start-button, #modal-stop-button, #calibrate-start-button, #calibrateButtonSave')
+    $('#compassCalibrationList, #opflow_btn, #modal-start-button, #modal-stop-button, #calibrate-start-button, #calibrateButtonSave')
         .off('.calibrationTab');
     if (callback) callback();
 };

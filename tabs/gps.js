@@ -43,6 +43,7 @@ import {
     HEADING_SOURCE_COUNT,
     HEADING_SOURCE_LABELS,
     HEADING_SOURCE_MOVING_BASELINE,
+    clearLegacyCompassYawOffsets,
     encodeHeadingConfig,
 } from '../js/flightCommander/headingFusion';
 import {
@@ -176,6 +177,9 @@ gpsTab.initialize = function (callback) {
 
         i18n.localize();
 
+        $('#flightCommanderDronecanGpsConfig, #flightCommanderHeadingConfig')
+            .appendTo('#flightCommanderGpsWorkspace');
+
         var fcFeatures = FC.getFeatures();
         const supportsRtkStatus = supportsRtkUart || supportsDronecanGps;
 
@@ -306,6 +310,10 @@ gpsTab.initialize = function (callback) {
         function renderHeadingConfig() {
             if (!supportsHeadingFusion || !FC.HEADING_CONFIG) return;
 
+            if (clearLegacyCompassYawOffsets(FC.HEADING_CONFIG)) {
+                GUI.log('Removed legacy compass yaw offsets from the GPS page. Configure each module orientation only in Alignment Tool.');
+            }
+
             for (let sourceIndex = 0; sourceIndex < HEADING_SOURCE_COUNT; sourceIndex += 1) {
                 const source = FC.HEADING_CONFIG.sources[sourceIndex];
                 const $priority = $(`#headingSourcePriority${sourceIndex}`).empty();
@@ -315,7 +323,6 @@ gpsTab.initialize = function (callback) {
                 $(`#headingSourceEnabled${sourceIndex}`).prop('checked', source.enabled);
                 $priority.val(String(source.priority));
                 $(`#headingSourceWeight${sourceIndex}`).val(source.weight);
-                $(`#headingSourceYaw${sourceIndex}`).val((source.yawOffsetCentidegrees / 100).toFixed(2));
             }
 
             const $hardware = $('#externalMagHardware').empty();
@@ -323,16 +330,6 @@ gpsTab.initialize = function (callback) {
                 $('<option/>').val(hardware.value).text(hardware.label).appendTo($hardware);
             }
             $hardware.val(String(FC.HEADING_CONFIG.externalMagHardware));
-
-            const externalAlignment = FC.HEADING_CONFIG.externalMagAlignmentDecidegrees;
-            $('#externalMagRoll').val((externalAlignment[0] / 10).toFixed(1));
-            $('#externalMagPitch').val((externalAlignment[1] / 10).toFixed(1));
-            $('#externalMagYaw').val((externalAlignment[2] / 10).toFixed(1));
-
-            const dronecanAlignment = FC.HEADING_CONFIG.dronecanMagAlignmentDecidegrees;
-            $('#dronecanMagRoll').val((dronecanAlignment[0] / 10).toFixed(1));
-            $('#dronecanMagPitch').val((dronecanAlignment[1] / 10).toFixed(1));
-            $('#dronecanMagYaw').val((dronecanAlignment[2] / 10).toFixed(1));
 
             $('#movingBaselineEnabled').prop('checked', FC.HEADING_CONFIG.movingBaselineEnabled);
             $('#movingBaselineProvider').val(String(FC.HEADING_CONFIG.movingBaselineProvider));
@@ -351,24 +348,14 @@ gpsTab.initialize = function (callback) {
 
         function collectHeadingConfig() {
             const config = FC.HEADING_CONFIG;
+            clearLegacyCompassYawOffsets(config);
             for (let sourceIndex = 0; sourceIndex < HEADING_SOURCE_COUNT; sourceIndex += 1) {
                 config.sources[sourceIndex].enabled = $(`#headingSourceEnabled${sourceIndex}`).prop('checked');
                 config.sources[sourceIndex].priority = Number.parseInt($(`#headingSourcePriority${sourceIndex}`).val(), 10);
                 config.sources[sourceIndex].weight = Number.parseInt($(`#headingSourceWeight${sourceIndex}`).val(), 10);
-                config.sources[sourceIndex].yawOffsetCentidegrees = Math.round(Number.parseFloat($(`#headingSourceYaw${sourceIndex}`).val()) * 100);
             }
 
             config.externalMagHardware = Number.parseInt($('#externalMagHardware').val(), 10);
-            config.externalMagAlignmentDecidegrees = [
-                $('#externalMagRoll'),
-                $('#externalMagPitch'),
-                $('#externalMagYaw'),
-            ].map(($input) => Math.round(Number.parseFloat($input.val()) * 10));
-            config.dronecanMagAlignmentDecidegrees = [
-                $('#dronecanMagRoll'),
-                $('#dronecanMagPitch'),
-                $('#dronecanMagYaw'),
-            ].map(($input) => Math.round(Number.parseFloat($input.val()) * 10));
 
             config.movingBaselineEnabled = supportsMovingBaseline && $('#movingBaselineEnabled').prop('checked');
             config.sources[HEADING_SOURCE_MOVING_BASELINE].enabled = config.movingBaselineEnabled;

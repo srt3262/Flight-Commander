@@ -1,5 +1,55 @@
 # Changelog
 
+## 3.0.1
+
+- Corrected the magnetic heading correction sign so estimated-minus-measured
+  error is removed from yaw rather than added to it.
+- Corrected moving-baseline yaw to use the aircraft body-X/front axis and the
+  INAV Earth-frame heading vector instead of body Z and a vector reversed by
+  180 degrees.
+- Made onboard, external-I2C, selected DroneCAN, and moving-baseline alignment
+  drafts independent through edit, save, and reload, while retaining the full
+  live diagnostic display on the Alignment tab.
+- Replaced ambiguous alignment models with readable source-specific
+  schematics, axes, connector/antenna references, and active-source identity.
+- Reworked GPS source priority and weight settings into one compact four-row
+  group below the map, using the available tab width without horizontal
+  scrolling or duplicate alignment controls.
+- Removed firmware from the Windows Configurator and Configurator source ZIP.
+  The flasher now exposes only **Load Firmware Locally**, **Load Online
+  Firmware**, and **Flash**, with the standalone HEX downloaded from GitHub.
+- Added calibration plausibility gates that reject degenerate sample coverage,
+  unsafe offsets, non-finite results, and unbalanced gains before a magnetic
+  source can enter heading fusion.
+
+## 3.0.0
+
+- Rebuilt Flight Commander Firmware 3.0.0 from the official INAV 9.1.0
+  MICOAIR743 target, with a protected upstream target, compass, bus,
+  calibration, and IMU baseline.
+- Enabled the complete Flight Commander capability set, including weighted
+  heading fusion, UART and DroneCAN moving-baseline yaw, RTK correction paths,
+  DroneCAN GPS and battery support, mission extensions, photo triggers,
+  terrain waypoints, mission resume, native GCS commands, and multirotor
+  autotune.
+- Added u-blox `UBX-NAV-RELPOSNED` parsing and output-rate configuration for
+  UART moving-baseline rovers, carrier-fix/accuracy/baseline guards, and
+  best-accuracy automatic selection between UART and DroneCAN relative heading.
+- Retained the Alignment tab's live source diagnostics and normal editable
+  INAV alignment controls while removing the former board-specific compass
+  orientation override.
+- Standardized releases as one complete ZIP containing the Windows x64
+  Configurator, Configurator source, MICOAIR743 firmware HEX, and matching
+  firmware source ZIP.
+- Separated **Download Online Firmware**, **Use Bundled Firmware**, and
+  **Select Local Firmware File** into independent source actions. Selecting a
+  bundled version no longer renames or replaces the online-download action,
+  and an online failure no longer silently substitutes bundled firmware.
+- Added byte-count and SHA-256 verification for online Flight Commander HEX
+  assets and retained a standalone GitHub HEX service asset so the online
+  flasher works while the complete four-component ZIP remains the normal
+  release download.
+
 ## 2.0.6
 
 - Rebuilt Flight Commander Firmware and Configurator together at version 2.0.6.

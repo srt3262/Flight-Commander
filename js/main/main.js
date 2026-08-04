@@ -5,7 +5,7 @@ import Store from "electron-store";
 import path from 'path';
 import { fileURLToPath } from 'node:url';
 import started from 'electron-squirrel-startup';
-import { writeFile, readFile, appendFile, readdir } from 'node:fs/promises';
+import { writeFile, readFile, appendFile } from 'node:fs/promises';
 import flightCommanderIconDataUrl from '../../images/flight_commander_256.png';
 
 import tcp from './tcp';
@@ -37,23 +37,6 @@ function getSitlBasePath() {
   } else {
     return path.join(app.getAppPath(), 'resources', 'public', 'sitl');
   }
-}
-
-const FLIGHT_COMMANDER_FIRMWARE_FILENAME =
-  /^Flight-Commander-Firmware-\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?-(?:MICOAIR743|MICROAIR743)(?:-BENCH-ONLY)?\.hex$/i;
-
-function getFlightCommanderFirmwareBasePath() {
-  return app.isPackaged
-    ? path.join(process.resourcesPath, 'firmware')
-    : path.join(app.getAppPath(), 'resources', 'firmware');
-}
-
-function resolveBundledFlightCommanderFirmware(filename) {
-  const basename = path.basename(String(filename ?? ''));
-  if (basename !== filename || !FLIGHT_COMMANDER_FIRMWARE_FILENAME.test(basename)) {
-    throw new Error('Invalid bundled Flight Commander Firmware filename.');
-  }
-  return path.join(getFlightCommanderFirmwareBasePath(), basename);
 }
 
 const usbBootloaderIds =  [
@@ -495,25 +478,6 @@ app.whenReady().then(() => {
         resolve({error: err});
       }
     });
-  });
-
-  ipcMain.handle('listBundledFlightCommanderFirmware', async () => {
-    try {
-      const files = await readdir(getFlightCommanderFirmwareBasePath());
-      return files.filter((file) => FLIGHT_COMMANDER_FIRMWARE_FILENAME.test(file));
-    } catch (error) {
-      if (error?.code === 'ENOENT') return [];
-      throw error;
-    }
-  });
-
-  ipcMain.handle('readBundledFlightCommanderFirmware', async (_event, filename) => {
-    try {
-      const data = await readFile(resolveBundledFlightCommanderFirmware(filename), 'utf8');
-      return { error: false, data };
-    } catch (error) {
-      return { error: String(error?.message ?? error) };
-    }
   });
 
   ipcMain.handle('chmod', (_event, pathName, mode) => {

@@ -26,7 +26,7 @@ jobs:
         github.event_name == 'workflow_dispatch' ||
         (
           github.event_name == 'push' &&
-          github.event.head_commit.message == 'Publish Flight Commander 2.0.6 release'
+          github.event.head_commit.message == 'Publish Flight Commander 3.0.1 release'
         )
       )
     runs-on: ubuntu-latest
@@ -67,7 +67,7 @@ jobs:
         github.event_name == 'workflow_dispatch' ||
         (
           github.event_name == 'push' &&
-          github.event.head_commit.message == 'Publish Flight Commander 2.0.6 release'
+          github.event.head_commit.message == 'Publish Flight Commander 3.0.1 release'
         )
       )
     runs-on: windows-latest
@@ -97,6 +97,9 @@ jobs:
       firmware_source_version: ${{ steps.candidate.outputs.firmware_source_version }}
       firmware_source_revision: ${{ steps.candidate.outputs.firmware_source_revision }}
       firmware_source_tree: ${{ steps.candidate.outputs.firmware_source_tree }}
+      complete_bundle_name: ${{ steps.candidate.outputs.complete_bundle_name }}
+      complete_bundle_sha256: ${{ steps.candidate.outputs.complete_bundle_sha256 }}
+      complete_bundle_bytes: ${{ steps.candidate.outputs.complete_bundle_bytes }}
       artifact_name: ${{ steps.candidate.outputs.artifact_name }}
       artifact_id: ${{ steps.upload.outputs.artifact-id }}
       artifact_digest: ${{ steps.upload.outputs.artifact-digest }}
@@ -209,15 +212,15 @@ jobs:
           if ($version -cnotmatch $semverPattern) {
             throw "package.json version is not strict SemVer: $version"
           }
-          $firmwareVersion = [string]$manifest.flightCommander.bundledFirmwareVersion
+          $firmwareVersion = [string]$manifest.flightCommander.firmwareReleaseVersion
           if ($firmwareVersion -cnotmatch $semverPattern) {
-            throw "The bundled firmware version is not strict SemVer: $firmwareVersion"
+            throw "The published firmware version is not strict SemVer: $firmwareVersion"
           }
           $declaredFirmwareSha256 = (
-            [string]$manifest.flightCommander.bundledFirmwareSha256
+            [string]$manifest.flightCommander.firmwareReleaseSha256
           ).Trim().ToLowerInvariant()
           if ($declaredFirmwareSha256 -cnotmatch '^[0-9a-f]{64}$') {
-            throw 'flightCommander.bundledFirmwareSha256 must be a lowercase SHA-256.'
+            throw 'flightCommander.firmwareReleaseSha256 must be a lowercase SHA-256.'
           }
           $firmwareChangedValue = $manifest.flightCommander.firmwareChangedInRelease
           if ($null -eq $firmwareChangedValue -or $firmwareChangedValue -isnot [bool]) {
@@ -232,19 +235,19 @@ jobs:
           if ($firmwareChangedInRelease -and $firmwareVersion -cne $version) {
             throw 'A firmware-changing release must rebuild firmware at the exact Configurator version.'
           }
-          $firmwareSourceAvailableValue = $manifest.flightCommander.bundledFirmwareSourceAvailable
+          $firmwareSourceAvailableValue = $manifest.flightCommander.firmwareSourceAvailable
           if (
             $null -eq $firmwareSourceAvailableValue -or
             $firmwareSourceAvailableValue -isnot [bool]
           ) {
-            throw 'flightCommander.bundledFirmwareSourceAvailable must be a boolean.'
+            throw 'flightCommander.firmwareSourceAvailable must be a boolean.'
           }
           [bool]$firmwareSourceAvailable = $firmwareSourceAvailableValue
-          $firmwareSourceVersionValue = $manifest.flightCommander.bundledFirmwareSourceVersion
-          $firmwareSourceArchiveValue = $manifest.flightCommander.bundledFirmwareSourceArchive
-          $declaredFirmwareSourceSha256Value = $manifest.flightCommander.bundledFirmwareSourceSha256
-          $firmwareSourceRevisionValue = $manifest.flightCommander.bundledFirmwareSourceRevision
-          $firmwareSourceTreeValue = $manifest.flightCommander.bundledFirmwareSourceTree
+          $firmwareSourceVersionValue = $manifest.flightCommander.firmwareSourceVersion
+          $firmwareSourceArchiveValue = $manifest.flightCommander.firmwareSourceArchive
+          $declaredFirmwareSourceSha256Value = $manifest.flightCommander.firmwareSourceSha256
+          $firmwareSourceRevisionValue = $manifest.flightCommander.firmwareSourceRevision
+          $firmwareSourceTreeValue = $manifest.flightCommander.firmwareSourceTree
           $firmwareSourceVersion = if ($null -eq $firmwareSourceVersionValue) {
             ''
           } else {
@@ -281,9 +284,9 @@ jobs:
           }
           if ($firmwareSourceAvailable) {
             if ($firmwareSourceVersion -cne $firmwareVersion) {
-              throw 'The bundled firmware source version must exactly match the bundled firmware HEX version.'
+              throw 'The published firmware source version must exactly match the published firmware HEX version.'
             }
-            $expectedFirmwareSourceArchive = "resources/firmware-source/Flight-Commander-Firmware-Source-v$firmwareVersion.zip"
+            $expectedFirmwareSourceArchive = "release/firmware/Flight-Commander-Firmware-Source-v$firmwareVersion.zip"
             if (
               [string]::IsNullOrWhiteSpace($firmwareSourceArchive) -or
               $firmwareSourceArchive -cnotmatch '^[A-Za-z0-9._/-]+$' -or
@@ -333,20 +336,44 @@ jobs:
           }
           $package = $packages[0]
 
+          $serialPrebuilds = Join-Path $package.FullName (
+            'resources/app/.vite/build/node_natives/node_modules/@serialport/bindings-cpp/prebuilds'
+          )
+          $serialPrebuildTargets = @(
+            Get-ChildItem -LiteralPath $serialPrebuilds -Directory
+          )
+          if (
+            $serialPrebuildTargets.Count -ne 1 -or
+            $serialPrebuildTargets[0].Name -cne 'win32-x64'
+          ) {
+            throw 'The Windows package must contain only the win32-x64 serial native prebuild.'
+          }
+          $windowsExtractedPathBudget = 140
+          $overlongPackageFiles = @(
+            Get-ChildItem -LiteralPath $package.FullName -File -Recurse |
+              Where-Object {
+                $_.FullName.Substring($package.FullName.Length + 1).Length -gt
+                  $windowsExtractedPathBudget
+              }
+          )
+          if ($overlongPackageFiles.Count -gt 0) {
+            throw "Windows extracted-path budget exceeded by $($overlongPackageFiles[0].FullName)."
+          }
+
           $candidateDirectory = Join-Path $env:GITHUB_WORKSPACE 'release-candidate'
           if (Test-Path -LiteralPath $candidateDirectory) {
             throw "Release candidate directory already exists: $candidateDirectory"
           }
           $null = New-Item -ItemType Directory -Path $candidateDirectory
-          $windowsArchiveName = "Flight-Commander-Configurator-Windows-x64-v$version.zip"
+          $windowsArchiveName = "FC-Windows-v$version.zip"
           $windowsArchivePath = Join-Path $candidateDirectory $windowsArchiveName
-          $sourceArchiveName = "Flight-Commander-Configurator-Source-v$version.zip"
+          $sourceArchiveName = "FC-Configurator-Source-v$version.zip"
           $sourceArchivePath = Join-Path $candidateDirectory $sourceArchiveName
           $firmwareImageName = "Flight-Commander-Firmware-$firmwareVersion-MICOAIR743.hex"
-          $firmwareName = $firmwareImageName
+          $firmwareName = "FC-Firmware-v$firmwareVersion-MICOAIR743.hex"
           $firmwarePath = Join-Path $candidateDirectory $firmwareName
           $firmwareSourceArchiveName = if ($firmwareSourceAvailable) {
-            "Flight-Commander-Firmware-Source-v$firmwareVersion.zip"
+            "FC-Firmware-Source-v$firmwareVersion.zip"
           } else {
             ''
           }
@@ -355,7 +382,12 @@ jobs:
           } else {
             ''
           }
-          $firmwareDirectory = Join-Path $env:GITHUB_WORKSPACE 'resources/firmware'
+          if (-not $firmwareSourceAvailable) {
+            throw 'Complete Flight Commander release bundles always require firmware source.'
+          }
+          $completeBundleName = "Flight-Commander-v$version.zip"
+          $completeBundlePath = Join-Path $candidateDirectory $completeBundleName
+          $firmwareDirectory = Join-Path $env:GITHUB_WORKSPACE 'release/firmware'
           $firmwareImages = @(
             Get-ChildItem -LiteralPath $firmwareDirectory -File -Filter '*.hex'
           )
@@ -382,7 +414,7 @@ jobs:
             throw 'The Windows release archive was not created.'
           }
 
-          $sourcePrefix = "Flight-Commander-Configurator-Source-v$version/"
+          $sourcePrefix = "FC-Configurator-Source-v$version/"
           & git archive --format=zip "--prefix=$sourcePrefix" `
             "--output=$sourceArchivePath" $expectedSha
           if ($LASTEXITCODE -ne 0) {
@@ -459,13 +491,16 @@ jobs:
             ) -Raw
             if (
               $micoAirTargetCmake -notmatch 'target_stm32h743xi\(MICOAIR743' -or
-              $micoAirTargetCmake -match 'MICOAIR743_EXTMAG' -or
               $micoAirTargetHeader -notmatch '#define MAG_I2C_BUS\s+BUS_I2C2' -or
-              $micoAirTargetHeader -match 'MICOAIR743_EXTMAG' -or
-              $micoAirTargetConfig -notmatch 'mag_align\s*=\s*CW90_DEG' -or
-              $micoAirTargetConfig -match 'MICOAIR743_EXTMAG'
+              $micoAirTargetConfig -match 'mag_align\s*=\s*CW90_DEG' -or
+              -not (Test-Path -LiteralPath (
+                Join-Path $firmwareSourceRoot 'flight-commander/INAV-9.1.0-BASELINE.json'
+              ) -PathType Leaf) -or
+              -not (Test-Path -LiteralPath (
+                Join-Path $firmwareSourceRoot 'flight-commander/verify-release.py'
+              ) -PathType Leaf)
             ) {
-              throw 'The retained source does not implement the single onboard-IST8310 CW90 target contract.'
+              throw 'The retained source does not preserve the official INAV 9.1.0 MICOAIR743 compass baseline.'
             }
             Remove-Item -LiteralPath $firmwareSourceExtractionDirectory -Recurse -Force
           }
@@ -506,7 +541,7 @@ jobs:
             throw 'The source archive package version does not match the release.'
           }
           if (
-            [string]$sourceManifest.flightCommander.bundledFirmwareVersion -cne
+            [string]$sourceManifest.flightCommander.firmwareReleaseVersion -cne
             $firmwareVersion
           ) {
             throw 'The source archive firmware version does not match the release asset.'
@@ -519,7 +554,7 @@ jobs:
           ) {
             throw 'The source archive firmware-change declaration does not match the release.'
           }
-          $sourceFirmwareSourceAvailable = $sourceManifest.flightCommander.bundledFirmwareSourceAvailable
+          $sourceFirmwareSourceAvailable = $sourceManifest.flightCommander.firmwareSourceAvailable
           if (
             $null -eq $sourceFirmwareSourceAvailable -or
             $sourceFirmwareSourceAvailable -isnot [bool] -or
@@ -528,15 +563,51 @@ jobs:
             throw 'The Configurator source archive firmware-source declaration does not match the release.'
           }
           if ($firmwareSourceAvailable -and (
-            [string]$sourceManifest.flightCommander.bundledFirmwareSourceVersion -cne $firmwareSourceVersion -or
-            [string]$sourceManifest.flightCommander.bundledFirmwareSourceArchive -cne $firmwareSourceArchive -or
-            [string]$sourceManifest.flightCommander.bundledFirmwareSourceSha256 -cne $declaredFirmwareSourceSha256 -or
-            [string]$sourceManifest.flightCommander.bundledFirmwareSourceRevision -cne $firmwareSourceRevision -or
-            [string]$sourceManifest.flightCommander.bundledFirmwareSourceTree -cne $firmwareSourceTree
+            [string]$sourceManifest.flightCommander.firmwareSourceVersion -cne $firmwareSourceVersion -or
+            [string]$sourceManifest.flightCommander.firmwareSourceArchive -cne $firmwareSourceArchive -or
+            [string]$sourceManifest.flightCommander.firmwareSourceSha256 -cne $declaredFirmwareSourceSha256 -or
+            [string]$sourceManifest.flightCommander.firmwareSourceRevision -cne $firmwareSourceRevision -or
+            [string]$sourceManifest.flightCommander.firmwareSourceTree -cne $firmwareSourceTree
           )) {
             throw 'The Configurator source archive does not identify the retained firmware source.'
           }
           Remove-Item -LiteralPath $sourceExtractionDirectory -Recurse -Force
+
+          $bundleInputPaths = @(
+            $windowsArchivePath,
+            $sourceArchivePath,
+            $firmwarePath,
+            $firmwareSourceArchivePath
+          )
+          $bundleArchive = [System.IO.Compression.ZipFile]::Open(
+            $completeBundlePath,
+            [System.IO.Compression.ZipArchiveMode]::Create
+          )
+          try {
+            foreach ($bundleInputPath in $bundleInputPaths) {
+              $null = [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
+                $bundleArchive,
+                $bundleInputPath,
+                [IO.Path]::GetFileName($bundleInputPath),
+                [System.IO.Compression.CompressionLevel]::Optimal
+              )
+            }
+          } finally {
+            $bundleArchive.Dispose()
+          }
+          $bundleReadback = [System.IO.Compression.ZipFile]::OpenRead($completeBundlePath)
+          try {
+            $actualBundleEntries = @($bundleReadback.Entries | ForEach-Object { $_.FullName })
+          } finally {
+            $bundleReadback.Dispose()
+          }
+          $expectedBundleEntries = @($bundleInputPaths | ForEach-Object { [IO.Path]::GetFileName($_) })
+          if (
+            $actualBundleEntries.Count -ne 4 -or
+            (Compare-Object $expectedBundleEntries $actualBundleEntries).Count -ne 0
+          ) {
+            throw 'The complete release ZIP must contain exactly the four canonical release files.'
+          }
 
           $windowsArchiveFile = Get-Item -LiteralPath $windowsArchivePath
           $windowsArchiveSha256 = (
@@ -565,6 +636,10 @@ jobs:
               throw 'The staged firmware source ZIP SHA-256 does not match package.json.'
             }
           }
+          $completeBundleFile = Get-Item -LiteralPath $completeBundlePath
+          $completeBundleSha256 = (
+            Get-FileHash -LiteralPath $completeBundlePath -Algorithm SHA256
+          ).Hash.ToLowerInvariant()
           $artifactName = "flight-commander-release-$expectedSha"
           $releaseAssets = [ordered]@{
             windows = [ordered]@{
@@ -597,8 +672,14 @@ jobs:
               bytes = $firmwareSourceArchiveBytes
             }
           }
+          $releaseAssets['completeBundle'] = [ordered]@{
+            name = $completeBundleName
+            sha256 = $completeBundleSha256
+            bytes = $completeBundleFile.Length
+            entries = $expectedBundleEntries
+          }
           $releaseManifest = [ordered]@{
-            schemaVersion = 7
+            schemaVersion = 8
             version = $version
             commitSha = $expectedSha
             firmwareChangedInRelease = $firmwareChangedInRelease
@@ -633,6 +714,9 @@ jobs:
           "firmware_source_version=$firmwareSourceVersion" >> $env:GITHUB_OUTPUT
           "firmware_source_revision=$firmwareSourceRevision" >> $env:GITHUB_OUTPUT
           "firmware_source_tree=$firmwareSourceTree" >> $env:GITHUB_OUTPUT
+          "complete_bundle_name=$completeBundleName" >> $env:GITHUB_OUTPUT
+          "complete_bundle_sha256=$completeBundleSha256" >> $env:GITHUB_OUTPUT
+          "complete_bundle_bytes=$($completeBundleFile.Length)" >> $env:GITHUB_OUTPUT
           "artifact_name=$artifactName" >> $env:GITHUB_OUTPUT
 
       - name: Upload immutable release candidate
@@ -690,6 +774,9 @@ jobs:
           FIRMWARE_SOURCE_VERSION: ${{ needs.build.outputs.firmware_source_version }}
           FIRMWARE_SOURCE_REVISION: ${{ needs.build.outputs.firmware_source_revision }}
           FIRMWARE_SOURCE_TREE: ${{ needs.build.outputs.firmware_source_tree }}
+          COMPLETE_BUNDLE_NAME: ${{ needs.build.outputs.complete_bundle_name }}
+          COMPLETE_BUNDLE_SHA256: ${{ needs.build.outputs.complete_bundle_sha256 }}
+          COMPLETE_BUNDLE_BYTES: ${{ needs.build.outputs.complete_bundle_bytes }}
           RELEASE_ARTIFACT_DIGEST: ${{ needs.build.outputs.artifact_digest }}
         run: |
           $ErrorActionPreference = 'Stop'
@@ -733,6 +820,10 @@ jobs:
           $firmwareSourceVersion = $env:FIRMWARE_SOURCE_VERSION.Trim()
           $firmwareSourceRevision = ([string]$env:FIRMWARE_SOURCE_REVISION).Trim().ToLowerInvariant()
           $firmwareSourceTree = ([string]$env:FIRMWARE_SOURCE_TREE).Trim().ToLowerInvariant()
+          $completeBundleName = $env:COMPLETE_BUNDLE_NAME.Trim()
+          $expectedCompleteBundleSha256 = (
+            $env:COMPLETE_BUNDLE_SHA256.Trim().ToLowerInvariant()
+          )
           $artifactDigest = $env:RELEASE_ARTIFACT_DIGEST.Trim().ToLowerInvariant()
           $semverPattern = '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$'
 
@@ -745,15 +836,19 @@ jobs:
           if ($version -cnotmatch $semverPattern) {
             throw "The build job returned an invalid SemVer version: $version"
           }
-          $expectedWindowsArchiveName = "Flight-Commander-Configurator-Windows-x64-v$version.zip"
+          $expectedWindowsArchiveName = "FC-Windows-v$version.zip"
           if ($windowsArchiveName -cne $expectedWindowsArchiveName) {
             throw "Unexpected Windows archive name: $windowsArchiveName"
           }
-          $expectedSourceArchiveName = "Flight-Commander-Configurator-Source-v$version.zip"
+          $expectedSourceArchiveName = "FC-Configurator-Source-v$version.zip"
           if ($sourceArchiveName -cne $expectedSourceArchiveName) {
             throw "Unexpected source archive name: $sourceArchiveName"
           }
-          $expectedFirmwareName = "Flight-Commander-Firmware-$firmwareVersion-MICOAIR743.hex"
+          $expectedCompleteBundleName = "Flight-Commander-v$version.zip"
+          if ($completeBundleName -cne $expectedCompleteBundleName) {
+            throw "Unexpected complete release bundle name: $completeBundleName"
+          }
+          $expectedFirmwareName = "FC-Firmware-v$firmwareVersion-MICOAIR743.hex"
           if ($firmwareName -cne $expectedFirmwareName) {
             throw "Unexpected firmware asset name: $firmwareName"
           }
@@ -782,7 +877,7 @@ jobs:
             throw 'Every release after the one-time Configurator 2.0.5 legacy exception must publish exact firmware source.'
           }
           if ($firmwareSourceAvailable) {
-            $expectedFirmwareSourceArchiveName = "Flight-Commander-Firmware-Source-v$firmwareVersion.zip"
+            $expectedFirmwareSourceArchiveName = "FC-Firmware-Source-v$firmwareVersion.zip"
             if ($firmwareSourceArchiveName -cne $expectedFirmwareSourceArchiveName) {
               throw "Unexpected firmware source archive name: $firmwareSourceArchiveName"
             }
@@ -819,6 +914,9 @@ jobs:
           }
           if ($expectedFirmwareImageSha256 -cnotmatch '^[0-9a-f]{64}$') {
             throw 'The build job returned an invalid firmware image SHA-256.'
+          }
+          if ($expectedCompleteBundleSha256 -cnotmatch '^[0-9a-f]{64}$') {
+            throw 'The build job returned an invalid complete bundle SHA-256.'
           }
           if ($artifactDigest -cnotmatch '^(sha256:)?[0-9a-f]{64}$') {
             throw 'The upload action returned an invalid artifact digest.'
@@ -864,6 +962,16 @@ jobs:
           )) {
             throw 'The build job returned an invalid firmware source archive byte count.'
           }
+          [long]$expectedCompleteBundleBytes = 0
+          if (
+            -not [long]::TryParse(
+              $env:COMPLETE_BUNDLE_BYTES,
+              [ref]$expectedCompleteBundleBytes
+            ) -or
+            $expectedCompleteBundleBytes -le 0
+          ) {
+            throw 'The build job returned an invalid complete bundle byte count.'
+          }
 
           $candidateDirectory = Join-Path $env:GITHUB_WORKSPACE 'release-candidate'
           $windowsArchivePath = Join-Path $candidateDirectory $windowsArchiveName
@@ -874,9 +982,10 @@ jobs:
           } else {
             ''
           }
+          $completeBundlePath = Join-Path $candidateDirectory $completeBundleName
           $manifestPath = Join-Path $candidateDirectory 'release-manifest.json'
           $candidateFiles = @(Get-ChildItem -LiteralPath $candidateDirectory -File)
-          $expectedCandidateFileCount = if ($firmwareSourceAvailable) { 5 } else { 4 }
+          $expectedCandidateFileCount = 6
           if ($candidateFiles.Count -ne $expectedCandidateFileCount) {
             throw "Expected $expectedCandidateFileCount candidate files; found $($candidateFiles.Count)."
           }
@@ -884,6 +993,7 @@ jobs:
             $windowsArchivePath,
             $sourceArchivePath,
             $firmwarePath,
+            $completeBundlePath,
             $manifestPath
           )
           if ($firmwareSourceAvailable) {
@@ -912,7 +1022,7 @@ jobs:
             throw 'Downloaded release manifest has no valid firmware-source declaration.'
           }
           if (
-            [int]$releaseManifest.schemaVersion -ne 7 -or
+            [int]$releaseManifest.schemaVersion -ne 8 -or
             [string]$releaseManifest.version -cne $version -or
             [string]$releaseManifest.commitSha -cne $expectedSha -or
             [bool]$manifestFirmwareChanged -ne $firmwareChangedInRelease -or
@@ -928,7 +1038,10 @@ jobs:
             [string]$releaseManifest.assets.firmware.imageVersion -cne $firmwareVersion -or
             [string]$releaseManifest.assets.firmware.imageSha256 -cne $expectedFirmwareImageSha256 -or
             [string]$releaseManifest.assets.firmware.sha256 -cne $expectedFirmwareSha256 -or
-            [long]$releaseManifest.assets.firmware.bytes -ne $expectedFirmwareBytes
+            [long]$releaseManifest.assets.firmware.bytes -ne $expectedFirmwareBytes -or
+            [string]$releaseManifest.assets.completeBundle.name -cne $completeBundleName -or
+            [string]$releaseManifest.assets.completeBundle.sha256 -cne $expectedCompleteBundleSha256 -or
+            [long]$releaseManifest.assets.completeBundle.bytes -ne $expectedCompleteBundleBytes
           ) {
             throw 'Downloaded release manifest does not match the build outputs.'
           }
@@ -936,7 +1049,7 @@ jobs:
             if (
               [string]$releaseManifest.assets.firmwareSource.name -cne $firmwareSourceArchiveName -or
               [string]$releaseManifest.assets.firmwareSource.version -cne $firmwareSourceVersion -or
-              [string]$releaseManifest.assets.firmwareSource.sourceArchive -cne "resources/firmware-source/$firmwareSourceArchiveName" -or
+              [string]$releaseManifest.assets.firmwareSource.sourceArchive -cne "release/firmware/Flight-Commander-Firmware-Source-v$firmwareVersion.zip" -or
               [string]$releaseManifest.assets.firmwareSource.sourceRevision -cne $firmwareSourceRevision -or
               [string]$releaseManifest.assets.firmwareSource.sourceTree -cne $firmwareSourceTree -or
               [string]$releaseManifest.assets.firmwareSource.sha256 -cne $expectedFirmwareSourceArchiveSha256 -or
@@ -995,6 +1108,47 @@ jobs:
               throw 'Firmware source archive SHA-256 changed after artifact upload/download.'
             }
           }
+          $completeBundleFile = Get-Item -LiteralPath $completeBundlePath
+          if ($completeBundleFile.Length -ne $expectedCompleteBundleBytes) {
+            throw "Complete bundle size changed after upload: $($completeBundleFile.Length)."
+          }
+          $actualCompleteBundleSha256 = (
+            Get-FileHash -LiteralPath $completeBundlePath -Algorithm SHA256
+          ).Hash.ToLowerInvariant()
+          if ($actualCompleteBundleSha256 -cne $expectedCompleteBundleSha256) {
+            throw 'Complete release bundle SHA-256 changed after artifact upload/download.'
+          }
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $bundleVerificationDirectory = Join-Path (
+            $env:RUNNER_TEMP
+          ) "flight-commander-complete-$([Guid]::NewGuid().ToString('N'))"
+          $null = New-Item -ItemType Directory -Path $bundleVerificationDirectory
+          [System.IO.Compression.ZipFile]::ExtractToDirectory(
+            $completeBundlePath,
+            $bundleVerificationDirectory
+          )
+          $bundleFiles = @(Get-ChildItem -LiteralPath $bundleVerificationDirectory -File)
+          $expectedBundleNames = @(
+            $windowsArchiveName,
+            $sourceArchiveName,
+            $firmwareName,
+            $firmwareSourceArchiveName
+          )
+          if (
+            $bundleFiles.Count -ne 4 -or
+            (Compare-Object $expectedBundleNames @($bundleFiles.Name)).Count -ne 0
+          ) {
+            throw 'Complete release bundle does not contain exactly the four canonical files.'
+          }
+          foreach ($bundleName in $expectedBundleNames) {
+            $candidatePath = Join-Path $candidateDirectory $bundleName
+            $bundledPath = Join-Path $bundleVerificationDirectory $bundleName
+            if ((Get-FileHash $candidatePath -Algorithm SHA256).Hash -cne
+                (Get-FileHash $bundledPath -Algorithm SHA256).Hash) {
+              throw "Complete release bundle entry changed: $bundleName"
+            }
+          }
+          Remove-Item -LiteralPath $bundleVerificationDirectory -Recurse -Force
 
           $headers = @{
             Accept = 'application/vnd.github+json'
@@ -1042,33 +1196,35 @@ jobs:
             "The unchanged compatible MICOAIR743 image remains truthfully versioned $firmwareVersion because these corrections require no flight-firmware binary change."
           }
           $firmwareSourceReleaseNote = if ($firmwareSourceAvailable) {
-            "The exact Firmware $firmwareSourceVersion source is included as a fourth verified download."
+            "The exact Firmware $firmwareSourceVersion source is included inside the complete release bundle."
           } else {
             "This is the one-time Configurator 2.0.5 legacy exception: the custom Firmware 2.0.1 source had already been lost and cannot be reconstructed exactly from the compiled HEX. Every later release is blocked unless exact firmware source is retained and published."
           }
-          $publishedDownloadCount = if ($firmwareSourceAvailable) { 'four' } else { 'three' }
           @"
           Flight Commander $version is a coordinated Configurator and Firmware
-          release. Firmware exposes exactly one supported board target,
-          MICOAIR743, and fixes its onboard IST8310 to the board-correct CW90
-          unflipped orientation. There is no separate external-compass firmware
-          target. UART and DroneCAN RTK modules and moving-baseline yaw remain
-          configurable peripherals.
+          release. Firmware is built from the official INAV 9.1.0 MICOAIR743
+          target and protects its target, compass drivers, bus, and calibration
+          baseline. Flight Commander heading fusion plus UART and DroneCAN
+          moving-baseline yaw enter through the AHRS yaw-reference stage.
 
           The retained Firmware source ZIP has one MICOAIR743 target, embeds
           source revision $firmwareSourceRevision and source tree
           $firmwareSourceTree, and rebuilds the published HEX with the pinned
-          Arm GNU 13.2.Rel1 toolchain. The Configurator keeps the migration guard
-          for aircraft carrying a saved alignment from older firmware.
+          Arm GNU 13.2.Rel1 toolchain. The Alignment tab retains live diagnostics
+          and normal editable INAV alignment without a forced compass override.
 
-          Firmware Flasher continues to separate Select Local Firmware File,
-          Download Online Firmware, Flash Selected Firmware, and the clearly
-          identified offline fallback.
+          Firmware Flasher keeps Load Firmware [Local], Load Firmware [Online],
+          and Flash Firmware as the three bottom actions. Online downloads are
+          checked against the GitHub asset byte count and SHA-256 and never
+          silently switch to an embedded or fallback image.
 
-          This release contains $publishedDownloadCount verified downloads: a
-          portable Windows x64 Configurator ZIP, Configurator source from the
-          exact tested commit, a directly flashable Flight Commander Firmware
-          HEX, and its matching Firmware source ZIP. $firmwareReleaseNote
+          This release keeps one verified complete human download. Inside it
+          are the portable Windows x64 Configurator ZIP, Configurator source
+          from the exact tested commit, directly flashable Flight Commander
+          Firmware HEX, and matching Firmware source ZIP. A second standalone
+          HEX service asset is published only so Download Online Firmware can
+          retrieve and verify the selected image without downloading the full
+          release bundle. $firmwareReleaseNote
           $firmwareSourceReleaseNote
 
           The Windows archive passed the complete repository source tests,
@@ -1082,17 +1238,20 @@ jobs:
           Source ZIP SHA-256: $actualSourceArchiveSha256
           Firmware HEX SHA-256: $actualFirmwareSha256
           $(if ($firmwareSourceAvailable) { "Firmware source ZIP SHA-256: $actualFirmwareSourceArchiveSha256" })
+          Complete release ZIP SHA-256: $actualCompleteBundleSha256
           GitHub Actions artifact digest: $artifactDigest
           "@ | Set-Content -LiteralPath $notesPath -Encoding utf8
 
-          $releaseAssetPaths = @(
-            $windowsArchivePath,
-            $sourceArchivePath,
-            $firmwarePath
-          )
-          if ($firmwareSourceAvailable) {
-            $releaseAssetPaths += $firmwareSourceArchivePath
+          $onlineFirmwarePath = Join-Path $candidateDirectory $firmwareImageName
+          Copy-Item -LiteralPath $firmwarePath -Destination $onlineFirmwarePath
+          if (
+            (Get-Item -LiteralPath $onlineFirmwarePath).Length -ne $expectedFirmwareBytes -or
+            (Get-FileHash -LiteralPath $onlineFirmwarePath -Algorithm SHA256).Hash.ToLowerInvariant() -cne
+              $expectedFirmwareImageSha256
+          ) {
+            throw 'The standalone online-flasher firmware asset differs from the verified firmware image.'
           }
+          $releaseAssetPaths = @($completeBundlePath, $onlineFirmwarePath)
           gh release create $tag @releaseAssetPaths `
             --repo $env:GITHUB_REPOSITORY `
             --target $expectedSha `
@@ -1107,49 +1266,28 @@ jobs:
             throw "Published release could not be read back."
           }
           $release = $publishedRelease.Content | ConvertFrom-Json
-          $expectedPublishedAssetCount = if ($firmwareSourceAvailable) { 4 } else { 3 }
+          $expectedPublishedAssetCount = 2
           if (@($release.assets).Count -ne $expectedPublishedAssetCount) {
             throw "Expected exactly $expectedPublishedAssetCount published release assets; found $(@($release.assets).Count)."
           }
-          $windowsAsset = @(
+          $completeBundleAsset = @(
             $release.assets |
-              Where-Object { $_.name -ceq $windowsArchiveName }
+              Where-Object { $_.name -ceq $completeBundleName }
           )
           if (
-            $windowsAsset.Count -ne 1 -or
-            [long]$windowsAsset[0].size -ne $expectedWindowsArchiveBytes
+            $completeBundleAsset.Count -ne 1 -or
+            [long]$completeBundleAsset[0].size -ne $expectedCompleteBundleBytes
           ) {
-            throw 'Published Windows asset does not match the verified archive.'
+            throw 'Published complete release asset does not match the verified bundle.'
           }
-          $sourceAsset = @(
+          $onlineFirmwareAsset = @(
             $release.assets |
-              Where-Object { $_.name -ceq $sourceArchiveName }
+              Where-Object { $_.name -ceq $firmwareImageName }
           )
           if (
-            $sourceAsset.Count -ne 1 -or
-            [long]$sourceAsset[0].size -ne $expectedSourceArchiveBytes
+            $onlineFirmwareAsset.Count -ne 1 -or
+            [long]$onlineFirmwareAsset[0].size -ne $expectedFirmwareBytes -or
+            [string]$onlineFirmwareAsset[0].digest -cne "sha256:$expectedFirmwareImageSha256"
           ) {
-            throw 'Published source asset does not match the verified archive.'
-          }
-          $firmwareAsset = @(
-            $release.assets |
-              Where-Object { $_.name -ceq $firmwareName }
-          )
-          if (
-            $firmwareAsset.Count -ne 1 -or
-            [long]$firmwareAsset[0].size -ne $expectedFirmwareBytes
-          ) {
-            throw 'Published firmware asset does not match the verified HEX.'
-          }
-          if ($firmwareSourceAvailable) {
-            $firmwareSourceAsset = @(
-              $release.assets |
-                Where-Object { $_.name -ceq $firmwareSourceArchiveName }
-            )
-            if (
-              $firmwareSourceAsset.Count -ne 1 -or
-              [long]$firmwareSourceAsset[0].size -ne $expectedFirmwareSourceArchiveBytes
-            ) {
-              throw 'Published firmware source asset does not match the verified archive.'
-            }
+            throw 'Published online-flasher firmware asset does not match the verified HEX.'
           }

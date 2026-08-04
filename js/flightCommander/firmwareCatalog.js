@@ -51,7 +51,15 @@ export function flightCommanderReleaseDescriptors(releases = []) {
     if (release?.draft) continue;
     for (const asset of Array.isArray(release?.assets) ? release.assets : []) {
       const parsed = parseFlightCommanderFirmwareFilename(asset?.name);
-      if (!parsed) continue;
+      const digest = String(asset?.digest ?? "");
+      const bytes = asset?.size;
+      if (
+        !parsed
+        || !asset?.browser_download_url
+        || !/^sha256:[0-9a-f]{64}$/i.test(digest)
+        || !Number.isSafeInteger(bytes)
+        || bytes <= 0
+      ) continue;
       const publishedAt = release.published_at ?? release.created_at ?? null;
       descriptors.push(Object.freeze({
         releaseUrl: release.html_url ?? "",
@@ -70,7 +78,8 @@ export function flightCommanderReleaseDescriptors(releases = []) {
             ? "prerelease"
             : "stable",
         benchOnly: parsed.benchOnly,
-        digest: asset.digest ?? null,
+        digest,
+        bytes,
       }));
     }
   }
@@ -79,49 +88,49 @@ export function flightCommanderReleaseDescriptors(releases = []) {
   );
 }
 
-export function bundledFlightCommanderDescriptors(filenames = []) {
-  return filenames
-    .map((file) => {
-      const parsed = parseFlightCommanderFirmwareFilename(file);
-      if (!parsed) return null;
-      return Object.freeze({
-        releaseUrl: "",
-        name: `Flight Commander Firmware ${parsed.version}`,
-        version: parsed.version,
-        tag: parsed.version,
-        url: "",
-        file,
-        target_id: parsed.target_id,
-        target: parsed.target,
-        date: "Included with this Configurator",
-        notes: parsed.benchOnly
-          ? "Included propellers-off bench image. Review the release checklist before flashing."
-          : "Included and verified with this Configurator release.",
-        status: parsed.benchOnly ? "bundled bench-only" : "bundled",
-        benchOnly: parsed.benchOnly,
-        bundled: true,
-        digest: null,
-      });
-    })
-    .filter(Boolean)
-    .sort((left, right) =>
-      right.version.localeCompare(left.version, undefined, { numeric: true }),
-    );
+function firmwareBytes(payload) {
+  if (typeof payload === "string") return new TextEncoder().encode(payload);
+  if (payload instanceof ArrayBuffer) return new Uint8Array(payload);
+  if (ArrayBuffer.isView(payload)) {
+    return new Uint8Array(payload.buffer, payload.byteOffset, payload.byteLength);
+  }
+  throw new TypeError("Online firmware payload is not binary or text data.");
 }
 
-export function mergeFlightCommanderDescriptors(...collections) {
-  const merged = new Map();
-  for (const descriptor of collections.flat()) {
-    if (!descriptor) continue;
-    const key = `${normalizeFirmwareTarget(descriptor.target_id)}:${descriptor.version}`;
-    const current = merged.get(key);
-    if (!current || (current.bundled === true && descriptor.bundled !== true)) {
-      merged.set(key, descriptor);
-    }
+export async function verifyFlightCommanderOnlinePayload(
+  payload,
+  descriptor,
+  cryptoImplementation = globalThis.crypto,
+) {
+  const bytes = firmwareBytes(payload);
+  if (!Number.isSafeInteger(descriptor?.bytes) || descriptor.bytes <= 0) {
+    throw new Error("Online firmware has no verified release byte count.");
   }
-  return [...merged.values()].sort((left, right) =>
-    right.version.localeCompare(left.version, undefined, { numeric: true }),
+  if (bytes.byteLength !== descriptor.bytes) {
+    throw new Error(
+      `Online firmware size mismatch: expected ${descriptor.bytes} bytes, received ${bytes.byteLength}.`,
+    );
+  }
+
+  const digestMatch = /^sha256:([0-9a-f]{64})$/i.exec(
+    String(descriptor?.digest ?? ""),
   );
+  if (!digestMatch) {
+    throw new Error("Online firmware has no valid GitHub SHA-256 digest.");
+  }
+  if (!cryptoImplementation?.subtle?.digest) {
+    throw new Error("SHA-256 verification is unavailable in this Configurator session.");
+  }
+  const digestBytes = new Uint8Array(
+    await cryptoImplementation.subtle.digest("SHA-256", bytes),
+  );
+  const actualDigest = [...digestBytes]
+    .map((value) => value.toString(16).padStart(2, "0"))
+    .join("");
+  if (actualDigest !== digestMatch[1].toLowerCase()) {
+    throw new Error("Online firmware SHA-256 verification failed.");
+  }
+  return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
 }
 
 export function catalogByTarget(descriptors = []) {

@@ -54,11 +54,48 @@ function adjustedCalibration(zero, gain, defaultGain) {
         || gain.some((value) => value !== defaultGain);
 }
 
-function targetStatus(source, fallbackCalibrated) {
+export function assessCompassCalibration(zeroValues, gainValues, defaultGain) {
+    const zero = finiteVector(zeroValues, 0);
+    const gain = finiteVector(gainValues, defaultGain);
+    const adjusted = adjustedCalibration(zero, gain, defaultGain);
+    if (!adjusted) return { adjusted: false, valid: true, issue: '' };
+    if (gain.some((value) => !Number.isFinite(value) || value <= 0)) {
+        return {
+            adjusted: true,
+            valid: false,
+            issue: 'One or more axis gains are zero or negative.',
+        };
+    }
+    const minimumGain = Math.min(...gain);
+    const maximumGain = Math.max(...gain);
+    if (maximumGain > minimumGain * 5) {
+        return {
+            adjusted: true,
+            valid: false,
+            issue: `Axis gains are implausibly unbalanced (${(maximumGain / minimumGain).toFixed(1)}:1).`,
+        };
+    }
+    const maximumZero = Math.max(...zero.map((value) => Math.abs(value)));
+    if (maximumZero > maximumGain * 10) {
+        return {
+            adjusted: true,
+            valid: false,
+            issue: 'The solved zero offset is implausibly large relative to the measured field range.',
+        };
+    }
+    return { adjusted: true, valid: true, issue: '' };
+}
+
+function targetStatus(source, fallbackCalibrated, calibrationAssessment) {
+    const invalidCalibration = Boolean(
+        calibrationAssessment?.adjusted && !calibrationAssessment.valid,
+    );
     return {
-        calibrated: source ? Boolean(source.calibrated) : fallbackCalibrated,
+        calibrated: !invalidCalibration && (source ? Boolean(source.calibrated) : fallbackCalibrated),
         calibrating: Boolean(source?.calibrating),
-        failed: Boolean(source?.calibrationFailed),
+        failed: Boolean(source?.calibrationFailed) || invalidCalibration,
+        invalidCalibration,
+        calibrationIssue: calibrationAssessment?.issue || '',
         healthy: Boolean(source?.healthy),
         ageMs: Number.isFinite(Number(source?.ageMs)) && Number(source.ageMs) !== 0xffff
             ? Number(source.ageMs)
@@ -89,6 +126,7 @@ export function enumerateCompassCalibrationTargets({
 
     if (!supportsHeadingFusion || !headingConfig?.sources) {
         if (!legacyMagDetected) return [];
+        const assessment = assessCompassCalibration(legacyZero, legacyGain, 1024);
         return [{
             index: HEADING_SOURCE_ONBOARD_MAG,
             key: 'legacy-primary',
@@ -99,7 +137,7 @@ export function enumerateCompassCalibrationTargets({
             zeroUnit: 'raw',
             gainUnit: 'scale',
             nodeId: null,
-            ...targetStatus(null, adjustedCalibration(legacyZero, legacyGain, 1024)),
+            ...targetStatus(null, assessment.adjusted, assessment),
         }];
     }
 
@@ -111,6 +149,7 @@ export function enumerateCompassCalibrationTargets({
         onboardEnabled
         && (legacyMagDetected || sourceIsLive(onboardSource))
     ) {
+        const assessment = assessCompassCalibration(legacyZero, legacyGain, 1024);
         targets.push({
             index: HEADING_SOURCE_ONBOARD_MAG,
             key: 'onboard',
@@ -123,7 +162,8 @@ export function enumerateCompassCalibrationTargets({
             nodeId: null,
             ...targetStatus(
                 onboardSource,
-                adjustedCalibration(legacyZero, legacyGain, 1024),
+                assessment.adjusted,
+                assessment,
             ),
         });
     }
@@ -136,6 +176,7 @@ export function enumerateCompassCalibrationTargets({
     if (externalEnabled && sourceIsLive(externalSource)) {
         const zero = finiteVector(headingConfig.externalMagZero, 0);
         const gain = finiteVector(headingConfig.externalMagGain, 1024);
+        const assessment = assessCompassCalibration(zero, gain, 1024);
         targets.push({
             index: HEADING_SOURCE_EXTERNAL_I2C_MAG,
             key: 'external-i2c',
@@ -148,7 +189,8 @@ export function enumerateCompassCalibrationTargets({
             nodeId: null,
             ...targetStatus(
                 externalSource,
-                adjustedCalibration(zero, gain, 1024),
+                assessment.adjusted,
+                assessment,
             ),
         });
     }
@@ -163,6 +205,7 @@ export function enumerateCompassCalibrationTargets({
     if (canEnabled && (sourceIsLive(canSource) || canNodes.length > 0)) {
         const zero = finiteVector(headingConfig.dronecanMagZeroMilliGauss, 0);
         const gain = finiteVector(headingConfig.dronecanMagGainMilliGauss, 0);
+        const assessment = assessCompassCalibration(zero, gain, 0);
         const boundNode = Number(headingConfig.dronecanMagCalibrationNodeId);
         const selectedNode = boundNode > 0
             ? boundNode
@@ -183,7 +226,8 @@ export function enumerateCompassCalibrationTargets({
             nodeId: selectedNode,
             ...targetStatus(
                 canSource,
-                adjustedCalibration(zero, gain, 0),
+                assessment.adjusted,
+                assessment,
             ),
         });
     }
@@ -193,6 +237,7 @@ export function enumerateCompassCalibrationTargets({
 
 export function compassCalibrationState(target) {
     if (target?.calibrating) return { label: 'Calibrating', tone: 'working' };
+    if (target?.invalidCalibration) return { label: 'Invalid calibration', tone: 'error' };
     if (target?.failed) return { label: 'Calibration failed', tone: 'error' };
     if (target?.calibrated) return { label: 'Calibrated', tone: 'ready' };
     return { label: 'Calibration required', tone: 'warning' };

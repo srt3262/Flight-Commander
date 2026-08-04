@@ -17,15 +17,15 @@ process.stdout.write(value);
 NODE
 }
 
-firmware_version="$(manifest_value flightCommander.bundledFirmwareVersion)"
-firmware_sha256="$(manifest_value flightCommander.bundledFirmwareSha256)"
-source_relative_path="$(manifest_value flightCommander.bundledFirmwareSourceArchive)"
-source_sha256="$(manifest_value flightCommander.bundledFirmwareSourceSha256)"
-source_revision="$(manifest_value flightCommander.bundledFirmwareSourceRevision)"
-source_tree="$(manifest_value flightCommander.bundledFirmwareSourceTree)"
+firmware_version="$(manifest_value flightCommander.firmwareReleaseVersion)"
+firmware_sha256="$(manifest_value flightCommander.firmwareReleaseSha256)"
+source_relative_path="$(manifest_value flightCommander.firmwareSourceArchive)"
+source_sha256="$(manifest_value flightCommander.firmwareSourceSha256)"
+source_revision="$(manifest_value flightCommander.firmwareSourceRevision)"
+source_tree="$(manifest_value flightCommander.firmwareSourceTree)"
 
 firmware_name="Flight-Commander-Firmware-${firmware_version}-MICOAIR743.hex"
-firmware_path="${project_root}/resources/firmware/${firmware_name}"
+firmware_path="${project_root}/release/firmware/${firmware_name}"
 source_archive="${project_root}/${source_relative_path}"
 
 [[ "${firmware_version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
@@ -80,6 +80,28 @@ unzip -q "${source_archive}" -d "${work_root}/source"
 source_root="${work_root}/source/Flight-Commander-Firmware-Source-v${firmware_version}"
 [[ -d "${source_root}" ]]
 
+computed_source_revision="$({
+    cd "${source_root}"
+    find . -type f ! -path './RELEASE-MANIFEST.json' -print0 |
+        LC_ALL=C sort -z |
+        xargs -0 sha256sum
+} | sha1sum | cut -d' ' -f1)"
+computed_source_tree="$({
+    printf 'flight-commander-source-tree-v1\n'
+    cd "${source_root}"
+    find . -type f ! -path './RELEASE-MANIFEST.json' -print0 |
+        LC_ALL=C sort -z |
+        xargs -0 sha256sum
+} | sha1sum | cut -d' ' -f1)"
+if [[ "${computed_source_revision}" != "${source_revision}" ]]; then
+    echo 'Firmware source revision does not identify the shipped source tree.' >&2
+    exit 1
+fi
+if [[ "${computed_source_tree}" != "${source_tree}" ]]; then
+    echo 'Firmware source tree identity does not identify the shipped source tree.' >&2
+    exit 1
+fi
+
 source_date_epoch="$(node --input-type=module - \
     "${source_root}/RELEASE-MANIFEST.json" \
     "${firmware_version}" "${firmware_name}" "${firmware_sha256}" \
@@ -129,15 +151,16 @@ if [[ "${#target_directories[@]}" -ne 1 || "${target_directories[0]}" != 'MICOAI
     echo 'Firmware source must expose exactly one MICOAIR743 hardware target.' >&2
     exit 1
 fi
-if grep -En 'MICOAIR743_EXTMAG' \
-    "${target_root}/MICOAIR743/CMakeLists.txt" \
-    "${target_root}/MICOAIR743/target.h" \
-    "${target_root}/MICOAIR743/config.c"; then
-    echo 'The retired external-compass firmware target is still present.' >&2
-    exit 1
-fi
-grep -En 'mag_align[[:space:]]*=[[:space:]]*CW90_DEG' \
-    "${target_root}/MICOAIR743/config.c"
+
+# The official INAV 9.1.0 MICOAIR743 target files are retained byte-for-byte,
+# including every target declaration present upstream. The Flight Commander
+# release itself builds and publishes only MICOAIR743.
+grep -Eq 'target_stm32h743xi\(MICOAIR743' \
+    "${target_root}/MICOAIR743/CMakeLists.txt"
+python3 "${source_root}/flight-commander/verify-release.py" \
+    --source-root "${source_root}" \
+    --hex "${firmware_path}" \
+    --manifest "${source_root}/RELEASE-MANIFEST.json"
 
 bash "${source_root}/flight-commander/build-micoair743.sh" "${work_root}/build"
 rebuilt_firmware="${work_root}/build/${firmware_name}"

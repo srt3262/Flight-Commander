@@ -195,13 +195,13 @@ const linuxDesktop = readFileSync(
   resolve(projectRoot, "assets/linux/flight-commander.desktop"),
   "utf8",
 );
-const bundledFirmwarePath = resolve(
+const firmwareReleasePath = resolve(
   projectRoot,
-  `resources/firmware/Flight-Commander-Firmware-${packageManifest.flightCommander.bundledFirmwareVersion}-MICOAIR743.hex`,
+  `release/firmware/Flight-Commander-Firmware-${packageManifest.flightCommander.firmwareReleaseVersion}-MICOAIR743.hex`,
 );
-const bundledFirmwareSourcePath = resolve(
+const firmwareSourcePath = resolve(
   projectRoot,
-  packageManifest.flightCommander.bundledFirmwareSourceArchive,
+  packageManifest.flightCommander.firmwareSourceArchive,
 );
 
 function fileSha256(path) {
@@ -248,6 +248,12 @@ test("packaging starts from clean Vite output roots", () => {
   for (const rendererConfig of rendererConfigs) {
     assert.match(rendererConfig, /emptyOutDir:\s*true/);
   }
+  assert.match(forgeConfig, /function pruneNativePrebuilds\(/);
+  assert.match(forgeConfig, /win32-x64/);
+  assert.match(
+    forgeConfig,
+    /Kept only \$\{expectedTarget\} serial native prebuilds/,
+  );
 });
 
 test("Windows verification follows the active renderer graph and rejects leftovers", () => {
@@ -296,6 +302,8 @@ test("Windows verification follows the active renderer graph and rejects leftove
   assert.match(packageVerifier, /flightCommanderTheme/);
   assert.match(packageVerifier, /flight-commander-theme-change/);
   assert.match(packageVerifier, /dark-only/);
+  assert.match(packageVerifier, /foreign-architecture/);
+  assert.match(packageVerifier, /Windows extraction budget is 140/);
   assert.match(packageVerifier, /Flight Commander Firmware/);
   assert.match(packageVerifier, /Official INAV Firmware/);
   assert.match(packageVerifier, /Flight-Commander-Firmware-/);
@@ -446,6 +454,15 @@ test("weighted heading fusion and moving-baseline setup are release surfaces", (
     assert.match(gpsHtml, new RegExp(`headingSourcePriority${sourceIndex}`));
     assert.match(gpsHtml, new RegExp(`headingSourceWeight${sourceIndex}`));
   }
+  assert.match(gpsHtml, /id="flightCommanderGpsWorkspace"/);
+  assert.match(gpsHtml, /class="[^"]*heading-source-grid[^"]*"/);
+  assert.equal((gpsHtml.match(/class="[^"]*heading-source-card[^"]*"/g) ?? []).length, 4);
+  assert.match(gpsHtml, /class="heading-source-group"/);
+  assert.match(gpsHtml, /class="gps-layout"/);
+  assert.doesNotMatch(gpsHtml, /headingSourceYaw/);
+  assert.doesNotMatch(gpsHtml, /id="(?:external|dronecan)Mag(?:Roll|Pitch|Yaw)"/);
+  assert.doesNotMatch(gpsHtml, /heading-source-table/);
+  assert.match(gpsHtml, /Mounting alignment is configured only in Alignment Tool/);
   assert.match(gpsHtml, /UART GPS-module compass/);
   assert.match(gpsHtml, /DroneCAN GPS-module compass/);
   assert.match(gpsHtml, /Moving-baseline GNSS yaw/);
@@ -457,12 +474,17 @@ test("weighted heading fusion and moving-baseline setup are release surfaces", (
   assert.match(calibrationSource, /loadFlightCommanderHeadingStatus/);
   assert.match(compassCalibrationSource, /HEADING_SOURCE_DRONECAN_MAG/);
   assert.match(compassCalibrationSource, /External \/ UART GPS-module compass/);
+  assert.match(compassCalibrationSource, /assessCompassCalibration/);
+  assert.match(compassCalibrationSource, /implausibly unbalanced/);
+  assert.match(calibrationSource, /Replace invalid calibration/);
   assert.match(headingFusionSource, /calibrationFailedMask/);
   assert.match(headingFusionSource, /HEADING_CONFIG_SCHEMA = 2/);
   assert.match(headingFusionSource, /dronecanMagCalibrationNodeId/);
   assert.match(gpsHtml, /does not infer yaw from two ordinary latitude\/longitude fixes/);
   assert.match(gpsSource, /loadFlightCommanderHeadingStatus/);
   assert.match(gpsSource, /encodeHeadingConfig/);
+  assert.match(gpsSource, /clearLegacyCompassYawOffsets/);
+  assert.match(gpsSource, /appendTo\('#flightCommanderGpsWorkspace'\)/);
   assert.match(portsHtml, /id="dronecanMagNode"/);
   assert.match(portsSource, /RELATIVE_HEADING:\s*1 << 4/);
   assert.match(firmwareInfoHtml, /data-fc-feature="headingFusion"/);
@@ -477,15 +499,37 @@ test("UART RTK rover selection and per-module alignment ship in the release UI",
   assert.match(gpsSource, /uartRtkRoverNextAction/);
 
   assert.match(magnetometerHtml, /id="alignmentTarget"/);
-  assert.match(magnetometerHtml, /Generic u-blox F9P \/ F9-series RTK \(UART\)/);
-  assert.match(magnetometerHtml, /Generic DroneCAN RTK GPS module/);
-  assert.match(magnetometerHtml, /Dual RTK GPS moving-baseline pair/);
+  assert.match(magnetometerHtml, /id="alignmentSourceIdentity"/);
+  assert.match(magnetometerHtml, /id="alignmentSourceBinding"/);
+  assert.match(magnetometerHtml, /id="alignmentDiagnostics"/);
+  assert.match(magnetometerHtml, /id="alignmentDraftSummary"/);
+  assert.match(magnetometerHtml, /Live diagnostics — selected source/);
+  assert.match(magnetometerHtml, /source-alignment-section/);
+  assert.match(magnetometerHtml, /global-board-alignment-section/);
+  assert.match(magnetometerHtml, /Affects every sensor/);
+  assert.match(magnetometerHtml, /X forward/);
+  assert.match(magnetometerHtml, /Y right/);
+  assert.match(magnetometerHtml, /Z down/);
+  assert.match(magnetometerHtml, /MEASURED BASE → ROVER VECTOR/);
+  assert.match(magnetometerHtml, /UART GNSS/);
+  assert.match(magnetometerHtml, /CAN-H/);
+  assert.doesNotMatch(magnetometerHtml, /Generic DroneCAN RTK GPS module/);
   assert.match(magnetometerSource, /enumerateAlignmentTargets/);
-  assert.match(magnetometerSource, /writeFlightCommanderAlignmentAngles/);
+  assert.match(magnetometerSource, /createAlignmentDrafts/);
+  assert.match(magnetometerSource, /applyAlignmentDrafts/);
+  assert.match(magnetometerSource, /commitCurrentAlignmentTarget\(\);[\s\S]+self\.alignmentTarget = target\.id/);
+  assert.match(magnetometerSource, /populateAlignmentControls\(readAlignmentDraft\(self\.alignmentDrafts, target\.id\)\)/);
+  assert.match(magnetometerSource, /renderAlignmentDraftSummary/);
+  assert.match(magnetometerSource, /data-alignment-summary-target/);
+  assert.match(magnetometerSource, /renderAlignmentDiagnostics/);
   assert.match(magnetometerSource, /saveFlightCommanderHeadingConfig/);
-  assert.match(magnetometerSource, /createGenericRtkModel/);
+  assert.doesNotMatch(magnetometerSource, /createGenericRtkModel/);
   assert.match(alignmentTargetsSource, /label: 'Onboard compass'/);
-  assert.match(alignmentTargetsSource, /board-correct CW90 orientation/);
+  assert.match(alignmentTargetsSource, /active INAV target magnetometer alignment/);
+  assert.match(alignmentTargetsSource, /does not override the target/);
+  assert.match(alignmentTargetsSource, /automatic selection is ambiguous/);
+  assert.match(alignmentTargetsSource, /externalMagAlignmentDecidegrees/);
+  assert.match(alignmentTargetsSource, /dronecanMagAlignmentDecidegrees/);
   assert.doesNotMatch(alignmentTargetsSource, /Onboard \/ standard external compass/);
 });
 
@@ -521,47 +565,38 @@ test("application remains dark-only", () => {
   assert.match(themeCss, /\.tab-landing \.flightCommanderLogo/);
 });
 
-test("firmware selection, identity, and feature gates are packaged together", () => {
-  assert.equal(packageManifest.flightCommander.bundledFirmwareVersion, "2.0.6");
+test("firmware is release-only and the flasher exposes local, online, then flash", () => {
+  assert.equal(packageManifest.flightCommander.firmwareReleaseVersion, "3.0.1");
   assert.equal(packageManifest.flightCommander.firmwareChangedInRelease, true);
-  assert.equal(packageManifest.flightCommander.bundledFirmwareSourceAvailable, true);
-  assert.equal(packageManifest.flightCommander.bundledFirmwareSourceVersion, "2.0.6");
+  assert.equal(packageManifest.flightCommander.firmwareSourceAvailable, true);
+  assert.equal(packageManifest.flightCommander.firmwareSourceVersion, "3.0.1");
   assert.equal(
-    packageManifest.flightCommander.bundledFirmwareSourceArchive,
-    "resources/firmware-source/Flight-Commander-Firmware-Source-v2.0.6.zip",
+    packageManifest.flightCommander.firmwareSourceArchive,
+    "release/firmware/Flight-Commander-Firmware-Source-v3.0.1.zip",
   );
-  assert.equal(
-    packageManifest.flightCommander.bundledFirmwareSourceSha256,
-    "15e082ae28731e3f530635ec826e58f0375257e8671ae3ccf024a1acfffe1bec",
-  );
-  assert.equal(
-    packageManifest.flightCommander.bundledFirmwareSourceRevision,
-    "e92bca368b2b9b53aaf79103da3237dec77320b1",
-  );
-  assert.equal(
-    packageManifest.flightCommander.bundledFirmwareSourceTree,
-    "6c3f6e5da4978a7c2ce3825ce3d498403c7b81ee",
-  );
-  assert.equal(existsSync(bundledFirmwarePath), true);
-  assert.ok(readFileSync(bundledFirmwarePath).length > 1024 * 1024);
-  assert.equal(
-    fileSha256(bundledFirmwarePath),
-    "db370ff20fefe2f80c768eea63aff9b368ba1b0d49beb4668ed693f391684df0",
-  );
-  assert.equal(
-    packageManifest.flightCommander.bundledFirmwareSha256,
-    fileSha256(bundledFirmwarePath),
-  );
-  assert.equal(existsSync(bundledFirmwareSourcePath), true);
-  assert.ok(readFileSync(bundledFirmwareSourcePath).length > 1024 * 1024);
-  assert.deepEqual(
-    [...readFileSync(bundledFirmwareSourcePath).subarray(0, 4)],
-    [0x50, 0x4b, 0x03, 0x04],
-  );
-  assert.equal(
-    fileSha256(bundledFirmwareSourcePath),
-    packageManifest.flightCommander.bundledFirmwareSourceSha256,
-  );
+  const releaseFirmwareIsPresent = existsSync(firmwareReleasePath);
+  const releaseSourceIsPresent = existsSync(firmwareSourcePath);
+  assert.equal(releaseFirmwareIsPresent, releaseSourceIsPresent);
+  if (releaseFirmwareIsPresent) {
+    assert.ok(readFileSync(firmwareReleasePath).length > 1024 * 1024);
+    assert.equal(
+      fileSha256(firmwareReleasePath),
+      packageManifest.flightCommander.firmwareReleaseSha256,
+    );
+    assert.ok(readFileSync(firmwareSourcePath).length > 1024 * 1024);
+    assert.deepEqual(
+      [...readFileSync(firmwareSourcePath).subarray(0, 4)],
+      [0x50, 0x4b, 0x03, 0x04],
+    );
+    assert.equal(
+      fileSha256(firmwareSourcePath),
+      packageManifest.flightCommander.firmwareSourceSha256,
+    );
+  }
+  assert.equal(existsSync(resolve(projectRoot, "resources/firmware")), false);
+  assert.equal(existsSync(resolve(projectRoot, "resources/firmware-source")), false);
+  assert.match(forgeConfig, /resources\\\/firmware\(\?:-source\)\?/);
+  assert.match(forgeConfig, /release\\\/firmware/);
   assert.deepEqual(
     [...firmwareFlasherHtml.matchAll(/<option value="([^"]+)">(?:Flight Commander Firmware|Official INAV Firmware)<\/option>/g)]
       .map((match) => match[1]),
@@ -574,14 +609,15 @@ test("firmware selection, identity, and feature gates are packaged together", ()
   assert.match(firmwareFlasherSource, /loadedFirmwareFamily !== firmwareBackend/);
   assert.match(firmwareFlasherSource, /isInavCompatibleFirmwareVariant\(reportedVariant\)/);
   assert.match(firmwareFlasherSource, /flightCommanderCatalogIsReady\(\)/);
-  assert.match(firmwareFlasherSource, /Latest compatible online firmware/);
+  assert.match(firmwareFlasherSource, /verifyFlightCommanderOnlinePayload/);
   assert.match(firmwareFlasherSource, /versions\.val\(latest\.version\)\.trigger\('change'\)/);
-  assert.match(firmwareFlasherSource, /Select Local Firmware File/);
-  assert.match(firmwareFlasherSource, /Download Online Firmware/);
-  assert.match(firmwareFlasherSource, /Flash Selected Firmware/);
-  assert.match(firmwareFlasherSource, /Use Offline Firmware Copy/);
-  assert.match(firmwareFlasherSource, /Online download failed\. Loading the verified offline firmware copy\./);
-  assert.doesNotMatch(firmwareFlasherSource, /Load included Flight Commander Firmware/);
+  const localControl = firmwareFlasherHtml.indexOf('class="load_file"');
+  const onlineControl = firmwareFlasherHtml.indexOf('class="load_remote_file');
+  const flashControl = firmwareFlasherHtml.indexOf('class="flash_firmware');
+  assert.ok(localControl >= 0 && localControl < onlineControl && onlineControl < flashControl);
+  assert.doesNotMatch(firmwareFlasherHtml, /load_bundled_file|Use Bundled|offline firmware/i);
+  assert.doesNotMatch(firmwareFlasherSource, /load_bundled|Use Bundled|offline firmware copy/i);
+  assert.match(firmwareFlasherSource, /Online firmware download failed/);
   assert.match(
     firmwareFlasherSource,
     /flightCommanderReleasesData[\s\S]+firmwareFlasherTab\.getTarget\(\)/,
@@ -591,13 +627,8 @@ test("firmware selection, identity, and feature gates are packaged together", ()
   assert.match(firmwareIdentitySource, /retryCounter: 0/);
   assert.match(firmwareCatalogSource, /MICOAIR743/);
   assert.match(firmwareCatalogSource, /MICROAIR743/);
-  assert.match(packageVerifier, /intelHexPayload/);
-  assert.match(packageVerifier, /the packaged firmware differs from the verified source firmware image/);
-  assert.match(packageVerifier, /Latest compatible online firmware/);
-  assert.match(packageVerifier, /Select Local Firmware File/);
-  assert.match(packageVerifier, /Download Online Firmware/);
-  assert.match(packageVerifier, /Flash Selected Firmware/);
-  assert.match(packageVerifier, /Load included Flight Commander Firmware/);
+  assert.match(packageVerifier, /firmware must not be packaged/i);
+  assert.match(packageVerifier, /firmwareBundled: false/);
   assert.match(firmwareInfoHtml, /Firmware Capabilities/);
   assert.match(firmwareInfoHtml, /data-fc-feature="multirotorAutotune"/);
   assert.match(firmwareInfoHtml, /data-fc-feature="terrainWaypoints"/);
@@ -635,7 +666,7 @@ test("all requested large-prop INAV presets are wired into the release source", 
 });
 
 test("landing page reports the current Flight Commander release", () => {
-  assert.equal(packageManifest.version, "2.0.6");
+  assert.equal(packageManifest.version, "3.0.1");
   assert.equal(manifest.version, packageManifest.version);
   assert.match(
     landingHtml,
@@ -670,12 +701,13 @@ test("release policy distinguishes software-only updates from firmware rebuilds"
     releaseWorkflow,
     /Every release after the one-time Configurator 2\.0\.5 legacy exception must publish exact firmware source/,
   );
-  assert.match(releaseWorkflow, /bundledFirmwareSourceAvailable/);
-  assert.match(releaseWorkflow, /bundledFirmwareSourceVersion/);
-  assert.match(releaseWorkflow, /bundledFirmwareSourceArchive/);
-  assert.match(releaseWorkflow, /bundledFirmwareSourceSha256/);
-  assert.match(releaseWorkflow, /bundledFirmwareSourceRevision/);
-  assert.match(releaseWorkflow, /bundledFirmwareSourceTree/);
+  assert.match(releaseWorkflow, /firmwareSourceAvailable/);
+  assert.match(releaseWorkflow, /firmwareSourceVersion/);
+  assert.match(releaseWorkflow, /firmwareSourceArchive/);
+  assert.match(releaseWorkflow, /firmwareSourceSha256/);
+  assert.match(releaseWorkflow, /firmwareSourceRevision/);
+  assert.match(releaseWorkflow, /firmwareSourceTree/);
+  assert.doesNotMatch(releaseWorkflow, /bundledFirmware/);
   assert.match(releaseWorkflow, /Rebuild firmware from retained source ZIP/);
   assert.match(releaseWorkflow, /rebuild-firmware-source-archive\.sh/);
   assert.match(firmwareRebuildScript, /arm-gnu-toolchain-13\.2\.rel1/);
@@ -685,21 +717,28 @@ test("release policy distinguishes software-only updates from firmware rebuilds"
   );
   assert.match(firmwareRebuildScript, /cmp --silent/);
   assert.match(firmwareRebuildScript, /target_directories/);
-  assert.match(firmwareRebuildScript, /MICOAIR743_EXTMAG/);
-  assert.match(firmwareRebuildScript, /grep -En/);
+  assert.match(firmwareRebuildScript, /flight-commander\/verify-release\.py/);
+  assert.match(firmwareRebuildScript, /grep -Eq/);
+  assert.doesNotMatch(firmwareRebuildScript, /MICOAIR743_EXTMAG|CW90_DEG/);
   assert.doesNotMatch(firmwareRebuildScript, /\brg\b/);
   assert.match(firmwareRebuildScript, /source_date_epoch/);
+  assert.match(firmwareRebuildScript, /computed_source_revision/);
+  assert.match(firmwareRebuildScript, /flight-commander-source-tree-v1/);
   assert.match(firmwareRebuildScript, /touch --date=/);
 });
 
-test("source-backed releases publish Configurator and firmware binaries plus both sources", () => {
+test("source-backed releases publish one complete bundle plus the online-flasher HEX", () => {
   assert.match(
     releaseWorkflow,
-    /Flight-Commander-Configurator-Windows-x64-v\$version\.zip/,
+    /Flight-Commander-v\$version\.zip/,
   );
   assert.match(
     releaseWorkflow,
-    /Flight-Commander-Configurator-Source-v\$version\.zip/,
+    /FC-Windows-v\$version\.zip/,
+  );
+  assert.match(
+    releaseWorkflow,
+    /FC-Configurator-Source-v\$version\.zip/,
   );
   assert.match(
     releaseWorkflow,
@@ -707,23 +746,35 @@ test("source-backed releases publish Configurator and firmware binaries plus bot
   );
   assert.match(
     releaseWorkflow,
-    /Flight-Commander-Firmware-Source-v\$firmwareVersion\.zip/,
+    /FC-Firmware-Source-v\$firmwareVersion\.zip/,
   );
+  assert.match(
+    releaseWorkflow,
+    /FC-Firmware-v\$firmwareVersion-MICOAIR743\.hex/,
+  );
+  assert.match(releaseWorkflow, /Windows extracted-path budget/);
   assert.match(releaseWorkflow, /git archive --format=zip/);
   assert.match(releaseWorkflow, /Copy-Item[\s\S]+\$firmwareSourceRepositoryPath[\s\S]+\$firmwareSourceArchivePath/);
-  assert.match(releaseWorkflow, /schemaVersion = 7/);
+  assert.match(releaseWorkflow, /schemaVersion = 8/);
   assert.match(releaseWorkflow, /assets\.firmware/);
+  assert.match(releaseWorkflow, /assets\.completeBundle/);
   assert.match(releaseWorkflow, /firmwareSourceAvailable = \$firmwareSourceAvailable/);
   assert.match(releaseWorkflow, /\$releaseAssets\['firmwareSource'\]/);
-  assert.match(releaseWorkflow, /\$expectedCandidateFileCount = if \(\$firmwareSourceAvailable\) \{ 5 \} else \{ 4 \}/);
+  assert.match(releaseWorkflow, /\$expectedCandidateFileCount = 6/);
   assert.match(
     releaseWorkflow,
     /gh release create \$tag @releaseAssetPaths/,
   );
   assert.match(
     releaseWorkflow,
-    /\$expectedPublishedAssetCount = if \(\$firmwareSourceAvailable\) \{ 4 \} else \{ 3 \}/,
+    /\$expectedPublishedAssetCount = 2/,
   );
+  assert.match(
+    releaseWorkflow,
+    /\$releaseAssetPaths = @\(\$completeBundlePath, \$onlineFirmwarePath\)/,
+  );
+  assert.match(releaseWorkflow, /Published online-flasher firmware asset/);
+  assert.match(releaseWorkflow, /must contain exactly the four canonical release files/);
   assert.doesNotMatch(releaseWorkflow, /Firmware-Package|firmwarePackageDirectory/);
 });
 

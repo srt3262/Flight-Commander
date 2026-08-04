@@ -11,7 +11,7 @@ match the installed Flight Commander interface and its safety gates.
 | --- | --- | --- |
 | First use | [Getting started](GETTING_STARTED.md) | Installation, application options, first connection, backup, and initial bench setup |
 | Links | [Connection modes](CONNECTIONS.md) | MSP, MAVLink, LTM, USB radios, baud rates, and transport limitations |
-| Firmware | [Firmware flashing](FIRMWARE_FLASHING.md) | Online, local, and offline firmware sources; target checks; DFU recovery |
+| Firmware | [Firmware flashing](FIRMWARE_FLASHING.md) | Online, bundled, and local firmware sources; target checks; DFU recovery |
 | Aircraft setup | [Configuration reference](CONFIGURATION_REFERENCE.md) | Every connected-aircraft configuration tab and save/reboot behavior |
 | Navigation | [GPS and RTK](GPS_AND_RTK.md) | UART F9 RTK rovers, DroneCAN GPS, primary receivers, corrections, and alignment |
 | Live operation | [Ground Control](GROUND_CONTROL.md) | Map, HUD, telemetry, commands, units, messages, and guided RTK workflows |

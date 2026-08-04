@@ -11,6 +11,132 @@
                 <div id="interactive_block">
                     <div id="canvas_wrapper">
                         <canvas id="canvas"></canvas>
+                        <div id="alignmentTechnicalPreview" class="alignment-technical-preview is-hidden" aria-live="polite">
+                            <div class="alignment-preview-diagram" data-preview-target="uart" aria-label="UART RTK module and external I2C compass mounting diagram">
+                                <svg viewBox="0 0 900 520" role="img" aria-labelledby="uartPreviewTitle uartPreviewDescription">
+                                    <title id="uartPreviewTitle">UART RTK receiver with a separately aligned external I2C compass</title>
+                                    <desc id="uartPreviewDescription">Top-down mounting diagram with the GNSS antenna, receiver, compass, UART and I2C connectors, module front, and INAV body axes clearly labeled.</desc>
+                                    <defs>
+                                        <marker id="uartArrowWhite" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 Z" fill="#fff"/></marker>
+                                        <marker id="uartArrowRed" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#ff625f"/></marker>
+                                        <marker id="uartArrowGreen" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#65d56d"/></marker>
+                                        <pattern id="uartGrid" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#31434c" stroke-width="1"/></pattern>
+                                    </defs>
+                                    <rect width="900" height="520" fill="url(#uartGrid)"/>
+                                    <text x="36" y="48" class="diagram-title">UART RTK rover + external-I²C compass</text>
+                                    <text x="36" y="75" class="diagram-subtitle">Top view · connector edge is aft · compass mounting angles affect only the orange sensor</text>
+                                    <g class="device-outline">
+                                        <rect x="220" y="112" width="460" height="306" rx="24" fill="#194f45" stroke="#6ec5ae" stroke-width="4"/>
+                                        <rect x="337" y="164" width="226" height="180" rx="14" fill="#d7dadc" stroke="#fff" stroke-width="3"/>
+                                        <text x="450" y="248" text-anchor="middle" class="device-label dark">GNSS PATCH</text>
+                                        <text x="450" y="274" text-anchor="middle" class="device-small dark">position antenna</text>
+                                        <rect x="267" y="184" width="78" height="56" rx="6" fill="#949da5" stroke="#d9e1e5" stroke-width="2"/>
+                                        <text x="306" y="207" text-anchor="middle" class="device-small dark">F9/F9P</text>
+                                        <text x="306" y="226" text-anchor="middle" class="device-small dark">receiver</text>
+                                        <g data-orientation-rotor data-center-x="612" data-center-y="199">
+                                            <rect x="576" y="163" width="72" height="72" rx="8" fill="#d88919" stroke="#ffd07a" stroke-width="3"/>
+                                            <path d="M612 223V171" stroke="#fff" stroke-width="5" marker-end="url(#uartArrowWhite)"/>
+                                        </g>
+                                        <text x="612" y="253" text-anchor="middle" class="device-small">I²C COMPASS</text>
+                                        <rect x="270" y="382" width="126" height="52" rx="8" fill="#7650a8" stroke="#bd9ee5" stroke-width="3"/>
+                                        <text x="333" y="414" text-anchor="middle" class="device-label">UART GNSS</text>
+                                        <rect x="504" y="382" width="126" height="52" rx="8" fill="#c37a11" stroke="#ffd07a" stroke-width="3"/>
+                                        <text x="567" y="414" text-anchor="middle" class="device-label">I²C MAG</text>
+                                    </g>
+                                    <path d="M450 128V89" stroke="#fff" stroke-width="5" marker-end="url(#uartArrowWhite)"/>
+                                    <text x="450" y="99" text-anchor="middle" class="front-label">MODULE FRONT</text>
+                                    <g class="body-axis" transform="translate(92 402)">
+                                        <circle r="48" fill="#18262d" stroke="#5b747f" stroke-width="2"/>
+                                        <path d="M0 20V-34" stroke="#ff625f" stroke-width="5" marker-end="url(#uartArrowRed)"/>
+                                        <path d="M-18 0H34" stroke="#65d56d" stroke-width="5" marker-end="url(#uartArrowGreen)"/>
+                                        <circle cx="0" cy="0" r="10" fill="none" stroke="#64a8ff" stroke-width="4"/><path d="M-7-7L7 7M7-7L-7 7" stroke="#64a8ff" stroke-width="3"/>
+                                        <text x="-8" y="-48" class="axis-label x">X FRONT</text><text x="42" y="5" class="axis-label y">Y RIGHT</text><text x="-29" y="72" class="axis-label z">Z DOWN</text>
+                                    </g>
+                                    <text x="696" y="376" class="wire-label uart">UART TX / RX</text>
+                                    <text x="696" y="398" class="wire-label uart">→ flight-controller UART</text>
+                                    <text x="696" y="430" class="wire-label i2c">I²C SDA / SCL</text>
+                                    <text x="696" y="452" class="wire-label i2c">→ external I²C1</text>
+                                </svg>
+                            </div>
+
+                            <div class="alignment-preview-diagram" data-preview-target="dronecan" aria-label="DroneCAN GNSS and compass mounting diagram">
+                                <svg viewBox="0 0 900 520" role="img" aria-labelledby="canPreviewTitle canPreviewDescription">
+                                    <title id="canPreviewTitle">Selected DroneCAN GNSS and compass node</title>
+                                    <desc id="canPreviewDescription">Top-down mounting diagram with a GNSS antenna, compass location, two CAN connectors, module front, node binding, and INAV body axes.</desc>
+                                    <defs>
+                                        <marker id="canArrowWhite" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 Z" fill="#fff"/></marker>
+                                        <marker id="canArrowRed" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#ff625f"/></marker>
+                                        <marker id="canArrowGreen" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#65d56d"/></marker>
+                                        <pattern id="canGrid" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#31434c" stroke-width="1"/></pattern>
+                                    </defs>
+                                    <rect width="900" height="520" fill="url(#canGrid)"/>
+                                    <text x="36" y="48" class="diagram-title">Selected DroneCAN GNSS / compass node</text>
+                                    <text x="36" y="75" class="diagram-subtitle">Top view · paired CAN ports are electrically equivalent · alignment is bound to the selected node</text>
+                                    <rect x="244" y="111" width="412" height="312" rx="70" fill="#27343a" stroke="#7f9ba8" stroke-width="4"/>
+                                    <circle cx="450" cy="252" r="116" fill="#d7dadc" stroke="#fff" stroke-width="4"/>
+                                    <text x="450" y="244" text-anchor="middle" class="device-label dark">GNSS ANTENNA</text>
+                                    <text x="450" y="271" text-anchor="middle" class="device-small dark">position receiver</text>
+                                    <g data-orientation-rotor data-center-x="571" data-center-y="169">
+                                        <rect x="535" y="133" width="72" height="72" rx="9" fill="#d88919" stroke="#ffd07a" stroke-width="3"/>
+                                        <path d="M571 193V141" stroke="#fff" stroke-width="5" marker-end="url(#canArrowWhite)"/>
+                                    </g>
+                                    <text x="571" y="223" text-anchor="middle" class="device-small">COMPASS</text>
+                                    <rect x="284" y="388" width="120" height="49" rx="8" fill="#08799a" stroke="#61d1ee" stroke-width="3"/>
+                                    <rect x="496" y="388" width="120" height="49" rx="8" fill="#08799a" stroke="#61d1ee" stroke-width="3"/>
+                                    <text x="344" y="419" text-anchor="middle" class="device-label">CAN 1</text><text x="556" y="419" text-anchor="middle" class="device-label">CAN 2</text>
+                                    <path d="M450 126V88" stroke="#fff" stroke-width="5" marker-end="url(#canArrowWhite)"/>
+                                    <text x="450" y="99" text-anchor="middle" class="front-label">MODULE FRONT</text>
+                                    <g class="body-axis" transform="translate(92 402)">
+                                        <circle r="48" fill="#18262d" stroke="#5b747f" stroke-width="2"/>
+                                        <path d="M0 20V-34" stroke="#ff625f" stroke-width="5" marker-end="url(#canArrowRed)"/>
+                                        <path d="M-18 0H34" stroke="#65d56d" stroke-width="5" marker-end="url(#canArrowGreen)"/>
+                                        <circle r="10" fill="none" stroke="#64a8ff" stroke-width="4"/><path d="M-7-7L7 7M7-7L-7 7" stroke="#64a8ff" stroke-width="3"/>
+                                        <text x="-8" y="-48" class="axis-label x">X FRONT</text><text x="42" y="5" class="axis-label y">Y RIGHT</text><text x="-29" y="72" class="axis-label z">Z DOWN</text>
+                                    </g>
+                                    <rect x="690" y="142" width="172" height="108" rx="9" fill="#18262d" stroke="#4f6975" stroke-width="2"/>
+                                    <text x="706" y="173" class="device-label">DEVICE IDENTITY</text>
+                                    <text x="706" y="202" class="device-small">Node shown in the</text><text x="706" y="224" class="device-small">binding panel →</text>
+                                    <text x="690" y="404" class="wire-label can">CAN-H / CAN-L / power</text>
+                                </svg>
+                            </div>
+
+                            <div class="alignment-preview-diagram" data-preview-target="moving-baseline" aria-label="Moving baseline base and rover antenna mounting diagram">
+                                <svg viewBox="0 0 900 520" role="img" aria-labelledby="baselinePreviewTitle baselinePreviewDescription">
+                                    <title id="baselinePreviewTitle">Dual RTK moving-baseline antenna pair</title>
+                                    <desc id="baselinePreviewDescription">Top-down aircraft reference with Base and Rover antennas, the measured Base to Rover vector, aircraft front, and the selected yaw correction.</desc>
+                                    <defs>
+                                        <marker id="baselineArrowWhite" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 Z" fill="#fff"/></marker>
+                                        <marker id="baselineArrowAmber" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="#ffb000"/></marker>
+                                        <marker id="baselineArrowCyan" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 Z" fill="#55c7ee"/></marker>
+                                        <pattern id="baselineGrid" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#31434c" stroke-width="1"/></pattern>
+                                    </defs>
+                                    <rect width="900" height="520" fill="url(#baselineGrid)"/>
+                                    <text x="36" y="48" class="diagram-title">Moving-baseline yaw: one Base → Rover antenna pair</text>
+                                    <text x="36" y="75" class="diagram-subtitle">Top view · only yaw applies · ordinary position fixes cannot substitute for a relative-heading solution</text>
+                                    <path d="M450 112L505 222L692 270L505 302L475 438H425L395 302L208 270L395 222Z" fill="#25343b" stroke="#67808b" stroke-width="4"/>
+                                    <path d="M450 178V106" stroke="#fff" stroke-width="6" marker-end="url(#baselineArrowWhite)"/>
+                                    <text x="450" y="100" text-anchor="middle" class="front-label">AIRCRAFT X / FRONT</text>
+                                    <circle cx="318" cy="270" r="68" fill="#332b1b" stroke="#ffb000" stroke-width="6"/>
+                                    <circle cx="582" cy="270" r="68" fill="#17313c" stroke="#55c7ee" stroke-width="6"/>
+                                    <circle cx="318" cy="270" r="48" fill="#d7dadc" stroke="#fff" stroke-width="3"/>
+                                    <circle cx="582" cy="270" r="48" fill="#d7dadc" stroke="#fff" stroke-width="3"/>
+                                    <text x="318" y="265" text-anchor="middle" class="device-label dark">BASE</text><text x="318" y="290" text-anchor="middle" class="device-small dark">antenna</text>
+                                    <text x="582" y="265" text-anchor="middle" class="device-label dark">ROVER</text><text x="582" y="290" text-anchor="middle" class="device-small dark">antenna</text>
+                                    <path d="M340 363H560" stroke="#ffb000" stroke-width="7" marker-end="url(#baselineArrowAmber)"/>
+                                    <text x="450" y="397" text-anchor="middle" class="baseline-label">MEASURED BASE → ROVER VECTOR</text>
+                                    <g data-orientation-rotor data-center-x="450" data-center-y="270">
+                                        <path d="M450 270V145" stroke="#55c7ee" stroke-width="5" stroke-dasharray="12 8" marker-end="url(#baselineArrowCyan)"/>
+                                    </g>
+                                    <text x="688" y="183" class="wire-label baseline">Dashed cyan: selected</text><text x="688" y="207" class="wire-label baseline">yaw correction</text>
+                                </svg>
+                            </div>
+
+                            <div class="alignment-preview-readout" aria-label="Selected alignment values">
+                                <span>Roll <strong id="alignmentPreviewRoll">0°</strong></span>
+                                <span>Pitch <strong id="alignmentPreviewPitch">0°</strong></span>
+                                <span>Yaw <strong id="alignmentPreviewYaw">0°</strong></span>
+                            </div>
+                        </div>
                             <div class="attitude_info">
                             <dl>
                                 <dt>Heading:</dt>
@@ -23,16 +149,30 @@
                         </div>
                         <div class="attitude_note1" >(Values according to <b>saved</b> settings)</div>
                         <div class="attitude_note2" >(North: 0, East: 90, South: 180, West: 270)</div>
+                        <div class="alignment-preview-overlay">
+                            <strong id="alignmentPreviewCanvasTitle">Flight-controller compass reference</strong>
+                            <span id="alignmentPreviewCanvasBinding">Onboard / target-selected compass</span>
+                            <div class="body-axis-legend" aria-label="INAV body axes">
+                                <span class="axis-x">X forward</span>
+                                <span class="axis-y">Y right</span>
+                                <span class="axis-z">Z down</span>
+                                <span class="axis-front">White: module front</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
         <div class="cf_column tab-magnetometer-right-wrapper">
-            <div class="config-section gui_box grey">
+            <div class="config-section gui_box grey global-board-alignment-section">
                 <div class="spacer_box">
+                    <h3 class="alignment-section-title">Advanced — global flight-controller board alignment</h3>
                     <div id="board-alignment-info" class="info-box">
                         <span data-i18n="boardInfo"></span>
                     </div>
+                    <p class="alignment-scope-note">
+                        <strong>Affects every sensor:</strong> These are not compass-module controls. Board alignment rotates the entire flight-controller reference frame. Use the source-specific section above to align one compass or GNSS baseline.
+                    </p>
 
                     <table class="axis-table">
                         <thead>
@@ -97,24 +237,59 @@
                 </div>
             </div>
 
-            <div class="config-section gui_box grey">
+            <div class="config-section gui_box grey source-alignment-section">
                 <div class="spacer_box">
+                    <h3 class="alignment-section-title">Per-source compass and moving-baseline alignment</h3>
                     <div id="flightCommanderAlignmentTargets" class="flight-commander-alignment-targets is-hidden">
                         <label for="alignmentTarget"><strong>Alignment target</strong></label>
                         <select id="alignmentTarget"></select>
                         <p id="alignmentTargetDescription"></p>
+                        <div id="alignmentDraftSummary" class="alignment-draft-summary" aria-label="Independent alignment values for every source"></div>
+                    </div>
+                    <div id="alignmentSourceIdentity" class="alignment-source-identity">
+                        <div class="alignment-source-heading">
+                            <strong id="alignmentSourceName">Flight-controller compass reference</strong>
+                            <span id="alignmentSourceState">Independent source</span>
+                        </div>
+                        <dl>
+                            <dt>Signal path</dt>
+                            <dd id="alignmentSourceTransport">INAV target compass path</dd>
+                            <dt>Device binding</dt>
+                            <dd id="alignmentSourceBinding">Onboard / target-selected compass</dd>
+                            <dt>Saved field</dt>
+                            <dd id="alignmentSourceSetting">INAV align_mag and align_mag_roll/pitch/yaw</dd>
+                        </dl>
+                        <p id="alignmentPreviewDetail">The preview follows only this selected alignment source.</p>
+                        <p id="alignmentSourceWarning" class="alignment-source-warning is-hidden"></p>
+                        <section id="alignmentDiagnostics" class="alignment-diagnostics" aria-label="Selected source live diagnostics">
+                            <header>
+                                <strong>Live diagnostics — selected source</strong>
+                                <span id="alignmentDiagnosticState" class="alignment-diagnostic-state">Waiting for data</span>
+                            </header>
+                            <div class="alignment-diagnostic-grid">
+                                <span>Saved alignment</span><strong id="alignmentDiagnosticAngles">R 0° · P 0° · Y 0°</strong>
+                                <span>Source heading</span><strong id="alignmentDiagnosticHeading">—</strong>
+                                <span>Fused heading</span><strong id="alignmentDiagnosticFused">—</strong>
+                                <span>Sample</span><strong id="alignmentDiagnosticSample">Waiting</strong>
+                                <span>Calibration</span><strong id="alignmentDiagnosticCalibration">—</strong>
+                                <span id="alignmentDiagnosticVectorLabel">Live vector</span><strong id="alignmentDiagnosticVector">—</strong>
+                                <span id="alignmentDiagnosticZeroLabel">Calibration zero</span><strong id="alignmentDiagnosticZero">—</strong>
+                                <span id="alignmentDiagnosticGainLabel">Calibration gain</span><strong id="alignmentDiagnosticGain">—</strong>
+                            </div>
+                            <p id="alignmentDiagnosticDetail">Diagnostics update independently of unsaved alignment edits.</p>
+                        </section>
                     </div>
                     <div id="alignment-info" class="info-box">
                         <span data-i18n="magnetometerInfo"></span>
                     </div>
-                    <div id="legacyMagPresetControl" class="select" style="display: flex; justify-content: left;">
+                    <div id="legacyMagPresetControl" class="select alignment-legacy-select-row">
                         <select id="magalign" class="magalign" style="width: 210px; flex-grow: 0; flex-shrink: 0">
                             <option value="0">Default</option>
                             <!-- list generated here -->
                         </select>
                         <label for="magalign" data-i18n="magnetometerOrientationPreset"></label>
                     </div>
-                    <div class="select" style="display: flex; justify-content: left;">
+                    <div id="legacyHardwarePreviewControl" class="select alignment-legacy-select-row">
                         <select id="element_to_show" style="width: 210px; flex-grow: 0; flex-shrink: 0">
                             <option value="0" selected data-i18n="magnetometerAxes"></option>
                             <option value="1">AK8963C</option>
@@ -146,15 +321,12 @@
                             <option value="27">QMC5833</option>
                             <option value="28">SPEEDYEBEE BZ-251</option>
                             <option value="29">WS-M181</option>
-                            <option value="30">Generic u-blox F9P / F9-series RTK (UART)</option>
-                            <option value="31">Generic DroneCAN RTK GPS module</option>
-                            <option value="32">Dual RTK GPS moving-baseline pair</option>
                             <!-- list generated here -->
                         </select>
-                        <label for="element_to_show">Hardware preview (visual only)</label>
+                        <label for="element_to_show">Legacy compass model (visual only)</label>
                     </div>
                     <p id="rtkAlignmentPreviewNote" class="rtk-alignment-preview-note is-hidden">
-                        RTK antenna orientation does not rotate its position solution. These controls apply to an integrated compass or to moving-baseline yaw, as identified by the selected alignment target.
+                        This view shows the selected source's electrical connection, front direction, and body axes. Only the active source field is editable; GNSS position orientation is never changed by compass alignment.
                     </p>
 
                     <table class="axis-table">

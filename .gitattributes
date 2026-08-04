@@ -9,3 +9,4 @@ LICENSE text
 *.svg -crlf -diff
 *.hex -text -diff
 *.zip -text -diff
+release/firmware/ export-ignore

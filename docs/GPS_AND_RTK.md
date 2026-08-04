@@ -90,8 +90,14 @@ Alignment Tool lists supported RTK-related targets independently:
 - **Dual RTK moving-baseline pair** — yaw installation offset between the
   measured baseline direction and aircraft forward.
 
-The 3D F9 and DroneCAN hardware choices are generic previews. Use the module
-manufacturer's axis marks and the actual installation, not the picture alone.
+The 3D F9, DroneCAN, and antenna-pair views are connection-aware schematics:
+they distinguish UART from external I²C compass wiring, CAN connectors, and the
+Base→Rover baseline vector. Always confirm the module manufacturer's axis marks
+and the actual installation before saving an alignment.
+
+The GPS tab contains source selection, priority, weight, and validity controls,
+but no orientation correction fields. All mounting alignment is owned by
+Alignment Tool so a second hidden yaw correction cannot be applied.
 
 ## Moving-baseline GNSS yaw
 

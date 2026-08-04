@@ -27,13 +27,12 @@ import { FlashRestoreFlow, showMigrationPreview, prepareRestoreData, executeRest
 import {
     FLIGHT_COMMANDER_FIRMWARE_RELEASES_URL,
     FLIGHT_COMMANDER_FIRMWARE_TARGETS,
-    bundledFlightCommanderDescriptors,
     catalogByTarget,
     flightCommanderReleaseDescriptors,
-    mergeFlightCommanderDescriptors,
     normalizeFirmwareTarget,
     parseFlightCommanderFirmwareFilename,
     parsedHexContainsFlightCommanderIdentity,
+    verifyFlightCommanderOnlinePayload,
 } from './../js/flightCommander/firmwareCatalog';
 import {
     FIRMWARE_FAMILY_FLIGHT_COMMANDER,
@@ -97,13 +96,10 @@ firmwareFlasherTab.initialize = function (callback) {
     var firmwareBackend = 'inav';
     var loadedFirmwareFamily = null;
     var loadedFirmwareDescriptor = null;
-    var flightCommanderCatalogReady = {
-        releases: false,
-        bundled: false,
-    };
+    var flightCommanderCatalogReady = false;
 
     function flightCommanderCatalogIsReady() {
-        return flightCommanderCatalogReady.releases && flightCommanderCatalogReady.bundled;
+        return flightCommanderCatalogReady;
     }
 
     import('./firmware_flasher.html?raw').then(({default: html}) => GUI.load(html, function () {
@@ -128,11 +124,11 @@ firmwareFlasherTab.initialize = function (callback) {
 
             if (firmwareBackend === 'flight-commander') {
                 $('#firmware_backend_description').text(
-                    'Choose a verified online release or select a local HEX file, then flash the selected image. The verified offline copy is used only when an online release is unavailable.',
+                    'Load published Flight Commander Firmware from GitHub or select a local HEX file, then flash it.',
                 );
-                $('a.load_file').text('Select Local Firmware File').removeClass('disabled');
-                $('a.load_remote_file').text('Download Online Firmware').addClass('disabled');
-                $('a.flash_firmware').text('Flash Selected Firmware').addClass('disabled');
+                $('a.load_file').text(i18n.getMessage('firmwareFlasherButtonLoadLocal')).removeClass('disabled');
+                $('a.load_remote_file').text(i18n.getMessage('firmwareFlasherButtonLoadOnline')).addClass('disabled');
+                $('a.flash_firmware').text(i18n.getMessage('firmwareFlasherFlashFirmware')).addClass('disabled');
                 buildFlightCommanderBoardOptions();
                 if (flightCommanderCatalogIsReady()) {
                     firmwareFlasherTab.getTarget();
@@ -155,13 +151,23 @@ firmwareFlasherTab.initialize = function (callback) {
             setFirmwareBackend(String($(this).val()));
         });
 
-        function enable_load_online_button(summary = null) {
-            const label = firmwareBackend === 'flight-commander'
-                ? summary?.bundled
-                    ? 'Use Offline Firmware Copy'
-                    : 'Download Online Firmware'
-                : i18n.getMessage('firmwareFlasherButtonLoadOnline');
-            $(".load_remote_file").text(label).removeClass('disabled');
+        function refreshFirmwareSourceButtons(summary = null) {
+            if (firmwareBackend === 'flight-commander') {
+                $('a.load_remote_file')
+                    .text(i18n.getMessage('firmwareFlasherButtonLoadOnline'))
+                    .toggleClass('disabled', !summary?.url);
+                return;
+            }
+            $('a.load_remote_file')
+                .text(i18n.getMessage('firmwareFlasherButtonLoadOnline'))
+                .toggleClass('disabled', !summary);
+        }
+
+        function flightCommanderSourceStatus(summary, targetDisplay) {
+            if (summary?.url) {
+                return `Firmware ${summary.version} is published online for ${targetDisplay}. Click Load Firmware [Online].`;
+            }
+            return 'Select a published firmware version or load a local HEX file.';
         }
 
         function parse_hex(str, callback) {
@@ -452,18 +458,11 @@ firmwareFlasherTab.initialize = function (callback) {
                 i18n.getMessage('firmwareFlasherOptionLabelSelectFirmwareVersion'),
             )));
 
-            const bundledDescriptors = bundledFlightCommanderDescriptors(
-                firmwareFlasherTab.bundledFlightCommanderFirmware || [],
-            );
             const onlineDescriptors = flightCommanderReleaseDescriptors(
                 firmwareFlasherTab.flightCommanderReleasesData || [],
             );
-            const descriptors = mergeFlightCommanderDescriptors(
-                bundledDescriptors,
-                onlineDescriptors,
-            );
-            firmwareFlasherTab.bundledReleases = catalogByTarget(bundledDescriptors);
-            firmwareFlasherTab.releases = catalogByTarget(descriptors);
+            firmwareFlasherTab.onlineReleases = catalogByTarget(onlineDescriptors);
+            firmwareFlasherTab.releases = firmwareFlasherTab.onlineReleases;
             for (const target of FLIGHT_COMMANDER_FIRMWARE_TARGETS) {
                 boards.append(
                     $('<option>')
@@ -478,10 +477,10 @@ firmwareFlasherTab.initialize = function (callback) {
             if (firmwareFlasherTab.releases[previouslySelectedTarget]?.length) {
                 boards.val(previouslySelectedTarget).trigger('change');
             }
-            if (!descriptors.length) {
+            if (!onlineDescriptors.length) {
                 $('span.progressLabel').text(
-                    'No included or published Flight Commander Firmware image is available yet. ' +
-                    'Select the detected target and load a verified local Flight Commander HEX.',
+                    'No published Flight Commander Firmware image is available from GitHub. ' +
+                    'Select the detected target and load a local Flight Commander HEX.',
                 );
             }
         };
@@ -585,38 +584,19 @@ firmwareFlasherTab.initialize = function (callback) {
 
         $.get(FLIGHT_COMMANDER_FIRMWARE_RELEASES_URL, function (releasesData) {
             firmwareFlasherTab.flightCommanderReleasesData = releasesData;
-            flightCommanderCatalogReady.releases = true;
+            flightCommanderCatalogReady = true;
             if (firmwareBackend === 'flight-commander') {
                 buildFlightCommanderBoardOptions();
-                if (flightCommanderCatalogIsReady()) firmwareFlasherTab.getTarget();
+                firmwareFlasherTab.getTarget();
             }
         }).fail(function () {
             firmwareFlasherTab.flightCommanderReleasesData = [];
-            flightCommanderCatalogReady.releases = true;
+            flightCommanderCatalogReady = true;
             if (firmwareBackend === 'flight-commander') {
                 buildFlightCommanderBoardOptions();
-                if (flightCommanderCatalogIsReady()) firmwareFlasherTab.getTarget();
+                firmwareFlasherTab.getTarget();
             }
         });
-
-        window.electronAPI.listBundledFlightCommanderFirmware()
-            .then((filenames) => {
-                firmwareFlasherTab.bundledFlightCommanderFirmware = filenames;
-                flightCommanderCatalogReady.bundled = true;
-                if (firmwareBackend === 'flight-commander') {
-                    buildFlightCommanderBoardOptions();
-                    if (flightCommanderCatalogIsReady()) firmwareFlasherTab.getTarget();
-                }
-            })
-            .catch((error) => {
-                firmwareFlasherTab.bundledFlightCommanderFirmware = [];
-                flightCommanderCatalogReady.bundled = true;
-                console.warn('Unable to list bundled Flight Commander Firmware:', error);
-                if (firmwareBackend === 'flight-commander') {
-                    buildFlightCommanderBoardOptions();
-                    if (flightCommanderCatalogIsReady()) firmwareFlasherTab.getTarget();
-                }
-            });
 
         $('select[name="board"]').on('change', function () {
             $('a.load_remote_file').addClass('disabled');
@@ -643,18 +623,25 @@ firmwareFlasherTab.initialize = function (callback) {
                 }
 
                 if (typeof firmwareFlasherTab.releases[target]?.forEach === 'function') {
-                    firmwareFlasherTab.releases[target].forEach(function(descriptor) {
-                        const source = descriptor.bundled
-                            ? 'Offline fallback'
-                            : 'Online release';
+                    firmwareFlasherTab.releases[target].forEach(function(summary) {
+                        if (firmwareBackend === 'flight-commander') {
+                            versions.append(
+                                $("<option value='{0}'>{0} - {1} - {2} ({3})</option>".format(
+                                    summary.version,
+                                    summary.target,
+                                    summary.date,
+                                    summary.status,
+                                )).data('summary', summary),
+                            );
+                            return;
+                        }
                         versions.append(
-                            $("<option value='{0}'>{0} - {1} - {2} ({3}; {4})</option>".format(
-                                descriptor.version,
-                                descriptor.target,
-                                descriptor.date,
-                                descriptor.status,
-                                source,
-                            )).data('summary', descriptor),
+                            $("<option value='{0}'>{0} - {1} - {2} ({3})</option>".format(
+                                summary.version,
+                                summary.target,
+                                summary.date,
+                                summary.status,
+                            )).data('summary', summary),
                         );
                     });
                 }
@@ -665,9 +652,7 @@ firmwareFlasherTab.initialize = function (callback) {
                     const latest = firmwareFlasherTab.releases[target][0];
                     versions.val(latest.version).trigger('change');
                     $('span.progressLabel').text(
-                        latest.bundled
-                            ? `Online firmware is unavailable. Verified offline firmware ${latest.version} is ready for ${targetDisplay}.`
-                            : `Latest compatible online firmware ${latest.version} selected for ${targetDisplay}. Click Download Online Firmware.`,
+                        flightCommanderSourceStatus(latest, targetDisplay),
                     );
                 }
             }
@@ -735,147 +720,128 @@ firmwareFlasherTab.initialize = function (callback) {
                 $("a.load_remote_file").addClass('disabled');
             }
             else {
-                enable_load_online_button(
+                refreshFirmwareSourceButtons(
                     $('select[name="firmware_version"] option:selected').data('summary'),
                 );
             }
         });
 
+        function processLoadedFirmware(data, summary, sourceLabel) {
+            intel_hex = data;
+            localFirmwareLoaded = false;
+
+            parse_hex(intel_hex, function (parsedData) {
+                if (acceptParsedFirmware(parsedData, {
+                    filename: summary.file,
+                    descriptor: summary,
+                    local: false,
+                })) {
+                    const flashAction = firmwareBackend === 'flight-commander'
+                        ? 'Flash Selected Firmware'
+                        : i18n.getMessage('firmwareFlasherFlashFirmware');
+                    $('span.progressLabel').html(
+                        '<a class="save_firmware" href="#" title="Save Firmware">' +
+                        sourceLabel + ' (' + parsedData.bytes_total + ' bytes)</a>. Click ' +
+                        flashAction + '.',
+                    );
+
+                    if (summary.commit) {
+                        $.get('https://api.github.com/repos/iNavFlight/inav/commits/' + summary.commit, function (commitData) {
+                            const d = new Date(commitData.commit.author.date);
+                            const offset = d.getTimezoneOffset() / 60;
+                            let date = d.getFullYear() + '.' + ('0' + (d.getMonth() + 1)).slice(-2) + '.' + ('0' + d.getDate()).slice(-2);
+                            date += ' @ ' + ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+                            date += (offset > 0) ? ' GMT+' + offset : ' GMT' + offset;
+
+                            $('div.git_info .committer').text(commitData.commit.author.name);
+                            $('div.git_info .date').text(date);
+                            $('div.git_info .hash').text(commitData.sha.slice(0, 7)).prop('href', 'https://api.github.com/repos/iNavFlight/inav/commit/' + commitData.sha);
+                            $('div.git_info .message').text(commitData.commit.message);
+                            $('div.git_info').slideDown();
+                        });
+                    }
+
+                    $('div.release_info .target').text(summary.target);
+                    const statusElement = $('div.release_info .status');
+                    if (summary.status == 'release-candidate') {
+                        statusElement.html(i18n.getMessage('firmwareFlasherReleaseStatusReleaseCandidate')).show();
+                    } else {
+                        statusElement.hide();
+                    }
+
+                    $('div.release_info .name').text(summary.name).prop('href', summary.releaseUrl || '#');
+                    $('div.release_info .date').text(summary.date);
+                    statusElement.text(summary.status);
+                    $('div.release_info .file').text(summary.file).prop('href', summary.url || '#');
+                    $('div.release_info .notes').html(marked.parse(summary.notes));
+                    $('div.release_info .notes a').each(function () {
+                        $(this).attr('target', '_blank');
+                    });
+                    $('div.release_info').slideDown();
+                }
+            });
+        }
+
         $('a.load_remote_file').on('click', function () {
+            if ($(this).hasClass('disabled')) return;
             if ($('select[name="firmware_version"]').val() == "0") {
                 GUI.log(i18n.getMessage('noFirmwareSelectedToLoad'));
                 return;
             }
 
-            function process_hex(data, summary) {
-                intel_hex = data;
-                localFirmwareLoaded = false;
-
-                parse_hex(intel_hex, function (data) {
-                    if (acceptParsedFirmware(data, {
-                        filename: summary.file,
-                        descriptor: summary,
-                        local: false,
-                    })) {
-                        var url;
-
-                        const sourceLabel = summary.bundled
-                            ? 'Offline firmware copy loaded'
-                            : 'Online firmware downloaded';
-                        const flashAction = firmwareBackend === 'flight-commander'
-                            ? 'Flash Selected Firmware'
-                            : i18n.getMessage('firmwareFlasherFlashFirmware');
-                        $('span.progressLabel').html(
-                            '<a class="save_firmware" href="#" title="Save Firmware">' +
-                            sourceLabel + ' (' + data.bytes_total + ' bytes)</a>. Click ' +
-                            flashAction + '.',
-                        );
-
-                        if (summary.commit) {
-                            $.get('https://api.github.com/repos/iNavFlight/inav/commits/' + summary.commit, function (data) {
-                                var data = data,
-                                    d = new Date(data.commit.author.date),
-                                    offset = d.getTimezoneOffset() / 60,
-                                    date;
-
-                                date = d.getFullYear() + '.' + ('0' + (d.getMonth() + 1)).slice(-2) + '.' + ('0' + (d.getDate())).slice(-2);
-                                date += ' @ ' + ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
-                                date += (offset > 0) ? ' GMT+' + offset : ' GMT' + offset;
-
-                                $('div.git_info .committer').text(data.commit.author.name);
-                                $('div.git_info .date').text(date);
-                                $('div.git_info .hash').text(data.sha.slice(0, 7)).prop('href', 'https://api.github.com/repos/iNavFlight/inav/commit/' + data.sha);
-
-                                $('div.git_info .message').text(data.commit.message);
-
-                                $('div.git_info').slideDown();
-                            });
-                        }
-
-                        $('div.release_info .target').text(summary.target);
-
-                        var status_e = $('div.release_info .status');
-                        if (summary.status == 'release-candidate') {
-                            $('div.release_info .status').html(i18n.getMessage('firmwareFlasherReleaseStatusReleaseCandidate')).show();
-                        } else {
-                            status_e.hide();
-                        }
-
-                        $('div.release_info .name').text(summary.name).prop('href', summary.releaseUrl);
-                        $('div.release_info .date').text(summary.date);
-                        $('div.release_info .status').text(summary.status);
-                        $('div.release_info .file').text(summary.file).prop('href', summary.url);
-
-                        var formattedNotes = marked.parse(summary.notes);
-                        $('div.release_info .notes').html(formattedNotes);
-                        // Make links in the release notes open in a new window
-                        $('div.release_info .notes a').each(function () {
-                            $(this).attr('target', '_blank');
-                        });
-
-                        $('div.release_info').slideDown();
-
-                    }
-                });
+            const selected = $('select[name="firmware_version"] option:selected').data('summary');
+            const summary = firmwareBackend === 'flight-commander'
+                ? selected
+                : selected;
+            if (!summary?.url) {
+                $('span.progressLabel').text(
+                    'No online firmware asset is available for the selected version.',
+                );
+                refreshFirmwareSourceButtons(selected);
+                return;
             }
 
-            function failed_to_load() {
-                const fallback = firmwareBackend === 'flight-commander' && !summary?.bundled
-                    ? firmwareFlasherTab.bundledReleases?.[
-                        normalizeFirmwareTarget(summary?.target_id)
-                    ]?.find((descriptor) => descriptor.version === summary?.version)
-                    : null;
-                if (fallback) {
-                    $('span.progressLabel').text(
-                        'Online download failed. Loading the verified offline firmware copy.',
-                    );
-                    fileName = fallback.file;
-                    window.electronAPI.readBundledFlightCommanderFirmware(fallback.file)
-                        .then((response) => {
-                            if (response.error) {
-                                throw new Error(response.error);
-                            }
-                            process_hex(response.data, fallback);
-                            enable_load_online_button(summary);
-                        })
-                        .catch(() => {
-                            $('span.progressLabel').text(
-                                'Online firmware download failed and the offline copy could not be loaded. Select a local firmware file or try again.',
-                            );
-                            $('a.flash_firmware').addClass('disabled');
-                            enable_load_online_button(summary);
-                        });
-                    return;
-                }
+            fileName = summary.file;
+            $('a.load_remote_file')
+                .text(i18n.getMessage('firmwareFlasherButtonLoading'))
+                .addClass('disabled');
+
+            if (firmwareBackend === 'flight-commander') {
+                fetch(summary.url, { cache: 'no-store' })
+                    .then((response) => {
+                        if (!response.ok) {
+                            throw new Error(`GitHub returned HTTP ${response.status}.`);
+                        }
+                        return response.arrayBuffer();
+                    })
+                    .then((payload) => verifyFlightCommanderOnlinePayload(payload, summary))
+                    .then((verifiedHex) => {
+                        refreshFirmwareSourceButtons(selected);
+                        processLoadedFirmware(
+                            verifiedHex,
+                            summary,
+                            'Online firmware downloaded and SHA-256 verified',
+                        );
+                    })
+                    .catch((error) => {
+                        console.warn('Online Flight Commander Firmware download failed:', error);
+                        $('span.progressLabel').text(
+                            'Online firmware download failed. You can retry or load a local firmware file.',
+                        );
+                        $('a.flash_firmware').addClass('disabled');
+                        refreshFirmwareSourceButtons(selected);
+                    });
+                return;
+            }
+
+            $.get(summary.url, function (data) {
+                refreshFirmwareSourceButtons(summary);
+                processLoadedFirmware(data, summary, 'Online firmware downloaded');
+            }).fail(function () {
                 $('span.progressLabel').text(i18n.getMessage('firmwareFlasherFailedToLoadOnlineFirmware'));
                 $('a.flash_firmware').addClass('disabled');
-                enable_load_online_button(summary);
-            }
-
-            var summary = $('select[name="firmware_version"] option:selected').data('summary');
-            if (summary) { // undefined while list is loading or while running offline
-                fileName = summary.file;
-                $(".load_remote_file").text(i18n.getMessage('firmwareFlasherButtonLoading')).addClass('disabled');
-                if (summary.bundled) {
-                    window.electronAPI.readBundledFlightCommanderFirmware(summary.file)
-                        .then((response) => {
-                            if (response.error) {
-                                failed_to_load();
-                                return;
-                            }
-                            enable_load_online_button(summary);
-                            process_hex(response.data, summary);
-                        })
-                        .catch(failed_to_load);
-                } else {
-                    $.get(summary.url, function (data) {
-                        enable_load_online_button(summary);
-                        process_hex(data, summary);
-                    }).fail(failed_to_load);
-                }
-            } else {
-                $('span.progressLabel').text(i18n.getMessage('firmwareFlasherFailedToLoadOnlineFirmware'));
-            }
+                refreshFirmwareSourceButtons(summary);
+            });
         });
 
         $('a.flash_firmware').on('click', function () {

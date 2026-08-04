@@ -1,6 +1,14 @@
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { createHash } from "node:crypto";
-import { basename, dirname, extname, join, resolve, sep } from "node:path";
+import {
+  basename,
+  dirname,
+  extname,
+  join,
+  relative,
+  resolve,
+  sep,
+} from "node:path";
 import { fileURLToPath } from "node:url";
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -180,31 +188,6 @@ function hasCompleteDarkWelcomeWordmark(declaration) {
 
 function sha256(bytes) {
   return createHash("sha256").update(bytes).digest("hex");
-}
-
-function intelHexPayload(path) {
-  const chunks = [];
-  const lines = readFileSync(path, "ascii").split(/\r?\n/);
-  for (let index = 0; index < lines.length; index += 1) {
-    const line = lines[index].trim();
-    if (!line) continue;
-    if (!/^:[0-9A-F]+$/i.test(line) || line.length % 2 !== 1) {
-      fail(`bundled firmware has invalid Intel HEX text on line ${index + 1}`);
-    }
-    const record = Buffer.from(line.slice(1), "hex");
-    const byteCount = record[0];
-    if (record.length !== byteCount + 5) {
-      fail(`bundled firmware has an invalid record length on line ${index + 1}`);
-    }
-    const checksum = record.reduce((sum, byte) => (sum + byte) & 0xff, 0);
-    if (checksum !== 0) {
-      fail(`bundled firmware has an invalid checksum on line ${index + 1}`);
-    }
-    const recordType = record[3];
-    if (recordType === 0) chunks.push(record.subarray(4, 4 + byteCount));
-    if (recordType === 1) break;
-  }
-  return Buffer.concat(chunks);
 }
 
 function icoImages(bytes) {
@@ -473,48 +456,22 @@ for (const field of ["name", "productName", "version"]) {
   }
 }
 
-const bundledFirmwareVersion =
-  sourcePackage.flightCommander?.bundledFirmwareVersion;
-if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(bundledFirmwareVersion)) {
-  fail("package.json does not declare a valid bundled firmware version");
-}
-const firmwareFilename =
-  `Flight-Commander-Firmware-${bundledFirmwareVersion}-MICOAIR743.hex`;
-const sourceFirmwarePath = join(projectRoot, "resources", "firmware", firmwareFilename);
-const packagedFirmwareDirectory = join(packageDirectory, "resources", "firmware");
-if (!existsSync(sourceFirmwarePath) || !existsSync(packagedFirmwareDirectory)) {
-  fail("the matching bundled Flight Commander firmware directory is missing");
-}
-const packagedFirmwareFiles = readdirSync(packagedFirmwareDirectory)
-  .filter((name) => extname(name).toLowerCase() === ".hex");
-if (
-  packagedFirmwareFiles.length !== 1 ||
-  packagedFirmwareFiles[0] !== firmwareFilename
-) {
+const applicationFiles = filesBelow(appDirectory);
+const packagedFirmwareFiles = applicationFiles.filter((path) => {
+  const relativePath = relative(appDirectory, path).split(sep).join("/");
+  return (
+    /(^|\/)resources\/firmware(?:-source)?\//i.test(relativePath) ||
+    /(^|\/)release\/firmware\//i.test(relativePath) ||
+    /Flight-Commander-Firmware-.*\.hex$/i.test(relativePath) ||
+    /Flight-Commander-Firmware-Source-.*\.zip$/i.test(relativePath)
+  );
+});
+if (packagedFirmwareFiles.length > 0) {
   fail(
-    `expected exactly the matching ${firmwareFilename} firmware image in the package`,
+    "firmware must not be packaged with the Configurator: " +
+      packagedFirmwareFiles.map((path) => relative(appDirectory, path)).join(", "),
   );
 }
-const packagedFirmwarePath = join(packagedFirmwareDirectory, firmwareFilename);
-const sourceFirmware = readFileSync(sourceFirmwarePath);
-const packagedFirmware = readFileSync(packagedFirmwarePath);
-if (sha256(packagedFirmware) !== sha256(sourceFirmware)) {
-  fail("the packaged firmware differs from the verified source firmware image");
-}
-if (
-  sourcePackage.flightCommander?.bundledFirmwareSha256 !==
-  sha256(sourceFirmware)
-) {
-  fail("package.json does not identify the exact bundled firmware SHA-256");
-}
-const firmwarePayload = intelHexPayload(packagedFirmwarePath);
-for (const identity of ["FCFW", "Flight Commander Firmware", bundledFirmwareVersion]) {
-  if (!firmwarePayload.includes(Buffer.from(identity, "ascii"))) {
-    fail(`the bundled firmware does not contain the ${identity} identity`);
-  }
-}
-
-const applicationFiles = filesBelow(appDirectory);
 for (const requiredSuffix of [
   join(".vite", "build", "main.js"),
   join(".vite", "build", "preload.mjs"),
@@ -787,11 +744,7 @@ for (const marker of [
   "Flight Commander Firmware",
   "Official INAV Firmware",
   "Flight-Commander-Firmware-",
-  "Latest compatible online firmware",
-  "Select Local Firmware File",
-  "Download Online Firmware",
-  "Flash Selected Firmware",
-  "Use Offline Firmware Copy",
+  "Online firmware downloaded and SHA-256 verified",
   "FCFW",
   "MICOAIR743",
   "MICROAIR743",
@@ -817,9 +770,9 @@ for (const marker of [
   "Calibrate this compass",
   "External / UART GPS-module compass",
   "u-blox F9P / F9-series (RTK Rover)",
-  "Generic DroneCAN RTK GPS module",
-  "MICOAIR743 onboard compass orientation must be corrected first",
-  "Apply orientation, reset calibration, and reboot",
+  "DroneCAN GPS-module compass",
+  "active INAV target magnetometer alignment and live diagnostics",
+  "Flight Commander does not override the target's compass orientation",
   "Altitude (MSL)",
   "Flight Commander Output",
   "SETTINGS_REFERENCE.md",
@@ -837,6 +790,11 @@ for (const marker of [
 }
 for (const retiredRuntime of [
   "Load included Flight Commander Firmware",
+  "Use Bundled Firmware",
+  "is available online and bundled",
+  "offline firmware copy",
+  "MICOAIR743 onboard compass orientation must be corrected first",
+  "Apply orientation, reset calibration, and reboot",
   "flightCommanderGroundControlMinorPosition",
   "flightDataMinorDragHandle",
   "Reset minor view",
@@ -882,13 +840,42 @@ const serialBindings = applicationFiles.filter(
   (path) =>
     path.endsWith(".node") && path.includes(join("prebuilds", "win32-x64")),
 );
-if (serialBindings.length === 0) {
-  fail("the Windows x64 native serial binding is missing");
+if (serialBindings.length !== 1) {
+  fail(
+    `expected exactly one Windows x64 native serial binding; found ${serialBindings.length}`,
+  );
 }
 for (const binding of serialBindings) {
   if (peMachine(binding) !== 0x8664) {
     fail(`native serial binding is not Windows x64: ${binding}`);
   }
+}
+
+const foreignSerialBindings = applicationFiles.filter(
+  (path) =>
+    path.endsWith(".node") &&
+    path.includes(join("@serialport", "bindings-cpp", "prebuilds")) &&
+    !path.includes(join("prebuilds", "win32-x64")),
+);
+if (foreignSerialBindings.length > 0) {
+  fail(
+    `the Windows package contains ${foreignSerialBindings.length} foreign-architecture ` +
+      "serial binding(s), which can trigger Windows extraction path failures",
+  );
+}
+
+const packageRelativeFiles = filesBelow(packageDirectory).map((path) =>
+  relative(packageDirectory, path),
+);
+const longestPackagePath = packageRelativeFiles.reduce(
+  (longest, path) => (path.length > longest.length ? path : longest),
+  "",
+);
+if (longestPackagePath.length > 140) {
+  fail(
+    `the longest packaged path is ${longestPackagePath.length} characters; ` +
+      `the Windows extraction budget is 140: ${longestPackagePath}`,
+  );
 }
 
 console.log(
@@ -903,8 +890,8 @@ console.log(
       rendererBundles: rendererFiles.length,
       rendererStylesheets: rendererStylesheets.length,
       serialBindings: serialBindings.length,
-      bundledFirmware: firmwareFilename,
-      bundledFirmwareSha256: sha256(packagedFirmware),
+      longestPackagePathCharacters: longestPackagePath.length,
+      firmwareBundled: false,
       packageDirectory,
     },
     null,

@@ -117,6 +117,35 @@
     margin-right: 68px;
 }
 
+.tab-gps .gps-layout {
+    display: grid;
+    grid-template-columns: minmax(360px, 0.72fr) minmax(0, 2fr);
+    align-items: start;
+    gap: 14px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.tab-gps .gps-layout > .cf_column {
+    float: none;
+    width: auto;
+    min-width: 0;
+    margin: 0;
+}
+
+.tab-gps .gps-main-column {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+}
+
+.tab-gps .gps-main-column > .gui_box {
+    width: 100%;
+    min-width: 0;
+    margin: 0;
+    box-sizing: border-box;
+}
+
 .tab-gps .gps-setting-row {
     display: grid;
     grid-template-columns: minmax(132px, 42%) minmax(0, 1fr) 18px;
@@ -243,43 +272,102 @@
     line-height: 1.4;
 }
 
-.tab-gps .heading-source-table-wrap {
+.tab-gps .flight-commander-gps-workspace {
+    clear: none;
+    display: grid;
+    grid-template-columns: minmax(280px, 0.75fr) minmax(0, 2fr);
+    gap: 14px;
     width: 100%;
-    overflow-x: auto;
-}
-
-.tab-gps .heading-source-table {
-    width: 100%;
-    min-width: 780px;
-}
-
-.tab-gps .heading-source-table th,
-.tab-gps .heading-source-table td {
-    padding: 7px 8px;
-    vertical-align: middle;
-    text-align: left;
-}
-
-.tab-gps .heading-source-table th:not(:first-child),
-.tab-gps .heading-source-table td:not(:first-child) {
-    text-align: center;
-}
-
-.tab-gps .heading-source-table input[type="number"],
-.tab-gps .heading-source-table select {
-    width: 82px;
+    padding-top: 0;
     box-sizing: border-box;
 }
 
-.tab-gps .heading-source-table td:last-child {
-    min-width: 145px;
+.tab-gps .flight-commander-gps-workspace > .gui_box {
+    float: none;
+    width: auto;
+    min-width: 0;
+    margin: 0;
 }
 
-.tab-gps .heading-source-table tr.heading-source-active td:last-child {
+.tab-gps .heading-source-group {
+    min-width: 0;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: rgba(0, 0, 0, 0.12);
+}
+
+.tab-gps .heading-source-grid {
+    display: grid;
+    grid-template-columns: minmax(210px, 2fr) minmax(64px, 0.55fr) minmax(90px, 0.75fr) minmax(82px, 0.7fr) minmax(170px, 1.55fr);
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.tab-gps .heading-source-grid-header {
+    padding: 8px 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+    background: rgba(255, 255, 255, 0.06);
+    font-weight: 600;
+}
+
+.tab-gps .heading-source-grid-header small {
+    display: block;
+    margin-top: 2px;
+    font-weight: 400;
+    opacity: 0.72;
+}
+
+.tab-gps .heading-source-card {
+    padding: 9px 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    box-sizing: border-box;
+}
+
+.tab-gps .heading-source-card:last-child {
+    border-bottom: 0;
+}
+
+.tab-gps .heading-source-name strong,
+.tab-gps .heading-source-name small {
+    display: block;
+}
+
+.tab-gps .heading-source-name small {
+    margin-top: 3px;
+    opacity: 0.72;
+}
+
+.tab-gps .heading-source-card label {
+    display: block;
+    min-width: 0;
+}
+
+.tab-gps .heading-source-card input,
+.tab-gps .heading-source-card select {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+.tab-gps .heading-source-card input[type="checkbox"] {
+    width: auto;
+}
+
+.tab-gps .heading-source-mobile-label {
+    display: none;
+}
+
+.tab-gps .heading-source-status {
+    text-align: left;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+}
+
+.tab-gps .heading-source-card.heading-source-active .heading-source-status {
     color: #87d35f;
 }
 
-.tab-gps .heading-source-table tr.heading-source-rejected td:last-child {
+.tab-gps .heading-source-card.heading-source-rejected .heading-source-status {
     color: #ffb74d;
 }
 
@@ -328,7 +416,42 @@
     opacity: 0.88;
 }
 
+.tab-gps .heading-config-sections .heading-alignment-location {
+    padding: 8px 9px;
+    border-left: 3px solid #37a8db;
+    background: rgba(55, 168, 219, 0.08);
+}
+
+@media (max-width: 1200px) {
+    .tab-gps .gps-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .tab-gps .flight-commander-gps-workspace {
+        grid-template-columns: 1fr;
+    }
+}
+
 @media (max-width: 1050px) {
+    .tab-gps .heading-source-grid-header {
+        display: none;
+    }
+
+    .tab-gps .heading-source-card.heading-source-grid {
+        grid-template-columns: minmax(0, 1fr) repeat(3, minmax(72px, 0.4fr));
+    }
+
+    .tab-gps .heading-source-status {
+        grid-column: 1 / -1;
+    }
+
+    .tab-gps .heading-source-mobile-label {
+        display: block;
+        margin-bottom: 4px;
+        font-size: 0.85em;
+        opacity: 0.72;
+    }
+
     .tab-gps .heading-config-sections {
         grid-template-columns: 1fr;
     }
