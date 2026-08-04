@@ -1,0 +1,154 @@
+name: Monitor Flight Commander 3.0.3 release publication
+
+"on":
+  push:
+    branches:
+      - agent/inspect-3.0.3-actions
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: flight-commander-3.0.3-release-monitor
+  cancel-in-progress: false
+
+jobs:
+  monitor:
+    name: Locate, dispatch, and verify public 3.0.3 release
+    if: github.event.head_commit.message == 'Monitor Flight Commander 3.0.3 release publication'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Locate or dispatch the protected release workflow
+        id: release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EXPECTED_SHA: 78e7e74b5e4f47567109aef80fbbab6fba1a2fdc
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}"
+          headers=(
+            --header "Authorization: Bearer ${GH_TOKEN}"
+            --header "Accept: application/vnd.github+json"
+            --header "X-GitHub-Api-Version: 2022-11-28"
+          )
+
+          query_runs() {
+            curl --fail --silent --show-error "${headers[@]}" \
+              "${api}/actions/runs?head_sha=${EXPECTED_SHA}&per_page=100"
+          }
+
+          select_release_run() {
+            jq -c '[.workflow_runs[] | select(
+              .name == "Publish release" and
+              (.event == "push" or .event == "workflow_dispatch")
+            )] | sort_by(.created_at) | last // empty'
+          }
+
+          runs_json="$(query_runs)"
+          release_json="$(printf '%s' "${runs_json}" | select_release_run)"
+          if [[ -z "${release_json}" ]]; then
+            printf '%s\n' 'No release run was found for the tested main commit; dispatching release.yml on main.'
+            dispatch_payload="$(jq -nc --arg sha "${EXPECTED_SHA}" '{
+              ref: "main",
+              inputs: {expected_sha: $sha}
+            }')"
+            curl --fail --silent --show-error --request POST "${headers[@]}" \
+              --header 'Content-Type: application/json' \
+              --data "${dispatch_payload}" \
+              "${api}/actions/workflows/release.yml/dispatches"
+          else
+            printf 'Found existing release run %s (%s, %s).\n' \
+              "$(jq -r '.id' <<<"${release_json}")" \
+              "$(jq -r '.event' <<<"${release_json}")" \
+              "$(jq -r '.status' <<<"${release_json}")"
+          fi
+
+          completed=false
+          for attempt in $(seq 1 180); do
+            runs_json="$(query_runs)"
+            release_json="$(printf '%s' "${runs_json}" | select_release_run)"
+            if [[ -n "${release_json}" ]]; then
+              run_id="$(jq -r '.id' <<<"${release_json}")"
+              status="$(jq -r '.status' <<<"${release_json}")"
+              conclusion="$(jq -r '.conclusion // ""' <<<"${release_json}")"
+              printf 'Release run %s: status=%s conclusion=%s\n' \
+                "${run_id}" "${status}" "${conclusion:-pending}"
+              if [[ "${status}" == 'completed' ]]; then
+                completed=true
+                printf '%s\n' "${release_json}" > release-workflow-run.json
+                printf 'run_id=%s\n' "${run_id}" >> "${GITHUB_OUTPUT}"
+                printf 'conclusion=%s\n' "${conclusion}" >> "${GITHUB_OUTPUT}"
+                curl --fail --silent --show-error "${headers[@]}" \
+                  "${api}/actions/runs/${run_id}/jobs?per_page=100" \
+                  > release-workflow-jobs.json
+                break
+              fi
+            fi
+            sleep 10
+          done
+
+          if [[ "${completed}" != true ]]; then
+            printf '%s\n' 'The release workflow did not complete within the monitor run.' >&2
+            exit 1
+          fi
+          if [[ "${conclusion}" != 'success' ]]; then
+            printf 'The release workflow completed with conclusion: %s\n' "${conclusion}" >&2
+            exit 1
+          fi
+
+      - name: Verify public tag and release assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EXPECTED_SHA: 78e7e74b5e4f47567109aef80fbbab6fba1a2fdc
+          EXPECTED_FIRMWARE_SHA256: afe8c4c54f0fd1a4bb9250060931ecfb2b79dcbc374b05bd0f667552828fe595
+        run: |
+          set -euo pipefail
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}"
+          headers=(
+            --header "Authorization: Bearer ${GH_TOKEN}"
+            --header "Accept: application/vnd.github+json"
+            --header "X-GitHub-Api-Version: 2022-11-28"
+          )
+          curl --fail --silent --show-error "${headers[@]}" \
+            "${api}/releases/tags/v3.0.3" > public-release.json
+
+          jq -e --arg sha "${EXPECTED_SHA}" --arg firmware_sha "${EXPECTED_FIRMWARE_SHA256}" '
+            .tag_name == "v3.0.3" and
+            .name == "Flight Commander 3.0.3" and
+            .draft == false and
+            .prerelease == false and
+            .target_commitish == $sha and
+            ([.assets[].name] | sort) == ([
+              "Flight-Commander-Firmware-3.0.3-MICOAIR743.hex",
+              "Flight-Commander-v3.0.3.zip"
+            ] | sort) and
+            ([.assets[] | select(.name == "Flight-Commander-Firmware-3.0.3-MICOAIR743.hex")] | length) == 1 and
+            ([.assets[] | select(.name == "Flight-Commander-Firmware-3.0.3-MICOAIR743.hex")][0].digest == ("sha256:" + $firmware_sha)) and
+            ([.assets[] | select(.name == "Flight-Commander-v3.0.3.zip")][0].size > 0)
+          ' public-release.json
+
+          jq '{
+            tag_name,
+            name,
+            html_url,
+            target_commitish,
+            published_at,
+            draft,
+            prerelease,
+            assets: [.assets[] | {name, size, digest, browser_download_url}]
+          }' public-release.json > release-publication-summary.json
+          cat release-publication-summary.json
+
+      - name: Upload publication evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: flight-commander-3.0.3-publication-evidence-${{ github.sha }}
+          path: |
+            release-workflow-run.json
+            release-workflow-jobs.json
+            release-publication-summary.json
+          if-no-files-found: error
+          retention-days: 7
