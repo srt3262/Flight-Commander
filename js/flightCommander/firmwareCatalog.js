@@ -3,6 +3,24 @@
 export const FLIGHT_COMMANDER_FIRMWARE_RELEASES_URL =
   "https://api.github.com/repos/srt3262/Flight-Commander/releases?per_page=20";
 
+export const FLIGHT_COMMANDER_MINIMUM_SUPPORTED_FIRMWARE_VERSION = "3.0.7";
+
+function semverCore(version) {
+  const match = /^(\d+)\.(\d+)\.(\d+)(?:-|$)/.exec(String(version ?? ""));
+  return match ? match.slice(1).map(Number) : null;
+}
+
+export function isSupportedFlightCommanderFirmwareVersion(version) {
+  const candidate = semverCore(version);
+  const minimum = semverCore(FLIGHT_COMMANDER_MINIMUM_SUPPORTED_FIRMWARE_VERSION);
+  if (!candidate || !minimum) return false;
+  for (let index = 0; index < 3; index += 1) {
+    if (candidate[index] > minimum[index]) return true;
+    if (candidate[index] < minimum[index]) return false;
+  }
+  return true;
+}
+
 export const FLIGHT_COMMANDER_FIRMWARE_TARGETS = Object.freeze([
   Object.freeze({
     id: "MICOAIR743",
@@ -51,11 +69,11 @@ export function flightCommanderReleaseDescriptors(releases = []) {
     if (release?.draft) continue;
     for (const asset of Array.isArray(release?.assets) ? release.assets : []) {
       const parsed = parseFlightCommanderFirmwareFilename(asset?.name);
+      if (!parsed || !isSupportedFlightCommanderFirmwareVersion(parsed.version)) continue;
       const digest = String(asset?.digest ?? "");
       const bytes = asset?.size;
       if (
-        !parsed
-        || !asset?.browser_download_url
+        !asset?.browser_download_url
         || !/^sha256:[0-9a-f]{64}$/i.test(digest)
         || !Number.isSafeInteger(bytes)
         || bytes <= 0

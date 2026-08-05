@@ -4,8 +4,10 @@ import { describe, test } from "node:test";
 
 import {
   FLIGHT_COMMANDER_FIRMWARE_RELEASES_URL,
+  FLIGHT_COMMANDER_MINIMUM_SUPPORTED_FIRMWARE_VERSION,
   catalogByTarget,
   flightCommanderReleaseDescriptors,
+  isSupportedFlightCommanderFirmwareVersion,
   normalizeFirmwareTarget,
   parseFlightCommanderFirmwareFilename,
   parsedHexContainsFlightCommanderIdentity,
@@ -18,6 +20,10 @@ describe("Flight Commander firmware catalog", () => {
       FLIGHT_COMMANDER_FIRMWARE_RELEASES_URL,
       "https://api.github.com/repos/srt3262/Flight-Commander/releases?per_page=20",
     );
+    assert.equal(FLIGHT_COMMANDER_MINIMUM_SUPPORTED_FIRMWARE_VERSION, "3.0.7");
+    assert.equal(isSupportedFlightCommanderFirmwareVersion("3.0.6"), false);
+    assert.equal(isSupportedFlightCommanderFirmwareVersion("3.0.7"), true);
+    assert.equal(isSupportedFlightCommanderFirmwareVersion("3.1.0"), true);
     assert.equal(normalizeFirmwareTarget("MICOAIR743"), "MICOAIR743");
     assert.equal(normalizeFirmwareTarget("MICROAIR743"), "MICOAIR743");
   });
@@ -25,11 +31,11 @@ describe("Flight Commander firmware catalog", () => {
   test("parses release and bench-only HEX names for the supported H743 target", () => {
     assert.deepEqual(
       parseFlightCommanderFirmwareFilename(
-        "Flight-Commander-Firmware-0.1.0-MICOAIR743-BENCH-ONLY.hex",
+        "Flight-Commander-Firmware-3.0.7-MICOAIR743-BENCH-ONLY.hex",
       ),
       {
         family: "flight-commander",
-        version: "0.1.0",
+        version: "3.0.7",
         target_id: "MICOAIR743",
         target: "MICOAIR743 (Aero Selfie H743)",
         format: "hex",
@@ -38,14 +44,14 @@ describe("Flight Commander firmware catalog", () => {
     );
     assert.equal(
       parseFlightCommanderFirmwareFilename(
-        "Flight-Commander-Firmware-0.2.0-MICROAIR743.hex",
+        "Flight-Commander-Firmware-3.0.8-MICROAIR743.hex",
       ).target_id,
       "MICOAIR743",
     );
     assert.equal(parseFlightCommanderFirmwareFilename("arducopter.apj"), null);
     assert.equal(
       parseFlightCommanderFirmwareFilename(
-        "Flight-Commander-Firmware-0.1.0-UNKNOWN.hex",
+        "Flight-Commander-Firmware-3.0.7-UNKNOWN.hex",
       ),
       null,
     );
@@ -66,19 +72,19 @@ describe("Flight Commander firmware catalog", () => {
       {
         draft: false,
         prerelease: true,
-        tag_name: "v0.1.0",
-        name: "Firmware 0.1.0 identity baseline",
+        tag_name: "v3.0.7",
+        name: "Firmware 3.0.7 identity baseline",
         html_url: "https://example.invalid/release",
         published_at: "2026-08-02T12:00:00Z",
         body: "Prop-off bench baseline.",
         assets: [
           {
-            name: "Flight-Commander-Firmware-0.1.0-MICOAIR743-BENCH-ONLY.hex",
+            name: "Flight-Commander-Firmware-3.0.7-MICOAIR743-BENCH-ONLY.hex",
             browser_download_url: "https://example.invalid/firmware.hex",
             digest: `sha256:${"a".repeat(64)}`,
             size: 1234,
           },
-          { name: "Flight-Commander-Firmware-0.1.0-source.zip" },
+          { name: "Flight-Commander-Firmware-3.0.7-source.zip" },
         ],
       },
     ];
@@ -92,13 +98,19 @@ describe("Flight Commander firmware catalog", () => {
   });
 
   test("uses the standalone GitHub HEX as the only managed firmware source", () => {
-    const filename = "Flight-Commander-Firmware-3.0.0-MICOAIR743.hex";
+    const filename = "Flight-Commander-Firmware-3.0.7-MICOAIR743.hex";
     const online = flightCommanderReleaseDescriptors([
       {
         draft: false,
         prerelease: false,
         tag_name: "v3.0.0",
         assets: [
+          {
+            name: "Flight-Commander-Firmware-3.0.6-MICOAIR743.hex",
+            browser_download_url: "https://example.invalid/superseded.hex",
+            digest: `sha256:${"b".repeat(64)}`,
+            size: 1200,
+          },
           {
             name: filename,
             browser_download_url: "https://example.invalid/firmware.hex",
@@ -110,7 +122,7 @@ describe("Flight Commander firmware catalog", () => {
     ]);
 
     assert.equal(online.length, 1);
-    assert.equal(online[0].version, "3.0.0");
+    assert.equal(online[0].version, "3.0.7");
     assert.equal(online[0].url, "https://example.invalid/firmware.hex");
     assert.equal(online[0].bytes, 1234);
     assert.equal(catalogByTarget(online).MICOAIR743.length, 1);
