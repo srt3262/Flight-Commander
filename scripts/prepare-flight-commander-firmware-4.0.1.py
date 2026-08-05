@@ -140,7 +140,14 @@ def patch_version(root: Path) -> None:
     verify = root / "flight-commander/verify-release.py"
     verify_text = verify.read_text(encoding="utf-8").replace("4.0.0", "4.0.1")
     verify_text = verify_text.replace(r"4\.0\.0", r"4\.0\.1")
+    verify_text = verify_text.replace("bytes((1, 4, 0, 0,", "bytes((1, 4, 0, 1,")
+    verify_text = verify_text.replace("FLIGHT_COMMANDER_VERSION_PATCH 0", "FLIGHT_COMMANDER_VERSION_PATCH 1")
     verify.write_text(verify_text, encoding="utf-8")
+
+    compass_verify = root / "flight-commander/verify-compass-release.py"
+    compass_verify_text = compass_verify.read_text(encoding="utf-8").replace("4.0.0", "4.0.1")
+    compass_verify_text = compass_verify_text.replace("bytes((1, 4, 0, 0,", "bytes((1, 4, 0, 1,")
+    compass_verify.write_text(compass_verify_text, encoding="utf-8")
 
 
 def update_manifest(root: Path) -> None:
