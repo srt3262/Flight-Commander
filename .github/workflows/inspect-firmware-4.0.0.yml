@@ -49,6 +49,20 @@ jobs:
             flight-commander/build-micoair743.sh
             flight-commander/verify-release.py
             RELEASE-MANIFEST.json
+            lib/main/Dronecan/dsdlc_generated/include/dronecan_msgs.h
+            lib/main/Dronecan/dsdlc_generated/include/uavcan.protocol.param.GetSet.h
+            lib/main/Dronecan/dsdlc_generated/include/uavcan.protocol.param.ExecuteOpcode.h
+            lib/main/Dronecan/dsdlc_generated/include/uavcan.protocol.RestartNode.h
+            lib/main/Dronecan/dsdlc_generated/include/uavcan.protocol.GetNodeInfo.h
+            lib/main/Dronecan/dsdlc_generated/include/uavcan.protocol.param.Value.h
+            lib/main/Dronecan/dsdlc_generated/src/uavcan.protocol.param.GetSet_req.c
+            lib/main/Dronecan/dsdlc_generated/src/uavcan.protocol.param.GetSet_res.c
+            lib/main/Dronecan/dsdlc_generated/src/uavcan.protocol.param.ExecuteOpcode_req.c
+            lib/main/Dronecan/dsdlc_generated/src/uavcan.protocol.param.ExecuteOpcode_res.c
+            lib/main/Dronecan/dsdlc_generated/src/uavcan.protocol.RestartNode_req.c
+            lib/main/Dronecan/dsdlc_generated/src/uavcan.protocol.RestartNode_res.c
+            lib/main/Dronecan/dsdlc_generated/src/uavcan.protocol.GetNodeInfo_req.c
+            lib/main/Dronecan/dsdlc_generated/src/uavcan.protocol.GetNodeInfo_res.c
           )
           for file in "${files[@]}"; do
             if [[ -f "$root/$file" ]]; then
@@ -56,10 +70,6 @@ jobs:
               cp "$root/$file" "firmware-inspection/$file"
             fi
           done
-          header="$(find "$root" -type f -name dronecan_msgs.h -print -quit)"
-          if [[ -n "$header" ]]; then
-            cp "$header" firmware-inspection/dronecan_msgs.h
-          fi
           {
             echo '# Firmware source inventory'
             echo
@@ -69,13 +79,9 @@ jobs:
             echo '## Flight Commander directories'
             find "$root/src/main/flight_commander" -type f -printf '%P\n' 2>/dev/null | LC_ALL=C sort
             echo
-            echo '## DroneCAN generated-header location'
-            find "$root" -type f -name dronecan_msgs.h -printf '%P\n'
-            echo
             echo '## Required DroneCAN definitions'
-            if [[ -n "$header" ]]; then
-              grep -nE 'MOVINGBASELINE|MovingBaseline|RELPOSHEADING|RelPosHeading|PARAM_GETSET|param_GetSet|RESTARTNODE|RestartNode|EXECUTEOPCODE|ExecuteOpcode|GETNODEINFO|GetNodeInfo' "$header" | head -2000 || true
-            fi
+            header="$root/lib/main/Dronecan/dsdlc_generated/include/dronecan_msgs.h"
+            grep -nE 'MOVINGBASELINE|MovingBaseline|RELPOSHEADING|RelPosHeading|PARAM_GETSET|param_GetSet|RESTARTNODE|RestartNode|EXECUTEOPCODE|ExecuteOpcode|GETNODEINFO|GetNodeInfo' "$header" | head -2000 || true
             echo
             echo '## Protocol and DroneCAN symbol matches'
             grep -RInE 'flightCommander|FLIGHT_COMMANDER|DroneCAN|dronecan|RelPosHeading|MovingBaseline|RTCMStream|GetNodeInfo|param' \
@@ -89,5 +95,5 @@ jobs:
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add firmware-source-inventory-3.0.7.txt firmware-inspection
-          git commit -m 'Expose DroneCAN protocol definitions for 4.0.0 development'
+          git commit -m 'Expose DroneCAN service bindings for 4.0.0 development'
           git push origin HEAD:develop/4.0.0-holybro-moving-baseline
