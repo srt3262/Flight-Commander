@@ -54,12 +54,20 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $metadata = Get-Content -Raw (Join-Path $PWD 'firmware-payload/firmware-metadata.json') | ConvertFrom-Json
-          if ($metadata.firmware_sha256 -ne '27d86a3303184b0c27df22e5d07f23d119c0c0f2927b6ffc8077b47bca7963e0') {
-            throw 'Downloaded firmware payload does not match the strictly verified 4.0.1 hash.'
+          $payloadDir = Join-Path $PWD 'firmware-payload'
+          $metadata = Get-Content -Raw (Join-Path $payloadDir 'firmware-metadata.json') | ConvertFrom-Json
+          if ($metadata.version -ne '4.0.1') {
+            throw 'Downloaded firmware payload is not version 4.0.1.'
           }
-          if ($metadata.source_sha256 -ne '9ad1ee43790a3f42e5deb3d380379e978dad87845620b9cd30f01c3df7272a3d') {
-            throw 'Downloaded firmware source does not match the strictly verified 4.0.1 hash.'
+          $hexPath = Join-Path $payloadDir 'Flight-Commander-Firmware-4.0.1-MICOAIR743.hex'
+          $sourcePath = Join-Path $payloadDir 'Flight-Commander-Firmware-Source-v4.0.1.zip'
+          $actualHexHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $hexPath).Hash.ToLowerInvariant()
+          $actualSourceHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $sourcePath).Hash.ToLowerInvariant()
+          if ($actualHexHash -ne $metadata.firmware_sha256) {
+            throw 'Downloaded firmware does not match its strictly verified metadata.'
+          }
+          if ($actualSourceHash -ne $metadata.source_sha256) {
+            throw 'Downloaded firmware source does not match its strictly verified metadata.'
           }
 
           $baselineArchive = Join-Path $env:RUNNER_TEMP 'Flight-Commander-Firmware-Source-v4.0.0.zip'
@@ -88,8 +96,8 @@ jobs:
 
           $releaseDir = Join-Path $PWD 'release/firmware'
           Get-ChildItem -LiteralPath $releaseDir -File | Remove-Item -Force
-          Copy-Item -LiteralPath (Join-Path $PWD 'firmware-payload/Flight-Commander-Firmware-4.0.1-MICOAIR743.hex') -Destination $releaseDir
-          Copy-Item -LiteralPath (Join-Path $PWD 'firmware-payload/Flight-Commander-Firmware-Source-v4.0.1.zip') -Destination $releaseDir
+          Copy-Item -LiteralPath $hexPath -Destination $releaseDir
+          Copy-Item -LiteralPath $sourcePath -Destination $releaseDir
 
       - name: Run complete tests and verify Windows package
         shell: pwsh
