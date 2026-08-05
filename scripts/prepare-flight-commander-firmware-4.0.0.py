@@ -1517,8 +1517,10 @@ def patch_build(root: Path) -> None:
     value = overlay.read_text(encoding="utf-8")
     addition = r'''
 
-target_sources(MICOAIR743.elf PRIVATE
+set(FLIGHT_COMMANDER_PAIR_SOURCES
     ${CMAKE_SOURCE_DIR}/src/main/drivers/dronecan/dronecan_pair.c
+)
+set(FLIGHT_COMMANDER_PAIR_DSDL_CANDIDATES
     ${CMAKE_SOURCE_DIR}/lib/main/Dronecan/dsdlc_generated/src/uavcan.protocol.GetNodeInfo_req.c
     ${CMAKE_SOURCE_DIR}/lib/main/Dronecan/dsdlc_generated/src/uavcan.protocol.param.GetSet_req.c
     ${CMAKE_SOURCE_DIR}/lib/main/Dronecan/dsdlc_generated/src/uavcan.protocol.param.GetSet_res.c
@@ -1527,6 +1529,12 @@ target_sources(MICOAIR743.elf PRIVATE
     ${CMAKE_SOURCE_DIR}/lib/main/Dronecan/dsdlc_generated/src/uavcan.protocol.RestartNode_req.c
     ${CMAKE_SOURCE_DIR}/lib/main/Dronecan/dsdlc_generated/src/uavcan.protocol.RestartNode_res.c
 )
+foreach(FLIGHT_COMMANDER_PAIR_DSDL_SOURCE IN LISTS FLIGHT_COMMANDER_PAIR_DSDL_CANDIDATES)
+    if(EXISTS "${FLIGHT_COMMANDER_PAIR_DSDL_SOURCE}")
+        list(APPEND FLIGHT_COMMANDER_PAIR_SOURCES "${FLIGHT_COMMANDER_PAIR_DSDL_SOURCE}")
+    endif()
+endforeach()
+target_sources(MICOAIR743.elf PRIVATE ${FLIGHT_COMMANDER_PAIR_SOURCES})
 
 target_compile_definitions(MICOAIR743.elf PRIVATE
     USE_FLIGHT_COMMANDER_DRONECAN_PAIR_MANAGER
