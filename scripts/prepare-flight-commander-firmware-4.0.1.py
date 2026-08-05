@@ -121,6 +121,18 @@ def patch_compass(root: Path) -> None:
         if forbidden in guarded:
             raise RuntimeError(f"Fragile onboard compass runtime gate remains: {forbidden}")
 
+    baseline_path = root / "flight-commander/INAV-9.1.0-BASELINE.json"
+    baseline = json.loads(baseline_path.read_text(encoding="utf-8"))
+    relative = "src/main/drivers/compass/compass_ist8310.c"
+    extension = baseline["intentional_extensions"][relative]
+    extension["patched_sha256"] = hashlib.sha256(path.read_bytes()).hexdigest()
+    extension["purpose"] = (
+        "Use fresh IST8310 single-shot data-ready sampling and unconditionally "
+        "apply the bench-validated MICOAIR743 onboard transform "
+        "X=-nativeY, Y=-nativeX, Z=nativeZ to primary compass tag 0."
+    )
+    baseline_path.write_text(json.dumps(baseline, indent=2) + "\n", encoding="utf-8")
+
 
 def patch_version(root: Path) -> None:
     header = root / "src/main/build/flight_commander.h"
