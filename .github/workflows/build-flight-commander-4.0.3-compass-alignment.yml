@@ -9,6 +9,14 @@ name: Build Flight Commander 4.0.3 compass alignment repair
       - scripts/prepare-flight-commander-firmware-4.0.3.py
       - scripts/apply-flight-commander-4.0.3-beta.py
       - tests/flight-commander/firmware/onboard-ist8310-transform.test.mjs
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/build-flight-commander-4.0.3-compass-alignment.yml
+      - scripts/prepare-flight-commander-firmware-4.0.3.py
+      - scripts/apply-flight-commander-4.0.3-beta.py
+      - tests/flight-commander/firmware/onboard-ist8310-transform.test.mjs
   workflow_dispatch:
 
 permissions:
@@ -27,6 +35,7 @@ jobs:
       - name: Check out repair branch
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
+          ref: agent/fix-4.0.3-compass-alignment-layer
           fetch-depth: 0
           persist-credentials: true
 
