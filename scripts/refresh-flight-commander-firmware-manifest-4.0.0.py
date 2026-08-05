@@ -14,6 +14,9 @@ import hashlib
 import json
 from pathlib import Path
 
+# This helper is a required coordinated-build step after every generated-source
+# transformation, including dynamic DroneCAN node allocation support.
+
 
 def source_records(root: Path) -> list[str]:
     records: list[str] = []
