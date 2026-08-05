@@ -1,0 +1,782 @@
+# Firmware source inventory
+
+## Top-level
+d cmake
+d dev
+d dev/svd
+d flight-commander
+d flight-commander/__pycache__
+d lib
+d lib/main
+d src
+d src/bl
+d src/main
+d src/test
+d src/utils
+f .dir-locals.el
+f .dockerignore
+f .gitattributes
+f .gitignore
+f .travis.sh
+f .travis.yml
+f .vimrc
+f AGENT.md
+f AUTHORS
+f CMakeLists.txt
+f COMPASS-3.0.4-README.md
+f COMPASS-3.0.7-README.md
+f Dockerfile
+f JLinkSettings.ini
+f LICENSE
+f RELEASE-MANIFEST.json
+f Vagrantfile
+f build.sh
+f build_docs.sh
+f cmake/GetGitRevisionDescription.cmake
+f cmake/GetGitRevisionDescription.cmake.in
+f cmake/arm-none-eabi-checks.cmake
+f cmake/arm-none-eabi.cmake
+f cmake/at32-bootloader.cmake
+f cmake/at32-stdperiph.cmake
+f cmake/at32.cmake
+f cmake/at32f4-usb.cmake
+f cmake/at32f4.cmake
+f cmake/ci.cmake
+f cmake/cortex-m4f.cmake
+f cmake/cortex-m7.cmake
+f cmake/docker.sh
+f cmake/docker_build_sitl.sh
+f cmake/docker_docs.sh
+f cmake/docker_run_sitl.sh
+f cmake/flight-commander-micoair743.cmake
+f cmake/gcc.cmake
+f cmake/host.cmake
+f cmake/main.cmake
+f cmake/openocd.cmake
+f cmake/openocd_cfg.cmake
+f cmake/pg_struct_sizes.reference.db
+f cmake/settings.cmake
+f cmake/sitl.cmake
+f cmake/stm32-bootloader.cmake
+f cmake/stm32-stdperiph.cmake
+f cmake/stm32.cmake
+f cmake/stm32f4-usb.cmake
+f cmake/stm32f4.cmake
+f cmake/stm32f7-usb.cmake
+f cmake/stm32f7.cmake
+f cmake/stm32h7-usb.cmake
+f cmake/stm32h7.cmake
+f cmake/svd.cmake
+f cmake/validate-pg-for-release.sh
+f fake_travis_build.sh
+f flight-commander/INAV-9.1.0-BASELINE.json
+f flight-commander/build-micoair743.sh
+f flight-commander/verify-compass-release.py
+f flight-commander/verify-release.py
+f readme.md
+f src/CMakeLists.txt
+
+## Flight Commander files
+INAV-9.1.0-BASELINE.json
+__pycache__/verify-compass-release.cpython-312.pyc
+__pycache__/verify-release.cpython-312.pyc
+build-micoair743.sh
+verify-compass-release.py
+verify-release.py
+
+## DroneCAN-related source files
+main/common/gps_conversion.c
+main/common/gps_conversion.h
+main/drivers/barometer/barometer_msp.c
+main/drivers/barometer/barometer_msp.h
+main/drivers/compass/compass_msp.c
+main/drivers/compass/compass_msp.h
+main/drivers/display_canvas.c
+main/drivers/display_canvas.h
+main/drivers/dronecan/dronecan.c
+main/drivers/dronecan/dronecan.h
+main/drivers/dronecan/libcanard/canard.c
+main/drivers/dronecan/libcanard/canard.h
+main/drivers/dronecan/libcanard/canard_internals.h
+main/drivers/dronecan/libcanard/canard_sitl_driver.c
+main/drivers/dronecan/libcanard/canard_stm32_driver.h
+main/drivers/dronecan/libcanard/canard_stm32f7xx_driver.c
+main/drivers/dronecan/libcanard/canard_stm32h7xx_driver.c
+main/drivers/pitotmeter/pitotmeter_msp.c
+main/drivers/pitotmeter/pitotmeter_msp.h
+main/fc/fc_msp.c
+main/fc/fc_msp.h
+main/fc/fc_msp_box.c
+main/fc/fc_msp_box.h
+main/flight_commander/heading_fusion.c
+main/flight_commander/heading_fusion.h
+main/io/displayport_msp.c
+main/io/displayport_msp.h
+main/io/displayport_msp_dji_compat.c
+main/io/displayport_msp_dji_compat.h
+main/io/displayport_msp_osd.c
+main/io/displayport_msp_osd.h
+main/io/gps.c
+main/io/gps.h
+main/io/gps_dronecan.c
+main/io/gps_dronecan.h
+main/io/gps_fake.c
+main/io/gps_msp.c
+main/io/gps_private.h
+main/io/gps_ublox.c
+main/io/gps_ublox.h
+main/io/gps_ublox_utils.c
+main/io/gps_ublox_utils.h
+main/io/headtracker_msp.c
+main/io/headtracker_msp.h
+main/io/opflow_msp.c
+main/io/osd_canvas.c
+main/io/osd_canvas.h
+main/io/rangefinder_msp.c
+main/io/vtx_msp.c
+main/io/vtx_msp.h
+main/msp/msp.h
+main/msp/msp_flight_commander.c
+main/msp/msp_flight_commander.h
+main/msp/msp_protocol.h
+main/msp/msp_protocol_v2_common.h
+main/msp/msp_protocol_v2_flight_commander.h
+main/msp/msp_protocol_v2_inav.h
+main/msp/msp_protocol_v2_sensor.h
+main/msp/msp_protocol_v2_sensor_msg.h
+main/msp/msp_serial.c
+main/msp/msp_serial.h
+main/rx/msp.c
+main/rx/msp.h
+main/rx/msp_override.c
+main/rx/msp_override.h
+main/sensors/battery_sensor_dronecan.c
+main/sensors/battery_sensor_dronecan.h
+main/telemetry/msp_shared.c
+main/telemetry/msp_shared.h
+test/mock_msp_gps.py
+test/unit/gps_conversion_unittest.cc.txt
+test/unit/gps_null_port_unittest.cc
+test/unit/gps_ublox_unittest.cc
+test/unit/serial_msp_unittest.cc.txt
+utils/scan_target_headers.py
+
+## Flight Commander symbol matches
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/io/gps_ublox.c:52:#if defined(USE_FLIGHT_COMMANDER_MOVING_BASELINE)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/io/gps_ublox.c:700:#if defined(USE_FLIGHT_COMMANDER_MOVING_BASELINE)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/io/gps_ublox.c:704:            flightCommanderHeadingReceiveUartRelPosHeading(
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/io/gps_ublox.c:1093:#if defined(USE_FLIGHT_COMMANDER_MOVING_BASELINE)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/io/gps_ublox.c:1094:    const flightCommanderHeadingConfig_t *headingConfig = flightCommanderHeadingConfig();
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/io/gps_ublox.c:1096:        headingConfig->movingBaselineProvider != FLIGHT_COMMANDER_BASELINE_DRONECAN) {
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/io/gps_dronecan.c:2: * Flight Commander DroneCAN GNSS integration.
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/io/gps_dronecan.c:25:#include "drivers/dronecan/dronecan.h"
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/io/gps_dronecan.c:28:#include "io/gps_dronecan.h"
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/io/gps_dronecan.c:31:#include <dronecan_msgs.h>
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/io/gps_dronecan.c:61:    const uint8_t configuredNodeID = dronecanConfig()->gpsNodeID;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/io/gps_dronecan.c:78:    dronecanMarkNodeCapability(sourceNodeID,
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/io/gps_dronecan.c:144:    return feature(FEATURE_GPS) && dronecanConfig()->gpsNodeID != DRONECAN_NODE_ID_DISABLED;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/io/gps_dronecan.c:159:    return activeNodeID != DRONECAN_NODE_ID_DISABLED ? activeNodeID : dronecanConfig()->gpsNodeID;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/io/gps_dronecan.c:162:void dronecanGPSReceiveGNSSFix(uint8_t sourceNodeID, const struct uavcan_equipment_gnss_Fix *fix)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/io/gps_dronecan.c:180:void dronecanGPSReceiveGNSSFix2(uint8_t sourceNodeID, const struct uavcan_equipment_gnss_Fix2 *fix)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/io/gps_dronecan.c:203:void dronecanGPSReceiveGNSSAuxiliary(uint8_t sourceNodeID, const struct uavcan_equipment_gnss_Auxiliary *auxiliary)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/io/gps_dronecan.c:211:    dronecanMarkNodeCapability(sourceNodeID, DRONECAN_NODE_CAPABILITY_GNSS);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/io/gps.c:61:#include "drivers/dronecan/dronecan.h"
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/io/gps.c:62:#include "io/gps_dronecan.h"
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/io/gps.c:454:    if (dronecanConfig()->primaryGpsSource < GPS_PRIMARY_SOURCE_COUNT) {
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/io/gps.c:455:        return (gpsPrimarySource_e)dronecanConfig()->primaryGpsSource;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/io/gps.c:480:    const bool dronecanIsActive = gpsGetPrimarySource() == GPS_PRIMARY_SOURCE_DRONECAN || !gpsUartIsHealthy();
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/io/gps.c:481:    if (dronecanIsActive) {
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/io/gps_dronecan.h:8:#include <dronecan_msgs.h>
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/io/gps_dronecan.h:12:void dronecanGPSReceiveGNSSFix(uint8_t sourceNodeID, const struct uavcan_equipment_gnss_Fix *fix);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/io/gps_dronecan.h:13:void dronecanGPSReceiveGNSSFix2(uint8_t sourceNodeID, const struct uavcan_equipment_gnss_Fix2 *fix);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/io/gps_dronecan.h:14:void dronecanGPSReceiveGNSSAuxiliary(uint8_t sourceNodeID, const struct uavcan_equipment_gnss_Auxiliary *auxiliary);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/telemetry/mavlink.c:61:#ifdef USE_FLIGHT_COMMANDER_RTK
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/telemetry/mavlink.c:1370:#ifdef USE_FLIGHT_COMMANDER_RTK
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/telemetry/mavlink.c:1376:        flightCommanderRtcmReceiveFragment(FLIGHT_COMMANDER_RTCM_TRANSPORT_MAVLINK,
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/telemetry/mavlink.c:1450:#ifdef USE_FLIGHT_COMMANDER_RTK
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.h:12:} dronecanBitrate_e;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.h:18:} dronecanState_e;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.h:30:} dronecanNodeCapability_e;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.h:32:typedef struct dronecanConfig_s {
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.h:39:} dronecanConfig_t;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.h:41:typedef struct dronecanNodeInfo_s {
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.h:51:} dronecanNodeInfo_t;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.h:54:typedef struct dronecanNodeStatus_s {
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.h:59:} __attribute__((packed)) dronecanNodeStatus_t;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.h:61:void dronecanInit(void);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.h:62:void dronecanUpdate(timeUs_t currentTimeUs);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.h:63:bool dronecanBroadcastRtcm(const uint8_t *data, uint16_t length);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.h:64:dronecanState_e dronecanGetState(void);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.h:65:uint8_t dronecanGetNodeCount(void);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.h:66:uint32_t dronecanGetBitrateKbps(void);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.h:67:const dronecanNodeInfo_t *dronecanGetNode(uint8_t index);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.h:68:void dronecanMarkNodeCapability(uint8_t nodeID, uint16_t capability);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.h:70:PG_DECLARE(dronecanConfig_t, dronecanConfig);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.c:23:#include "io/gps_dronecan.h"
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.c:24:#include "sensors/battery_sensor_dronecan.h"
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.c:27:#include "drivers/dronecan/dronecan.h"
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.c:28:#include "drivers/dronecan/libcanard/canard.h"
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.c:29:#include "drivers/dronecan/libcanard/canard_stm32_driver.h"
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.c:31:#include <dronecan_msgs.h>
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.c:36:PG_REGISTER_WITH_RESET_TEMPLATE(dronecanConfig_t, dronecanConfig, PG_DRONECAN_CONFIG, 1);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.c:38:PG_RESET_TEMPLATE(dronecanConfig_t, dronecanConfig,
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.c:50:static dronecanState_e state = STATE_DRONECAN_INIT;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.c:51:static dronecanNodeInfo_t nodeTable[DRONECAN_MAX_NODES];
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.c:56:static dronecanNodeInfo_t *findNode(uint8_t nodeID, bool create)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.c:66:    dronecanNodeInfo_t *node = &nodeTable[activeNodeCount++];
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.c:73:static dronecanNodeInfo_t *touchNode(uint8_t nodeID)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.c:75:    dronecanNodeInfo_t *node = findNode(nodeID, true);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.c:82:void dronecanMarkNodeCapability(uint8_t nodeID, uint16_t capability)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.c:84:    dronecanNodeInfo_t *node = touchNode(nodeID);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.c:96:    dronecanNodeInfo_t *node = touchNode(transfer->source_node_id);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.c:110:        dronecanMarkNodeCapability(transfer->source_node_id, DRONECAN_NODE_CAPABILITY_GNSS);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.c:111:        dronecanGPSReceiveGNSSAuxiliary(transfer->source_node_id, &message);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.c:119:        dronecanMarkNodeCapability(transfer->source_node_id, DRONECAN_NODE_CAPABILITY_GNSS);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.c:120:        dronecanGPSReceiveGNSSFix(transfer->source_node_id, &message);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.c:128:        dronecanMarkNodeCapability(transfer->source_node_id, DRONECAN_NODE_CAPABILITY_GNSS);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.c:129:        dronecanGPSReceiveGNSSFix2(transfer->source_node_id, &message);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.c:139:    dronecanMarkNodeCapability(transfer->source_node_id, DRONECAN_NODE_CAPABILITY_RTCM);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.c:149:        dronecanMarkNodeCapability(transfer->source_node_id, DRONECAN_NODE_CAPABILITY_BATTERY);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.c:150:        dronecanBatterySensorReceiveInfo(transfer->source_node_id, &message);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.c:158:        dronecanMarkNodeCapability(transfer->source_node_id, DRONECAN_NODE_CAPABILITY_MAG);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.c:159:#if defined(USE_FLIGHT_COMMANDER_HEADING_FUSION)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.c:160:        flightCommanderHeadingReceiveDronecanMag(transfer->source_node_id, &message);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.c:169:        dronecanMarkNodeCapability(transfer->source_node_id, DRONECAN_NODE_CAPABILITY_RELATIVE_HEADING);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.c:170:#if defined(USE_FLIGHT_COMMANDER_HEADING_FUSION)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.c:171:        flightCommanderHeadingReceiveDronecanHeading(transfer->source_node_id, &message);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.c:176:static void handleRelPosHeading(const CanardRxTransfer *transfer)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.c:178:    struct ardupilot_gnss_RelPosHeading message;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.c:179:    if (!ardupilot_gnss_RelPosHeading_decode(transfer, &message)) {
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.c:180:        dronecanMarkNodeCapability(transfer->source_node_id, DRONECAN_NODE_CAPABILITY_RELATIVE_HEADING);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.c:181:#if defined(USE_FLIGHT_COMMANDER_HEADING_FUSION)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.c:182:        flightCommanderHeadingReceiveDronecanRelPosHeading(transfer->source_node_id, &message);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.c:195:    response.software_version.major = FLIGHT_COMMANDER_VERSION_MAJOR;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.c:196:    response.software_version.minor = FLIGHT_COMMANDER_VERSION_MINOR;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.c:274:    case ARDUPILOT_GNSS_RELPOSHEADING_ID: handleRelPosHeading(transfer); break;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.c:321:void dronecanInit(void)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.c:323:    switch (dronecanConfig()->bitRateKbps) {
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.c:338:    if (dronecanConfig()->nodeID >= 1 && dronecanConfig()->nodeID <= 127) {
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.c:339:        canardSetLocalNodeID(&canard, dronecanConfig()->nodeID);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.c:345:void dronecanUpdate(timeUs_t currentTimeUs)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.c:390:bool dronecanBroadcastRtcm(const uint8_t *data, uint16_t length)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.c:414:dronecanState_e dronecanGetState(void)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.c:419:uint8_t dronecanGetNodeCount(void)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.c:424:uint32_t dronecanGetBitrateKbps(void)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/dronecan.c:429:const dronecanNodeInfo_t *dronecanGetNode(uint8_t index)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/libcanard/canard_stm32h7xx_driver.c:123:        LOG_ERROR(SYSTEM, "DroneCAN data exceeds the classic CAN frame size");
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/libcanard/canard_stm32h7xx_driver.c:175:      LOG_DEBUG(SYSTEM, "Unable to configure DroneCAN peripheral clock");
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/libcanard/canard_stm32h7xx_driver.c:221:        LOG_ERROR(SYSTEM, "Failed to configure the DroneCAN filter");
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/libcanard/canard_stm32h7xx_driver.c:226:        LOG_ERROR(SYSTEM, "Failed to start DroneCAN");
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/libcanard/canard_stm32h7xx_driver.c:286:    LOG_DEBUG(SYSTEM, "DroneCAN baudrate: %lu", target_bitrate);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/libcanard/canard_stm32h7xx_driver.c:388:    LOG_DEBUG(SYSTEM, "DroneCAN bus-off: %lu", protocolStatus.BusOff);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/libcanard/canard_sitl_driver.c:77:        LOG_INFO(CAN, "DroneCAN SITL driver initialized (SocketCAN on %s)", can_interface_name);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/libcanard/canard_sitl_driver.c:94:    LOG_DEBUG(CAN, "SITL DroneCAN driver initialized (stub mode)");
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/libcanard/canard_sitl_driver.c:172:    // Handle extended frame format (EFF) - DroneCAN uses 29-bit IDs
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/libcanard/canard.h:244: * This struture provides information about encoded dronecan frame that needs
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/libcanard/canard.h:511: * any data type can be obtained in many ways; for example, using the generated code generated using dronecan_dsdlc (see the repository).
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/dronecan/libcanard/canard.h:551: * any data type can be obtained in many ways; for example, using the generated code generated using dronecan_dsdlc (see the repository).
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/drivers/compass/compass_ist8310.c:119:#if defined(FLIGHT_COMMANDER_MICOAIR743_ONBOARD_IST8310)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight/imu.c:57:#if defined(USE_FLIGHT_COMMANDER_HEADING_FUSION)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight/imu.c:228:#if defined(USE_FLIGHT_COMMANDER_HEADING_FUSION)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight/imu.c:229:    flightCommanderHeadingSetMagneticNorth(&vCorrectedMagNorth);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight/imu.c:376:#if defined(USE_FLIGHT_COMMANDER_HEADING_FUSION)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight/imu.c:451:#if defined(USE_FLIGHT_COMMANDER_HEADING_FUSION)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight/imu.c:452:    const bool hasFlightCommanderHeading = flightCommanderHeadingHasActiveReference();
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight/imu.c:465:#if defined(USE_FLIGHT_COMMANDER_HEADING_FUSION)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight/imu.c:469:            wMag = flightCommanderHeadingGetOnboardMagWeight();
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight/imu.c:566:        float flightCommanderWeight = 0.0F;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight/imu.c:567:#if defined(USE_FLIGHT_COMMANDER_HEADING_FUSION)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight/imu.c:568:        for (unsigned sourceIndex = FLIGHT_COMMANDER_HEADING_EXTERNAL_I2C_MAG;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight/imu.c:569:            sourceIndex <= FLIGHT_COMMANDER_HEADING_DRONECAN_MAG; sourceIndex++) {
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight/imu.c:570:            const flightCommanderHeadingSource_e source =
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight/imu.c:571:                (flightCommanderHeadingSource_e)sourceIndex;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight/imu.c:574:            if (!flightCommanderHeadingGetMagSource(
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight/imu.c:583:                flightCommanderWeight += sourceWeight;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight/imu.c:590:        if (flightCommanderHeadingGetAbsoluteReference(
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight/imu.c:596:            flightCommanderWeight += absoluteWeight;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight/imu.c:604:        const float absoluteWeightSum = wMag + flightCommanderWeight;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight/imu.c:908:#if defined(USE_FLIGHT_COMMANDER_HEADING_FUSION)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight/imu.c:909:    flightCommanderHeadingUpdate();
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight/imu.c:913:#if defined(USE_FLIGHT_COMMANDER_HEADING_FUSION)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight/imu.c:914:        && flightCommanderHeadingGetOnboardMagWeight() > 0.0F
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight/imu.c:925:#if defined(USE_FLIGHT_COMMANDER_HEADING_FUSION)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight/imu.c:926:    if (flightCommanderHeadingHasActiveReference()) {
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight/imu.c:1089:#if defined(USE_FLIGHT_COMMANDER_HEADING_FUSION)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight/imu.c:1090:        || flightCommanderHeadingHasActiveReference()
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/build/flight_commander.h:14:#define FLIGHT_COMMANDER_VERSION_MAJOR 3
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/build/flight_commander.h:15:#define FLIGHT_COMMANDER_VERSION_MINOR 0
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/build/flight_commander.h:16:#define FLIGHT_COMMANDER_VERSION_PATCH 7
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/build/flight_commander.h:18:#define FLIGHT_COMMANDER_STR_HELPER(value) #value
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/build/flight_commander.h:19:#define FLIGHT_COMMANDER_STR(value) FLIGHT_COMMANDER_STR_HELPER(value)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/build/flight_commander.h:20:#define FLIGHT_COMMANDER_VERSION_STRING \
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/build/flight_commander.h:21:    FLIGHT_COMMANDER_STR(FLIGHT_COMMANDER_VERSION_MAJOR) "." \
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/build/flight_commander.h:22:    FLIGHT_COMMANDER_STR(FLIGHT_COMMANDER_VERSION_MINOR) "." \
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/build/flight_commander.h:23:    FLIGHT_COMMANDER_STR(FLIGHT_COMMANDER_VERSION_PATCH)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/build/flight_commander.h:25:#define FLIGHT_COMMANDER_INFO_SIGNATURE "FCFW"
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/build/flight_commander.h:26:#define FLIGHT_COMMANDER_INFO_SIGNATURE_LENGTH 4
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/build/flight_commander.h:27:#define FLIGHT_COMMANDER_INFO_SCHEMA_VERSION 1
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/build/flight_commander.h:28:#define FLIGHT_COMMANDER_INFO_PAYLOAD_SIZE 15
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/build/flight_commander.h:31:    FLIGHT_COMMANDER_CAPABILITY_MULTIROTOR_AUTOTUNE = (1U << 0),
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/build/flight_commander.h:32:    FLIGHT_COMMANDER_CAPABILITY_TERRAIN_WAYPOINTS = (1U << 1),
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/build/flight_commander.h:33:    FLIGHT_COMMANDER_CAPABILITY_MISSION_STREAMING = (1U << 2),
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/build/flight_commander.h:34:    FLIGHT_COMMANDER_CAPABILITY_RTK_GPS_UART = (1U << 3),
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/build/flight_commander.h:35:    FLIGHT_COMMANDER_CAPABILITY_DRONECAN = (1U << 4),
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/build/flight_commander.h:36:    FLIGHT_COMMANDER_CAPABILITY_DRONECAN_GPS = (1U << 5),
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/build/flight_commander.h:37:    FLIGHT_COMMANDER_CAPABILITY_NATIVE_GCS_COMMANDS = (1U << 6),
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/build/flight_commander.h:38:    FLIGHT_COMMANDER_CAPABILITY_PHOTO_TRIGGERS = (1U << 7),
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/build/flight_commander.h:39:    FLIGHT_COMMANDER_CAPABILITY_DRONECAN_NODE_CONFIG = (1U << 8),
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/build/flight_commander.h:40:    FLIGHT_COMMANDER_CAPABILITY_MISSION_RESUME = (1U << 9),
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/build/flight_commander.h:41:    FLIGHT_COMMANDER_CAPABILITY_GCS_RTK_BASE = (1U << 10),
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/build/flight_commander.h:42:    FLIGHT_COMMANDER_CAPABILITY_HEADING_FUSION = (1U << 11),
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/build/flight_commander.h:43:    FLIGHT_COMMANDER_CAPABILITY_MOVING_BASELINE_YAW = (1U << 12),
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/build/flight_commander.h:44:} flightCommanderCapability_e;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/build/flight_commander.h:46:#define FLIGHT_COMMANDER_CAPABILITIES ((uint32_t)0x1FFFU)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/blackbox/blackbox.c:1904:        BLACKBOX_PRINT_HEADER_LINE("Flight Commander revision", "%s",       FLIGHT_COMMANDER_VERSION_STRING);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/sensors/battery_sensor_dronecan.c:34:#include "drivers/dronecan/dronecan.h"
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/sensors/battery_sensor_dronecan.c:35:#include "sensors/battery_sensor_dronecan.h"
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/sensors/battery_sensor_dronecan.c:37:static uint16_t dronecanVbat;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/sensors/battery_sensor_dronecan.c:38:static uint16_t dronecanAmperage;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/sensors/battery_sensor_dronecan.c:40:uint16_t dronecanBattSensorGetVBat(void)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/sensors/battery_sensor_dronecan.c:42:    return dronecanVbat;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/sensors/battery_sensor_dronecan.c:45:uint16_t dronecanBattSensorGetAmperage(void)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/sensors/battery_sensor_dronecan.c:47:    return dronecanAmperage;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/sensors/battery_sensor_dronecan.c:50:void dronecanBatterySensorReceiveInfo(uint8_t sourceNodeID, const struct uavcan_equipment_power_BatteryInfo *batteryInfo)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/sensors/battery_sensor_dronecan.c:52:    const uint8_t configuredNodeID = dronecanConfig()->batteryNodeID;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/sensors/battery_sensor_dronecan.c:58:    dronecanMarkNodeCapability(sourceNodeID, DRONECAN_NODE_CAPABILITY_BATTERY);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/sensors/battery_sensor_dronecan.c:59:    dronecanVbat = (uint16_t)roundf(batteryInfo->voltage * 100.0F);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/sensors/battery_sensor_dronecan.c:60:    dronecanAmperage = (uint16_t)roundf(batteryInfo->current * 100.0F);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/sensors/compass.c:384:#ifdef FLIGHT_COMMANDER_MAG_DEFAULT_ALIGN
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/sensors/compass.c:385:            mag.dev.magAlign.onBoard = FLIGHT_COMMANDER_MAG_DEFAULT_ALIGN;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/sensors/battery_sensor_dronecan.h:27:#include <dronecan_msgs.h>
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/sensors/battery_sensor_dronecan.h:29:uint16_t dronecanBattSensorGetVBat(void);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/sensors/battery_sensor_dronecan.h:30:uint16_t dronecanBattSensorGetAmperage(void);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/sensors/battery_sensor_dronecan.h:31:void dronecanBatterySensorReceiveInfo(uint8_t sourceNodeID, const struct uavcan_equipment_power_BatteryInfo *batteryInfo);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.h:5:#if defined(USE_FLIGHT_COMMANDER_HEADING_FUSION)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.h:14:#include <dronecan_msgs.h>
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.h:16:#define FLIGHT_COMMANDER_HEADING_CONFIG_SCHEMA 2U
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.h:17:#define FLIGHT_COMMANDER_HEADING_STATUS_SCHEMA 2U
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.h:18:#define FLIGHT_COMMANDER_HEADING_CONFIG_PAYLOAD_SIZE 71U
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.h:19:#define FLIGHT_COMMANDER_HEADING_STATUS_PAYLOAD_SIZE 39U
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.h:20:#define FLIGHT_COMMANDER_HEADING_SOURCE_COUNT 4U
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.h:21:#define FLIGHT_COMMANDER_HEADING_SOURCE_NONE 255U
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.h:24:    FLIGHT_COMMANDER_HEADING_ONBOARD_MAG = 0,
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.h:25:    FLIGHT_COMMANDER_HEADING_EXTERNAL_I2C_MAG = 1,
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.h:26:    FLIGHT_COMMANDER_HEADING_DRONECAN_MAG = 2,
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.h:27:    FLIGHT_COMMANDER_HEADING_MOVING_BASELINE = 3,
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.h:28:} flightCommanderHeadingSource_e;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.h:31:    FLIGHT_COMMANDER_BASELINE_AUTO = 0,
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.h:32:    FLIGHT_COMMANDER_BASELINE_UART = 1,
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.h:33:    FLIGHT_COMMANDER_BASELINE_DRONECAN = 2,
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.h:34:} flightCommanderBaselineProvider_e;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.h:36:typedef struct flightCommanderHeadingSourceConfig_s {
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.h:41:} flightCommanderHeadingSourceConfig_t;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.h:43:typedef struct flightCommanderHeadingConfig_s {
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.h:48:    flightCommanderHeadingSourceConfig_t sources[FLIGHT_COMMANDER_HEADING_SOURCE_COUNT];
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.h:57:    int16_t dronecanMagAlignmentDecidegrees[3];
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.h:58:    int16_t dronecanMagZeroMilliGauss[3];
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.h:59:    uint16_t dronecanMagGainMilliGauss[3];
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.h:60:    uint8_t dronecanMagCalibrationNodeID;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.h:61:} flightCommanderHeadingConfig_t;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.h:63:typedef struct flightCommanderHeadingSourceStatus_s {
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.h:68:} flightCommanderHeadingSourceStatus_t;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.h:70:typedef struct flightCommanderHeadingStatus_s {
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.h:85:    flightCommanderHeadingSourceStatus_t sources[FLIGHT_COMMANDER_HEADING_SOURCE_COUNT];
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.h:86:} flightCommanderHeadingStatus_t;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.h:88:void flightCommanderHeadingInit(void);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.h:89:void flightCommanderHeadingSetMagneticNorth(const fpVector3_t *magneticNorthEarth);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.h:90:void flightCommanderHeadingUpdate(void);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.h:91:void flightCommanderHeadingCalibrationUpdate(timeUs_t currentTimeUs);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.h:92:void flightCommanderHeadingWriteConfig(sbuf_t *dst);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.h:93:bool flightCommanderHeadingReadConfig(sbuf_t *src);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.h:94:void flightCommanderHeadingWriteStatus(sbuf_t *dst);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.h:95:const flightCommanderHeadingStatus_t *flightCommanderHeadingGetStatus(void);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.h:96:float flightCommanderHeadingGetOnboardMagWeight(void);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.h:97:bool flightCommanderHeadingGetMagSource(
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.h:98:    flightCommanderHeadingSource_e source,
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.h:101:bool flightCommanderHeadingGetAbsoluteReference(fpVector3_t *headingEarth, float *weight);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.h:102:bool flightCommanderHeadingHasActiveReference(void);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.h:104:void flightCommanderHeadingReceiveDronecanMag(
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.h:107:void flightCommanderHeadingReceiveDronecanHeading(
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.h:110:void flightCommanderHeadingReceiveDronecanRelPosHeading(
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.h:112:    const struct ardupilot_gnss_RelPosHeading *message);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.h:113:void flightCommanderHeadingReceiveUartRelPosHeading(
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.h:120:PG_DECLARE(flightCommanderHeadingConfig_t, flightCommanderHeadingConfig);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/external_compass.c:14:#if defined(USE_FLIGHT_COMMANDER_HEADING_FUSION)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/external_compass.c:39:#define FLIGHT_COMMANDER_EXTERNAL_MAG_TAG 1U
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/external_compass.c:43:    FLIGHT_COMMANDER_EXTERNAL_MAG_TAG, DEVFLAGS_NONE, 0);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/external_compass.c:47:    FLIGHT_COMMANDER_EXTERNAL_MAG_TAG, DEVFLAGS_NONE, 0);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/external_compass.c:51:    FLIGHT_COMMANDER_EXTERNAL_MAG_TAG, DEVFLAGS_NONE, 0);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/external_compass.c:55:    FLIGHT_COMMANDER_EXTERNAL_MAG_TAG, DEVFLAGS_NONE, 0);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/external_compass.c:59:    FLIGHT_COMMANDER_EXTERNAL_MAG_TAG, DEVFLAGS_NONE, 0);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/external_compass.c:63:    FLIGHT_COMMANDER_EXTERNAL_MAG_TAG, DEVFLAGS_NONE, 0);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/external_compass.c:67:    FLIGHT_COMMANDER_EXTERNAL_MAG_TAG, DEVFLAGS_NONE, 0);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/external_compass.c:69:    FLIGHT_COMMANDER_EXTERNAL_MAG_TAG, DEVFLAGS_NONE, 0);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/external_compass.c:73:    FLIGHT_COMMANDER_EXTERNAL_MAG_TAG, DEVFLAGS_NONE, 0);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/external_compass.c:77:    FLIGHT_COMMANDER_EXTERNAL_MAG_TAG, DEVFLAGS_NONE, 0);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/external_compass.c:81:    FLIGHT_COMMANDER_EXTERNAL_MAG_TAG, DEVFLAGS_NONE, 0);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/external_compass.c:85:    FLIGHT_COMMANDER_EXTERNAL_MAG_TAG, DEVFLAGS_NONE, 0);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/external_compass.c:94:bool flightCommanderExternalCompassHardwareSupported(uint8_t hardware)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/external_compass.c:116:bool flightCommanderExternalCompassIsConfigured(void)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/external_compass.c:118:    const flightCommanderHeadingConfig_t *config = flightCommanderHeadingConfig();
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/external_compass.c:119:    return config->sources[FLIGHT_COMMANDER_HEADING_EXTERNAL_I2C_MAG].enabled &&
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/external_compass.c:121:        flightCommanderExternalCompassHardwareSupported(config->externalMagHardware);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/external_compass.c:226:void flightCommanderExternalCompassInit(void)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/external_compass.c:234:    if (!flightCommanderExternalCompassIsConfigured()) {
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/external_compass.c:238:    externalMag.magSensorToUse = FLIGHT_COMMANDER_EXTERNAL_MAG_TAG;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/external_compass.c:239:    if (!detectConfiguredHardware((magSensor_e)flightCommanderHeadingConfig()->externalMagHardware)) {
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/external_compass.c:252:void flightCommanderExternalCompassUpdate(timeUs_t currentTimeUs)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/external_compass.c:265:bool flightCommanderExternalCompassGetSample(fpVector3_t *raw, timeMs_t *updatedAtMs)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/rtcm.h:7:    FLIGHT_COMMANDER_RTCM_TRANSPORT_NONE = 0,
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/rtcm.h:8:    FLIGHT_COMMANDER_RTCM_TRANSPORT_MAVLINK = 1,
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/rtcm.h:9:    FLIGHT_COMMANDER_RTCM_TRANSPORT_MSP = 2,
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/rtcm.h:10:} flightCommanderRtcmTransport_e;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/rtcm.h:12:typedef struct flightCommanderRtcmStatus_s {
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/rtcm.h:20:} flightCommanderRtcmStatus_t;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/rtcm.h:22:void flightCommanderRtcmInit(void);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/rtcm.h:23:void flightCommanderRtcmUpdate(void);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/rtcm.h:24:void flightCommanderRtcmReceiveFragment(
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/rtcm.h:25:    flightCommanderRtcmTransport_e transport,
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/rtcm.h:29:const flightCommanderRtcmStatus_t *flightCommanderRtcmGetStatus(void);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/rtcm.c:3:#if defined(USE_FLIGHT_COMMANDER_RTK)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/rtcm.c:10:#include "drivers/dronecan/dronecan.h"
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/rtcm.c:35:static flightCommanderRtcmStatus_t rtcmStatus;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/rtcm.c:63:    delivered = dronecanBroadcastRtcm(data, length) || delivered;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/rtcm.c:108:void flightCommanderRtcmInit(void)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/rtcm.c:114:void flightCommanderRtcmUpdate(void)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/rtcm.c:122:void flightCommanderRtcmReceiveFragment(
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/rtcm.c:123:    flightCommanderRtcmTransport_e transport,
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/rtcm.c:173:const flightCommanderRtcmStatus_t *flightCommanderRtcmGetStatus(void)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:3:#if defined(USE_FLIGHT_COMMANDER_HEADING_FUSION)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:16:#include "drivers/dronecan/dronecan.h"
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:26:PG_REGISTER_WITH_RESET_FN(flightCommanderHeadingConfig_t, flightCommanderHeadingConfig,
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:27:    PG_FLIGHT_COMMANDER_HEADING_CONFIG, 0);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:29:void pgResetFn_flightCommanderHeadingConfig(flightCommanderHeadingConfig_t *config)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:33:    config->movingBaselineProvider = FLIGHT_COMMANDER_BASELINE_AUTO;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:35:    config->sources[0] = (flightCommanderHeadingSourceConfig_t){ true, 1, 100, 0 };
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:36:    config->sources[1] = (flightCommanderHeadingSourceConfig_t){ false, 2, 75, 0 };
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:37:    config->sources[2] = (flightCommanderHeadingSourceConfig_t){ false, 3, 50, 0 };
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:38:    config->sources[3] = (flightCommanderHeadingSourceConfig_t){ false, 4, 25, 0 };
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:59:static headingSample_t samples[FLIGHT_COMMANDER_HEADING_SOURCE_COUNT];
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:60:static fpVector3_t magneticFieldBody[FLIGHT_COMMANDER_HEADING_MOVING_BASELINE];
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:61:static bool magneticFieldValid[FLIGHT_COMMANDER_HEADING_MOVING_BASELINE];
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:63:static flightCommanderHeadingStatus_t headingStatus;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:67:#define FLIGHT_COMMANDER_MAG_CALIBRATION_MIN_SAMPLES 48U
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:68:#define FLIGHT_COMMANDER_MAG_CALIBRATION_MIN_AXIS_HALF_SPAN 10.0F
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:69:#define FLIGHT_COMMANDER_MAG_CALIBRATION_MAX_GAIN_RATIO 2.5F
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:70:#define FLIGHT_COMMANDER_MAG_CALIBRATION_MAX_ZERO_RATIO 4.0F
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:71:#define FLIGHT_COMMANDER_MAG_FIELD_NEARNESS 0.25F
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:72:#define FLIGHT_COMMANDER_MAG_MIN_FIELD_QUALITY 25U
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:86:static customMagCalibration_t customMagCalibration[FLIGHT_COMMANDER_HEADING_SOURCE_COUNT];
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:87:static fpVector3_t dronecanRawMilliGauss;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:88:static uint32_t dronecanRawSequence;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:89:static uint8_t dronecanRawNodeID;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:136:static int16_t sourceAlignmentYawOffset(const flightCommanderHeadingConfig_t *config, unsigned index)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:138:    return index == FLIGHT_COMMANDER_HEADING_MOVING_BASELINE
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:157:    const uint16_t maximum = MAX(flightCommanderHeadingConfig()->maxHeadingAccuracyCentidegrees, 1U);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:172:        FLIGHT_COMMANDER_MAG_FIELD_NEARNESS);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:184:    flightCommanderHeadingSourceStatus_t *status = &headingStatus.sources[index];
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:190:    status->healthy = sample->valid && age <= flightCommanderHeadingConfig()->sourceTimeoutMs;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:193:void flightCommanderHeadingInit(void)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:195:    flightCommanderHeadingConfig_t *config = flightCommanderHeadingConfigMutable();
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:196:    for (unsigned index = FLIGHT_COMMANDER_HEADING_ONBOARD_MAG;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:197:        index < FLIGHT_COMMANDER_HEADING_MOVING_BASELINE; index++) {
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:207:    vectorZero(&dronecanRawMilliGauss);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:208:    dronecanRawSequence = 0;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:209:    dronecanRawNodeID = DRONECAN_NODE_ID_DISABLED;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:212:    headingStatus.anchorSource = FLIGHT_COMMANDER_HEADING_SOURCE_NONE;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:215:    flightCommanderExternalCompassInit();
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:218:void flightCommanderHeadingSetMagneticNorth(const fpVector3_t *magneticNorthEarth)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:228:static bool externalMagIsCalibrated(const flightCommanderHeadingConfig_t *config)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:239:static bool dronecanMagIsCalibrated(const flightCommanderHeadingConfig_t *config)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:241:    if (config->dronecanMagCalibrationNodeID == 0) {
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:248:        const uint16_t gain = config->dronecanMagGainMilliGauss[axis];
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:254:        maximumZero = MAX(maximumZero, ABS((int32_t)config->dronecanMagZeroMilliGauss[axis]));
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:256:    return maximumGain <= minimumGain * FLIGHT_COMMANDER_MAG_CALIBRATION_MAX_GAIN_RATIO &&
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:257:        maximumZero <= maximumGain * FLIGHT_COMMANDER_MAG_CALIBRATION_MAX_ZERO_RATIO;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:274:    return maximumGain <= minimumGain * FLIGHT_COMMANDER_MAG_CALIBRATION_MAX_GAIN_RATIO &&
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:275:        maximumZero <= maximumGain * FLIGHT_COMMANDER_MAG_CALIBRATION_MAX_ZERO_RATIO;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:290:static bool headingSourceIsCalibrated(unsigned index, const flightCommanderHeadingConfig_t *config)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:293:    case FLIGHT_COMMANDER_HEADING_ONBOARD_MAG:
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:295:    case FLIGHT_COMMANDER_HEADING_EXTERNAL_I2C_MAG:
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:297:    case FLIGHT_COMMANDER_HEADING_DRONECAN_MAG:
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:298:        return dronecanMagIsCalibrated(config) &&
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:299:            (!samples[index].valid || samples[index].nodeID == config->dronecanMagCalibrationNodeID);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:300:    case FLIGHT_COMMANDER_HEADING_MOVING_BASELINE:
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:314:    flightCommanderHeadingConfig_t *config = flightCommanderHeadingConfigMutable();
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:319:    if (sensors(SENSOR_MAG) && config->sources[FLIGHT_COMMANDER_HEADING_ONBOARD_MAG].enabled) {
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:322:        // external and DroneCAN sources use Flight Commander's custom solver.
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:323:        headingStatus.calibratingMask |= 1U << FLIGHT_COMMANDER_HEADING_ONBOARD_MAG;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:327:        &customMagCalibration[FLIGHT_COMMANDER_HEADING_EXTERNAL_I2C_MAG];
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:328:    if (flightCommanderExternalCompassIsConfigured()) {
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:333:        if (flightCommanderExternalCompassGetSample(&raw, &updatedAtMs)) {
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:336:        headingStatus.calibratingMask |= 1U << FLIGHT_COMMANDER_HEADING_EXTERNAL_I2C_MAG;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:339:    customMagCalibration_t *dronecan =
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:340:        &customMagCalibration[FLIGHT_COMMANDER_HEADING_DRONECAN_MAG];
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:341:    if (config->sources[FLIGHT_COMMANDER_HEADING_DRONECAN_MAG].enabled &&
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:342:        dronecanConfig()->magNodeID != DRONECAN_NODE_ID_DISABLED) {
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:343:        resetCustomCalibrationContext(dronecan);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:344:        dronecan->enabled = true;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:345:        dronecan->lastSequence = dronecanRawSequence;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:346:        if (dronecanConfig()->magNodeID == DRONECAN_NODE_ID_AUTO) {
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:347:            dronecan->nodeID = dronecanRawNodeID == DRONECAN_NODE_ID_DISABLED ? 0 : dronecanRawNodeID;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:349:            dronecan->nodeID = dronecanConfig()->magNodeID;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:351:        headingStatus.calibratingMask |= 1U << FLIGHT_COMMANDER_HEADING_DRONECAN_MAG;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:399:        context->sampleCount < FLIGHT_COMMANDER_MAG_CALIBRATION_MIN_SAMPLES) {
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:407:            gain[axis] < FLIGHT_COMMANDER_MAG_CALIBRATION_MIN_AXIS_HALF_SPAN) {
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:414:    if (maximumGain > minimumGain * FLIGHT_COMMANDER_MAG_CALIBRATION_MAX_GAIN_RATIO ||
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:415:        maximumZero > maximumGain * FLIGHT_COMMANDER_MAG_CALIBRATION_MAX_ZERO_RATIO) {
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:423:    flightCommanderHeadingConfig_t *config = flightCommanderHeadingConfigMutable();
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:427:        &customMagCalibration[FLIGHT_COMMANDER_HEADING_EXTERNAL_I2C_MAG];
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:441:                1U << FLIGHT_COMMANDER_HEADING_EXTERNAL_I2C_MAG;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:445:    customMagCalibration_t *dronecan =
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:446:        &customMagCalibration[FLIGHT_COMMANDER_HEADING_DRONECAN_MAG];
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:447:    if (dronecan->enabled) {
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:448:        bool valid = dronecan->nodeID != 0 && solveCustomMagCalibration(dronecan, zero, gain);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:454:            config->dronecanMagCalibrationNodeID = dronecan->nodeID;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:456:                config->dronecanMagZeroMilliGauss[axis] = lrintf(zero[axis]);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:457:                config->dronecanMagGainMilliGauss[axis] = lrintf(gain[axis]);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:461:                1U << FLIGHT_COMMANDER_HEADING_DRONECAN_MAG;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:471:void flightCommanderHeadingCalibrationUpdate(timeUs_t currentTimeUs)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:482:        &customMagCalibration[FLIGHT_COMMANDER_HEADING_EXTERNAL_I2C_MAG];
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:486:        if (flightCommanderExternalCompassGetSample(&raw, &updatedAtMs) &&
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:493:    customMagCalibration_t *dronecan =
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:494:        &customMagCalibration[FLIGHT_COMMANDER_HEADING_DRONECAN_MAG];
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:495:    if (dronecan->enabled && dronecanRawSequence != dronecan->lastSequence &&
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:496:        dronecanRawNodeID == dronecan->nodeID) {
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:497:        dronecan->lastSequence = dronecanRawSequence;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:498:        pushCustomMagCalibrationSample(dronecan, &dronecanRawMilliGauss);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:511:    if (!flightCommanderExternalCompassGetSample(&raw, &updatedAtMs) ||
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:518:    const flightCommanderHeadingConfig_t *config = flightCommanderHeadingConfig();
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:537:    headingSample_t *sample = &samples[FLIGHT_COMMANDER_HEADING_EXTERNAL_I2C_MAG];
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:538:    magneticFieldBody[FLIGHT_COMMANDER_HEADING_EXTERNAL_I2C_MAG] = aligned;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:540:    magneticFieldValid[FLIGHT_COMMANDER_HEADING_EXTERNAL_I2C_MAG] =
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:541:        sample->quality >= FLIGHT_COMMANDER_MAG_MIN_FIELD_QUALITY &&
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:546:    sample->valid = magneticFieldValid[FLIGHT_COMMANDER_HEADING_EXTERNAL_I2C_MAG];
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:552:void flightCommanderHeadingUpdate(void)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:554:    const flightCommanderHeadingConfig_t *config = flightCommanderHeadingConfig();
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:559:    headingStatus.anchorSource = FLIGHT_COMMANDER_HEADING_SOURCE_NONE;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:561:    magneticFieldBody[FLIGHT_COMMANDER_HEADING_ONBOARD_MAG] = (fpVector3_t){
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:564:    samples[FLIGHT_COMMANDER_HEADING_ONBOARD_MAG].quality =
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:565:        magneticFieldQuality(&magneticFieldBody[FLIGHT_COMMANDER_HEADING_ONBOARD_MAG]);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:566:    magneticFieldValid[FLIGHT_COMMANDER_HEADING_ONBOARD_MAG] = compassIsHealthy() &&
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:567:        samples[FLIGHT_COMMANDER_HEADING_ONBOARD_MAG].quality >=
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:568:            FLIGHT_COMMANDER_MAG_MIN_FIELD_QUALITY &&
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:570:            &magneticFieldBody[FLIGHT_COMMANDER_HEADING_ONBOARD_MAG],
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:571:            &samples[FLIGHT_COMMANDER_HEADING_ONBOARD_MAG].headingCentidegrees);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:572:    samples[FLIGHT_COMMANDER_HEADING_ONBOARD_MAG].valid =
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:573:        magneticFieldValid[FLIGHT_COMMANDER_HEADING_ONBOARD_MAG];
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:574:    if (!samples[FLIGHT_COMMANDER_HEADING_ONBOARD_MAG].valid) {
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:575:        samples[FLIGHT_COMMANDER_HEADING_ONBOARD_MAG].quality = 0;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:577:    samples[FLIGHT_COMMANDER_HEADING_ONBOARD_MAG].updatedAtMs = now;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:581:    for (unsigned index = 0; index < FLIGHT_COMMANDER_HEADING_SOURCE_COUNT; index++) {
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:589:    for (unsigned index = 0; index < FLIGHT_COMMANDER_HEADING_SOURCE_COUNT; index++) {
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:595:    unsigned anchor = FLIGHT_COMMANDER_HEADING_SOURCE_NONE;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:597:    for (unsigned index = 0; index < FLIGHT_COMMANDER_HEADING_SOURCE_COUNT; index++) {
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:606:    if (anchor != FLIGHT_COMMANDER_HEADING_SOURCE_NONE) {
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:612:        for (unsigned index = 0; index < FLIGHT_COMMANDER_HEADING_SOURCE_COUNT; index++) {
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:638:static bool validateConfig(const flightCommanderHeadingConfig_t *config)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:640:    if (config->movingBaselineProvider > FLIGHT_COMMANDER_BASELINE_DRONECAN ||
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:641:        !flightCommanderExternalCompassHardwareSupported(config->externalMagHardware) ||
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:652:    for (unsigned index = 0; index < FLIGHT_COMMANDER_HEADING_SOURCE_COUNT; index++) {
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:653:        const flightCommanderHeadingSourceConfig_t *source = &config->sources[index];
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:654:        if (source->priority < 1 || source->priority > FLIGHT_COMMANDER_HEADING_SOURCE_COUNT ||
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:667:    if (!anyEnabled || config->movingBaselineEnabled != config->sources[FLIGHT_COMMANDER_HEADING_MOVING_BASELINE].enabled) {
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:670:    if (config->sources[FLIGHT_COMMANDER_HEADING_EXTERNAL_I2C_MAG].enabled &&
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:679:    if (config->sources[FLIGHT_COMMANDER_HEADING_DRONECAN_MAG].enabled &&
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:680:        dronecanConfig()->magNodeID == DRONECAN_NODE_ID_DISABLED) {
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:683:    if (config->movingBaselineEnabled && config->movingBaselineProvider == FLIGHT_COMMANDER_BASELINE_DRONECAN &&
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:684:        dronecanConfig()->gpsNodeID == DRONECAN_NODE_ID_DISABLED) {
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:690:void flightCommanderHeadingWriteConfig(sbuf_t *dst)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:692:    const flightCommanderHeadingConfig_t *config = flightCommanderHeadingConfig();
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:693:    sbufWriteU8(dst, FLIGHT_COMMANDER_HEADING_CONFIG_SCHEMA);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:697:    for (unsigned index = 0; index < FLIGHT_COMMANDER_HEADING_SOURCE_COUNT; index++) {
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:711:    for (unsigned axis = 0; axis < 3; axis++) sbufWriteU16(dst, config->dronecanMagAlignmentDecidegrees[axis]);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:712:    for (unsigned axis = 0; axis < 3; axis++) sbufWriteU16(dst, config->dronecanMagZeroMilliGauss[axis]);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:713:    for (unsigned axis = 0; axis < 3; axis++) sbufWriteU16(dst, config->dronecanMagGainMilliGauss[axis]);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:714:    sbufWriteU8(dst, config->dronecanMagCalibrationNodeID);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:717:bool flightCommanderHeadingReadConfig(sbuf_t *src)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:719:    if (sbufBytesRemaining(src) != FLIGHT_COMMANDER_HEADING_CONFIG_PAYLOAD_SIZE ||
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:720:        sbufReadU8(src) != FLIGHT_COMMANDER_HEADING_CONFIG_SCHEMA) {
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:723:    flightCommanderHeadingConfig_t value = *flightCommanderHeadingConfig();
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:729:    for (unsigned index = 0; index < FLIGHT_COMMANDER_HEADING_SOURCE_COUNT; index++) {
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:735:    for (unsigned index = FLIGHT_COMMANDER_HEADING_ONBOARD_MAG;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:736:        index < FLIGHT_COMMANDER_HEADING_MOVING_BASELINE; index++) {
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:747:    for (unsigned axis = 0; axis < 3; axis++) value.dronecanMagAlignmentDecidegrees[axis] = sbufReadU16(src);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:748:    for (unsigned axis = 0; axis < 3; axis++) value.dronecanMagZeroMilliGauss[axis] = sbufReadU16(src);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:749:    for (unsigned axis = 0; axis < 3; axis++) value.dronecanMagGainMilliGauss[axis] = sbufReadU16(src);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:750:    value.dronecanMagCalibrationNodeID = sbufReadU8(src);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:754:    *flightCommanderHeadingConfigMutable() = value;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:758:void flightCommanderHeadingWriteStatus(sbuf_t *dst)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:760:    flightCommanderHeadingUpdate();
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:761:    sbufWriteU8(dst, FLIGHT_COMMANDER_HEADING_STATUS_SCHEMA);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:776:    for (unsigned index = 0; index < FLIGHT_COMMANDER_HEADING_SOURCE_COUNT; index++) {
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:785:    if (source >= FLIGHT_COMMANDER_HEADING_SOURCE_COUNT ||
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:789:    const flightCommanderHeadingConfig_t *config = flightCommanderHeadingConfig();
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:796:float flightCommanderHeadingGetOnboardMagWeight(void)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:798:    return activeSourceWeight(FLIGHT_COMMANDER_HEADING_ONBOARD_MAG);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:801:bool flightCommanderHeadingGetMagSource(
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:802:    flightCommanderHeadingSource_e source,
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:806:    if (source >= FLIGHT_COMMANDER_HEADING_MOVING_BASELINE ||
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:819:bool flightCommanderHeadingGetAbsoluteReference(fpVector3_t *headingEarth, float *weight)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:821:    const float sourceWeight = activeSourceWeight(FLIGHT_COMMANDER_HEADING_MOVING_BASELINE);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:826:        samples[FLIGHT_COMMANDER_HEADING_MOVING_BASELINE].headingCentidegrees +
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:828:            flightCommanderHeadingConfig(), FLIGHT_COMMANDER_HEADING_MOVING_BASELINE)) *
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:841:bool flightCommanderHeadingHasActiveReference(void)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:846:const flightCommanderHeadingStatus_t *flightCommanderHeadingGetStatus(void)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:848:    flightCommanderHeadingUpdate();
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:852:void flightCommanderHeadingReceiveDronecanMag(
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:856:    const flightCommanderHeadingConfig_t *config = flightCommanderHeadingConfig();
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:857:    if (!selectedNode(dronecanConfig()->magNodeID, sourceNodeID)) {
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:861:        &customMagCalibration[FLIGHT_COMMANDER_HEADING_DRONECAN_MAG];
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:869:    } else if (config->dronecanMagCalibrationNodeID != 0 &&
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:870:        config->dronecanMagCalibrationNodeID != sourceNodeID) {
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:875:        dronecanRawMilliGauss.v[axis] = message->magnetic_field_ga[axis] * 1000.0F;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:876:        corrected.v[axis] = dronecanRawMilliGauss.v[axis] -
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:877:            config->dronecanMagZeroMilliGauss[axis];
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:878:        if (config->dronecanMagGainMilliGauss[axis]) {
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:880:                config->dronecanMagGainMilliGauss[axis];
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:883:    dronecanRawNodeID = sourceNodeID;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:884:    dronecanRawSequence++;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:888:            .roll = DECIDEGREES_TO_RADIANS(config->dronecanMagAlignmentDecidegrees[0]),
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:889:            .pitch = DECIDEGREES_TO_RADIANS(config->dronecanMagAlignmentDecidegrees[1]),
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:890:            .yaw = DECIDEGREES_TO_RADIANS(config->dronecanMagAlignmentDecidegrees[2]),
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:898:    headingSample_t *sample = &samples[FLIGHT_COMMANDER_HEADING_DRONECAN_MAG];
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:899:    magneticFieldBody[FLIGHT_COMMANDER_HEADING_DRONECAN_MAG] = aligned;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:901:    magneticFieldValid[FLIGHT_COMMANDER_HEADING_DRONECAN_MAG] =
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:902:        sample->quality >= FLIGHT_COMMANDER_MAG_MIN_FIELD_QUALITY &&
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:907:    sample->valid = magneticFieldValid[FLIGHT_COMMANDER_HEADING_DRONECAN_MAG];
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:915:    const flightCommanderHeadingConfig_t *config = flightCommanderHeadingConfig();
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:917:        config->sources[FLIGHT_COMMANDER_HEADING_MOVING_BASELINE].enabled &&
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:918:        (config->movingBaselineProvider == FLIGHT_COMMANDER_BASELINE_AUTO ||
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:926:    const flightCommanderHeadingConfig_t *config = flightCommanderHeadingConfig();
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:927:    headingSample_t *sample = &samples[FLIGHT_COMMANDER_HEADING_MOVING_BASELINE];
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:954:    if (config->movingBaselineProvider == FLIGHT_COMMANDER_BASELINE_AUTO &&
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:969:void flightCommanderHeadingReceiveDronecanHeading(
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:973:    if (!baselineProviderEnabled(FLIGHT_COMMANDER_BASELINE_DRONECAN) ||
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:974:        !selectedNode(dronecanConfig()->gpsNodeID, sourceNodeID) || !message->heading_valid) {
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:979:    receiveBaseline(FLIGHT_COMMANDER_BASELINE_DRONECAN, sourceNodeID,
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:985:void flightCommanderHeadingReceiveDronecanRelPosHeading(
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:987:    const struct ardupilot_gnss_RelPosHeading *message)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:989:    if (!baselineProviderEnabled(FLIGHT_COMMANDER_BASELINE_DRONECAN) ||
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:990:        !selectedNode(dronecanConfig()->gpsNodeID, sourceNodeID)) {
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:995:    receiveBaseline(FLIGHT_COMMANDER_BASELINE_DRONECAN, sourceNodeID,
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:1001:void flightCommanderHeadingReceiveUartRelPosHeading(
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:1021:    if (!baselineProviderEnabled(FLIGHT_COMMANDER_BASELINE_UART) ||
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/heading_fusion.c:1030:    receiveBaseline(FLIGHT_COMMANDER_BASELINE_UART, DRONECAN_NODE_ID_DISABLED,
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/external_compass.h:12:#if defined(USE_FLIGHT_COMMANDER_HEADING_FUSION)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/external_compass.h:20:void flightCommanderExternalCompassInit(void);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/external_compass.h:21:void flightCommanderExternalCompassUpdate(timeUs_t currentTimeUs);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/external_compass.h:22:bool flightCommanderExternalCompassIsConfigured(void);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/external_compass.h:23:bool flightCommanderExternalCompassHardwareSupported(uint8_t hardware);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/flight_commander/external_compass.h:24:bool flightCommanderExternalCompassGetSample(fpVector3_t *raw, timeMs_t *updatedAtMs);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/config/parameter_group_ids.h:136:#define PG_FLIGHT_COMMANDER_HEADING_CONFIG 1046
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/config/parameter_group_ids.h:137:#define PG_INAV_END PG_FLIGHT_COMMANDER_HEADING_CONFIG
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/target/MICOAIR743/target.h:111:#define FLIGHT_COMMANDER_MICOAIR743_ONBOARD_IST8310
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/target/MICOAIR743/target.h:112:#define FLIGHT_COMMANDER_MAG_DEFAULT_ALIGN CW0_DEG
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/msp/msp_protocol_v2_flight_commander.h:13:#define MSP2_FLIGHT_COMMANDER_INFO 0x2F00
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/msp/msp_protocol_v2_flight_commander.h:14:#define MSP2_FLIGHT_COMMANDER_RTK_STATUS 0x2F01
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/msp/msp_protocol_v2_flight_commander.h:15:#define MSP2_FLIGHT_COMMANDER_DUAL_GPS_STATUS 0x2F02
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/msp/msp_protocol_v2_flight_commander.h:16:#define MSP2_FLIGHT_COMMANDER_RTCM_DATA 0x2F03
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/msp/msp_protocol_v2_flight_commander.h:18:#define MSP2_FLIGHT_COMMANDER_DRONECAN_CONFIG 0x2F10
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/msp/msp_protocol_v2_flight_commander.h:19:#define MSP2_FLIGHT_COMMANDER_SET_DRONECAN_CONFIG 0x2F11
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/msp/msp_protocol_v2_flight_commander.h:20:#define MSP2_FLIGHT_COMMANDER_DRONECAN_NODES 0x2F12
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/msp/msp_protocol_v2_flight_commander.h:22:#define MSP2_FLIGHT_COMMANDER_HEADING_CONFIG 0x2F20
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/msp/msp_protocol_v2_flight_commander.h:23:#define MSP2_FLIGHT_COMMANDER_SET_HEADING_CONFIG 0x2F21
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/msp/msp_protocol_v2_flight_commander.h:24:#define MSP2_FLIGHT_COMMANDER_HEADING_STATUS 0x2F22
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/msp/msp_flight_commander.c:22:    static const uint8_t payload[FLIGHT_COMMANDER_INFO_PAYLOAD_SIZE] = {
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/msp/msp_flight_commander.c:24:        FLIGHT_COMMANDER_INFO_SCHEMA_VERSION,
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/msp/msp_flight_commander.c:25:        FLIGHT_COMMANDER_VERSION_MAJOR,
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/msp/msp_flight_commander.c:26:        FLIGHT_COMMANDER_VERSION_MINOR,
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/msp/msp_flight_commander.c:27:        FLIGHT_COMMANDER_VERSION_PATCH,
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/msp/msp_flight_commander.c:31:        FLIGHT_COMMANDER_CAPABILITIES & 0xFFU,
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/msp/msp_flight_commander.c:32:        (FLIGHT_COMMANDER_CAPABILITIES >> 8) & 0xFFU,
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/msp/msp_flight_commander.c:33:        (FLIGHT_COMMANDER_CAPABILITIES >> 16) & 0xFFU,
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/msp/msp_flight_commander.c:34:        (FLIGHT_COMMANDER_CAPABILITIES >> 24) & 0xFFU,
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/cli.c:4088:        FLIGHT_COMMANDER_VERSION_STRING,
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/cli.c:4370:        FLIGHT_COMMANDER_VERSION_STRING,
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_msp.c:105:#include "drivers/dronecan/dronecan.h"
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_msp.c:106:#include "io/gps_dronecan.h"
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_msp.c:108:#ifdef USE_FLIGHT_COMMANDER_RTK
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_msp.c:111:#ifdef USE_FLIGHT_COMMANDER_HEADING_FUSION
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_msp.c:462:    case MSP2_FLIGHT_COMMANDER_INFO:
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_msp.c:466:#ifdef USE_FLIGHT_COMMANDER_RTK
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_msp.c:467:    case MSP2_FLIGHT_COMMANDER_RTK_STATUS: {
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_msp.c:468:        const flightCommanderRtcmStatus_t *status = flightCommanderRtcmGetStatus();
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_msp.c:483:    case MSP2_FLIGHT_COMMANDER_DUAL_GPS_STATUS: {
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_msp.c:506:#ifdef USE_FLIGHT_COMMANDER_HEADING_FUSION
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_msp.c:507:        const flightCommanderHeadingStatus_t *heading = flightCommanderHeadingGetStatus();
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_msp.c:517:    case MSP2_FLIGHT_COMMANDER_DRONECAN_CONFIG:
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_msp.c:518:        sbufWriteU8(dst, dronecanConfig()->nodeID);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_msp.c:519:        sbufWriteU8(dst, dronecanConfig()->bitRateKbps);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_msp.c:520:        sbufWriteU8(dst, dronecanConfig()->gpsNodeID);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_msp.c:521:        sbufWriteU8(dst, dronecanConfig()->batteryNodeID);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_msp.c:522:        sbufWriteU8(dst, dronecanConfig()->primaryGpsSource);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_msp.c:523:        sbufWriteU8(dst, dronecanConfig()->magNodeID);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_msp.c:526:    case MSP2_FLIGHT_COMMANDER_DRONECAN_NODES:
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_msp.c:527:        sbufWriteU8(dst, dronecanGetState());
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_msp.c:528:        sbufWriteU16(dst, dronecanGetBitrateKbps());
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_msp.c:529:        sbufWriteU8(dst, dronecanGetNodeCount());
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_msp.c:530:        for (unsigned index = 0; index < dronecanGetNodeCount(); index++) {
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_msp.c:531:            const dronecanNodeInfo_t *node = dronecanGetNode(index);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_msp.c:542:#ifdef USE_FLIGHT_COMMANDER_HEADING_FUSION
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_msp.c:543:    case MSP2_FLIGHT_COMMANDER_HEADING_CONFIG:
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_msp.c:544:        flightCommanderHeadingWriteConfig(dst);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_msp.c:547:    case MSP2_FLIGHT_COMMANDER_HEADING_STATUS:
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_msp.c:548:        flightCommanderHeadingWriteStatus(dst);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_msp.c:2073:#ifdef USE_FLIGHT_COMMANDER_RTK
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_msp.c:2074:    case MSP2_FLIGHT_COMMANDER_RTCM_DATA: {
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_msp.c:2083:        flightCommanderRtcmReceiveFragment(FLIGHT_COMMANDER_RTCM_TRANSPORT_MSP,
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_msp.c:2091:    case MSP2_FLIGHT_COMMANDER_SET_DRONECAN_CONFIG: {
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_msp.c:2095:        dronecanConfig_t value;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_msp.c:2111:        *dronecanConfigMutable() = value;
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_msp.c:2116:#ifdef USE_FLIGHT_COMMANDER_HEADING_FUSION
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_msp.c:2117:    case MSP2_FLIGHT_COMMANDER_SET_HEADING_CONFIG:
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_msp.c:2118:        if (ARMING_FLAG(ARMED) || !flightCommanderHeadingReadConfig(src)) {
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_tasks.c:40:#include "drivers/dronecan/dronecan.h"
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_tasks.c:61:#ifdef USE_FLIGHT_COMMANDER_RTK
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_tasks.c:64:#ifdef USE_FLIGHT_COMMANDER_HEADING_FUSION
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_tasks.c:195:    dronecanUpdate(currentTimeUs);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_tasks.c:196:#ifdef USE_FLIGHT_COMMANDER_RTK
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_tasks.c:197:    flightCommanderRtcmUpdate();
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_tasks.c:205:#ifdef USE_FLIGHT_COMMANDER_HEADING_FUSION
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_tasks.c:206:    flightCommanderExternalCompassUpdate(currentTimeUs);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_tasks.c:207:    flightCommanderHeadingCalibrationUpdate(currentTimeUs);
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_tasks.c:402:#if defined(USE_FLIGHT_COMMANDER_HEADING_FUSION)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_tasks.c:403:    // Heading fusion also uses this task for external/DroneCAN mag calibration.
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_tasks.c:408:#if defined(USE_MAG_MPU9250) || defined(USE_FLIGHT_COMMANDER_HEADING_FUSION)
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_init.c:78:#include "drivers/dronecan/dronecan.h"
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_init.c:106:#ifdef USE_FLIGHT_COMMANDER_HEADING_FUSION
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_init.c:109:#ifdef USE_FLIGHT_COMMANDER_RTK
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_init.c:554:#ifdef USE_FLIGHT_COMMANDER_HEADING_FUSION
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_init.c:555:    flightCommanderHeadingInit();
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_init.c:557:#ifdef USE_FLIGHT_COMMANDER_RTK
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_init.c:558:    flightCommanderRtcmInit();
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/fc/fc_init.c:615:    dronecanInit();
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/flight-commander/build-micoair743.sh:22:source_revision="${FLIGHT_COMMANDER_SOURCE_REVISION:-}"
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/flight-commander/build-micoair743.sh:34:    echo "A 40-character FLIGHT_COMMANDER_SOURCE_REVISION or RELEASE-MANIFEST.json is required." >&2
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/flight-commander/build-micoair743.sh:65:    -DFLIGHT_COMMANDER_SOURCE_REVISION="${source_revision}"
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/flight-commander/verify-release.py:215:        [r"set\(FLIGHT_COMMANDER_FIRMWARE_VERSION 3\.0\.7\)", r"FLIGHT_COMMANDER_SOURCE_REVISION"],
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/flight-commander/verify-release.py:220:            r"FLIGHT_COMMANDER_VERSION_MAJOR 3",
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/flight-commander/verify-release.py:221:            r"FLIGHT_COMMANDER_VERSION_MINOR 0",
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/flight-commander/verify-release.py:222:            r"FLIGHT_COMMANDER_VERSION_PATCH 7",
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/flight-commander/verify-release.py:223:            r"FLIGHT_COMMANDER_CAPABILITIES \(\(uint32_t\)0x1FFFU\)",
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/flight-commander/verify-release.py:232:            r"USE_FLIGHT_COMMANDER_HEADING_FUSION",
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/flight-commander/verify-release.py:233:            r"USE_FLIGHT_COMMANDER_MOVING_BASELINE",
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/flight-commander/verify-release.py:238:        [r"flightCommanderHeading"],
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/flight-commander/verify-release.py:243:            r"flightCommanderHeadingSetMagneticNorth\(&vCorrectedMagNorth\)",
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/flight-commander/verify-release.py:248:            r"flightCommanderHeadingGetOnboardMagWeight",
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/flight-commander/verify-release.py:250:            r"flightCommanderHeadingGetAbsoluteReference",
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/flight-commander/verify-release.py:261:            r"flightCommanderExternalCompassUpdate",
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/flight-commander/verify-release.py:262:            r"externalMag\.magSensorToUse = FLIGHT_COMMANDER_EXTERNAL_MAG_TAG",
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/flight-commander/verify-release.py:269:            r"flightCommanderHeadingCalibrationUpdate",
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/flight-commander/verify-release.py:270:            r"FLIGHT_COMMANDER_MAG_CALIBRATION_MIN_SAMPLES 48U",
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/flight-commander/verify-release.py:274:            r"config->sources\[2\] = \(flightCommanderHeadingSourceConfig_t\)\{ false, 3, 50, 0 \}",
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/flight-commander/verify-release.py:275:            r"config->sources\[3\] = \(flightCommanderHeadingSourceConfig_t\)\{ false, 4, 25, 0 \}",
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/flight-commander/verify-release.py:277:            r"FLIGHT_COMMANDER_MAG_MIN_FIELD_QUALITY 25U",
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/flight-commander/verify-release.py:284:            r"flightCommanderHeadingGetMagSource",
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/flight-commander/verify-release.py:285:            r"flightCommanderHeadingReceiveDronecanHeading",
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/flight-commander/verify-release.py:286:            r"flightCommanderHeadingReceiveDronecanRelPosHeading",
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/flight-commander/verify-release.py:287:            r"flightCommanderHeadingReceiveUartRelPosHeading",
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/flight-commander/verify-release.py:293:            r"flightCommanderHeadingApplyGyroCorrection",
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/flight-commander/verify-release.py:333:            r"FLIGHT_COMMANDER_MICOAIR743_ONBOARD_IST8310",
+.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/flight-commander/verify-release.py:334:            r"FLIGHT_COMMANDER_MAG_DEFAULT_ALIGN CW0_DEG",
