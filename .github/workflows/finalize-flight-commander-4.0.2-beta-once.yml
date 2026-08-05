@@ -1,4 +1,5 @@
 name: Finalize Flight Commander 4.0.2 beta once
+run-name: Finalize Flight Commander 4.0.2 beta ${{ github.sha }}
 
 "on":
   push:
