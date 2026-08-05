@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "minimum_chrome_version": "38",
-  "version": "4.0.1",
+  "version": "4.0.2",
   "author": "Flight Commander contributors",
   "name": "Flight Commander",
   "short_name": "Flight Commander",
