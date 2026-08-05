@@ -1,0 +1,68 @@
+name: Export Flight Commander 4.0.2 release bundle
+
+"on":
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/export-v4.0.2-release-bundle.yml
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    name: Verify and export the published four-artifact ZIP
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Download the official beta release bundle
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p exported
+          gh release download v4.0.2-beta \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern 'Flight-Commander-v4.0.2.zip' \
+            --dir exported
+
+      - name: Verify the four canonical components and retained firmware hashes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib
+          import zipfile
+          from pathlib import Path
+
+          bundle = Path('exported/Flight-Commander-v4.0.2.zip')
+          expected = [
+              'FC-Configurator-Source-v4.0.2.zip',
+              'FC-Firmware-Source-v4.0.2.zip',
+              'FC-Firmware-v4.0.2-MICOAIR743.hex',
+              'FC-Windows-v4.0.2.zip',
+          ]
+          expected_hashes = {
+              'FC-Firmware-v4.0.2-MICOAIR743.hex': 'b1b29617fe364643cd46fd3182fdcb03867b497856f91d6b542e2d9d5ecd3b0a',
+              'FC-Firmware-Source-v4.0.2.zip': '58d28e2dcb5088842436a8ddce896eee02b44ab0d7c1dba4e5b9f99d7a599a9e',
+          }
+          with zipfile.ZipFile(bundle) as archive:
+              names = sorted(info.filename for info in archive.infolist() if not info.is_dir())
+              assert names == sorted(expected), (names, expected)
+              for name, expected_hash in expected_hashes.items():
+                  actual = hashlib.sha256(archive.read(name)).hexdigest()
+                  assert actual == expected_hash, (name, actual, expected_hash)
+          print('Published Flight Commander 4.0.2 bundle verification: PASS')
+          print('Bundle SHA-256:', hashlib.sha256(bundle.read_bytes()).hexdigest())
+          PY
+
+      - name: Upload the verified complete bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: flight-commander-v4.0.2-four-artifact-zip
+          if-no-files-found: error
+          retention-days: 1
+          path: exported/Flight-Commander-v4.0.2.zip
