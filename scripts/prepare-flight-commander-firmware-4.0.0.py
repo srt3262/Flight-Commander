@@ -1364,8 +1364,8 @@ def patch_heading(root: Path) -> None:
 def patch_msp(root: Path) -> None:
     protocol = root / "src/main/msp/msp_protocol_v2_flight_commander.h"
     replace_once(protocol,
-        "#define MSP2_FLIGHT_COMMANDER_DRONECAN_NODES         0x2F12\n",
-        "#define MSP2_FLIGHT_COMMANDER_DRONECAN_NODES         0x2F12\n"
+        "#define MSP2_FLIGHT_COMMANDER_DRONECAN_NODES 0x2F12\n",
+        "#define MSP2_FLIGHT_COMMANDER_DRONECAN_NODES 0x2F12\n"
         "#define MSP2_FLIGHT_COMMANDER_DRONECAN_PAIR_STATUS    0x2F13\n"
         "#define MSP2_FLIGHT_COMMANDER_DRONECAN_PAIR_COMMAND   0x2F14\n")
 
