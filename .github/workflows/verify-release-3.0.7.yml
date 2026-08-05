@@ -1,0 +1,203 @@
+name: Verify published Flight Commander 3.0.7 release
+
+"on":
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  verify:
+    name: Verify release assets and firmware retirement
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out verification source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+
+      - name: Wait for the coordinated 3.0.7 release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p verification
+          release_found=false
+          for attempt in $(seq 1 90); do
+            if gh api "/repos/$GITHUB_REPOSITORY/releases/tags/v3.0.7" \
+              > verification/release.json 2>verification/release-error.txt; then
+              release_found=true
+              break
+            fi
+            echo "Release v3.0.7 is not published yet (attempt $attempt/90)."
+            sleep 10
+          done
+          if [[ "$release_found" != true ]]; then
+            cat verification/release-error.txt >&2 || true
+            exit 1
+          fi
+          jq -e '.tag_name == "v3.0.7" and .draft == false and .prerelease == false' \
+            verification/release.json >/dev/null
+
+      - name: Verify current release assets and complete bundle
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_FIRMWARE_SHA256: d62ea585f9d4a3a4bbdb29e65caefa9675cd41a5440d42ec814d1cd8ca32df8f
+          EXPECTED_FIRMWARE_SOURCE_SHA256: 4937ffe7cef7f97f60ec2c301340efe19de0f9f3ac33fccfa5379d88e5558306
+        run: |
+          set -euo pipefail
+          jq -r '.assets[].name' verification/release.json | sort > verification/current-assets.txt
+          cat verification/current-assets.txt
+          grep -Fxq 'Flight-Commander-v3.0.7.zip' verification/current-assets.txt
+          grep -Fxq 'Flight-Commander-Firmware-3.0.7-MICOAIR743.hex' verification/current-assets.txt
+
+          gh release download v3.0.7 \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern 'Flight-Commander-v3.0.7.zip' \
+            --pattern 'Flight-Commander-Firmware-3.0.7-MICOAIR743.hex' \
+            --dir verification/downloads
+
+          printf '%s  %s\n' "$EXPECTED_FIRMWARE_SHA256" \
+            verification/downloads/Flight-Commander-Firmware-3.0.7-MICOAIR743.hex \
+            | sha256sum --check --strict
+
+          mkdir -p verification/bundle
+          unzip -q verification/downloads/Flight-Commander-v3.0.7.zip \
+            -d verification/bundle
+          find verification/bundle -maxdepth 1 -type f -printf '%f\n' | sort \
+            > verification/bundle-files.txt
+          cat verification/bundle-files.txt
+          cat > verification/expected-bundle-files.txt <<'EOF'
+          FC-Configurator-Source-v3.0.7.zip
+          FC-Firmware-Source-v3.0.7.zip
+          FC-Firmware-v3.0.7-MICOAIR743.hex
+          FC-Windows-v3.0.7.zip
+          EOF
+          sort -o verification/expected-bundle-files.txt verification/expected-bundle-files.txt
+          diff -u verification/expected-bundle-files.txt verification/bundle-files.txt
+
+          printf '%s  %s\n' "$EXPECTED_FIRMWARE_SHA256" \
+            verification/bundle/FC-Firmware-v3.0.7-MICOAIR743.hex \
+            | sha256sum --check --strict
+          printf '%s  %s\n' "$EXPECTED_FIRMWARE_SOURCE_SHA256" \
+            verification/bundle/FC-Firmware-Source-v3.0.7.zip \
+            | sha256sum --check --strict
+          unzip -tq verification/bundle/FC-Windows-v3.0.7.zip
+          unzip -tq verification/bundle/FC-Configurator-Source-v3.0.7.zip
+          unzip -tq verification/bundle/FC-Firmware-Source-v3.0.7.zip
+
+      - name: Verify every pre-3.0.7 standalone firmware asset is gone
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          : > verification/all-release-assets.tsv
+          page=1
+          while true; do
+            page_json="verification/releases-$page.json"
+            gh api "/repos/$GITHUB_REPOSITORY/releases?per_page=100&page=$page" \
+              > "$page_json"
+            count="$(jq 'length' "$page_json")"
+            if [[ "$count" -eq 0 ]]; then break; fi
+            jq -r '.[] | .assets[]? | [.id, .name, .browser_download_url] | @tsv' \
+              "$page_json" >> verification/all-release-assets.tsv
+            if [[ "$count" -lt 100 ]]; then break; fi
+            page=$((page + 1))
+          done
+
+          python3 - verification/all-release-assets.tsv \
+            verification/firmware-retirement.json <<'PY'
+          from pathlib import Path
+          import json
+          import re
+          import sys
+
+          source = Path(sys.argv[1])
+          output = Path(sys.argv[2])
+          patterns = (
+              re.compile(r'^Flight-Commander-Firmware-(\d+)\.(\d+)\.(\d+)-.+\.(?:hex|bin)$', re.I),
+              re.compile(r'^FC-Firmware-v(\d+)\.(\d+)\.(\d+)-.+\.(?:hex|bin)$', re.I),
+              re.compile(r'^Flight-Commander-Firmware-Source-v(\d+)\.(\d+)\.(\d+)\.zip$', re.I),
+              re.compile(r'^FC-Firmware-Source-v(\d+)\.(\d+)\.(\d+)\.zip$', re.I),
+          )
+          minimum = (3, 0, 7)
+          stale = []
+          current = []
+          for line in source.read_text(encoding='utf-8').splitlines():
+              asset_id, name, url = line.split('\t', 2)
+              for pattern in patterns:
+                  match = pattern.match(name)
+                  if not match:
+                      continue
+                  version = tuple(map(int, match.groups()))
+                  entry = {'id': int(asset_id), 'name': name, 'version': '.'.join(map(str, version)), 'url': url}
+                  if version < minimum:
+                      stale.append(entry)
+                  else:
+                      current.append(entry)
+                  break
+          report = {
+              'minimum_supported_firmware': '3.0.7',
+              'stale_assets': stale,
+              'current_firmware_assets': current,
+          }
+          output.write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
+          if stale:
+              raise SystemExit('Superseded standalone firmware assets remain: ' + ', '.join(item['name'] for item in stale))
+          if not any(item['name'] == 'Flight-Commander-Firmware-3.0.7-MICOAIR743.hex' for item in current):
+              raise SystemExit('The current online-flasher firmware asset is missing.')
+          print('Standalone firmware retirement: PASS')
+          PY
+
+      - name: Write publication verification report
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+
+          release = json.loads(Path('verification/release.json').read_text(encoding='utf-8'))
+          retirement = json.loads(Path('verification/firmware-retirement.json').read_text(encoding='utf-8'))
+          report = {
+              'release': {
+                  'tag': release['tag_name'],
+                  'name': release['name'],
+                  'html_url': release['html_url'],
+                  'published_at': release['published_at'],
+                  'assets': [
+                      {
+                          'name': asset['name'],
+                          'bytes': asset['size'],
+                          'digest': asset.get('digest'),
+                          'url': asset['browser_download_url'],
+                      }
+                      for asset in release['assets']
+                  ],
+              },
+              'firmware_policy': retirement,
+              'complete_bundle_entries': Path('verification/bundle-files.txt').read_text(encoding='utf-8').splitlines(),
+              'result': 'PASS',
+          }
+          Path('verification/verification-report.json').write_text(
+              json.dumps(report, indent=2) + '\n', encoding='utf-8'
+          )
+          print(json.dumps(report, indent=2))
+          PY
+
+      - name: Upload verification evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: flight-commander-3.0.7-publication-verification
+          path: verification/**
+          if-no-files-found: error
+          retention-days: 7
