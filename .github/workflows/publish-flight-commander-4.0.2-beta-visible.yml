@@ -110,22 +110,21 @@ jobs:
           print('Verified 4.0.2 firmware artifact: PASS')
           PY
 
-      - name: Retain and commit firmware release inputs
+      - name: Retain and commit current firmware release inputs
         id: commit
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p release/firmware
-          find release/firmware -maxdepth 1 -type f -name '*.hex' \
-            ! -name 'Flight-Commander-Firmware-4.0.2-MICOAIR743.hex' -delete
+          find release/firmware -maxdepth 1 -type f \
+            ! -name 'Flight-Commander-Firmware-4.0.2-MICOAIR743.hex' \
+            ! -name 'Flight-Commander-Firmware-Source-v4.0.2.zip' -delete
           cp -f \
             firmware-candidate/Flight-Commander-Firmware-4.0.2-MICOAIR743.hex \
             release/firmware/Flight-Commander-Firmware-4.0.2-MICOAIR743.hex
           cp -f \
             firmware-candidate/Flight-Commander-Firmware-Source-v4.0.2.zip \
             release/firmware/Flight-Commander-Firmware-Source-v4.0.2.zip
-          test "$(find release/firmware -maxdepth 1 -type f -name '*.hex' | wc -l)" -eq 1
-          test -f release/firmware/Flight-Commander-Firmware-Source-v4.0.1.zip
           node scripts/check-flight-commander-version.mjs
 
           git add -A release/firmware
