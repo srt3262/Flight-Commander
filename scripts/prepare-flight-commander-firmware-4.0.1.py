@@ -130,6 +130,13 @@ def patch_version(root: Path) -> None:
         "#define FLIGHT_COMMANDER_VERSION_PATCH 1",
     )
 
+    cmake = root / "CMakeLists.txt"
+    replace_once(
+        cmake,
+        "set(FLIGHT_COMMANDER_FIRMWARE_VERSION 4.0.0)",
+        "set(FLIGHT_COMMANDER_FIRMWARE_VERSION 4.0.1)",
+    )
+
     build = root / "flight-commander/build-micoair743.sh"
     replace_once(
         build,
