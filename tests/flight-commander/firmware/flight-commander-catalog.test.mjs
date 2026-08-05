@@ -7,12 +7,24 @@ import {
   FLIGHT_COMMANDER_MINIMUM_SUPPORTED_FIRMWARE_VERSION,
   catalogByTarget,
   flightCommanderReleaseDescriptors,
+  inferFlightCommanderFirmwareTarget,
   isSupportedFlightCommanderFirmwareVersion,
+  localFlightCommanderFirmwareDescriptor,
   normalizeFirmwareTarget,
   parseFlightCommanderFirmwareFilename,
   parsedHexContainsFlightCommanderIdentity,
   verifyFlightCommanderOnlinePayload,
 } from "../../../js/flightCommander/firmwareCatalog.js";
+
+function parsedFirmwareBytes(...chunks) {
+  return {
+    data: chunks.map((chunk) => ({
+      data: typeof chunk === "string"
+        ? Array.from(chunk, (character) => character.charCodeAt(0))
+        : chunk,
+    })),
+  };
+}
 
 describe("Flight Commander firmware catalog", () => {
   test("uses Flight Commander releases and preserves the legacy target alias", () => {
@@ -171,5 +183,40 @@ describe("Flight Commander firmware catalog", () => {
       }),
       false,
     );
+  });
+
+  test("infers the MICOAIR743 target from compiled firmware content", () => {
+    const parsedHex = parsedFirmwareBytes(
+      [0, 0x46, 0x43, 0x46, 0x57, 0],
+      "padding MICOAIR743 padding",
+    );
+    assert.equal(inferFlightCommanderFirmwareTarget(parsedHex), "MICOAIR743");
+  });
+
+  test("accepts renamed local firmware without requiring a release filename", () => {
+    const parsedHex = parsedFirmwareBytes(
+      [0x46, 0x43, 0x46, 0x57],
+      "MICOAIR743",
+    );
+    const descriptor = localFlightCommanderFirmwareDescriptor(parsedHex, {
+      filename: "known-good-compass-test.hex",
+      selectedTarget: "0",
+    });
+
+    assert.equal(descriptor.target_id, "MICOAIR743");
+    assert.equal(descriptor.version, null);
+    assert.equal(descriptor.file, "known-good-compass-test.hex");
+    assert.equal(descriptor.targetEvidence, "firmware-content");
+  });
+
+  test("uses an explicitly selected supported target when old local firmware has no target string", () => {
+    const parsedHex = parsedFirmwareBytes([0x46, 0x43, 0x46, 0x57]);
+    const descriptor = localFlightCommanderFirmwareDescriptor(parsedHex, {
+      filename: "archive-copy.hex",
+      selectedTarget: "MICROAIR743",
+    });
+
+    assert.equal(descriptor.target_id, "MICOAIR743");
+    assert.equal(descriptor.targetEvidence, "selected-target");
   });
 });
