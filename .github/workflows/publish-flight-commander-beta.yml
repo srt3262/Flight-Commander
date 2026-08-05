@@ -4,6 +4,7 @@ name: Publish Flight Commander beta release
   push:
     branches:
       - main
+      - agent/fix-compass-persistence-and-local-flashing
     paths:
       - package.json
       - manifest.json
