@@ -12,6 +12,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
+# Coordinated source and package contracts validated together.
+
 
 def replace(path: str, old: str, new: str, *, required: bool = True) -> None:
     target = ROOT / path
