@@ -655,6 +655,11 @@ static uint8_t parameterTransferID;
 static uint8_t executeOpcodeTransferID;
 static uint8_t restartTransferID;
 
+static uint16_t saturatingU16(uint32_t value)
+{
+    return value > 65535U ? 65535U : (uint16_t)value;
+}
+
 static void setError(uint8_t error)
 {
     status.state = DRONECAN_PAIR_STATE_ERROR;
@@ -714,7 +719,7 @@ static const char *parameterName(pairParameter_e parameter)
 
 static bool sendNodeInfo(uint8_t nodeID)
 {
-    struct uavcan_protocol_GetNodeInfoRequest request = { 0 };
+    struct uavcan_protocol_GetNodeInfoRequest request;
     uint8_t buffer[1] = { 0 };
     const uint16_t length = uavcan_protocol_GetNodeInfoRequest_encode(&request, buffer);
     if (!dronecanSendServiceRequest(nodeID, UAVCAN_PROTOCOL_GETNODEINFO_SIGNATURE,
@@ -1164,7 +1169,7 @@ const dronecanPairStatus_t *dronecanPairGetStatus(void)
     if (gpsDronecanGetNodeStatus(config->movingBaseNodeID, &gpsStatus)) {
         status.baseFixType = gpsStatus.fixType;
         status.baseSatellites = gpsStatus.satellites;
-        status.baseAgeMs = MIN(gpsStatus.ageMs, UINT16_MAX);
+        status.baseAgeMs = saturatingU16(gpsStatus.ageMs);
     } else {
         status.baseFixType = 0;
         status.baseSatellites = 0;
@@ -1173,13 +1178,13 @@ const dronecanPairStatus_t *dronecanPairGetStatus(void)
     if (gpsDronecanGetNodeStatus(config->movingRoverNodeID, &gpsStatus)) {
         status.roverFixType = gpsStatus.fixType;
         status.roverSatellites = gpsStatus.satellites;
-        status.roverAgeMs = MIN(gpsStatus.ageMs, UINT16_MAX);
+        status.roverAgeMs = saturatingU16(gpsStatus.ageMs);
     } else {
         status.roverFixType = 0;
         status.roverSatellites = 0;
         status.roverAgeMs = UINT16_MAX;
     }
-    status.relativeAgeMs = lastRelPosMs ? MIN(millis() - lastRelPosMs, UINT16_MAX) : UINT16_MAX;
+    status.relativeAgeMs = lastRelPosMs ? saturatingU16(millis() - lastRelPosMs) : UINT16_MAX;
     status.relativeHeadingFresh = status.relativeAgeMs <= 1000U;
     status.baseRoleVerified = status.baseGpsType == AP_PERIPH_MOVING_BASE_GPS_TYPE;
     status.roverRoleVerified = status.roverGpsType == AP_PERIPH_MOVING_ROVER_GPS_TYPE;
@@ -1325,6 +1330,9 @@ const dronecanNodeInfo_t *dronecanGetNodeById(uint8_t nodeID)
 
 def patch_heading(root: Path) -> None:
     path = root / "src/main/flight_commander/heading_fusion.c"
+    replace_once(path,
+        '#include "io/gps.h"\n',
+        '#include "io/gps.h"\n#include "io/gps_dronecan.h"\n')
     replace_once(path,
         '''    if (!baselineProviderEnabled(FLIGHT_COMMANDER_BASELINE_DRONECAN) ||
         !selectedNode(dronecanConfig()->gpsNodeID, sourceNodeID) || !message->heading_valid) {
