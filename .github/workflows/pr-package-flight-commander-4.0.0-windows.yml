@@ -83,12 +83,8 @@ jobs:
             throw 'git archive failed while creating the exact Configurator source ZIP.'
           }
 
-          Copy-Item \
-            (Join-Path $PWD "release/firmware/Flight-Commander-Firmware-$version-MICOAIR743.hex") \
-            (Join-Path $components "FC-Firmware-v$version-MICOAIR743.hex")
-          Copy-Item \
-            (Join-Path $PWD "release/firmware/Flight-Commander-Firmware-Source-v$version.zip") \
-            (Join-Path $components "FC-Firmware-Source-v$version.zip")
+          Copy-Item -LiteralPath (Join-Path $PWD "release/firmware/Flight-Commander-Firmware-$version-MICOAIR743.hex") -Destination (Join-Path $components "FC-Firmware-v$version-MICOAIR743.hex")
+          Copy-Item -LiteralPath (Join-Path $PWD "release/firmware/Flight-Commander-Firmware-Source-v$version.zip") -Destination (Join-Path $components "FC-Firmware-Source-v$version.zip")
 
           $componentFiles = Get-ChildItem -Path $components -File | Sort-Object Name
           if ($componentFiles.Count -ne 4) {
