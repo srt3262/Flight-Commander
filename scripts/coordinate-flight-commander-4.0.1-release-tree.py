@@ -120,27 +120,12 @@ test('external tagged IST8310 devices retain the generic conversion path', () =>
         encoding="utf-8",
     )
 
-    build = root / ".github/workflows/build-flight-commander-4.0.1-compass-fix.yml"
-    build_text = build.read_text(encoding="utf-8")
-    baseline = """          $baselineArchive = Join-Path $env:RUNNER_TEMP 'Flight-Commander-Firmware-Source-v4.0.0.zip'\n          Copy-Item -LiteralPath (Join-Path $PWD 'release/firmware/Flight-Commander-Firmware-Source-v4.0.0.zip') -Destination $baselineArchive -Force\n          \"FLIGHT_COMMANDER_400_SOURCE_ARCHIVE=$baselineArchive\" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8\n\n"""
-    if baseline not in build_text:
-        raise SystemExit("Baseline handoff block missing from build workflow")
-    build.write_text(build_text.replace(baseline, ""), encoding="utf-8")
-
     release_dir = root / "release/firmware"
     for item in release_dir.iterdir():
         if item.is_file():
             item.unlink()
     shutil.copy2(hex_file, release_dir / hex_file.name)
     shutil.copy2(source_file, release_dir / source_file.name)
-
-    for obsolete in (
-        root / ".github/workflows/package-flight-commander-4.0.1-compass-fix-rerun.yml",
-        root / ".github/workflows/prepare-flight-commander-4.0.1-release-tree.yml",
-        root / ".github/workflows/coordinate-flight-commander-4.0.1-pr.yml",
-    ):
-        if obsolete.exists():
-            obsolete.unlink()
 
 
 if __name__ == "__main__":
