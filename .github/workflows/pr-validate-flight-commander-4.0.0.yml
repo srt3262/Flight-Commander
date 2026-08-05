@@ -6,6 +6,7 @@ name: Validate Flight Commander 4.0.0 firmware
       - main
     paths:
       - .github/workflows/pr-validate-flight-commander-4.0.0.yml
+      - .github/workflows/release-4.0.0-orchestrator.yml
       - scripts/prepare-flight-commander-firmware-4.0.0.py
       - scripts/finalize-flight-commander-4.0.0-contracts.py
       - js/**
@@ -77,11 +78,26 @@ jobs:
             "$build/Flight-Commander-Firmware-4.0.0-MICOAIR743.hex" \
             Flight-Commander-Firmware-4.0.0-MICOAIR743.hex
 
-      - name: Create deterministic firmware source archive
+      - name: Finalize firmware manifest and create deterministic source archive
         shell: bash
         run: |
           set -euo pipefail
           root="$RUNNER_TEMP/flight-commander-firmware-4.0.0/Flight-Commander-Firmware-Source-v4.0.0"
+          python3 - "$root" Flight-Commander-Firmware-4.0.0-MICOAIR743.hex <<'PY'
+          import hashlib
+          import json
+          import sys
+          from pathlib import Path
+
+          root = Path(sys.argv[1])
+          hex_path = Path(sys.argv[2])
+          manifest_path = root / 'RELEASE-MANIFEST.json'
+          manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
+          manifest['artifact']['sha256'] = hashlib.sha256(hex_path.read_bytes()).hexdigest()
+          manifest['artifact']['bytes'] = hex_path.stat().st_size
+          manifest_path.write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
+          PY
+
           python3 - "$root" Flight-Commander-Firmware-Source-v4.0.0.zip <<'PY'
           import json
           import stat
@@ -106,8 +122,57 @@ jobs:
                   info.compress_type = zipfile.ZIP_DEFLATED
                   archive.writestr(info, path.read_bytes(), compress_type=zipfile.ZIP_DEFLATED, compresslevel=9)
           PY
-          sha256sum Flight-Commander-Firmware-4.0.0-MICOAIR743.hex \
+
+      - name: Stage exact release artifacts and synchronize package metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/flight-commander-firmware-4.0.0/Flight-Commander-Firmware-Source-v4.0.0"
+          install -m 0644 \
+            Flight-Commander-Firmware-4.0.0-MICOAIR743.hex \
+            release/firmware/Flight-Commander-Firmware-4.0.0-MICOAIR743.hex
+          install -m 0644 \
             Flight-Commander-Firmware-Source-v4.0.0.zip \
+            release/firmware/Flight-Commander-Firmware-Source-v4.0.0.zip
+
+          python3 - "$root" <<'PY'
+          import hashlib
+          import json
+          import sys
+          from pathlib import Path
+
+          root = Path(sys.argv[1])
+          firmware = Path('release/firmware/Flight-Commander-Firmware-4.0.0-MICOAIR743.hex')
+          source = Path('release/firmware/Flight-Commander-Firmware-Source-v4.0.0.zip')
+          release_manifest = json.loads((root / 'RELEASE-MANIFEST.json').read_text(encoding='utf-8'))
+
+          package_path = Path('package.json')
+          package = json.loads(package_path.read_text(encoding='utf-8'))
+          package['version'] = '4.0.0'
+          fc = package['flightCommander']
+          fc.update({
+              'firmwareMajor': 4,
+              'firmwareReleaseVersion': '4.0.0',
+              'firmwareReleaseSha256': hashlib.sha256(firmware.read_bytes()).hexdigest(),
+              'firmwareChangedInRelease': True,
+              'firmwareSourceAvailable': True,
+              'firmwareSourceVersion': '4.0.0',
+              'firmwareSourceArchive': 'release/firmware/Flight-Commander-Firmware-Source-v4.0.0.zip',
+              'firmwareSourceSha256': hashlib.sha256(source.read_bytes()).hexdigest(),
+              'firmwareSourceRevision': release_manifest['source_revision'],
+              'firmwareSourceTree': release_manifest['source_tree'],
+          })
+          package_path.write_text(json.dumps(package, indent=2) + '\n', encoding='utf-8')
+
+          manifest_path = Path('manifest.json')
+          manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
+          manifest['version'] = '4.0.0'
+          manifest_path.write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
+          PY
+
+          sha256sum \
+            release/firmware/Flight-Commander-Firmware-4.0.0-MICOAIR743.hex \
+            release/firmware/Flight-Commander-Firmware-Source-v4.0.0.zip \
             | tee firmware-4.0.0-pr-validation.sha256
 
       - uses: actions/setup-node@v4
@@ -115,13 +180,13 @@ jobs:
           node-version: 22
           cache: yarn
 
-      - name: Run Flight Commander source tests
+      - name: Run complete coordinated source tests
         shell: bash
         run: |
           set -euo pipefail
           corepack enable
           yarn install --frozen-lockfile
-          yarn test:flight-commander 2>&1 | tee configurator-4.0.0-pr-validation.log
+          yarn test 2>&1 | tee configurator-4.0.0-pr-validation.log
 
       - name: Upload validation outputs
         if: always()
