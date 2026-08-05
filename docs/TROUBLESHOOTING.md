@@ -65,14 +65,14 @@ recovery deliberately.
 
 ## MICOAIR743 heading is roughly 90 degrees wrong or drifts after calibration
 
-Open Alignment and record the active INAV target alignment plus the live axis
-diagnostics. Flight Commander 3.0.3 does not force a MICOAIR743 compass
-rotation; it preserves the official INAV 9.1.0 target behavior and the normal
-editable alignment settings. Verify the board is installed as represented,
-apply only the measured installation correction, save and reboot, then complete
-one normal calibration away from steel, wiring current, speakers, magnets,
-vehicles, and reinforced concrete. Do not mask a fixed axis error with magnetic
-declination.
+Open Alignment and confirm that the onboard source is current, active in fused
+heading, and configured at `CW 0°`. Flight Commander 3.0.7 applies the accepted
+MICOAIR743 onboard transform `X=-nativeY`, `Y=-nativeX`, `Z=nativeZ` inside the
+firmware target. Do not add another 90-degree or flipped user rotation and do
+not apply the onboard transform to an external compass. Save and reboot, then
+complete one normal three-axis calibration away from steel, wiring current,
+speakers, magnets, vehicles, and reinforced concrete. Do not mask a fixed axis
+error with magnetic declination.
 
 ## Ground Control command is visible but disabled
 

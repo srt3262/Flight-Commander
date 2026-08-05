@@ -29,6 +29,10 @@ const releaseWorkflow = readFileSync(
   resolve(projectRoot, ".github/workflows/release.yml"),
   "utf8",
 );
+const releaseOrchestrator = readFileSync(
+  resolve(projectRoot, ".github/workflows/release-3.0.7-orchestrator.yml"),
+  "utf8",
+);
 const firmwareRebuildScript = readFileSync(
   resolve(projectRoot, "scripts/rebuild-firmware-source-archive.sh"),
   "utf8",
@@ -577,13 +581,13 @@ test("application remains dark-only", () => {
 });
 
 test("firmware is release-only and the flasher exposes local, online, then flash", () => {
-  assert.equal(packageManifest.flightCommander.firmwareReleaseVersion, "3.0.3");
+  assert.equal(packageManifest.flightCommander.firmwareReleaseVersion, "3.0.7");
   assert.equal(packageManifest.flightCommander.firmwareChangedInRelease, true);
   assert.equal(packageManifest.flightCommander.firmwareSourceAvailable, true);
-  assert.equal(packageManifest.flightCommander.firmwareSourceVersion, "3.0.3");
+  assert.equal(packageManifest.flightCommander.firmwareSourceVersion, "3.0.7");
   assert.equal(
     packageManifest.flightCommander.firmwareSourceArchive,
-    "release/firmware/Flight-Commander-Firmware-Source-v3.0.3.zip",
+    "release/firmware/Flight-Commander-Firmware-Source-v3.0.7.zip",
   );
   const releaseFirmwareIsPresent = existsSync(firmwareReleasePath);
   const releaseSourceIsPresent = existsSync(firmwareSourcePath);
@@ -645,6 +649,8 @@ test("firmware is release-only and the flasher exposes local, online, then flash
   assert.match(firmwareIdentitySource, /retryCounter: 0/);
   assert.match(firmwareCatalogSource, /MICOAIR743/);
   assert.match(firmwareCatalogSource, /MICROAIR743/);
+  assert.match(firmwareCatalogSource, /FLIGHT_COMMANDER_MINIMUM_SUPPORTED_FIRMWARE_VERSION = "3\.0\.7"/);
+  assert.match(firmwareCatalogSource, /isSupportedFlightCommanderFirmwareVersion/);
   assert.match(packageVerifier, /firmware must not be packaged/i);
   assert.match(packageVerifier, /firmwareBundled: false/);
   assert.match(firmwareInfoHtml, /Firmware Capabilities/);
@@ -684,7 +690,7 @@ test("all requested large-prop INAV presets are wired into the release source", 
 });
 
 test("landing page reports the current Flight Commander release", () => {
-  assert.equal(packageManifest.version, "3.0.3");
+  assert.equal(packageManifest.version, "3.0.7");
   assert.equal(manifest.version, packageManifest.version);
   assert.match(
     landingHtml,
@@ -693,12 +699,8 @@ test("landing page reports the current Flight Commander release", () => {
 });
 
 test("guarded push publication is tied to the current release version", () => {
-  assert.match(
-    releaseWorkflow,
-    new RegExp(
-      `github\\.event\\.head_commit\\.message == 'Publish Flight Commander ${packageManifest.version.replaceAll(".", "\\.")} release'`,
-    ),
-  );
+  assert.match(releaseOrchestrator, /Publish Flight Commander 3\.0\.7 release/);
+  assert.match(releaseOrchestrator, /gh workflow run release\.yml/);
 });
 
 test("release policy distinguishes software-only updates from firmware rebuilds", () => {
@@ -792,6 +794,8 @@ test("source-backed releases publish one complete bundle plus the online-flasher
     /\$releaseAssetPaths = @\(\$completeBundlePath, \$onlineFirmwarePath\)/,
   );
   assert.match(releaseWorkflow, /Published online-flasher firmware asset/);
+  assert.match(releaseOrchestrator, /Remove every standalone Flight Commander firmware asset older than 3\.0\.7/);
+  assert.match(releaseOrchestrator, /Superseded firmware remains after cleanup/);
   assert.match(releaseWorkflow, /must contain exactly the four canonical release files/);
   assert.doesNotMatch(releaseWorkflow, /Firmware-Package|firmwarePackageDirectory/);
 });

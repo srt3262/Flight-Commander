@@ -34,17 +34,20 @@
       </div>
       <div class="column half text2">
         <div class="wrap">
-          <h2>Flight Commander 3.0.3</h2>
+          <h2>Flight Commander 3.0.7</h2>
           <div>
-            Flight Commander 3.0.3 ships coordinated Configurator and firmware
+            Flight Commander 3.0.7 ships coordinated Configurator and firmware
             builds with matching downloadable source. Its MICOAIR743 firmware
-            is built from the official INAV 9.1.0 target and preserves that
-            release's target, compass, calibration, bus, and IMU behavior.
-            Flight Commander adds its complete feature set around that
-            baseline, including weighted heading fusion and UART/DroneCAN
+            is built from the official INAV 9.1.0 target while retaining
+            reviewed Flight Commander extensions for fresh IST8310 sampling,
+            validated compass calibration, and the MICOAIR743 board transform.
+            Physical testing established the canonical onboard mapping as
+            X=-nativeY, Y=-nativeX, Z=nativeZ with user alignment CW 0 degrees.
+            Flight Commander adds weighted heading fusion and UART/DroneCAN
             moving-baseline RTK yaw. The GPS and Alignment workflows retain
-            per-source diagnostics and editable installation offsets without
-            forcing a board-specific compass orientation.
+            per-source diagnostics and editable installation offsets; the fixed
+            onboard chip-to-board transform remains target-owned and cannot be
+            accidentally applied to external compass modules.
             The CLI, page help, settings help, OSD, tuning, and SITL surfaces
             now use Flight Commander's comprehensive first-party GitHub manual;
             all 246 graphical setting links are indexed there. SITL no longer

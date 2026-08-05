@@ -1,6 +1,6 @@
 # Heading fusion and moving-baseline yaw
 
-Flight Commander Firmware 3.0.3 can keep four heading sources live at the
+Flight Commander Firmware 3.0.7 can keep four heading sources live at the
 same time. The Configurator exposes them only when the connected controller
 advertises `HEADING_FUSION`; moving-baseline controls additionally require
 `MOVING_BASELINE_YAW`.
@@ -55,13 +55,23 @@ the complete aircraft slowly through all orientations for the full run.
 
 ### MICOAIR743 onboard IST8310 orientation
 
-Flight Commander 3.0.3 retains the official INAV 9.1.0 MICOAIR743 target,
-compass drivers, default alignment behavior, calibration path, and IMU code
-without a Flight Commander orientation override. The Alignment tab continues
-to show the active target alignment and diagnostics, and operators may edit the
-normal INAV alignment settings when installation-specific testing requires it.
-Recalibrate after changing alignment, the airframe installation, power wiring,
-nearby magnetic hardware, compass module, or firmware defaults.
+Flight Commander 3.0.7 establishes the first physically accepted onboard
+IST8310 baseline for MICOAIR743. The fixed chip-to-INAV-body transform is:
+
+```text
+X = -native Y
+Y = -native X
+Z =  native Z
+```
+
+The transform is implemented only in the MICOAIR743 onboard IST8310 target path.
+The user-facing onboard alignment remains `CW 0°`, meaning no additional
+rotation relative to the flight controller. Do not copy this transform to an
+external I²C, UART-module, or DroneCAN compass; those devices keep their own
+installation alignment. The Alignment tab shows current samples, source and
+fused heading, quality, calibration, and the saved user alignment. Recalibrate
+after changing firmware, alignment, airframe installation, power wiring, nearby
+magnetic hardware, or the physical compass module.
 
 One calibration command samples every enabled physical compass concurrently,
 but each result is independent:

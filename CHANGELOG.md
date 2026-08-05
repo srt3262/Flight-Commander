@@ -1,3 +1,11 @@
+# Flight Commander 3.0.7
+
+- Publishes the first officially accepted MICOAIR743 onboard IST8310 compass baseline.
+- Preserves the physically validated transform `X=-nativeY`, `Y=-nativeX`, `Z=nativeZ` with onboard user alignment `CW 0°`.
+- Retires every earlier standalone Flight Commander firmware asset because those versions used an incorrect compass transform.
+- Filters the online firmware dropdown so versions older than 3.0.7 cannot be selected, even from stale GitHub API responses.
+- Coordinates Configurator, firmware HEX, Configurator source, and firmware source at version 3.0.7.
+
 # Changelog
 
 ## 3.0.3
