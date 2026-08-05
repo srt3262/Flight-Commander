@@ -40,14 +40,16 @@ jobs:
           nl -ba "$root/src/main/target/MICOAIR743/config.c" | sed -n '1,300p'
           echo '===== COMPASS HEADER ====='
           nl -ba "$root/src/main/sensors/compass.h" | sed -n '1,280p'
-          echo '===== COMPASS SOURCE RESET/VALIDATION ====='
-          nl -ba "$root/src/main/sensors/compass.c" | sed -n '80,250p'
+          echo '===== COMPASS SOURCE INCLUDES/RESET ====='
+          nl -ba "$root/src/main/sensors/compass.c" | sed -n '1,130p'
+          echo '===== COMPASS SOURCE VALIDATION ====='
+          nl -ba "$root/src/main/sensors/compass.c" | sed -n '88,150p'
           echo '===== COMPASS SOURCE INIT ====='
-          nl -ba "$root/src/main/sensors/compass.c" | sed -n '250,430p'
+          nl -ba "$root/src/main/sensors/compass.c" | sed -n '340,430p'
           echo '===== COMPASS SOURCE CALIBRATION COMPLETION ====='
-          nl -ba "$root/src/main/sensors/compass.c" | sed -n '430,650p'
+          nl -ba "$root/src/main/sensors/compass.c" | sed -n '428,590p'
           echo '===== GENERIC ALIGNMENT FIXUP ====='
-          nl -ba "$root/src/main/fc/config.c" | sed -n '210,330p'
+          nl -ba "$root/src/main/fc/config.c" | sed -n '250,275p'
 
       - name: Print firmware baseline and verifier extension contracts
         shell: bash
@@ -72,9 +74,12 @@ jobs:
                   print(key)
                   print(json.dumps(value, indent=2, sort_keys=True))
           PY
-          echo '===== VERIFY RELEASE REFERENCES ====='
-          grep -n -E 'intentional_extensions|patched_sha256|compass_ist8310|sensors/compass|MICOAIR743/config|MICOAIR743/target' \
-            "$root/flight-commander/verify-release.py" | head -n 500 || true
+          echo '===== VERIFY RELEASE EXTENSION CONTRACT ====='
+          nl -ba "$root/flight-commander/verify-release.py" | sed -n '90,165p'
+          echo '===== VERIFY RELEASE COMPASS CONTRACT ====='
+          nl -ba "$root/flight-commander/verify-release.py" | sed -n '300,345p'
+          echo '===== VERIFY COMPASS RELEASE ====='
+          nl -ba "$root/flight-commander/verify-compass-release.py" | sed -n '1,180p'
           echo '===== VERSION/BUILD REFERENCES ====='
           grep -R -n -E '4\.0\.1|VERSION_PATCH|Firmware-4\.0\.1' \
             "$root/CMakeLists.txt" "$root/src/main/build/flight_commander.h" "$root/flight-commander" \
@@ -133,4 +138,4 @@ jobs:
           echo '===== tabs/firmware_flasher.js acceptance section ====='
           nl -ba tabs/firmware_flasher.js | sed -n '430,820p'
           echo '===== js/flightCommander/firmwareCatalog.js ====='
-          nl -ba js/flightCommander/firmwareCatalog.js | sed -n '1,340p'
+          nl -ba js/flightCommander/firmwareCatalog.js | sed -n '1,360p'
