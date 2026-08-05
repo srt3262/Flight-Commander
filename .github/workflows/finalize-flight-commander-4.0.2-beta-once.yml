@@ -1,0 +1,49 @@
+name: Finalize Flight Commander 4.0.2 beta once
+
+"on":
+  push:
+    branches:
+      - agent/fix-compass-persistence-and-local-flashing
+    paths:
+      - .github/workflows/finalize-flight-commander-4.0.2-beta-once.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: finalize-flight-commander-4.0.2-beta-once
+  cancel-in-progress: false
+
+jobs:
+  finalize:
+    name: Remove obsolete workflows and start the canonical publisher
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out the reviewed beta branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: agent/fix-compass-persistence-and-local-flashing
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Finalize the publication contract
+        run: python3 scripts/finalize-flight-commander-4.0.2-beta.py
+
+      - name: Verify the focused packaging contract
+        run: node --test tests/flight-commander/packaging/package-contract.test.mjs
+
+      - name: Commit the final release path
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "ci: finalize the Flight Commander 4.0.2 beta publisher"
+          git push origin "HEAD:agent/fix-compass-persistence-and-local-flashing"
