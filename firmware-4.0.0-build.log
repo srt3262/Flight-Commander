@@ -1,13 +1,40 @@
-Traceback (most recent call last):
-  File "/home/runner/work/Flight-Commander/Flight-Commander/scripts/prepare-flight-commander-firmware-4.0.0.py", line 1615, in <module>
-    raise SystemExit(main())
-                     ^^^^^^
-  File "/home/runner/work/Flight-Commander/Flight-Commander/scripts/prepare-flight-commander-firmware-4.0.0.py", line 1610, in main
-    prepare(args.archive.resolve(), args.output.resolve())
-  File "/home/runner/work/Flight-Commander/Flight-Commander/scripts/prepare-flight-commander-firmware-4.0.0.py", line 1598, in prepare
-    patch_msp(root)
-  File "/home/runner/work/Flight-Commander/Flight-Commander/scripts/prepare-flight-commander-firmware-4.0.0.py", line 1447, in patch_msp
-    replace_once(fc_msp,
-  File "/home/runner/work/Flight-Commander/Flight-Commander/scripts/prepare-flight-commander-firmware-4.0.0.py", line 30, in replace_once
-    raise RuntimeError(f"{path}: expected one replacement target, found {count}: {old[:120]!r}")
-RuntimeError: /home/runner/work/_temp/flight-commander-firmware-4.0.0/Flight-Commander-Firmware-Source-v4.0.0/src/main/fc/fc_msp.c: expected one replacement target, found 0: '    case MSP2_FLIGHT_COMMANDER_SET_DRONECAN_CONFIG:\n        if (dataSize != 6) {\n            return MSP_RESULT_ERROR;\n  '
+{"root": "/home/runner/work/_temp/flight-commander-firmware-4.0.0/Flight-Commander-Firmware-Source-v4.0.0", "source_revision": "dcfa9e3bcfdd49fe8d0dd0b1285b0b0f56492a16", "source_tree": "8e94796d783eed59c5ef67f148ce9214dc71024e"}
+Compiler: 13.2.1
+-- found arm-none-eabi-gcc 13.2.1 at /home/runner/work/_temp/toolchain/arm-gnu-toolchain-13.2.Rel1-x86_64-arm-none-eabi/bin/arm-none-eabi-gcc
+-- The C compiler identification is GNU 13.2.1
+-- The CXX compiler identification is GNU 13.2.1
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /home/runner/work/_temp/toolchain/arm-gnu-toolchain-13.2.Rel1-x86_64-arm-none-eabi/bin/arm-none-eabi-gcc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /home/runner/work/_temp/toolchain/arm-gnu-toolchain-13.2.Rel1-x86_64-arm-none-eabi/bin/arm-none-eabi-g++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- The ASM compiler identification is GNU
+-- Found assembler: /home/runner/work/_temp/toolchain/arm-gnu-toolchain-13.2.Rel1-x86_64-arm-none-eabi/bin/arm-none-eabi-gcc
+-- toolchain: arm-none-eabi, WARNINGS_AS_ERRORS: ON
+-- Could not find openocd, debugging won't be available
+-- DEBUG_HARDFAULTS: OFF, SEMIHOSTING: OFF
+-- DEBUG_HARDFAULTS: OFF, SEMIHOSTING: OFF
+-- Performing Test LINKER_SUPPORTS_NO_RWX_WARNING
+-- Performing Test LINKER_SUPPORTS_NO_RWX_WARNING - Failed
+-- 2 targets (2 for release) found for toolchain arm-none-eabi
+-- Build type: Release
+-- Configuring done (1.4s)
+CMake Error at cmake/flight-commander-micoair743.cmake:51 (target_sources):
+  Cannot find source file:
+
+    /home/runner/work/_temp/flight-commander-firmware-4.0.0/Flight-Commander-Firmware-Source-v4.0.0/lib/main/Dronecan/dsdlc_generated/src/uavcan.protocol.GetNodeInfo_req.c
+
+  Tried extensions .c .C .c++ .cc .cpp .cxx .cu .mpp .m .M .mm .ixx .cppm
+  .ccm .cxxm .c++m .h .hh .h++ .hm .hpp .hxx .in .txx .f .F .for .f77 .f90
+  .f95 .f03 .hip .ispc
+Call Stack (most recent call first):
+  CMakeLists.txt:119 (include)
+
+
+-- Generating done (0.1s)
+CMake Generate step failed.  Build files cannot be regenerated correctly.
