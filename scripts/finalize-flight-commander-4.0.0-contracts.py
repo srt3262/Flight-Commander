@@ -153,11 +153,33 @@ target_sources(MICOAIR743.elf PRIVATE ${FLIGHT_COMMANDER_PAIR_SOURCES})
     elif new_heading_patch not in text:
         raise RuntimeError("Unable to add the multi-node DroneCAN GPS include")
 
-    # Generated GetNodeInfo request structures are empty; declaring one is valid,
-    # but an aggregate initializer is rejected with warnings-as-errors.
+    # Enable the generated internal DSDL codecs in the pair-manager translation unit.
+    text = text.replace(
+        '''#include <string.h>
+
+#include "common/maths.h"''',
+        '''#include <string.h>
+
+#define CANARD_DSDLC_INTERNAL
+
+#include "common/maths.h"''',
+        1,
+    )
+
+    # GetNodeInfo has an empty request payload, so transmit exactly zero bytes and
+    # avoid depending on a generated request wrapper that the retained source omits.
     text = text.replace(
         "    struct uavcan_protocol_GetNodeInfoRequest request = { 0 };",
         "    struct uavcan_protocol_GetNodeInfoRequest request;",
+    )
+    text = text.replace(
+        '''    struct uavcan_protocol_GetNodeInfoRequest request;
+    uint8_t buffer[1] = { 0 };
+    const uint16_t length = uavcan_protocol_GetNodeInfoRequest_encode(&request, buffer);
+''',
+        '''    const uint8_t buffer[1] = { 0 };
+    const uint16_t length = 0;
+''',
     )
 
     # Keep 32-bit millisecond ages explicit before narrowing them to the MSP u16 wire format.
@@ -165,23 +187,92 @@ target_sources(MICOAIR743.elf PRIVATE ${FLIGHT_COMMANDER_PAIR_SOURCES})
 
 static void setError(uint8_t error)
 '''
-    new_helper_anchor = '''static uint8_t restartTransferID;
+    codec_helpers = '''static uint8_t restartTransferID;
 
 static uint16_t saturatingU16(uint32_t value)
 {
     return value > 65535U ? 65535U : (uint16_t)value;
 }
 
+static uint16_t encodeGetSetRequest(struct uavcan_protocol_param_GetSetRequest *message, uint8_t *buffer)
+{
+    uint32_t bitOffset = 0;
+    memset(buffer, 0, UAVCAN_PROTOCOL_PARAM_GETSET_REQUEST_MAX_SIZE);
+    _uavcan_protocol_param_GetSetRequest_encode(buffer, &bitOffset, message, true);
+    return (bitOffset + 7U) / 8U;
+}
+
+static bool decodeGetSetResponse(const CanardRxTransfer *transfer,
+    struct uavcan_protocol_param_GetSetResponse *message)
+{
+    uint32_t bitOffset = 0;
+    if (_uavcan_protocol_param_GetSetResponse_decode(transfer, &bitOffset, message, true)) {
+        return true;
+    }
+    return ((bitOffset + 7U) / 8U) != transfer->payload_len;
+}
+
+static uint16_t encodeExecuteOpcodeRequest(
+    struct uavcan_protocol_param_ExecuteOpcodeRequest *message, uint8_t *buffer)
+{
+    uint32_t bitOffset = 0;
+    memset(buffer, 0, UAVCAN_PROTOCOL_PARAM_EXECUTEOPCODE_REQUEST_MAX_SIZE);
+    _uavcan_protocol_param_ExecuteOpcodeRequest_encode(buffer, &bitOffset, message, true);
+    return (bitOffset + 7U) / 8U;
+}
+
+static bool decodeExecuteOpcodeResponse(const CanardRxTransfer *transfer,
+    struct uavcan_protocol_param_ExecuteOpcodeResponse *message)
+{
+    uint32_t bitOffset = 0;
+    if (_uavcan_protocol_param_ExecuteOpcodeResponse_decode(transfer, &bitOffset, message, true)) {
+        return true;
+    }
+    return ((bitOffset + 7U) / 8U) != transfer->payload_len;
+}
+
+static uint16_t encodeRestartNodeRequest(struct uavcan_protocol_RestartNodeRequest *message,
+    uint8_t *buffer)
+{
+    uint32_t bitOffset = 0;
+    memset(buffer, 0, UAVCAN_PROTOCOL_RESTARTNODE_REQUEST_MAX_SIZE);
+    _uavcan_protocol_RestartNodeRequest_encode(buffer, &bitOffset, message, true);
+    return (bitOffset + 7U) / 8U;
+}
+
 static void setError(uint8_t error)
 '''
     if old_helper_anchor in text:
-        text = text.replace(old_helper_anchor, new_helper_anchor, 1)
-    elif new_helper_anchor not in text:
-        raise RuntimeError("Unable to add pair-status age saturation helper")
+        text = text.replace(old_helper_anchor, codec_helpers, 1)
+    elif codec_helpers not in text:
+        raise RuntimeError("Unable to add local DroneCAN service codecs")
     text = text.replace("MIN(gpsStatus.ageMs, UINT16_MAX)", "saturatingU16(gpsStatus.ageMs)")
     text = text.replace(
         "lastRelPosMs ? MIN(millis() - lastRelPosMs, UINT16_MAX) : UINT16_MAX",
         "lastRelPosMs ? saturatingU16(millis() - lastRelPosMs) : UINT16_MAX",
+    )
+
+    # Use the local codecs because the retained source archive does not carry
+    # public wrapper .c files for these request/response services.
+    text = text.replace(
+        "uavcan_protocol_param_GetSetRequest_encode(&request, buffer)",
+        "encodeGetSetRequest(&request, buffer)",
+    )
+    text = text.replace(
+        "uavcan_protocol_param_ExecuteOpcodeRequest_encode(&request, buffer)",
+        "encodeExecuteOpcodeRequest(&request, buffer)",
+    )
+    text = text.replace(
+        "uavcan_protocol_RestartNodeRequest_encode(&request, buffer)",
+        "encodeRestartNodeRequest(&request, buffer)",
+    )
+    text = text.replace(
+        "uavcan_protocol_param_GetSetResponse_decode(transfer, &response)",
+        "decodeGetSetResponse(transfer, &response)",
+    )
+    text = text.replace(
+        "uavcan_protocol_param_ExecuteOpcodeResponse_decode(transfer, &response)",
+        "decodeExecuteOpcodeResponse(transfer, &response)",
     )
 
     path.write_text(text, encoding="utf-8")
