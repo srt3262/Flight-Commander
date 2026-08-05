@@ -19,6 +19,14 @@ from pathlib import Path
 # Release rebuild trigger: regenerate the final verified 4.0.0 source archive.
 
 
+def finalize_embedded_verifier(root: Path) -> None:
+    """Update regex-escaped 3.0.7 contracts that plain version replacement misses."""
+    verifier = root / "flight-commander/verify-release.py"
+    text = verifier.read_text(encoding="utf-8")
+    text = text.replace(r"3\.0\.7", r"4\.0\.0")
+    verifier.write_text(text, encoding="utf-8")
+
+
 def source_records(root: Path) -> list[str]:
     records: list[str] = []
     for path in sorted(root.rglob("*")):
@@ -32,6 +40,7 @@ def source_records(root: Path) -> list[str]:
 
 def refresh(root: Path) -> dict[str, object]:
     root = root.resolve()
+    finalize_embedded_verifier(root)
     manifest_path = root / "RELEASE-MANIFEST.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     records = source_records(root)
