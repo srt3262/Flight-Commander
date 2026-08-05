@@ -9,6 +9,8 @@ name: Validate Flight Commander 4.0.0 firmware
       - .github/workflows/release-4.0.0-orchestrator.yml
       - scripts/prepare-flight-commander-firmware-4.0.0.py
       - scripts/finalize-flight-commander-4.0.0-contracts.py
+      - scripts/flight_commander_dronecan_allocator_4_0_0.py
+      - scripts/refresh-flight-commander-firmware-manifest-4.0.0.py
       - js/**
       - tabs/**
       - tests/**
@@ -56,14 +58,20 @@ jobs:
           tar -xJf "$RUNNER_TEMP/toolchain/$archive" -C "$RUNNER_TEMP/toolchain"
           echo "$RUNNER_TEMP/toolchain/$release/bin" >> "$GITHUB_PATH"
 
-      - name: Prepare Flight Commander Firmware 4.0.0 source
+      - name: Prepare exact Flight Commander Firmware 4.0.0 source
         shell: bash
         run: |
           set -euo pipefail
+          output="$RUNNER_TEMP/flight-commander-firmware-4.0.0"
+          root="$output/Flight-Commander-Firmware-Source-v4.0.0"
           python3 scripts/prepare-flight-commander-firmware-4.0.0.py \
             --archive release/firmware/Flight-Commander-Firmware-Source-v3.0.7.zip \
-            --output "$RUNNER_TEMP/flight-commander-firmware-4.0.0" \
+            --output "$output" \
             | tee firmware-4.0.0-pr-validation.log
+          python3 scripts/flight_commander_dronecan_allocator_4_0_0.py --root "$root" \
+            | tee -a firmware-4.0.0-pr-validation.log
+          python3 scripts/refresh-flight-commander-firmware-manifest-4.0.0.py --root "$root" \
+            | tee -a firmware-4.0.0-pr-validation.log
 
       - name: Compile and verify MICOAIR743 firmware
         shell: bash
