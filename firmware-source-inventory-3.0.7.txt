@@ -76,6 +76,13 @@ f flight-commander/verify-release.py
 f readme.md
 f src/CMakeLists.txt
 
+## Build identity candidates
+build/flight_commander.h
+build/version.h
+msp/msp_flight_commander.c
+msp/msp_flight_commander.h
+msp/msp_protocol_v2_flight_commander.h
+
 ## Flight Commander directories
 external_compass.c
 external_compass.h
