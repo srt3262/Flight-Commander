@@ -21,13 +21,20 @@ test('the 4.0.0 firmware source includes a non-redundant DroneCAN allocator', ()
   assert.match(source, /USE_FLIGHT_COMMANDER_DRONECAN_DNA_ALLOCATOR/);
 });
 
-test('coordinated validation applies allocation before source identity and compilation', () => {
-  const workflow = read('.github/workflows/pr-validate-flight-commander-4.0.0.yml');
-  const allocator = workflow.indexOf('flight_commander_dronecan_allocator_4_0_0.py');
-  const manifestRefresh = workflow.indexOf('refresh-flight-commander-firmware-manifest-4.0.0.py');
+test('coordinated build applies allocation before source identity and compilation', () => {
+  const workflow = read('.github/workflows/build-flight-commander-firmware-4.0.0.yml');
+  const allocator = workflow.indexOf('flight_commander_dronecan_allocator_4_0_0.py --root');
+  const manifestRefresh = workflow.indexOf('refresh-flight-commander-firmware-manifest-4.0.0.py --root');
   const compiler = workflow.indexOf('build-micoair743.sh');
 
   assert.ok(allocator >= 0, 'allocator integration step is missing');
   assert.ok(manifestRefresh > allocator, 'source identity must be refreshed after allocator integration');
   assert.ok(compiler > manifestRefresh, 'firmware must compile only after the final source identity is known');
+});
+
+test('pull-request validation rebuilds the exact published firmware source archive', () => {
+  const workflow = read('.github/workflows/pr-validate-flight-commander-4.0.0.yml');
+
+  assert.match(workflow, /bash scripts\/rebuild-firmware-source-archive\.sh/);
+  assert.match(workflow, /yarn test/);
 });
