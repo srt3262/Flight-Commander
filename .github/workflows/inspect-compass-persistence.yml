@@ -1,0 +1,78 @@
+name: Inspect compass persistence and local flasher paths
+
+"on":
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out exact branch revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+
+      - name: Extract retained Flight Commander 4.0.1 firmware source
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf work/inspect-firmware
+          mkdir -p work/inspect-firmware
+          unzip -q release/firmware/Flight-Commander-Firmware-Source-v4.0.1.zip -d work/inspect-firmware
+          root="$(find work/inspect-firmware -mindepth 1 -maxdepth 1 -type d | head -n 1)"
+          test -n "$root"
+          printf '%s\n' "$root" > work/firmware-root.txt
+
+      - name: Print IST8310 driver and target contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$(cat work/firmware-root.txt)"
+          echo '===== src/main/drivers/compass/compass_ist8310.c ====='
+          sed -n '1,360p' "$root/src/main/drivers/compass/compass_ist8310.c"
+          echo '===== src/main/target/MICOAIR743/target.h ====='
+          sed -n '1,260p' "$root/src/main/target/MICOAIR743/target.h"
+
+      - name: Print compass calibration and persistent configuration paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$(cat work/firmware-root.txt)"
+          echo '===== src/main/sensors/compass.c ====='
+          sed -n '1,620p' "$root/src/main/sensors/compass.c"
+          echo '===== src/main/sensors/compass.h ====='
+          sed -n '1,320p' "$root/src/main/sensors/compass.h"
+          echo '===== compass-related configuration references ====='
+          grep -R -n -E 'magZero|magGain|magAlignment|mag_align|MAG_CONFIG|PG_MAG|compassConfig|sensorCalibration|calibration' \
+            "$root/src/main" \
+            --include='*.c' --include='*.h' --include='*.yaml' --include='*.yml' \
+            | head -n 1200 || true
+
+      - name: Print configuration reset and migration hooks
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$(cat work/firmware-root.txt)"
+          echo '===== likely reset and EEPROM files ====='
+          find "$root/src/main" -type f \
+            \( -iname '*config*' -o -iname '*eeprom*' -o -iname '*settings*' -o -iname '*parameter_group*' \) \
+            | sort | head -n 500
+          echo '===== PG reset and version references ====='
+          grep -R -n -E 'PG_REGISTER|PG_RESET|pgReset|resetTemplate|CONFIG_VERSION|EEPROM_CONF_VERSION|parameterGroup' \
+            "$root/src/main" --include='*.c' --include='*.h' \
+            | head -n 1200 || true
+
+      - name: Print Configurator local firmware acceptance code
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '===== tabs/firmware_flasher.js acceptance section ====='
+          sed -n '430,820p' tabs/firmware_flasher.js
+          echo '===== js/flightCommander/firmwareCatalog.js ====='
+          sed -n '1,280p' js/flightCommander/firmwareCatalog.js
