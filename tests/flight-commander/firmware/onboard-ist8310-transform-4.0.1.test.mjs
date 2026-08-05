@@ -9,12 +9,16 @@ import { fileURLToPath } from 'node:url';
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 const output = mkdtempSync(join(tmpdir(), 'flight-commander-4.0.1-compass-'));
 const python = process.env.PYTHON || (process.platform === 'win32' ? 'python' : 'python3');
+const baselineArchive = process.env.FLIGHT_COMMANDER_400_SOURCE_ARCHIVE || join(
+  projectRoot,
+  'release/firmware/Flight-Commander-Firmware-Source-v4.0.0.zip',
+);
 const result = spawnSync(
   python,
   [
     join(projectRoot, 'scripts/prepare-flight-commander-firmware-4.0.1.py'),
     '--archive',
-    join(projectRoot, 'release/firmware/Flight-Commander-Firmware-Source-v4.0.0.zip'),
+    baselineArchive,
     '--output',
     output,
   ],
