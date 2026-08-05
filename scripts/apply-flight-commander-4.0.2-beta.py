@@ -18,7 +18,7 @@ FIRMWARE_SHA256 = "b1b29617fe364643cd46fd3182fdcb03867b497856f91d6b542e2d9d5ecd3
 FIRMWARE_SOURCE_SHA256 = "58d28e2dcb5088842436a8ddce896eee02b44ab0d7c1dba4e5b9f99d7a599a9e"
 FIRMWARE_SOURCE_REVISION = "b475dd8b0f6ee479b0c12cded167ff981bcd96e1"
 FIRMWARE_SOURCE_TREE = "2b8eb93e461e05bd2648acf1305c96e917899ca4"
-BETA_WORKFLOW = ".github/workflows/publish-flight-commander-4.0.2-beta.yml"
+BETA_WORKFLOW = ".github/workflows/publish-flight-commander-beta.yml"
 
 
 def read_text(relative: str) -> str:
@@ -154,7 +154,7 @@ def update_packaging_contract() -> None:
   assert.match(releaseOrchestrator, /gh workflow run release\\.yml/);
 });"""
     new_block = """test(\"guarded beta publication is tied to the current release version\", () => {
-  assert.match(releaseOrchestrator, /Publish Flight Commander 4\\.0\\.2 beta prerelease/);
+  assert.match(releaseOrchestrator, /name: Publish Flight Commander beta release/);
   assert.match(releaseOrchestrator, /gh release create/);
   assert.match(releaseOrchestrator, /--prerelease/);
 });"""

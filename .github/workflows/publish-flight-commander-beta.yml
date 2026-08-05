@@ -1,4 +1,5 @@
 name: Publish Flight Commander beta release
+run-name: Flight Commander beta ${{ github.sha }}
 
 "on":
   push:
