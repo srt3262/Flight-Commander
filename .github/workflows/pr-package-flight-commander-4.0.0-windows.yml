@@ -1,0 +1,130 @@
+name: Package Flight Commander 4.0.0 Windows bench-test bundle
+
+"on":
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/pr-package-flight-commander-4.0.0-windows.yml
+      - forge.config.js
+      - package.json
+      - yarn.lock
+      - src/**
+      - js/**
+      - tabs/**
+      - resources/**
+      - images/**
+      - manifest.json
+      - release/firmware/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flight-commander-4.0.0-windows-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  package-and-verify:
+    runs-on: windows-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: yarn
+
+      - name: Install exact dependencies
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          corepack enable
+          yarn install --frozen-lockfile
+
+      - name: Package and verify the portable Windows application
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          yarn package:windows
+          yarn verify:windows
+
+      - name: Assemble all four coordinated 4.0.0 components
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $version = '4.0.0'
+          $stage = Join-Path $PWD 'bench-test-bundle'
+          $components = Join-Path $stage 'Flight-Commander-v4.0.0'
+          New-Item -ItemType Directory -Force -Path $components | Out-Null
+
+          $packageDir = Get-ChildItem -Path (Join-Path $PWD 'out') -Directory -Recurse |
+            Where-Object {
+              $_.Name -match 'win32-x64$' -and
+              (Test-Path (Join-Path $_.FullName 'flight-commander.exe'))
+            } |
+            Select-Object -First 1
+          if (-not $packageDir) {
+            throw 'The verified Flight Commander win32-x64 package directory was not found.'
+          }
+
+          $windowsZip = Join-Path $components "FC-Windows-v$version.zip"
+          Compress-Archive -Path (Join-Path $packageDir.FullName '*') -DestinationPath $windowsZip -CompressionLevel Optimal
+
+          $sourceZip = Join-Path $components "FC-Configurator-Source-v$version.zip"
+          git archive --format=zip --output=$sourceZip HEAD
+          if ($LASTEXITCODE -ne 0) {
+            throw 'git archive failed while creating the exact Configurator source ZIP.'
+          }
+
+          Copy-Item -LiteralPath (Join-Path $PWD "release/firmware/Flight-Commander-Firmware-$version-MICOAIR743.hex") -Destination (Join-Path $components "FC-Firmware-v$version-MICOAIR743.hex")
+          Copy-Item -LiteralPath (Join-Path $PWD "release/firmware/Flight-Commander-Firmware-Source-v$version.zip") -Destination (Join-Path $components "FC-Firmware-Source-v$version.zip")
+
+          $componentFiles = Get-ChildItem -Path $components -File | Sort-Object Name
+          if ($componentFiles.Count -ne 4) {
+            throw "Expected exactly four coordinated components; found $($componentFiles.Count)."
+          }
+          $expected = @(
+            "FC-Configurator-Source-v$version.zip",
+            "FC-Firmware-Source-v$version.zip",
+            "FC-Firmware-v$version-MICOAIR743.hex",
+            "FC-Windows-v$version.zip"
+          )
+          $actual = @($componentFiles.Name | Sort-Object)
+          if (Compare-Object $expected $actual) {
+            throw "The coordinated component names do not match the 4.0.0 release contract."
+          }
+
+          $hashFile = Join-Path $components 'SHA256SUMS.txt'
+          $componentFiles | ForEach-Object {
+            $hash = (Get-FileHash -Algorithm SHA256 -Path $_.FullName).Hash.ToLowerInvariant()
+            "$hash  $($_.Name)" | Add-Content -Path $hashFile -Encoding ascii
+          }
+
+          $completeZip = Join-Path $stage "Flight-Commander-v$version-Bench-Test.zip"
+          Compress-Archive -Path $components -DestinationPath $completeZip -CompressionLevel Optimal
+
+          $completeHash = (Get-FileHash -Algorithm SHA256 -Path $completeZip).Hash.ToLowerInvariant()
+          "$completeHash  $([IO.Path]::GetFileName($completeZip))" |
+            Set-Content -Path (Join-Path $stage 'COMPLETE-BUNDLE-SHA256.txt') -Encoding ascii
+
+      - name: Upload the verified Windows and four-component bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: flight-commander-4.0.0-windows-bench-test
+          retention-days: 14
+          if-no-files-found: error
+          path: |
+            bench-test-bundle/Flight-Commander-v4.0.0/FC-Windows-v4.0.0.zip
+            bench-test-bundle/Flight-Commander-v4.0.0/FC-Configurator-Source-v4.0.0.zip
+            bench-test-bundle/Flight-Commander-v4.0.0/FC-Firmware-v4.0.0-MICOAIR743.hex
+            bench-test-bundle/Flight-Commander-v4.0.0/FC-Firmware-Source-v4.0.0.zip
+            bench-test-bundle/Flight-Commander-v4.0.0/SHA256SUMS.txt
+            bench-test-bundle/Flight-Commander-v4.0.0-Bench-Test.zip
+            bench-test-bundle/COMPLETE-BUNDLE-SHA256.txt

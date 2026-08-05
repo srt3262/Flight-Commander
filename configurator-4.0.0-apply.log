@@ -1,0 +1,2821 @@
+Flight Commander Configurator 4.0.0 source migration applied.
+! Corepack is about to download https://registry.yarnpkg.com/yarn/-/yarn-1.22.22.tgz
+yarn install v1.22.22
+[1/5] Validating package.json...
+[2/5] Resolving packages...
+[3/5] Fetching packages...
+warning chart.js@4.5.1: The engine "pnpm" appears to be invalid.
+[4/5] Linking dependencies...
+warning "node-mavlink > mavlink-mappings > ts-node@10.9.2" has unmet peer dependency "@types/node@*".
+warning "node-mavlink > mavlink-mappings > ts-node@10.9.2" has unmet peer dependency "typescript@>=2.7".
+[5/5] Building fresh packages...
+Done in 9.43s.
+yarn run v1.22.22
+$ node scripts/run-node-tests.mjs --flight-commander
+Running 53 Flight Commander Node test files
+TAP version 13
+# Subtest: authoritative abort uses the backend hook even while UI controls are locked
+ok 1 - authoritative abort uses the backend hook even while UI controls are locked
+  ---
+  duration_ms: 4.166968
+  type: 'test'
+  ...
+# Subtest: a delayed disconnect cannot clear or close the UI for a replacement connection
+ok 2 - a delayed disconnect cannot clear or close the UI for a replacement connection
+  ---
+  duration_ms: 2.152916
+  type: 'test'
+  ...
+# Subtest: a stale successful open cannot replace a newer connection or replay its callback
+ok 3 - a stale successful open cannot replace a newer connection or replay its callback
+  ---
+  duration_ms: 2.182968
+  type: 'test'
+  ...
+# Subtest: a stale failed open cannot report failure after a newer connection succeeds
+ok 4 - a stale failed open cannot report failure after a newer connection succeeds
+  ---
+  duration_ms: 1.205714
+  type: 'test'
+  ...
+# Subtest: a failed replacement cannot restore a connection whose close is pending
+ok 5 - a failed replacement cannot restore a connection whose close is pending
+  ---
+  duration_ms: 1.280238
+  type: 'test'
+  ...
+# Subtest: serial open uses protocol-specific options and does not persist an unvalidated shared baud
+ok 6 - serial open uses protocol-specific options and does not persist an unvalidated shared baud
+  ---
+  duration_ms: 1.145569
+  type: 'test'
+  ...
+# Subtest: explicit MAVLink serial options reach the Windows control-line setup
+ok 7 - explicit MAVLink serial options reach the Windows control-line setup
+  ---
+  duration_ms: 0.30792
+  type: 'test'
+  ...
+# Subtest: MAVLink listener installation precedes attach and explicit transport opens Ground Control
+ok 8 - MAVLink listener installation precedes attach and explicit transport opens Ground Control
+  ---
+  duration_ms: 0.47921
+  type: 'test'
+  ...
+# Subtest: serial open completion uses the immutable protocol captured by the click attempt
+ok 9 - serial open completion uses the immutable protocol captured by the click attempt
+  ---
+  duration_ms: 0.37253
+  type: 'test'
+  ...
+# Subtest: INAV save-and-reboot reconnect is bounded and performs a full close/reopen retry
+ok 10 - INAV save-and-reboot reconnect is bounded and performs a full close/reopen retry
+  ---
+  duration_ms: 0.317483
+  type: 'test'
+  ...
+# Subtest: bytes received while the COM open promise is resolving are buffered and flushed
+ok 11 - bytes received while the COM open promise is resolving are buffered and flushed
+  ---
+  duration_ms: 0.122241
+  type: 'test'
+  ...
+# Subtest: serial IPC data, close and error events are scoped to one connection ID
+ok 12 - serial IPC data, close and error events are scoped to one connection ID
+  ---
+  duration_ms: 0.317464
+  type: 'test'
+  ...
+# Subtest: unexpected native serial termination survives cleanup without a false success
+ok 13 - unexpected native serial termination survives cleanup without a false success
+  ---
+  duration_ms: 0.474593
+  type: 'test'
+  ...
+# Subtest: a delayed old send callback cannot mutate the new connection queue
+ok 14 - a delayed old send callback cannot mutate the new connection queue
+  ---
+  duration_ms: 0.375694
+  type: 'test'
+  ...
+# Subtest: native serial open and cleanup paths are bounded
+ok 15 - native serial open and cleanup paths are bounded
+  ---
+  duration_ms: 3.057099
+  type: 'test'
+  ...
+# Subtest: stale disconnect completion cannot clear a replacement connection
+ok 16 - stale disconnect completion cannot clear a replacement connection
+  ---
+  duration_ms: 0.224484
+  type: 'test'
+  ...
+# Subtest: Ground Control can render before heartbeat while commands and mission reads remain gated
+ok 17 - Ground Control can render before heartbeat while commands and mission reads remain gated
+  ---
+  duration_ms: 0.349137
+  type: 'test'
+  ...
+# Subtest: Ground Control mission reads are scoped to one MAVLink attachment
+ok 18 - Ground Control mission reads are scoped to one MAVLink attachment
+  ---
+  duration_ms: 0.362436
+  type: 'test'
+  ...
+# Subtest: first heartbeat distinguishes live telemetry from control readiness
+ok 19 - first heartbeat distinguishes live telemetry from control readiness
+  ---
+  duration_ms: 0.352933
+  type: 'test'
+  ...
+# Subtest: vehicle validation precedes firmware state and the first mission read
+ok 20 - vehicle validation precedes firmware state and the first mission read
+  ---
+  duration_ms: 0.111125
+  type: 'test'
+  ...
+# Subtest: English serial status does not mislabel every transport as MSP
+ok 21 - English serial status does not mislabel every transport as MSP
+  ---
+  duration_ms: 0.251551
+  type: 'test'
+  ...
+# Subtest: connection baud validation and defaults
+    # Subtest: accepts only baud rates exposed by Flight Commander
+    ok 1 - accepts only baud rates exposed by Flight Commander
+      ---
+      duration_ms: 1.147172
+      type: 'test'
+      ...
+    # Subtest: uses 460800 for explicit MAVLink and 115200 for MSP and Auto
+    ok 2 - uses 460800 for explicit MAVLink and 115200 for MSP and Auto
+      ---
+      duration_ms: 0.235239
+      type: 'test'
+      ...
+    # Subtest: rejects unknown protocols instead of silently choosing a baud
+    ok 3 - rejects unknown protocols instead of silently choosing a baud
+      ---
+      duration_ms: 0.550309
+      type: 'test'
+      ...
+    1..3
+ok 22 - connection baud validation and defaults
+  ---
+  duration_ms: 4.422495
+  type: 'suite'
+  ...
+# Subtest: protocol-specific baud resolution
+    # Subtest: explicit MAVLink ignores a legacy shared baud
+    ok 1 - explicit MAVLink ignores a legacy shared baud
+      ---
+      duration_ms: 0.465831
+      type: 'test'
+      ...
+    # Subtest: explicit MAVLink restores only its own valid saved value
+    ok 2 - explicit MAVLink restores only its own valid saved value
+      ---
+      duration_ms: 0.205627
+      type: 'test'
+      ...
+    # Subtest: MSP and Auto preserve valid legacy values and otherwise fall back to 115200
+    ok 3 - MSP and Auto preserve valid legacy values and otherwise fall back to 115200
+      ---
+      duration_ms: 0.17919
+      type: 'test'
+      ...
+    # Subtest: a protocol-specific value takes precedence over the legacy value
+    ok 4 - a protocol-specific value takes precedence over the legacy value
+      ---
+      duration_ms: 0.383956
+      type: 'test'
+      ...
+    1..4
+ok 23 - protocol-specific baud resolution
+  ---
+  duration_ms: 1.823466
+  type: 'suite'
+  ...
+# Subtest: validated preference persistence
+    # Subtest: returns a new protocol-specific record without mutating the input
+    ok 1 - returns a new protocol-specific record without mutating the input
+      ---
+      duration_ms: 1.348082
+      type: 'test'
+      ...
+    # Subtest: rejects unsupported baud rates before persistence
+    ok 2 - rejects unsupported baud rates before persistence
+      ---
+      duration_ms: 0.366752
+      type: 'test'
+      ...
+    # Subtest: persists only through the dedicated protocol preference key
+    ok 3 - persists only through the dedicated protocol preference key
+      ---
+      duration_ms: 0.592347
+      type: 'test'
+      ...
+    # Subtest: requires an explicit compatible store
+    ok 4 - requires an explicit compatible store
+      ---
+      duration_ms: 0.233916
+      type: 'test'
+      ...
+    1..4
+ok 24 - validated preference persistence
+  ---
+  duration_ms: 2.949979
+  type: 'suite'
+  ...
+# Subtest: serial connection options
+    # Subtest: forces DTR low for explicit MAVLink and Auto discovery
+    ok 1 - forces DTR low for explicit MAVLink and Auto discovery
+      ---
+      duration_ms: 1.02382
+      type: 'test'
+      ...
+    # Subtest: does not force DTR low for explicit MSP
+    ok 2 - does not force DTR low for explicit MSP
+      ---
+      duration_ms: 0.174434
+      type: 'test'
+      ...
+    # Subtest: normalizes a selected baud and rejects unsupported values
+    ok 3 - normalizes a selected baud and rejects unsupported values
+      ---
+      duration_ms: 0.254485
+      type: 'test'
+      ...
+    1..3
+ok 25 - serial connection options
+  ---
+  duration_ms: 1.670192
+  type: 'suite'
+  ...
+# Subtest: INAV reboot recovery preserves the exact MSP serial endpoint
+ok 26 - INAV reboot recovery preserves the exact MSP serial endpoint
+  ---
+  duration_ms: 1.817168
+  type: 'test'
+  ...
+# Subtest: INAV reboot recovery is bounded to three full open attempts
+ok 27 - INAV reboot recovery is bounded to three full open attempts
+  ---
+  duration_ms: 0.250179
+  type: 'test'
+  ...
+# Subtest: reboot recovery never hijacks MAVLink or an invalid serial target
+ok 28 - reboot recovery never hijacks MAVLink or an invalid serial target
+  ---
+  duration_ms: 0.251902
+  type: 'test'
+  ...
+# Subtest: explicit MAVLink renders waiting state and installs recovery before attach
+ok 29 - explicit MAVLink renders waiting state and installs recovery before attach
+  ---
+  duration_ms: 1.43959
+  type: 'test'
+  ...
+# Subtest: an attach exception is contained after the waiting UI and timeout exist
+ok 30 - an attach exception is contained after the waiting UI and timeout exist
+  ---
+  duration_ms: 0.223202
+  type: 'test'
+  ...
+# Subtest: Ground Control activation waits for a concurrent tab switch and runs once
+ok 31 - Ground Control activation waits for a concurrent tab switch and runs once
+  ---
+  duration_ms: 1.393455
+  type: 'test'
+  ...
+# Subtest: a critical connected transition invokes explicit recovery on failure
+ok 32 - a critical connected transition invokes explicit recovery on failure
+  ---
+  duration_ms: 0.290175
+  type: 'test'
+  ...
+# Subtest: Ground Control activation stops after a bounded number of refused attempts
+ok 33 - Ground Control activation stops after a bounded number of refused attempts
+  ---
+  duration_ms: 0.275785
+  type: 'test'
+  ...
+# Subtest: Ground Control retry uses the Chromium timer with its host receiver
+ok 34 - Ground Control retry uses the Chromium timer with its host receiver
+  ---
+  duration_ms: 0.344912
+  type: 'test'
+  ...
+# Subtest: a transient COM omission cannot disconnect or remove a live connected port
+ok 35 - a transient COM omission cannot disconnect or remove a live connected port
+  ---
+  duration_ms: 15.944161
+  type: 'test'
+  ...
+# Subtest: repeated initialize calls create exactly one polling loop
+ok 36 - repeated initialize calls create exactly one polling loop
+  ---
+  duration_ms: 2.550871
+  type: 'test'
+  ...
+# Subtest: port removal callbacks still run after the native connection is no longer live
+ok 37 - port removal callbacks still run after the native connection is no longer live
+  ---
+  duration_ms: 3.687348
+  type: 'test'
+  ...
+# Subtest: preload preserves the connection ID on serial close events
+ok 38 - preload preserves the connection ID on serial close events
+  ---
+  duration_ms: 5.447786
+  type: 'test'
+  ...
+# Subtest: an unresponsive INAV reboot performs bounded full serial reopen attempts
+ok 39 - an unresponsive INAV reboot performs bounded full serial reopen attempts
+  ---
+  duration_ms: 7.929932
+  type: 'test'
+  ...
+# Subtest: native MAVLink close forces cleanup through connect lock without a false success and retries once
+ok 40 - native MAVLink close forces cleanup through connect lock without a false success and retries once
+  ---
+  duration_ms: 3.900956
+  type: 'test'
+  ...
+# Subtest: a vehicle heartbeat makes a later native close ineligible for startup recovery
+ok 41 - a vehicle heartbeat makes a later native close ineligible for startup recovery
+  ---
+  duration_ms: 2.277049
+  type: 'test'
+  ...
+# Subtest: a queued Disconnect click after native loss cancels recovery instead of reconnecting
+ok 42 - a queued Disconnect click after native loss cancels recovery instead of reconnecting
+  ---
+  duration_ms: 2.14136
+  type: 'test'
+  ...
+# Subtest: a fast Connect waits until an intentional native close releases the COM handle
+ok 43 - a fast Connect waits until an intentional native close releases the COM handle
+  ---
+  duration_ms: 1.505963
+  type: 'test'
+  ...
+# Subtest: post-heartbeat renderer failure preserves telemetry attachment but blocks commands
+ok 44 - post-heartbeat renderer failure preserves telemetry attachment but blocks commands
+  ---
+  duration_ms: 1.39645
+  type: 'test'
+  ...
+# Subtest: the recovery harness instruments a Windows CRLF checkout
+ok 45 - the recovery harness instruments a Windows CRLF checkout
+  ---
+  duration_ms: 7.777949
+  type: 'test'
+  ...
+# Subtest: port, protocol, and baud changes cancel recovery and invalidate its queued callback
+ok 46 - port, protocol, and baud changes cancel recovery and invalidate its queued callback
+  ---
+  duration_ms: 5.195123
+  type: 'test'
+  ...
+# Subtest: a missing COM option retries the exact MAVLink link through manual selection
+ok 47 - a missing COM option retries the exact MAVLink link through manual selection
+  ---
+  duration_ms: 3.164939
+  type: 'test'
+  ...
+# Subtest: a newer recovery generation makes an older queued timer inert
+ok 48 - a newer recovery generation makes an older queued timer inert
+  ---
+  duration_ms: 1.920652
+  type: 'test'
+  ...
+# Subtest: native Windows open starts ExpressLRS with DTR and RTS low
+ok 49 - native Windows open starts ExpressLRS with DTR and RTS low
+  ---
+  duration_ms: 1.967547
+  type: 'test'
+  ...
+# Subtest: pinned serial library receives low control lines before and after open
+ok 50 - pinned serial library receives low control lines before and after open
+  ---
+  duration_ms: 1.729926
+  type: 'test'
+  ...
+# Subtest: DTR/RTS-low setup is applied only when explicitly requested on Windows
+ok 51 - DTR/RTS-low setup is applied only when explicitly requested on Windows
+  ---
+  duration_ms: 0.342378
+  type: 'test'
+  ...
+# Subtest: DTR/RTS-low setup does not settle until the serial driver callback
+ok 52 - DTR/RTS-low setup does not settle until the serial driver callback
+  ---
+  duration_ms: 0.355847
+  type: 'test'
+  ...
+# Subtest: DTR/RTS-low setup propagates callback and synchronous driver failures
+ok 53 - DTR/RTS-low setup propagates callback and synchronous driver failures
+  ---
+  duration_ms: 2.341348
+  type: 'test'
+  ...
+# Subtest: DTR/RTS-low setup fails instead of leaving the UI connecting forever
+ok 54 - DTR/RTS-low setup fails instead of leaving the UI connecting forever
+  ---
+  duration_ms: 7.323615
+  type: 'test'
+  ...
+# Subtest: DTR/RTS-low setup supports promise-based serial drivers
+ok 55 - DTR/RTS-low setup supports promise-based serial drivers
+  ---
+  duration_ms: 0.442457
+  type: 'test'
+  ...
+# Subtest: failed serial setup removes listeners, closes, then destroys the port
+ok 56 - failed serial setup removes listeners, closes, then destroys the port
+  ---
+  duration_ms: 0.55879
+  type: 'test'
+  ...
+# Subtest: failed serial setup destroys a port which is already closed
+ok 57 - failed serial setup destroys a port which is already closed
+  ---
+  duration_ms: 0.462045
+  type: 'test'
+  ...
+# Subtest: failed serial cleanup destroys the port when its close callback hangs
+ok 58 - failed serial cleanup destroys the port when its close callback hangs
+  ---
+  duration_ms: 5.576446
+  type: 'test'
+  ...
+# Subtest: serial preparation closes the port before propagating a DTR failure
+ok 59 - serial preparation closes the port before propagating a DTR failure
+  ---
+  duration_ms: 0.676414
+  type: 'test'
+  ...
+# Subtest: serial preparation cannot hang when both DTR setup and close callbacks stall
+ok 60 - serial preparation cannot hang when both DTR setup and close callbacks stall
+  ---
+  duration_ms: 10.322392
+  type: 'test'
+  ...
+# Subtest: a native port which opens after the app deadline is immediately closed
+ok 61 - a native port which opens after the app deadline is immediately closed
+  ---
+  duration_ms: 0.528007
+  type: 'test'
+  ...
+# Subtest: a late old control-line setup cannot replace the current main-process connection ID
+ok 62 - a late old control-line setup cannot replace the current main-process connection ID
+  ---
+  duration_ms: 7.923112
+  type: 'test'
+  ...
+# Subtest: an active native close preserves its phase and disconnected error details
+ok 63 - an active native close preserves its phase and disconnected error details
+  ---
+  duration_ms: 1.323148
+  type: 'test'
+  ...
+# Subtest: an active native error preserves its phase and platform error details
+ok 64 - an active native error preserves its phase and platform error details
+  ---
+  duration_ms: 1.605482
+  type: 'test'
+  ...
+# Subtest: one immediate native MAVLink close is eligible for bounded recovery
+ok 65 - one immediate native MAVLink close is eligible for bounded recovery
+  ---
+  duration_ms: 1.056305
+  type: 'test'
+  ...
+# Subtest: recovery is denied after its single attempt or outside startup
+ok 66 - recovery is denied after its single attempt or outside startup
+  ---
+  duration_ms: 0.23602
+  type: 'test'
+  ...
+# Subtest: intentional, non-native, and non-MAVLink closes never auto-reconnect
+ok 67 - intentional, non-native, and non-MAVLink closes never auto-reconnect
+  ---
+  duration_ms: 0.319877
+  type: 'test'
+  ...
+# Subtest: a native close after a real vehicle heartbeat never auto-reconnects
+ok 68 - a native close after a real vehicle heartbeat never auto-reconnects
+  ---
+  duration_ms: 0.210143
+  type: 'test'
+  ...
+# Subtest: unexpected-close status preserves the port, phase, and native detail
+ok 69 - unexpected-close status preserves the port, phase, and native detail
+  ---
+  duration_ms: 1.68339
+  type: 'test'
+  ...
+# Subtest: native error and close are deduplicated and expose one structured cause
+ok 70 - native error and close are deduplicated and expose one structured cause
+  ---
+  duration_ms: 6.039052
+  type: 'test'
+  ...
+# Subtest: native close triggers cleanup without a redundant serialClose IPC
+ok 71 - native close triggers cleanup without a redundant serialClose IPC
+  ---
+  duration_ms: 1.562181
+  type: 'test'
+  ...
+# Subtest: an intentional renderer disconnect still closes the live native handle
+ok 72 - an intentional renderer disconnect still closes the live native handle
+  ---
+  duration_ms: 1.6113
+  type: 'test'
+  ...
+# Subtest: legacy INAV exposes one configured primary compass with current values
+ok 73 - legacy INAV exposes one configured primary compass with current values
+  ---
+  duration_ms: 2.641188
+  type: 'test'
+  ...
+# Subtest: auto magnetometer setting still exposes a physically detected onboard compass
+ok 74 - auto magnetometer setting still exposes a physically detected onboard compass
+  ---
+  duration_ms: 0.248607
+  type: 'test'
+  ...
+# Subtest: Flight Commander lists each enabled and detected physical compass independently
+ok 75 - Flight Commander lists each enabled and detected physical compass independently
+  ---
+  duration_ms: 0.489563
+  type: 'test'
+  ...
+# Subtest: enabled external and CAN sources are omitted until their hardware is detected
+ok 76 - enabled external and CAN sources are omitted until their hardware is detected
+  ---
+  duration_ms: 0.282905
+  type: 'test'
+  ...
+# Subtest: calibration state gives active and failed sessions precedence
+ok 77 - calibration state gives active and failed sessions precedence
+  ---
+  duration_ms: 0.382654
+  type: 'test'
+  ...
+# Subtest: implausible onboard results are rejected even when firmware reports calibrated
+ok 78 - implausible onboard results are rejected even when firmware reports calibrated
+  ---
+  duration_ms: 0.418645
+  type: 'test'
+  ...
+# Subtest: dual-GPS status keeps UART and DroneCAN RTK solutions independent
+ok 79 - dual-GPS status keeps UART and DroneCAN RTK solutions independent
+  ---
+  duration_ms: 0.979828
+  type: 'test'
+  ...
+# Subtest: DroneCAN configuration can select either active GPS as primary
+not ok 80 - DroneCAN configuration can select either active GPS as primary
+  ---
+  duration_ms: 0.447124
+  type: 'test'
+  location: '/home/runner/work/Flight-Commander/Flight-Commander/tests/flight-commander/firmware/dual-gps.test.mjs:45:1'
+  failureType: 'testCodeFailure'
+  error: 'The DroneCAN magnetometer node must be Automatic, Disabled, node 1 through 127.'
+  code: 'ERR_TEST_FAILURE'
+  name: 'RangeError'
+  stack: |-
+    nodeId (file:///home/runner/work/Flight-Commander/Flight-Commander/js/flightCommander/dualGps.js:36:15)
+    validateDronecanConfig (file:///home/runner/work/Flight-Commander/Flight-Commander/js/flightCommander/dualGps.js:163:20)
+    encodeDronecanConfig (file:///home/runner/work/Flight-Commander/Flight-Commander/js/flightCommander/dualGps.js:199:19)
+    TestContext.<anonymous> (file:///home/runner/work/Flight-Commander/Flight-Commander/tests/flight-commander/firmware/dual-gps.test.mjs:53:16)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# Subtest: legacy four-byte DroneCAN config safely defaults to UART primary
+not ok 81 - legacy four-byte DroneCAN config safely defaults to UART primary
+  ---
+  duration_ms: 1.938426
+  type: 'test'
+  location: '/home/runner/work/Flight-Commander/Flight-Commander/tests/flight-commander/firmware/dual-gps.test.mjs:88:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      {
+    +   baseTermination: 0,
+        batteryNodeId: 0,
+        bitrate: 2,
+        gpsNodeId: 0,
+        magNodeId: 255,
+    +   movingBaseNodeId: 255,
+    +   movingRoverNodeId: 255,
+    +   navigationNodeId: 0,
+        nodeId: 10,
+        primaryGpsSource: 0,
+    +   requireApPeriphIdentity: true,
+    +   roverTermination: 0,
+    +   schema: 1
+      }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    nodeId: 10
+    bitrate: 2
+    gpsNodeId: 0
+    batteryNodeId: 0
+    primaryGpsSource: 0
+    magNodeId: 255
+  actual:
+    schema: 1
+    nodeId: 10
+    bitrate: 2
+    navigationNodeId: 0
+    gpsNodeId: 0
+    batteryNodeId: 0
+    primaryGpsSource: 0
+    magNodeId: 255
+    movingBaseNodeId: 255
+    movingRoverNodeId: 255
+    requireApPeriphIdentity: true
+    baseTermination: 0
+    roverTermination: 0
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/runner/work/Flight-Commander/Flight-Commander/tests/flight-commander/firmware/dual-gps.test.mjs:89:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: DroneCAN compass selection is independent of GPS selection
+not ok 82 - DroneCAN compass selection is independent of GPS selection
+  ---
+  duration_ms: 0.233656
+  type: 'test'
+  location: '/home/runner/work/Flight-Commander/Flight-Commander/tests/flight-commander/firmware/dual-gps.test.mjs:99:1'
+  failureType: 'testCodeFailure'
+  error: 'The moving-base GNSS node must be Disabled, node 1 through 127.'
+  code: 'ERR_TEST_FAILURE'
+  name: 'RangeError'
+  stack: |-
+    nodeId (file:///home/runner/work/Flight-Commander/Flight-Commander/js/flightCommander/dualGps.js:36:15)
+    validateDronecanConfig (file:///home/runner/work/Flight-Commander/Flight-Commander/js/flightCommander/dualGps.js:164:27)
+    encodeDronecanConfig (file:///home/runner/work/Flight-Commander/Flight-Commander/js/flightCommander/dualGps.js:199:19)
+    TestContext.<anonymous> (file:///home/runner/work/Flight-Commander/Flight-Commander/tests/flight-commander/firmware/dual-gps.test.mjs:100:19)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: Flight Commander firmware catalog
+    # Subtest: uses Flight Commander releases and preserves the legacy target alias
+    ok 1 - uses Flight Commander releases and preserves the legacy target alias
+      ---
+      duration_ms: 1.319623
+      type: 'test'
+      ...
+    # Subtest: parses release and bench-only HEX names for the supported H743 target
+    ok 2 - parses release and bench-only HEX names for the supported H743 target
+      ---
+      duration_ms: 1.992272
+      type: 'test'
+      ...
+    # Subtest: filters draft and unrelated assets and indexes published firmware by target
+    ok 3 - filters draft and unrelated assets and indexes published firmware by target
+      ---
+      duration_ms: 0.91677
+      type: 'test'
+      ...
+    # Subtest: uses the standalone GitHub HEX as the only managed firmware source
+    ok 4 - uses the standalone GitHub HEX as the only managed firmware source
+      ---
+      duration_ms: 0.489253
+      type: 'test'
+      ...
+    # Subtest: verifies online byte count and GitHub SHA-256 before decoding the HEX
+    ok 5 - verifies online byte count and GitHub SHA-256 before decoding the HEX
+      ---
+      duration_ms: 11.418292
+      type: 'test'
+      ...
+    # Subtest: requires the compiled FCFW marker before a HEX can be offered as fork firmware
+    ok 6 - requires the compiled FCFW marker before a HEX can be offered as fork firmware
+      ---
+      duration_ms: 0.337431
+      type: 'test'
+      ...
+    1..6
+ok 83 - Flight Commander firmware catalog
+  ---
+  duration_ms: 18.067205
+  type: 'suite'
+  ...
+# Subtest: Flight Commander firmware identity
+    # Subtest: accepts both official INAV and the Flight Commander FCFW variant
+    ok 1 - accepts both official INAV and the Flight Commander FCFW variant
+      ---
+      duration_ms: 2.970217
+      type: 'test'
+      ...
+    # Subtest: parses the exact firmware 0.1.0 schema and little-endian capabilities
+    ok 2 - parses the exact firmware 0.1.0 schema and little-endian capabilities
+      ---
+      duration_ms: 1.563973
+      type: 'test'
+      ...
+    # Subtest: treats an unsupported empty response as normal stock INAV
+    ok 3 - treats an unsupported empty response as normal stock INAV
+      ---
+      duration_ms: 0.322831
+      type: 'test'
+      ...
+    # Subtest: identifies a newer Flight Commander schema but disables its features
+    ok 4 - identifies a newer Flight Commander schema but disables its features
+      ---
+      duration_ms: 0.418785
+      type: 'test'
+      ...
+    # Subtest: rejects malformed nonempty payloads instead of granting capabilities
+    ok 5 - rejects malformed nonempty payloads instead of granting capabilities
+      ---
+      duration_ms: 0.684906
+      type: 'test'
+      ...
+    # Subtest: feature gates require both Flight Commander identity and the exact bit
+    ok 6 - feature gates require both Flight Commander identity and the exact bit
+      ---
+      duration_ms: 0.386389
+      type: 'test'
+      ...
+    # Subtest: the optional MSPv2 probe is single-attempt and falls back safely
+    ok 7 - the optional MSPv2 probe is single-attempt and falls back safely
+      ---
+      duration_ms: 0.6805
+      type: 'test'
+      ...
+    # Subtest: applies identity without replacing the inherited INAV version
+    ok 8 - applies identity without replacing the inherited INAV version
+      ---
+      duration_ms: 0.470517
+      type: 'test'
+      ...
+    1..8
+ok 84 - Flight Commander firmware identity
+  ---
+  duration_ms: 9.366177
+  type: 'suite'
+  ...
+# Subtest: default heading priorities are unique and weights follow priority order
+ok 85 - default heading priorities are unique and weights follow priority order
+  ---
+  duration_ms: 2.92174
+  type: 'test'
+  ...
+# Subtest: heading configuration round-trips the exact 71-byte firmware schema with per-node CAN calibration
+ok 86 - heading configuration round-trips the exact 71-byte firmware schema with per-node CAN calibration
+  ---
+  duration_ms: 1.272416
+  type: 'test'
+  ...
+# Subtest: legacy compass yaw offsets are removed while moving-baseline alignment remains independent
+ok 87 - legacy compass yaw offsets are removed while moving-baseline alignment remains independent
+  ---
+  duration_ms: 0.280431
+  type: 'test'
+  ...
+# Subtest: enabled heading sources form an unambiguous priority order
+ok 88 - enabled heading sources form an unambiguous priority order
+  ---
+  duration_ms: 0.849997
+  type: 'test'
+  ...
+# Subtest: external compass hardware is limited to the target-scoped I2C1 driver set
+ok 89 - external compass hardware is limited to the target-scoped I2C1 driver set
+  ---
+  duration_ms: 0.217594
+  type: 'test'
+  ...
+# Subtest: CAN compass and moving-baseline modes fail closed without assigned nodes
+not ok 90 - CAN compass and moving-baseline modes fail closed without assigned nodes
+  ---
+  duration_ms: 0.84527
+  type: 'test'
+  location: '/home/runner/work/Flight-Commander/Flight-Commander/tests/flight-commander/firmware/heading-fusion.test.mjs:87:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /DroneCAN GNSS node/. Input:
+    
+    'RangeError: Bind a DroneCAN moving-rover node before using DroneCAN moving-baseline yaw.'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+  error: 'Bind a DroneCAN moving-rover node before using DroneCAN moving-baseline yaw.'
+  name: 'RangeError'
+  stack: |-
+    validateHeadingConfig (file:///home/runner/work/Flight-Commander/Flight-Commander/js/flightCommander/headingFusion.js:277:15)
+    encodeHeadingConfig (file:///home/runner/work/Flight-Commander/Flight-Commander/js/flightCommander/headingFusion.js:283:19)
+    file:///home/runner/work/Flight-Commander/Flight-Commander/tests/flight-commander/firmware/heading-fusion.test.mjs:102:11
+    getActual (node:assert:609:5)
+    Function.throws (node:assert:757:24)
+    TestContext.<anonymous> (file:///home/runner/work/Flight-Commander/Flight-Commander/tests/flight-commander/firmware/heading-fusion.test.mjs:101:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+  operator: 'throws'
+  stack: |-
+    TestContext.<anonymous> (file:///home/runner/work/Flight-Commander/Flight-Commander/tests/flight-commander/firmware/heading-fusion.test.mjs:101:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: moving-baseline enable and source selection cannot diverge
+ok 91 - moving-baseline enable and source selection cannot diverge
+  ---
+  duration_ms: 0.210434
+  type: 'test'
+  ...
+# Subtest: DroneCAN compass calibration is complete and bound to one node or absent
+ok 92 - DroneCAN compass calibration is complete and bound to one node or absent
+  ---
+  duration_ms: 0.441186
+  type: 'test'
+  ...
+# Subtest: weighted fusion handles north wraparound and priority-based failover
+ok 93 - weighted fusion handles north wraparound and priority-based failover
+  ---
+  duration_ms: 0.669645
+  type: 'test'
+  ...
+# Subtest: a source outside the configured disagreement guard is rejected
+ok 94 - a source outside the configured disagreement guard is rejected
+  ---
+  duration_ms: 0.495422
+  type: 'test'
+  ...
+# Subtest: heading status decodes live masks, baseline geometry, quality, and age
+ok 95 - heading status decodes live masks, baseline geometry, quality, and age
+  ---
+  duration_ms: 0.385338
+  type: 'test'
+  ...
+# Subtest: UART GPS presets include an explicit aircraft-side F9 RTK rover
+ok 96 - UART GPS presets include an explicit aircraft-side F9 RTK rover
+  ---
+  duration_ms: 2.069971
+  type: 'test'
+  ...
+# Subtest: legacy u-blox hardware auto-detection remains stable and F9 stays explicit
+ok 97 - legacy u-blox hardware auto-detection remains stable and F9 stays explicit
+  ---
+  duration_ms: 0.303234
+  type: 'test'
+  ...
+# Subtest: RTK rover guidance identifies the next safe setup action
+ok 98 - RTK rover guidance identifies the next safe setup action
+  ---
+  duration_ms: 0.234638
+  type: 'test'
+  ...
+# Subtest: Alignment Tool enumerates UART, DroneCAN, and moving-baseline RTK targets
+ok 99 - Alignment Tool enumerates UART, DroneCAN, and moving-baseline RTK targets
+  ---
+  duration_ms: 0.949776
+  type: 'test'
+  ...
+# Subtest: Alignment Tool locks ambiguous DroneCAN automatic compass selection
+ok 100 - Alignment Tool locks ambiguous DroneCAN automatic compass selection
+  ---
+  duration_ms: 0.332354
+  type: 'test'
+  ...
+# Subtest: per-module alignment values round-trip in the firmware heading schema
+ok 101 - per-module alignment values round-trip in the firmware heading schema
+  ---
+  duration_ms: 0.57978
+  type: 'test'
+  ...
+# Subtest: per-source alignment drafts cannot leak into another module
+ok 102 - per-source alignment drafts cannot leak into another module
+  ---
+  duration_ms: 1.519592
+  type: 'test'
+  ...
+# Subtest: editing and revisiting every alignment target preserves four independent values
+ok 103 - editing and revisiting every alignment target preserves four independent values
+  ---
+  duration_ms: 0.612846
+  type: 'test'
+  ...
+# Subtest: normalizes finite telemetry without inventing unavailable values
+ok 104 - normalizes finite telemetry without inventing unavailable values
+  ---
+  duration_ms: 2.315262
+  type: 'test'
+  ...
+# Subtest: treats MAVLink unknown battery and satellite sentinels as unavailable
+ok 105 - treats MAVLink unknown battery and satellite sentinels as unavailable
+  ---
+  duration_ms: 0.37941
+  type: 'test'
+  ...
+# Subtest: uses aircraft-attitude signs expected by an artificial horizon
+ok 106 - uses aircraft-attitude signs expected by an artificial horizon
+  ---
+  duration_ms: 0.320998
+  type: 'test'
+  ...
+# Subtest: wraps a rounded north crossing to 000 instead of 360
+ok 107 - wraps a rounded north crossing to 000 instead of 360
+  ---
+  duration_ms: 2.106561
+  type: 'test'
+  ...
+# Subtest: sizes the backing canvas for device pixel ratio while drawing in CSS pixels
+ok 108 - sizes the backing canvas for device pixel ratio while drawing in CSS pixels
+  ---
+  duration_ms: 0.704864
+  type: 'test'
+  ...
+# Subtest: renders primary flight instruments at both major and inset sizes
+ok 109 - renders primary flight instruments at both major and inset sizes
+  ---
+  duration_ms: 2.159385
+  type: 'test'
+  ...
+# Subtest: uses a green ground gradient with high-contrast HUD markings
+ok 110 - uses a green ground gradient with high-contrast HUD markings
+  ---
+  duration_ms: 0.739402
+  type: 'test'
+  ...
+# Subtest: announces link, attitude, speed, and altitude for assistive technology
+ok 111 - announces link, attitude, speed, and altitude for assistive technology
+  ---
+  duration_ms: 0.400449
+  type: 'test'
+  ...
+# Subtest: converts every HUD speed, altitude, and spoken unit in imperial mode
+ok 112 - converts every HUD speed, altitude, and spoken unit in imperial mode
+  ---
+  duration_ms: 1.107086
+  type: 'test'
+  ...
+# Subtest: does not draw a false level horizon when attitude is unavailable
+ok 113 - does not draw a false level horizon when attitude is unavailable
+  ---
+  duration_ms: 1.72594
+  type: 'test'
+  ...
+# Subtest: switches major view without moving or overlapping either live pane
+ok 114 - switches major view without moving or overlapping either live pane
+  ---
+  duration_ms: 1.992582
+  type: 'test'
+  ...
+# Subtest: Ground Control exposes all telemetry below two persistent side-by-side panes
+ok 115 - Ground Control exposes all telemetry below two persistent side-by-side panes
+  ---
+  duration_ms: 1.851765
+  type: 'test'
+  ...
+# Subtest: major and minor panes use grid columns and never overlap
+ok 116 - major and minor panes use grid columns and never overlap
+  ---
+  duration_ms: 0.518123
+  type: 'test'
+  ...
+# Subtest: telemetry fits under both views while RTK is reached by normal page scrolling
+ok 117 - telemetry fits under both views while RTK is reached by normal page scrolling
+  ---
+  duration_ms: 0.233907
+  type: 'test'
+  ...
+# Subtest: Ground Control owns RTK setup and remains available with the aircraft offline
+ok 118 - Ground Control owns RTK setup and remains available with the aircraft offline
+  ---
+  duration_ms: 0.389964
+  type: 'test'
+  ...
+# Subtest: unit switching converts every Ground Control display and input boundary
+ok 119 - unit switching converts every Ground Control display and input boundary
+  ---
+  duration_ms: 0.856366
+  type: 'test'
+  ...
+# Subtest: vehicle and mission commands stay visible with explicit safe actions
+ok 120 - vehicle and mission commands stay visible with explicit safe actions
+  ---
+  duration_ms: 0.583425
+  type: 'test'
+  ...
+# Subtest: desktop minimum and responsive fallback both support the two-pane layout
+ok 121 - desktop minimum and responsive fallback both support the two-pane layout
+  ---
+  duration_ms: 0.390225
+  type: 'test'
+  ...
+# Subtest: normalizes the two supported unit systems with a metric fallback
+ok 122 - normalizes the two supported unit systems with a metric fallback
+  ---
+  duration_ms: 0.917791
+  type: 'test'
+  ...
+# Subtest: follows Flight Commander's global unit option and OSD unit family
+ok 123 - follows Flight Commander's global unit option and OSD unit family
+  ---
+  duration_ms: 0.268325
+  type: 'test'
+  ...
+# Subtest: exposes immutable labels, multipliers, and readable HUD tape steps
+ok 124 - exposes immutable labels, multipliers, and readable HUD tape steps
+  ---
+  duration_ms: 1.585093
+  type: 'test'
+  ...
+# Subtest: converts only display quantities from canonical SI values
+ok 125 - converts only display quantities from canonical SI values
+  ---
+  duration_ms: 0.239064
+  type: 'test'
+  ...
+# Subtest: converts editable display values back to canonical SI
+ok 126 - converts editable display values back to canonical SI
+  ---
+  duration_ms: 0.241477
+  type: 'test'
+  ...
+# Subtest: keeps unavailable and non-finite telemetry unavailable
+ok 127 - keeps unavailable and non-finite telemetry unavailable
+  ---
+  duration_ms: 0.443329
+  type: 'test'
+  ...
+# Subtest: creates a converted display snapshot without mutating canonical SI state
+ok 128 - creates a converted display snapshot without mutating canonical SI state
+  ---
+  duration_ms: 0.391657
+  type: 'test'
+  ...
+# Subtest: formats symbols and spoken units consistently
+ok 129 - formats symbols and spoken units consistently
+  ---
+  duration_ms: 0.263267
+  type: 'test'
+  ...
+# Subtest: DroneCAN 4.0 configuration preserves independent base, rover, navigation and compass bindings
+ok 130 - DroneCAN 4.0 configuration preserves independent base, rover, navigation and compass bindings
+  ---
+  duration_ms: 2.166155
+  type: 'test'
+  ...
+# Subtest: DroneCAN pair validation rejects incomplete and duplicate role bindings
+ok 131 - DroneCAN pair validation rejects incomplete and duplicate role bindings
+  ---
+  duration_ms: 0.862564
+  type: 'test'
+  ...
+# Subtest: pair status decoder exposes role verification and live relative-heading telemetry
+ok 132 - pair status decoder exposes role verification and live relative-heading telemetry
+  ---
+  duration_ms: 1.925268
+  type: 'test'
+  ...
+# Subtest: pair command wire contract is explicit and versioned
+ok 133 - pair command wire contract is explicit and versioned
+  ---
+  duration_ms: 0.274343
+  type: 'test'
+  ...
+# Subtest: unsupported firmware command gates
+    # Subtest: blocks every command for a parameter-capable non-INAV vehicle
+    ok 1 - blocks every command for a parameter-capable non-INAV vehicle
+      ---
+      duration_ms: 2.246637
+      type: 'test'
+      ...
+    # Subtest: link loss remains the first failure for every firmware family
+    ok 2 - link loss remains the first failure for every firmware family
+      ---
+      duration_ms: 0.390725
+      type: 'test'
+      ...
+    # Subtest: does not route commands until firmware family is known
+    ok 3 - does not route commands until firmware family is known
+      ---
+      duration_ms: 0.334337
+      type: 'test'
+      ...
+    # Subtest: keeps all command controls disabled for official INAV
+    ok 4 - keeps all command controls disabled for official INAV
+      ---
+      duration_ms: 0.354295
+      type: 'test'
+      ...
+    # Subtest: an application transition failure remains blocked after the transient block clears
+    ok 5 - an application transition failure remains blocked after the transient block clears
+      ---
+      duration_ms: 0.339945
+      type: 'test'
+      ...
+    1..5
+ok 134 - unsupported firmware command gates
+  ---
+  duration_ms: 5.021882
+  type: 'suite'
+  ...
+# Subtest: Flight Commander command routing
+    # Subtest: default override timers retain the Chromium host receiver
+    ok 1 - default override timers retain the Chromium host receiver
+      ---
+      duration_ms: 0.815589
+      type: 'test'
+      ...
+    # Subtest: requires the firmware capability and a matching cached profile
+    ok 2 - requires the firmware capability and a matching cached profile
+      ---
+      duration_ms: 10.92283
+      type: 'test'
+      ...
+    # Subtest: rejects mismatched and ambiguous profiles
+    ok 3 - rejects mismatched and ambiguous profiles
+      ---
+      duration_ms: 0.418424
+      type: 'test'
+      ...
+    1..3
+ok 135 - Flight Commander command routing
+  ---
+  duration_ms: 12.466426
+  type: 'suite'
+  ...
+# Subtest: INAV profile persistence
+    # Subtest: resolves one profile and reports ambiguity without silently choosing
+    ok 1 - resolves one profile and reports ambiguity without silently choosing
+      ---
+      duration_ms: 0.930519
+      type: 'test'
+      ...
+    # Subtest: captures the command-safe MSP profile fields used by MAVLink routing
+    ok 2 - captures the command-safe MSP profile fields used by MAVLink routing
+      ---
+      duration_ms: 1.271355
+      type: 'test'
+      ...
+    1..2
+ok 136 - INAV profile persistence
+  ---
+  duration_ms: 2.419107
+  type: 'suite'
+  ...
+# Subtest: GCS discovery heartbeat matches known MAVLink wire vectors
+ok 137 - GCS discovery heartbeat matches known MAVLink wire vectors
+  ---
+  duration_ms: 3.464748
+  type: 'test'
+  ...
+# Subtest: MAVLink IPC codec round-trips packets and rejects unsafe encode requests
+ok 138 - MAVLink IPC codec round-trips packets and rejects unsafe encode requests
+  ---
+  duration_ms: 8.110454
+  type: 'test'
+  ...
+# Subtest: MAVLink IPC codec drops stale feeds and tags decoded packets with the active generation
+ok 139 - MAVLink IPC codec drops stale feeds and tags decoded packets with the active generation
+  ---
+  duration_ms: 2.87953
+  type: 'test'
+  ...
+# Subtest: MAVLink IPC registration delivers packets and removes every handler on dispose
+ok 140 - MAVLink IPC registration delivers packets and removes every handler on dispose
+  ---
+  duration_ms: 2.160757
+  type: 'test'
+  ...
+# Subtest: MavlinkSession unregisters the exact raw preload listener token
+ok 141 - MavlinkSession unregisters the exact raw preload listener token
+  ---
+  duration_ms: 0.449488
+  type: 'test'
+  ...
+# Subtest: MavlinkMissionManager
+    # Subtest: downloads INAV legacy mission items in sequence and cleans waiters
+    ok 1 - downloads INAV legacy mission items in sequence and cleans waiters
+      ---
+      duration_ms: 4.230777
+      type: 'test'
+      ...
+    # Subtest: uploads INAV legacy items and blocks unsupported command 206
+    ok 2 - uploads INAV legacy items and blocks unsupported command 206
+      ---
+      duration_ms: 3.005766
+      type: 'test'
+      ...
+    # Subtest: clear verifies a zero-item readback and timeout removes listeners
+    ok 3 - clear verifies a zero-item readback and timeout removes listeners
+      ---
+      duration_ms: 12.890057
+      type: 'test'
+      ...
+    # Subtest: detach intrinsically cancels a mission read and reconnect installs one fresh listener
+    ok 4 - detach intrinsically cancels a mission read and reconnect installs one fresh listener
+      ---
+      duration_ms: 1.56846
+      type: 'test'
+      ...
+    # Subtest: detach intrinsically cancels mission upload and clear verification delay
+    ok 5 - detach intrinsically cancels mission upload and clear verification delay
+      ---
+      duration_ms: 2.009636
+      type: 'test'
+      ...
+    1..5
+ok 142 - MavlinkMissionManager
+  ---
+  duration_ms: 25.218681
+  type: 'suite'
+  ...
+# Subtest: withAbortSignal prevents a detached firmware-identification result from escaping
+ok 143 - withAbortSignal prevents a detached firmware-identification result from escaping
+  ---
+  duration_ms: 0.603473
+  type: 'test'
+  ...
+# Subtest: mission defaults retain the Chromium timer receiver
+ok 144 - mission defaults retain the Chromium timer receiver
+  ---
+  duration_ms: 0.413698
+  type: 'test'
+  ...
+# Subtest: decoded frame normalization
+    # Subtest: normalizes node-mavlink-style names, headers, protocol and payloads
+    ok 1 - normalizes node-mavlink-style names, headers, protocol and payloads
+      ---
+      duration_ms: 2.651672
+      type: 'test'
+      ...
+    # Subtest: rejects decoded frames with no message identity
+    ok 2 - rejects decoded frames with no message identity
+      ---
+      duration_ms: 0.682253
+      type: 'test'
+      ...
+    # Subtest: normalizes sensor, output, log and FTP message names
+    ok 3 - normalizes sensor, output, log and FTP message names
+      ---
+      duration_ms: 0.481242
+      type: 'test'
+      ...
+    1..3
+ok 145 - decoded frame normalization
+  ---
+  duration_ms: 5.101553
+  type: 'suite'
+  ...
+# Subtest: captures equivalent MAVLink sensor streams and servo outputs
+ok 146 - captures equivalent MAVLink sensor streams and servo outputs
+  ---
+  duration_ms: 4.35484
+  type: 'test'
+  ...
+# Subtest: binds default host timers to the Electron renderer receiver
+ok 147 - binds default host timers to the Electron renderer receiver
+  ---
+  duration_ms: 0.87363
+  type: 'test'
+  ...
+# Subtest: rolls back a failed timer initialization and permits a clean retry
+ok 148 - rolls back a failed timer initialization and permits a clean retry
+  ---
+  duration_ms: 0.570717
+  type: 'test'
+  ...
+# Subtest: MAVLink state normalization and firmware detection
+    # Subtest: normalizes heartbeat, position, attitude, battery and sentinel values
+    ok 1 - normalizes heartbeat, position, attitude, battery and sentinel values
+      ---
+      duration_ms: 1.257746
+      type: 'test'
+      ...
+    # Subtest: identifies generic-autopilot heartbeat as INAV
+    ok 2 - identifies generic-autopilot heartbeat as INAV
+      ---
+      duration_ms: 0.767652
+      type: 'test'
+      ...
+    # Subtest: promotes an INAV-compatible heartbeat to Flight Commander only after FCFW capability identity
+    ok 3 - promotes an INAV-compatible heartbeat to Flight Commander only after FCFW capability identity
+      ---
+      duration_ms: 1.276262
+      type: 'test'
+      ...
+    # Subtest: publishes the validated connection before firmware state updates
+    ok 4 - publishes the validated connection before firmware state updates
+      ---
+      duration_ms: 0.64449
+      type: 'test'
+      ...
+    # Subtest: does not unlock the vehicle session for malformed or non-vehicle heartbeats
+    ok 5 - does not unlock the vehicle session for malformed or non-vehicle heartbeats
+      ---
+      duration_ms: 1.006034
+      type: 'test'
+      ...
+    # Subtest: uses parameter stream fingerprint to distinguish INAV from unsupported firmware
+    ok 6 - uses parameter stream fingerprint to distinguish INAV from unsupported firmware
+      ---
+      duration_ms: 1.26065
+      type: 'test'
+      ...
+    # Subtest: fails closed when the INAV compatibility fingerprint probe is silent
+    ok 7 - fails closed when the INAV compatibility fingerprint probe is silent
+      ---
+      duration_ms: 21.138537
+      type: 'test'
+      ...
+    1..7
+ok 149 - MAVLink state normalization and firmware detection
+  ---
+  duration_ms: 28.069278
+  type: 'suite'
+  ...
+# Subtest: commands, acknowledgements and cleanup
+    # Subtest: drops queued bytes and decoded frames from an earlier attachment
+    ok 1 - drops queued bytes and decoded frames from an earlier attachment
+      ---
+      duration_ms: 1.579872
+      type: 'test'
+      ...
+    # Subtest: does not send an asynchronously encoded command on a replacement attachment
+    ok 2 - does not send an asynchronously encoded command on a replacement attachment
+      ---
+      duration_ms: 0.88996
+      type: 'test'
+      ...
+    # Subtest: does not report a stale discovery result on a replacement attachment
+    ok 3 - does not report a stale discovery result on a replacement attachment
+      ---
+      duration_ms: 0.696833
+      type: 'test'
+      ...
+    # Subtest: keeps discovery single-flight when MAVLink encoding is delayed
+    ok 4 - keeps discovery single-flight when MAVLink encoding is delayed
+      ---
+      duration_ms: 11.771563
+      type: 'test'
+      ...
+    # Subtest: detach before the settle deadline prevents a late discovery timer
+    ok 5 - detach before the settle deadline prevents a late discovery timer
+      ---
+      duration_ms: 0.536566
+      type: 'test'
+      ...
+    # Subtest: destroy while discovery encoding is pending cannot write or emit completion
+    ok 6 - destroy while discovery encoding is pending cannot write or emit completion
+      ---
+      duration_ms: 2.456071
+      type: 'test'
+      ...
+    # Subtest: starts and stops the GCS discovery heartbeat with the transport
+    ok 7 - starts and stops the GCS discovery heartbeat with the transport
+      ---
+      duration_ms: 0.435136
+      type: 'test'
+      ...
+    # Subtest: isolates a failing state subscriber without wedging transport startup
+    ok 8 - isolates a failing state subscriber without wedging transport startup
+      ---
+      duration_ms: 0.58032
+      type: 'test'
+      ...
+    # Subtest: settles with MAVLink v1, decodes chunked INAV, then uses the observed v2 protocol
+    ok 9 - settles with MAVLink v1, decodes chunked INAV, then uses the observed v2 protocol
+      ---
+      duration_ms: 7.728518
+      type: 'test'
+      ...
+    # Subtest: does not expose removed direct vehicle command helpers
+    ok 10 - does not expose removed direct vehicle command helpers
+      ---
+      duration_ms: 0.449817
+      type: 'test'
+      ...
+    # Subtest: detaching rejects state, ACK, firmware, and mission waits
+    ok 11 - detaching rejects state, ACK, firmware, and mission waits
+      ---
+      duration_ms: 8.78899
+      type: 'test'
+      ...
+    # Subtest: accepts progress ACK, rejects negative ACK, and times out cleanly
+    ok 12 - accepts progress ACK, rejects negative ACK, and times out cleanly
+      ---
+      duration_ms: 13.186541
+      type: 'test'
+      ...
+    # Subtest: destroy removes transport, IPC, interval and event listeners
+    ok 13 - destroy removes transport, IPC, interval and event listeners
+      ---
+      duration_ms: 0.368336
+      type: 'test'
+      ...
+    1..13
+ok 150 - commands, acknowledgements and cleanup
+  ---
+  duration_ms: 50.155711
+  type: 'suite'
+  ...
+# Subtest: INAV MSP behavior returns native speed and terminal action
+ok 151 - INAV MSP behavior returns native speed and terminal action
+  ---
+  duration_ms: 3.252251
+  type: 'test'
+  ...
+# Subtest: Flight Commander JSON round trip preserves metadata and settings
+ok 152 - Flight Commander JSON round trip preserves metadata and settings
+  ---
+  duration_ms: 0.796803
+  type: 'test'
+  ...
+# Subtest: QGC WPL validates sequence, JUMP targets, and INAV boundaries
+ok 153 - QGC WPL validates sequence, JUMP targets, and INAV boundaries
+  ---
+  duration_ms: 1.534432
+  type: 'test'
+  ...
+# Subtest: INAV planning model enforces safehome, approach, and geozone limits
+ok 154 - INAV planning model enforces safehome, approach, and geozone limits
+  ---
+  duration_ms: 1.666867
+  type: 'test'
+  ...
+# Subtest: mission segment count follows raw INAV boundaries
+ok 155 - mission segment count follows raw INAV boundaries
+  ---
+  duration_ms: 0.273773
+  type: 'test'
+  ...
+# Subtest: terrain insertion gives INAV samples fresh identities and remaps JUMP
+ok 156 - terrain insertion gives INAV samples fresh identities and remaps JUMP
+  ---
+  duration_ms: 5.436851
+  type: 'test'
+  ...
+# Subtest: reindexing fails closed on duplicate INAV source identities
+ok 157 - reindexing fails closed on duplicate INAV source identities
+  ---
+  duration_ms: 0.570596
+  type: 'test'
+  ...
+# Subtest: built-in terrain keeps native fetch bound to globalThis
+ok 158 - built-in terrain keeps native fetch bound to globalThis
+  ---
+  duration_ms: 1.324029
+  type: 'test'
+  ...
+# Subtest: survey camera command 206 is explicit and optional
+ok 159 - survey camera command 206 is explicit and optional
+  ---
+  duration_ms: 1.388769
+  type: 'test'
+  ...
+# Subtest: terrain-profile uploads require the Flight Commander capability
+ok 160 - terrain-profile uploads require the Flight Commander capability
+  ---
+  duration_ms: 1.621924
+  type: 'test'
+  ...
+# Subtest: camera command 206 requires the Flight Commander photo capability
+ok 161 - camera command 206 requires the Flight Commander photo capability
+  ---
+  duration_ms: 0.396313
+  type: 'test'
+  ...
+# Subtest: Flight Planner rejects MAVLink Null Island before GPS fix
+ok 162 - Flight Planner rejects MAVLink Null Island before GPS fix
+  ---
+  duration_ms: 1.303573
+  type: 'test'
+  ...
+# Subtest: Flight Planner accepts a fixed vehicle position
+ok 163 - Flight Planner accepts a fixed vehicle position
+  ---
+  duration_ms: 0.691946
+  type: 'test'
+  ...
+# Subtest: Flight Planner falls back to a valid home instead of an unfixed vehicle
+ok 164 - Flight Planner falls back to a valid home instead of an unfixed vehicle
+  ---
+  duration_ms: 0.14848
+  type: 'test'
+  ...
+# Subtest: Flight Planner rejects out-of-range coordinates
+ok 165 - Flight Planner rejects out-of-range coordinates
+  ---
+  duration_ms: 0.144314
+  type: 'test'
+  ...
+# Subtest: planner follows the Configurator imperial selection and OSD distance families
+ok 166 - planner follows the Configurator imperial selection and OSD distance families
+  ---
+  duration_ms: 1.08609
+  type: 'test'
+  ...
+# Subtest: planner display conversions round-trip while mission values remain SI
+ok 167 - planner display conversions round-trip while mission values remain SI
+  ---
+  duration_ms: 0.941406
+  type: 'test'
+  ...
+# Subtest: mission summary uses miles/acres or kilometres/hectares at useful thresholds
+ok 168 - mission summary uses miles/acres or kilometres/hectares at useful thresholds
+  ---
+  duration_ms: 0.243641
+  type: 'test'
+  ...
+# Subtest: recovered Ground Control and Flight Planner imports are all exported
+ok 169 - recovered Ground Control and Flight Planner imports are all exported
+  ---
+  duration_ms: 210.438794
+  type: 'test'
+  ...
+# Subtest: protocol filter refuses camera command 206 and raw INAV loss over MAVLink
+ok 170 - protocol filter refuses camera command 206 and raw INAV loss over MAVLink
+  ---
+  duration_ms: 1.583167
+  type: 'test'
+  ...
+# Subtest: Flight Commander preserves command 206 over MAVLink and native MSP action 9
+ok 171 - Flight Commander preserves command 206 over MAVLink and native MSP action 9
+  ---
+  duration_ms: 1.182824
+  type: 'test'
+  ...
+# Subtest: Flight Commander preserves absolute-MSL terrain waypoint frames
+ok 172 - Flight Commander preserves absolute-MSL terrain waypoint frames
+  ---
+  duration_ms: 0.218905
+  type: 'test'
+  ...
+# Subtest: mission verification checks canonical INAV coordinates
+ok 173 - mission verification checks canonical INAV coordinates
+  ---
+  duration_ms: 0.791564
+  type: 'test'
+  ...
+# Subtest: INAV progress estimate advances monotonically and recognizes final RTL
+ok 174 - INAV progress estimate advances monotonically and recognizes final RTL
+  ---
+  duration_ms: 0.638576
+  type: 'test'
+  ...
+# Subtest: mission coordinator releases an attachment-scoped lease on abort
+ok 175 - mission coordinator releases an attachment-scoped lease on abort
+  ---
+  duration_ms: 0.348737
+  type: 'test'
+  ...
+# Subtest: mission fingerprint is stable across metadata-only changes
+ok 176 - mission fingerprint is stable across metadata-only changes
+  ---
+  duration_ms: 0.764463
+  type: 'test'
+  ...
+# Subtest: boot continuity supports clock wrap and rejects a reboot
+ok 177 - boot continuity supports clock wrap and rejects a reboot
+  ---
+  duration_ms: 0.371571
+  type: 'test'
+  ...
+# Subtest: INAV resume suffix accepts only waypoints and optional final RTL
+ok 178 - INAV resume suffix accepts only waypoints and optional final RTL
+  ---
+  duration_ms: 0.335337
+  type: 'test'
+  ...
+# Subtest: packaging starts from clean Vite output roots
+ok 179 - packaging starts from clean Vite output roots
+  ---
+  duration_ms: 1.905385
+  type: 'test'
+  ...
+# Subtest: Windows verification follows the active renderer graph and rejects leftovers
+ok 180 - Windows verification follows the active renderer graph and rejects leftovers
+  ---
+  duration_ms: 1.408448
+  type: 'test'
+  ...
+# Subtest: native NTRIP and drone-off RTK base setup are release surfaces
+not ok 181 - native NTRIP and drone-off RTK base setup are release surfaces
+  ---
+  duration_ms: 2.053044
+  type: 'test'
+  location: '/home/runner/work/Flight-Commander/Flight-Commander/tests/flight-commander/packaging/package-contract.test.mjs:373:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /NTRIP FlightCommander\/4\.0\.0/. Input:
+    
+    "import net from 'node:net';\n" +
+      "import tls from 'node:tls';\n" +
+      '\n' +
+      'const MAX_HEADER_BYTES = 64 * 1024;\n' +
+      'const MAX_SOURCETABLE_BYTES = 4 * 1024 * 1024;\n' +
+      'const CONNECT_TIMEOUT_MS = 10000;\n' +
+      '\n' +
+      'function normalizeCasterSettings(settings = {}) {\n' +
+      "  const host = String(settings.host ?? '').trim();\n" +
+      '  const port = Number(settings.port ?? (settings.tls ? 443 : 2101));\n' +
+      '  if (!host || /^[a-z][a-z0-9+.-]*:\\/\\//i.test(host) || /[\\/\\s]/.test(host)) {\n' +
+      "    throw new Error('Enter an NTRIP caster host name without http:// or https://.');\n" +
+      '  }\n' +
+      '  if (!Number.isInteger(port) || port < 1 || port > 65535) {\n' +
+      "    throw new Error('NTRIP caster port must be from 1 through 65535.');\n" +
+      '  }\n' +
+      '  return {\n' +
+      '    host,\n' +
+      '    port,\n' +
+      '    tls: settings.tls === true,\n' +
+      "    username: String(settings.username ?? ''),\n" +
+      "    password: String(settings.password ?? ''),\n" +
+      '  };\n' +
+      '}\n' +
+      '\n' +
+      'function normalizeSettings(settings = {}) {\n' +
+      '  const config = normalizeCasterSettings(settings);\n' +
+      "  const mountpoint = String(settings.mountpoint ?? '').trim().replace(/^\\/+/, '');\n" +
+      "  if (!mountpoint) throw new Error('Enter an NTRIP mountpoint.');\n" +
+      '  return { ...config, mountpoint };\n' +
+      '}\n' +
+      '\n' +
+      'function authorizationHeader(config) {\n' +
+      '  return config.username || config.password\n' +
+      "    ? `Authorization: Basic ${Buffer.from(`${config.username}:${config.password}`).toString('base64')}\\r\\n`\n" +
+      "    : '';\n" +
+      '}\n' +
+      '\n' +
+      'function buildRequest(config, requestPath) {\n' +
+      '  const hostHeader = net.isIP(config.host) === 6 ? `[${config.host}]` : config.host;\n' +
+      '  return Buffer.from(\n' +
+      '    `GET ${requestPath} HTTP/1.1\\r\\n` +\n' +
+      '    `Host: ${hostHeader}:${config.port}\\r\\n` +\n' +
+      "    'Ntrip-Version: Ntrip/2.0\\r\\n' +\n" +
+      "    'User-Agent: NTRIP FlightCommander/3.0.7\\r\\n' +\n" +
+      "    'Accept: */*\\r\\n' +\n" +
+      "    'Cache-Control: no-cache\\r\\n' +\n" +
+      '    authorizationHeader(config) +\n' +
+      "    'Connection: close\\r\\n\\r\\n',\n" +
+      "    'ascii',\n" +
+      '  );\n' +
+      '}\n' +
+      '\n' +
+      'export function buildNtripRequest(settings = {}) {\n' +
+      '  const config = normalizeSettings(settings);\n' +
+      '  return buildRequest(config, `/${encodeURI(config.mountpoint)}`);\n' +
+      '}\n' +
+      '\n' +
+      'export function buildNtripSourcetableRequest(settings = {}) {\n' +
+      "  return buildRequest(normalizeCasterSettings(settings), '/');\n" +
+      '}\n' +
+      '\n' +
+      'export class NtripResponseDecoder {\n' +
+      '  constructor(options = {}) {\n' +
+      '    this.onHeaders = options.onHeaders ?? (() => {});\n' +
+      '    this.onData = options.onData ?? (() => {});\n' +
+      '    this.allowSourcetable = options.allowSourcetable === true;\n' +
+      '    this.buffer = Buffer.alloc(0);\n' +
+      '    this.headersComplete = false;\n' +
+      '    this.chunked = false;\n' +
+      '    this.chunkBytesRemaining = null;\n' +
+      '  }\n' +
+      '\n' +
+      '  push(value) {\n' +
+      '    const incoming = Buffer.from(value);\n' +
+      '    this.buffer = Buffer.concat([this.buffer, incoming]);\n' +
+      '    if (!this.headersComplete) {\n' +
+      '      if (this.buffer.length > MAX_HEADER_BYTES) {\n' +
+      "        throw new Error('NTRIP response headers exceed 64 KiB.');\n" +
+      '      }\n' +
+      "      const boundary = this.buffer.indexOf('\\r\\n\\r\\n');\n" +
+      '      if (boundary < 0) return;\n' +
+      "      const headerText = this.buffer.subarray(0, boundary).toString('latin1');\n" +
+      '      this.buffer = this.buffer.subarray(boundary + 4);\n' +
+      "      const lines = headerText.split('\\r\\n');\n" +
+      "      const statusLine = lines.shift() ?? '';\n" +
+      '      const match = statusLine.match(/^(?:HTTP\\/\\d(?:\\.\\d)?|ICY|SOURCETABLE)\\s+(\\d{3})\\b/i);\n' +
+      '      if (!match) {\n' +
+      "        throw new Error(`NTRIP caster returned an invalid status line: ${statusLine || '(empty)'}.`);\n" +
+      '      }\n' +
+      '      const statusCode = Number(match[1]);\n' +
+      '      if (statusCode !== 200) {\n' +
+      '        throw new Error(`NTRIP caster rejected the mountpoint with status ${statusCode}.`);\n' +
+      '      }\n' +
+      '      const headers = new Map();\n' +
+      '      for (const line of lines) {\n' +
+      "        const separator = line.indexOf(':');\n" +
+      '        if (separator <= 0) continue;\n' +
+      '        headers.set(line.slice(0, separator).trim().toLowerCase(), line.slice(separator + 1).trim());\n' +
+      '      }\n' +
+      '      if (!this.allowSourcetable && (\n' +
+      "        /sourcetable/i.test(headers.get('content-type') ?? '') ||\n" +
+      '        /^SOURCETABLE/i.test(statusLine)\n' +
+      '      )) {\n' +
+      "        throw new Error('NTRIP caster returned a sourcetable instead of the selected RTCM stream.');\n" +
+      '      }\n' +
+      "      this.chunked = /chunked/i.test(headers.get('transfer-encoding') ?? '');\n" +
+      '      this.headersComplete = true;\n' +
+      '      this.onHeaders({ statusCode, statusLine, headers, chunked: this.chunked });\n' +
+      '    }\n' +
+      '    this.flushBody();\n' +
+      '  }\n' +
+      '\n' +
+      '  flushBody() {\n' +
+      '    if (!this.headersComplete) return;\n' +
+      '    if (!this.chunked) {\n' +
+      '      if (this.buffer.length) {\n' +
+      '        const data = this.buffer;\n' +
+      '        this.buffer = Buffer.alloc(0);\n' +
+      '        this.onData(data);\n' +
+      '      }\n' +
+      '      return;\n' +
+      '    }\n' +
+      '    while (this.buffer.length) {\n' +
+      '      if (this.chunkBytesRemaining == null) {\n' +
+      "        const lineEnd = this.buffer.indexOf('\\r\\n');\n" +
+      '        if (lineEnd < 0) return;\n' +
+      "        const line = this.buffer.subarray(0, lineEnd).toString('ascii').split(';', 1)[0].trim();\n" +
+      "        if (!/^[0-9a-f]+$/i.test(line)) throw new Error('NTRIP caster sent an invalid HTTP chunk size.');\n" +
+      '        this.chunkBytesRemaining = Number.parseInt(line, 16);\n' +
+      '        this.buffer = this.buffer.subarray(lineEnd + 2);\n' +
+      '        if (this.chunkBytesRemaining === 0) {\n' +
+      '          this.buffer = Buffer.alloc(0);\n' +
+      '          return;\n' +
+      '        }\n' +
+      '      }\n' +
+      '      if (this.buffer.length < this.chunkBytesRemaining + 2) return;\n' +
+      '      const data = this.buffer.subarray(0, this.chunkBytesRemaining);\n' +
+      '      const terminator = this.buffer.subarray(this.chunkBytesRemaining, this.chunkBytesRemaining + 2);\n' +
+      '      if (terminator[0] !== 13 || terminator[1] !== 10) {\n' +
+      "        throw new Error('NTRIP HTTP chunk is missing its CRLF terminator.');\n" +
+      '      }\n' +
+      '      this.buffer = this.buffer.subarray(this.chunkBytesRemaining + 2);\n' +
+      '      this.chunkBytesRemaining = null;\n' +
+      '      if (data.length) this.onData(data);\n' +
+      '    }\n' +
+      '  }\n' +
+      '}\n' +
+      '\n' +
+      'function socketOptions(config) {\n' +
+      '  const connectionOptions = { host: config.host, port: config.port };\n' +
+      '  if (!config.tls) return connectionOptions;\n' +
+      '  return net.isIP(config.host)\n' +
+      '    ? { ...connectionOptions, rejectUnauthorized: true }\n' +
+      '    : { ...connectionOptions, servername: config.host, rejectUnauthorized: true };\n' +
+      '}\n' +
+      '\n' +
+      'export function fetchNtripSourcetable(settings = {}) {\n' +
+      '  const config = normalizeCasterSettings(settings);\n' +
+      '  return new Promise((resolve, reject) => {\n' +
+      '    let settled = false;\n' +
+      '    let headersSeen = false;\n' +
+      '    let body = Buffer.alloc(0);\n' +
+      '    let socket;\n' +
+      '    let timeout;\n' +
+      '    const finish = (error) => {\n' +
+      '      if (settled) return;\n' +
+      '      settled = true;\n' +
+      '      clearTimeout(timeout);\n' +
+      '      if (socket && !socket.destroyed) socket.destroy();\n' +
+      '      if (error) reject(error);\n' +
+      "      else resolve(body.toString('utf8'));\n" +
+      '    };\n' +
+      '    const decoder = new NtripResponseDecoder({\n' +
+      '      allowSourcetable: true,\n' +
+      '      onHeaders: () => { headersSeen = true; },\n' +
+      '      onData: (data) => {\n' +
+      '        body = Buffer.concat([body, data]);\n' +
+      '        if (body.length > MAX_SOURCETABLE_BYTES) {\n' +
+      "          finish(new Error('NTRIP sourcetable exceeds the 4 MiB safety limit.'));\n" +
+      '          return;\n' +
+      '        }\n' +
+      "        if (body.includes('ENDSOURCETABLE')) finish(null);\n" +
+      '      },\n' +
+      '    });\n' +
+      '    socket = config.tls\n' +
+      '      ? tls.connect(socketOptions(config))\n' +
+      '      : net.connect(socketOptions(config));\n' +
+      '    timeout = setTimeout(() => {\n' +
+      '      finish(new Error(`NTRIP sourcetable request timed out after ${CONNECT_TIMEOUT_MS} ms.`));\n' +
+      '    }, CONNECT_TIMEOUT_MS);\n' +
+      '    const onConnected = () => socket.write(buildNtripSourcetableRequest(config));\n' +
+      "    if (config.tls) socket.once('secureConnect', onConnected);\n" +
+      "    else socket.once('connect', onConnected);\n" +
+      "    socket.on('data', (data) => {\n" +
+      '      try {\n' +
+      '        decoder.push(data);\n' +
+      '      } catch (error) {\n' +
+      '        finish(error);\n' +
+      '      }\n' +
+      '    });\n' +
+      "    socket.on('error', (error) => finish(error));\n" +
+      "    socket.on('close', () => {\n" +
+      '      if (headersSeen && body.length) finish(null);\n' +
+      "      else finish(new Error('NTRIP caster closed before returning a sourcetable.'));\n" +
+      '    });\n' +
+      '  });\n' +
+      '}\n' +
+      '\n' +
+      'export class NtripClient {\n' +
+      '  constructor(options = {}) {\n' +
+      '    this.emit = options.emit ?? (() => {});\n' +
+      '    this.socket = null;\n' +
+      '    this.generation = 0;\n' +
+      '    this.connected = false;\n' +
+      '    this.config = null;\n' +
+      '  }\n' +
+      '\n' +
+      '  async connect(settings = {}) {\n' +
+      '    await this.close();\n' +
+      '    const config = normalizeSettings(settings);\n' +
+      '    const generation = ++this.generation;\n' +
+      '    this.config = config;\n' +
+      '    return new Promise((resolve, reject) => {\n' +
+      '      let settled = false;\n' +
+      '      const finish = (error, value) => {\n' +
+      '        if (settled) return;\n' +
+      '        settled = true;\n' +
+      '        clearTimeout(timeout);\n' +
+      '        if (error) reject(error);\n' +
+      '        else resolve(value);\n' +
+      '      };\n' +
+      '      const decoder = new NtripResponseDecoder({\n' +
+      '        onHeaders: (headers) => {\n' +
+      '          if (generation !== this.generation) return;\n' +
+      '          this.connected = true;\n' +
+      "          this.emit('status', { connected: true, ...headers });\n" +
+      '          finish(null, { error: false, ...headers });\n' +
+      '        },\n' +
+      '        onData: (data) => {\n' +
+      "          if (generation === this.generation) this.emit('data', data);\n" +
+      '        },\n' +
+      '      });\n' +
+      '      const socket = config.tls\n' +
+      '        ? tls.connect(socketOptions(config))\n' +
+      '        : net.connect(socketOptions(config));\n' +
+      '      this.socket = socket;\n' +
+      '      const timeout = setTimeout(() => {\n' +
+      '        const error = new Error(`NTRIP connection timed out after ${CONNECT_TIMEOUT_MS} ms.`);\n' +
+      '        socket.destroy(error);\n' +
+      '        finish(error);\n' +
+      '      }, CONNECT_TIMEOUT_MS);\n' +
+      '      const onConnected = () => {\n' +
+      '        if (generation !== this.generation) return;\n' +
+      '        socket.write(buildNtripRequest(config));\n' +
+      '      };\n' +
+      "      if (config.tls) socket.once('secureConnect', onConnected);\n" +
+      "      else socket.once('connect', onConnected);\n" +
+      "      socket.on('data', (data) => {\n" +
+      '        try {\n' +
+      '          decoder.push(data);\n' +
+      '        } catch (error) {\n' +
+      "          this.emit('error', { error: error.message });\n" +
+      '          socket.destroy(error);\n' +
+      '          finish(error);\n' +
+      '        }\n' +
+      '      });\n' +
+      "      socket.on('error', (error) => {\n" +
+      '        if (generation !== this.generation) return;\n' +
+      "        this.emit('error', { error: error.message });\n" +
+      '        finish(error);\n' +
+      '      });\n' +
+      "      socket.on('close', () => {\n" +
+      '        if (generation !== this.generation) return;\n' +
+      '        this.socket = null;\n' +
+      '        this.connected = false;\n' +
+      '        this.config = null;\n' +
+      "        this.emit('close', "... 1227 more characters
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: |-
+    import net from 'node:net';
+    import tls from 'node:tls';
+    
+    const MAX_HEADER_BYTES = 64 * 1024;
+    const MAX_SOURCETABLE_BYTES = 4 * 1024 * 1024;
+    const CONNECT_TIMEOUT_MS = 10000;
+    
+    function normalizeCasterSettings(settings = {}) {
+      const host = String(settings.host ?? '').trim();
+      const port = Number(settings.port ?? (settings.tls ? 443 : 2101));
+      if (!host || /^[a-z][a-z0-9+.-]*:\/\//i.test(host) || /[\/\s]/.test(host)) {
+        throw new Error('Enter an NTRIP caster host name without http:// or https://.');
+      }
+      if (!Number.isInteger(port) || port < 1 || port > 65535) {
+        throw new Error('NTRIP caster port must be from 1 through 65535.');
+      }
+      return {
+        host,
+        port,
+        tls: settings.tls === true,
+        username: String(settings.username ?? ''),
+        password: String(settings.password ?? ''),
+      };
+    }
+    
+    function normalizeSettings(settings = {}) {
+      const config = normalizeCasterSettings(settings);
+      const mountpoint = String(settings.mountpoint ?? '').trim().replace(/^\/+/, '');
+      if (!mountpoint) throw new Error('Enter an NTRIP mountpoint.');
+      return { ...config, mountpoint };
+    }
+    
+    function authorizationHeader(config) {
+      return config.username || config.password
+        ? `Authorization: Basic ${Buffer.from(`${config.username}:${config.password}`).toString('base64')}\r\n`
+        : '';
+    }
+    
+    function buildRequest(config, requestPath) {
+      const hostHeader = net.isIP(config.host) === 6 ? `[${config.host}]` : config.host;
+      return Buffer.from(
+        `GET ${requestPath} HTTP/1.1\r\n` +
+        `Host: ${hostHeader}:${config.port}\r\n` +
+        'Ntrip-Version: Ntrip/2.0\r\n' +
+        'User-Agent: NTRIP FlightCommander/3.0.7\r\n' +
+        'Accept: */*\r\n' +
+        'Cache-Control: no-cache\r\n' +
+        authorizationHeader(config) +
+        'Connection: close\r\n\r\n',
+        'ascii',
+      );
+    }
+    
+    export function buildNtripRequest(settings = {}) {
+      const config = normalizeSettings(settings);
+      return buildRequest(config, `/${encodeURI(config.mountpoint)}`);
+    }
+    
+    export function buildNtripSourcetableRequest(settings = {}) {
+      return buildRequest(normalizeCasterSettings(settings), '/');
+    }
+    
+    export class NtripResponseDecoder {
+      constructor(options = {}) {
+        this.onHeaders = options.onHeaders ?? (() => {});
+        this.onData = options.onData ?? (() => {});
+        this.allowSourcetable = options.allowSourcetable === true;
+        this.buffer = Buffer.alloc(0);
+        this.headersComplete = false;
+        this.chunked = false;
+        this.chunkBytesRemaining = null;
+      }
+    
+      push(value) {
+        const incoming = Buffer.from(value);
+        this.buffer = Buffer.concat([this.buffer, incoming]);
+        if (!this.headersComplete) {
+          if (this.buffer.length > MAX_HEADER_BYTES) {
+            throw new Error('NTRIP response headers exceed 64 KiB.');
+          }
+          const boundary = this.buffer.indexOf('\r\n\r\n');
+          if (boundary < 0) return;
+          const headerText = this.buffer.subarray(0, boundary).toString('latin1');
+          this.buffer = this.buffer.subarray(boundary + 4);
+          const lines = headerText.split('\r\n');
+          const statusLine = lines.shift() ?? '';
+          const match = statusLine.match(/^(?:HTTP\/\d(?:\.\d)?|ICY|SOURCETABLE)\s+(\d{3})\b/i);
+          if (!match) {
+            throw new Error(`NTRIP caster returned an invalid status line: ${statusLine || '(empty)'}.`);
+          }
+          const statusCode = Number(match[1]);
+          if (statusCode !== 200) {
+            throw new Error(`NTRIP caster rejected the mountpoint with status ${statusCode}.`);
+          }
+          const headers = new Map();
+          for (const line of lines) {
+            const separator = line.indexOf(':');
+            if (separator <= 0) continue;
+            headers.set(line.slice(0, separator).trim().toLowerCase(), line.slice(separator + 1).trim());
+          }
+          if (!this.allowSourcetable && (
+            /sourcetable/i.test(headers.get('content-type') ?? '') ||
+            /^SOURCETABLE/i.test(statusLine)
+          )) {
+            throw new Error('NTRIP caster returned a sourcetable instead of the selected RTCM stream.');
+          }
+          this.chunked = /chunked/i.test(headers.get('transfer-encoding') ?? '');
+          this.headersComplete = true;
+          this.onHeaders({ statusCode, statusLine, headers, chunked: this.chunked });
+        }
+        this.flushBody();
+      }
+    
+      flushBody() {
+        if (!this.headersComplete) return;
+        if (!this.chunked) {
+          if (this.buffer.length) {
+            const data = this.buffer;
+            this.buffer = Buffer.alloc(0);
+            this.onData(data);
+          }
+          return;
+        }
+        while (this.buffer.length) {
+          if (this.chunkBytesRemaining == null) {
+            const lineEnd = this.buffer.indexOf('\r\n');
+            if (lineEnd < 0) return;
+            const line = this.buffer.subarray(0, lineEnd).toString('ascii').split(';', 1)[0].trim();
+            if (!/^[0-9a-f]+$/i.test(line)) throw new Error('NTRIP caster sent an invalid HTTP chunk size.');
+            this.chunkBytesRemaining = Number.parseInt(line, 16);
+            this.buffer = this.buffer.subarray(lineEnd + 2);
+            if (this.chunkBytesRemaining === 0) {
+              this.buffer = Buffer.alloc(0);
+              return;
+            }
+          }
+          if (this.buffer.length < this.chunkBytesRemaining + 2) return;
+          const data = this.buffer.subarray(0, this.chunkBytesRemaining);
+          const terminator = this.buffer.subarray(this.chunkBytesRemaining, this.chunkBytesRemaining + 2);
+          if (terminator[0] !== 13 || terminator[1] !== 10) {
+            throw new Error('NTRIP HTTP chunk is missing its CRLF terminator.');
+          }
+          this.buffer = this.buffer.subarray(this.chunkBytesRemaining + 2);
+          this.chunkBytesRemaining = null;
+          if (data.length) this.onData(data);
+        }
+      }
+    }
+    
+    function socketOptions(config) {
+      const connectionOptions = { host: config.host, port: config.port };
+      if (!config.tls) return connectionOptions;
+      return net.isIP(config.host)
+        ? { ...connectionOptions, rejectUnauthorized: true }
+        : { ...connectionOptions, servername: config.host, rejectUnauthorized: true };
+    }
+    
+    export function fetchNtripSourcetable(settings = {}) {
+      const config = normalizeCasterSettings(settings);
+      return new Promise((resolve, reject) => {
+        let settled = false;
+        let headersSeen = false;
+        let body = Buffer.alloc(0);
+        let socket;
+        let timeout;
+        const finish = (error) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeout);
+          if (socket && !socket.destroyed) socket.destroy();
+          if (error) reject(error);
+          else resolve(body.toString('utf8'));
+        };
+        const decoder = new NtripResponseDecoder({
+          allowSourcetable: true,
+          onHeaders: () => { headersSeen = true; },
+          onData: (data) => {
+            body = Buffer.concat([body, data]);
+            if (body.length > MAX_SOURCETABLE_BYTES) {
+              finish(new Error('NTRIP sourcetable exceeds the 4 MiB safety limit.'));
+              return;
+            }
+            if (body.includes('ENDSOURCETABLE')) finish(null);
+          },
+        });
+        socket = config.tls
+          ? tls.connect(socketOptions(config))
+          : net.connect(socketOptions(config));
+        timeout = setTimeout(() => {
+          finish(new Error(`NTRIP sourcetable request timed out after ${CONNECT_TIMEOUT_MS} ms.`));
+        }, CONNECT_TIMEOUT_MS);
+        const onConnected = () => socket.write(buildNtripSourcetableRequest(config));
+        if (config.tls) socket.once('secureConnect', onConnected);
+        else socket.once('connect', onConnected);
+        socket.on('data', (data) => {
+          try {
+            decoder.push(data);
+          } catch (error) {
+            finish(error);
+          }
+        });
+        socket.on('error', (error) => finish(error));
+        socket.on('close', () => {
+          if (headersSeen && body.length) finish(null);
+          else finish(new Error('NTRIP caster closed before returning a sourcetable.'));
+        });
+      });
+    }
+    
+    export class NtripClient {
+      constructor(options = {}) {
+        this.emit = options.emit ?? (() => {});
+        this.socket = null;
+        this.generation = 0;
+        this.connected = false;
+        this.config = null;
+      }
+    
+      async connect(settings = {}) {
+        await this.close();
+        const config = normalizeSettings(settings);
+        const generation = ++this.generation;
+        this.config = config;
+        return new Promise((resolve, reject) => {
+          let settled = false;
+          const finish = (error, value) => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timeout);
+            if (error) reject(error);
+            else resolve(value);
+          };
+          const decoder = new NtripResponseDecoder({
+            onHeaders: (headers) => {
+              if (generation !== this.generation) return;
+              this.connected = true;
+              this.emit('status', { connected: true, ...headers });
+              finish(null, { error: false, ...headers });
+            },
+            onData: (data) => {
+              if (generation === this.generation) this.emit('data', data);
+            },
+          });
+          const socket = config.tls
+            ? tls.connect(socketOptions(config))
+            : net.connect(socketOptions(config));
+          this.socket = socket;
+          const timeout = setTimeout(() => {
+            const error = new Error(`NTRIP connection timed out after ${CONNECT_TIMEOUT_MS} ms.`);
+            socket.destroy(error);
+            finish(error);
+          }, CONNECT_TIMEOUT_MS);
+          const onConnected = () => {
+            if (generation !== this.generation) return;
+            socket.write(buildNtripRequest(config));
+          };
+          if (config.tls) socket.once('secureConnect', onConnected);
+          else socket.once('connect', onConnected);
+          socket.on('data', (data) => {
+            try {
+              decoder.push(data);
+            } catch (error) {
+              this.emit('error', { error: error.message });
+              socket.destroy(error);
+              finish(error);
+            }
+          });
+          socket.on('error', (error) => {
+            if (generation !== this.generation) return;
+            this.emit('error', { error: error.message });
+            finish(error);
+          });
+          socket.on('close', () => {
+            if (generation !== this.generation) return;
+            this.socket = null;
+            this.connected = false;
+            this.config = null;
+            this.emit('close', { connected: false });
+            finish(new Error('NTRIP connection closed before the stream was established.'));
+          });
+        });
+      }
+    
+      sendGga(sentence) {
+        if (!this.socket || !this.connected) {
+          return { error: true, msg: 'NTRIP stream is not connected.' };
+        }
+        const value = String(sentence ?? '').trim();
+        if (!/^\$G[A-Z]GGA,[^\r\n]*\*[0-9A-F]{2}$/i.test(value)) {
+          return { error: true, msg: 'Invalid NMEA GGA sentence.' };
+        }
+        this.socket.write(`${value}\r\n`);
+        return { error: false, bytesWritten: value.length + 2 };
+      }
+    
+      fetchSourcetable(settings = {}) {
+        return fetchNtripSourcetable(settings);
+      }
+    
+      async close() {
+        this.generation += 1;
+        const socket = this.socket;
+        this.socket = null;
+        this.connected = false;
+        this.config = null;
+        if (!socket) return { error: false };
+        return new Promise((resolve) => {
+          let settled = false;
+          const finish = () => {
+            if (settled) return;
+            settled = true;
+            resolve({ error: false });
+          };
+          socket.once('close', finish);
+          socket.end();
+          setTimeout(() => {
+            socket.destroy();
+            finish();
+          }, 1000).unref?.();
+        });
+      }
+    }
+    
+    export default NtripClient;
+    
+  operator: 'match'
+  stack: |-
+    TestContext.<anonymous> (file:///home/runner/work/Flight-Commander/Flight-Commander/tests/flight-commander/packaging/package-contract.test.mjs:388:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: documentation and support stay on Flight Commander-owned resources
+ok 182 - documentation and support stay on Flight Commander-owned resources
+  ---
+  duration_ms: 42.838932
+  type: 'test'
+  ...
+# Subtest: weighted heading fusion and moving-baseline setup are release surfaces
+ok 183 - weighted heading fusion and moving-baseline setup are release surfaces
+  ---
+  duration_ms: 1.087873
+  type: 'test'
+  ...
+# Subtest: UART RTK rover selection and per-module alignment ship in the release UI
+ok 184 - UART RTK rover selection and per-module alignment ship in the release UI
+  ---
+  duration_ms: 1.209343
+  type: 'test'
+  ...
+# Subtest: SITL presents a Flight Commander-owned operator surface
+ok 185 - SITL presents a Flight Commander-owned operator surface
+  ---
+  duration_ms: 31.900305
+  type: 'test'
+  ...
+# Subtest: application remains dark-only
+ok 186 - application remains dark-only
+  ---
+  duration_ms: 0.392672
+  type: 'test'
+  ...
+# Subtest: firmware is release-only and the flasher exposes local, online, then flash
+not ok 187 - firmware is release-only and the flasher exposes local, online, then flash
+  ---
+  duration_ms: 1.155483
+  type: 'test'
+  location: '/home/runner/work/Flight-Commander/Flight-Commander/tests/flight-commander/packaging/package-contract.test.mjs:583:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    '4.0.0' !== '3.0.7'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: '3.0.7'
+  actual: '4.0.0'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/runner/work/Flight-Commander/Flight-Commander/tests/flight-commander/packaging/package-contract.test.mjs:584:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: retired ArduPilot implementation files are absent
+ok 188 - retired ArduPilot implementation files are absent
+  ---
+  duration_ms: 0.85686
+  type: 'test'
+  ...
+# Subtest: all requested large-prop INAV presets are wired into the release source
+ok 189 - all requested large-prop INAV presets are wired into the release source
+  ---
+  duration_ms: 0.37089
+  type: 'test'
+  ...
+# Subtest: landing page reports the current Flight Commander release
+not ok 190 - landing page reports the current Flight Commander release
+  ---
+  duration_ms: 0.278362
+  type: 'test'
+  location: '/home/runner/work/Flight-Commander/Flight-Commander/tests/flight-commander/packaging/package-contract.test.mjs:692:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    '4.0.0' !== '3.0.7'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: '3.0.7'
+  actual: '4.0.0'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/runner/work/Flight-Commander/Flight-Commander/tests/flight-commander/packaging/package-contract.test.mjs:693:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: guarded push publication is tied to the current release version
+ok 191 - guarded push publication is tied to the current release version
+  ---
+  duration_ms: 0.171675
+  type: 'test'
+  ...
+# Subtest: release policy distinguishes software-only updates from firmware rebuilds
+ok 192 - release policy distinguishes software-only updates from firmware rebuilds
+  ---
+  duration_ms: 0.389908
+  type: 'test'
+  ...
+# Subtest: source-backed releases publish one complete bundle plus the online-flasher HEX
+ok 193 - source-backed releases publish one complete bundle plus the online-flasher HEX
+  ---
+  duration_ms: 0.797302
+  type: 'test'
+  ...
+# Subtest: canonical Flight Commander visual assets match the verified 1.3.5 identity
+ok 194 - canonical Flight Commander visual assets match the verified 1.3.5 identity
+  ---
+  duration_ms: 0.972902
+  type: 'test'
+  ...
+# Subtest: every active product identity path selects Flight Commander artwork
+ok 195 - every active product identity path selects Flight Commander artwork
+  ---
+  duration_ms: 0.518559
+  type: 'test'
+  ...
+# Subtest: legacy welcome art remains intact while the active theme selects dark branding
+ok 196 - legacy welcome art remains intact while the active theme selects dark branding
+  ---
+  duration_ms: 0.557697
+  type: 'test'
+  ...
+# file:///home/runner/work/Flight-Commander/Flight-Commander/scripts/check-flight-commander-version.mjs:39
+#     throw new Error(
+#           ^
+# Error: package.json must declare the exact lowercase SHA-256 of the published firmware HEX.
+#     at validateFlightCommanderVersions (file:///home/runner/work/Flight-Commander/Flight-Commander/scripts/check-flight-commander-version.mjs:39:11)
+#     at file:///home/runner/work/Flight-Commander/Flight-Commander/scripts/check-flight-commander-version.mjs:112:17
+# Node.js v22.23.1
+# Subtest: /home/runner/work/Flight-Commander/Flight-Commander/tests/flight-commander/packaging/version-contract.test.mjs
+not ok 36 - /home/runner/work/Flight-Commander/Flight-Commander/tests/flight-commander/packaging/version-contract.test.mjs
+  ---
+  duration_ms: 86.248872
+  type: 'test'
+  location: '/home/runner/work/Flight-Commander/Flight-Commander/tests/flight-commander/packaging/version-contract.test.mjs:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# Subtest: preset transaction runs controller writes sequentially and reports progress
+ok 198 - preset transaction runs controller writes sequentially and reports progress
+  ---
+  duration_ms: 7.011315
+  type: 'test'
+  ...
+# Subtest: preset preflight validates every required value before returning writable settings
+ok 199 - preset preflight validates every required value before returning writable settings
+  ---
+  duration_ms: 0.790723
+  type: 'test'
+  ...
+# Subtest: preset preflight rejects an unavailable required setting before application
+ok 200 - preset preflight rejects an unavailable required setting before application
+  ---
+  duration_ms: 0.564657
+  type: 'test'
+  ...
+# Subtest: preset preflight rejects duplicate writes and invalid encoded values
+ok 201 - preset preflight rejects duplicate writes and invalid encoded values
+  ---
+  duration_ms: 0.418821
+  type: 'test'
+  ...
+# Subtest: Keep current settings never enters control or battery profile selection
+ok 202 - Keep current settings never enters control or battery profile selection
+  ---
+  duration_ms: 1.668954
+  type: 'test'
+  ...
+# Subtest: real presets write only control profile 1 and leave profiles 2 and 3 untouched
+ok 203 - real presets write only control profile 1 and leave profiles 2 and 3 untouched
+  ---
+  duration_ms: 0.793947
+  type: 'test'
+  ...
+# Subtest: Keep current settings does not change the selected control profile
+ok 204 - Keep current settings does not change the selected control profile
+  ---
+  duration_ms: 0.42474
+  type: 'test'
+  ...
+# Subtest: every INAV 9.1 control-profile field used by presets is classified correctly
+ok 205 - every INAV 9.1 control-profile field used by presets is classified correctly
+  ---
+  duration_ms: 0.594272
+  type: 'test'
+  ...
+# Subtest: explicit command failure rejects instead of leaving the preset modal blocked
+ok 206 - explicit command failure rejects instead of leaving the preset modal blocked
+  ---
+  duration_ms: 0.724925
+  type: 'test'
+  ...
+# Subtest: a callback that never returns is bounded by an explicit timeout
+ok 207 - a callback that never returns is bounded by an explicit timeout
+  ---
+  duration_ms: 15.98586
+  type: 'test'
+  ...
+# Subtest: preset success requires a read-back match of applied_defaults
+ok 208 - preset success requires a read-back match of applied_defaults
+  ---
+  duration_ms: 0.629853
+  type: 'test'
+  ...
+# Subtest: first-run preset UI has progress, recovery, retry, and read-back contracts
+ok 209 - first-run preset UI has progress, recovery, retry, and read-back contracts
+  ---
+  duration_ms: 0.629223
+  type: 'test'
+  ...
+# Subtest: Flight Commander exposes exactly the requested large-prop INAV presets
+ok 210 - Flight Commander exposes exactly the requested large-prop INAV presets
+  ---
+  duration_ms: 2.494689
+  type: 'test'
+  ...
+# Subtest: larger props receive progressively lower bandwidth and response
+ok 211 - larger props receive progressively lower bandwidth and response
+  ---
+  duration_ms: 0.33695
+  type: 'test'
+  ...
+# Subtest: every large-prop preset writes a complete bounded INAV 9.1 EZ Tune profile
+ok 212 - every large-prop preset writes a complete bounded INAV 9.1 EZ Tune profile
+  ---
+  duration_ms: 0.491529
+  type: 'test'
+  ...
+# Subtest: calculated preset PIDs mirror the INAV 9.1 EZ Tune generator
+ok 213 - calculated preset PIDs mirror the INAV 9.1 EZ Tune generator
+  ---
+  duration_ms: 0.375717
+  type: 'test'
+  ...
+# Subtest: every multirotor prop-size preset is a complete coherent INAV 9.1 starting point
+ok 214 - every multirotor prop-size preset is a complete coherent INAV 9.1 starting point
+  ---
+  duration_ms: 0.790512
+  type: 'test'
+  ...
+# Subtest: all first-run presets exclude removed INAV settings and use canonical names
+ok 215 - all first-run presets exclude removed INAV settings and use canonical names
+  ---
+  duration_ms: 0.841408
+  type: 'test'
+  ...
+# Subtest: airframe presets select distinct INAV mixers and platform types
+ok 216 - airframe presets select distinct INAV mixers and platform types
+  ---
+  duration_ms: 0.356108
+  type: 'test'
+  ...
+# Subtest: RTK base refinement averages stable fixed samples and reports readiness
+ok 217 - RTK base refinement averages stable fixed samples and reports readiness
+  ---
+  duration_ms: 1.826388
+  type: 'test'
+  ...
+# Subtest: RTK base refinement remains unready before ten consecutive fixed samples
+ok 218 - RTK base refinement remains unready before ten consecutive fixed samples
+  ---
+  duration_ms: 0.337541
+  type: 'test'
+  ...
+# Subtest: RTK correction forwarder sends an RTCM frame in ordered MAVLink fragments
+ok 219 - RTK correction forwarder sends an RTCM frame in ordered MAVLink fragments
+  ---
+  duration_ms: 1.936211
+  type: 'test'
+  ...
+# Subtest: RTK correction forwarder bounds its queue and records transport failures
+ok 220 - RTK correction forwarder bounds its queue and records transport failures
+  ---
+  duration_ms: 0.669583
+  type: 'test'
+  ...
+# Subtest: RTK correction routing prefers an advertised Flight Commander MAVLink link
+ok 221 - RTK correction routing prefers an advertised Flight Commander MAVLink link
+  ---
+  duration_ms: 1.789002
+  type: 'test'
+  ...
+# Subtest: RTK correction routing supports wired Flight Commander MSP injection
+ok 222 - RTK correction routing supports wired Flight Commander MSP injection
+  ---
+  duration_ms: 0.25647
+  type: 'test'
+  ...
+# Subtest: Official INAV cannot receive Flight Commander GCS base corrections
+ok 223 - Official INAV cannot receive Flight Commander GCS base corrections
+  ---
+  duration_ms: 0.360695
+  type: 'test'
+  ...
+# Subtest: NTRIP GGA uses NMEA coordinates, UTC, altitude, and a valid checksum
+ok 224 - NTRIP GGA uses NMEA coordinates, UTC, altitude, and a valid checksum
+  ---
+  duration_ms: 1.49744
+  type: 'test'
+  ...
+# Subtest: NTRIP GGA rejects out-of-range coordinates
+ok 225 - NTRIP GGA rejects out-of-range coordinates
+  ---
+  duration_ms: 0.731314
+  type: 'test'
+  ...
+# Subtest: NTRIP request selects the mountpoint and uses Basic authentication
+ok 226 - NTRIP request selects the mountpoint and uses Basic authentication
+  ---
+  duration_ms: 7.611294
+  type: 'test'
+  ...
+# Subtest: NTRIP response decoder accepts an ICY stream split across chunks
+ok 227 - NTRIP response decoder accepts an ICY stream split across chunks
+  ---
+  duration_ms: 1.51767
+  type: 'test'
+  ...
+# Subtest: NTRIP response decoder de-chunks HTTP/1.1 RTCM bodies
+ok 228 - NTRIP response decoder de-chunks HTTP/1.1 RTCM bodies
+  ---
+  duration_ms: 0.607781
+  type: 'test'
+  ...
+# Subtest: NTRIP response decoder rejects authentication and mountpoint errors
+ok 229 - NTRIP response decoder rejects authentication and mountpoint errors
+  ---
+  duration_ms: 0.732165
+  type: 'test'
+  ...
+# Subtest: NTRIP sourcetable request uses the caster root without a mountpoint
+ok 230 - NTRIP sourcetable request uses the caster root without a mountpoint
+  ---
+  duration_ms: 1.685108
+  type: 'test'
+  ...
+# Subtest: NTRIP response decoder accepts a sourcetable only when requested
+ok 231 - NTRIP response decoder accepts a sourcetable only when requested
+  ---
+  duration_ms: 0.456136
+  type: 'test'
+  ...
+# Subtest: native NTRIP client discovers a caster and opens its RTCM stream
+ok 232 - native NTRIP client discovers a caster and opens its RTCM stream
+  ---
+  duration_ms: 14.778842
+  type: 'test'
+  ...
+# Subtest: RTK2go preset resolves to the native public caster endpoint
+ok 233 - RTK2go preset resolves to the native public caster endpoint
+  ---
+  duration_ms: 1.046602
+  type: 'test'
+  ...
+# Subtest: RTK2go stream connection requires its valid-email username
+ok 234 - RTK2go stream connection requires its valid-email username
+  ---
+  duration_ms: 0.692517
+  type: 'test'
+  ...
+# Subtest: NTRIP sourcetable parser exposes free RTCM stream metadata
+ok 235 - NTRIP sourcetable parser exposes free RTCM stream metadata
+  ---
+  duration_ms: 2.093053
+  type: 'test'
+  ...
+# Subtest: NTRIP mountpoints sort by distance from the surveyed base
+ok 236 - NTRIP mountpoints sort by distance from the surveyed base
+  ---
+  duration_ms: 0.618447
+  type: 'test'
+  ...
+# Subtest: RTCM3 parser validates CRC and reconstructs chunked input
+ok 237 - RTCM3 parser validates CRC and reconstructs chunked input
+  ---
+  duration_ms: 1.837554
+  type: 'test'
+  ...
+# Subtest: RTCM3 parser rejects a corrupt frame
+ok 238 - RTCM3 parser rejects a corrupt frame
+  ---
+  duration_ms: 0.271913
+  type: 'test'
+  ...
+# Subtest: MAVLink RTCM fragmentation follows the four-fragment protocol
+ok 239 - MAVLink RTCM fragmentation follows the four-fragment protocol
+  ---
+  duration_ms: 0.752395
+  type: 'test'
+  ...
+# Subtest: u-blox parser validates and reconstructs UBX frames
+ok 240 - u-blox parser validates and reconstructs UBX frames
+  ---
+  duration_ms: 1.800449
+  type: 'test'
+  ...
+# Subtest: survey-in configuration enables USB RTCM MSM7 output
+ok 241 - survey-in configuration enables USB RTCM MSM7 output
+  ---
+  duration_ms: 0.955476
+  type: 'test'
+  ...
+# Subtest: fixed base coordinates retain u-blox high-precision residuals
+ok 242 - fixed base coordinates retain u-blox high-precision residuals
+  ---
+  duration_ms: 1.678639
+  type: 'test'
+  ...
+# Subtest: u-blox MON-VER, NAV-SVIN, and ACK status decode
+ok 243 - u-blox MON-VER, NAV-SVIN, and ACK status decode
+  ---
+  duration_ms: 0.522264
+  type: 'test'
+  ...
+# Subtest: RTK workflow selection applies safe route recommendations
+ok 244 - RTK workflow selection applies safe route recommendations
+  ---
+  duration_ms: 1.238627
+  type: 'test'
+  ...
+# Subtest: direct NTRIP guidance advances from caster to aircraft to live route
+ok 245 - direct NTRIP guidance advances from caster to aircraft to live route
+  ---
+  duration_ms: 0.616875
+  type: 'test'
+  ...
+# Subtest: refined-base guidance requires survey, refinement, finalization, and aircraft in order
+ok 246 - refined-base guidance requires survey, refinement, finalization, and aircraft in order
+  ---
+  duration_ms: 0.399913
+  type: 'test'
+  ...
+# Subtest: INAV normalization preserves scale, corrects pitch, and reports native 3D fix accurately
+ok 247 - INAV normalization preserves scale, corrects pitch, and reports native 3D fix accurately
+  ---
+  duration_ms: 1.894979
+  type: 'test'
+  ...
+# Subtest: INAV normalization uses explicit connection state and fails safely on invalid values
+ok 248 - INAV normalization uses explicit connection state and fails safely on invalid values
+  ---
+  duration_ms: 0.324861
+  type: 'test'
+  ...
+# Subtest: LTM normalization keeps armed semantics and separates consumed mAh from current
+ok 249 - LTM normalization keeps armed semantics and separates consumed mAh from current
+  ---
+  duration_ms: 1.641895
+  type: 'test'
+  ...
+# Subtest: LTM supports the inherited misspelled consumption field without inventing amperage
+ok 250 - LTM supports the inherited misspelled consumption field without inventing amperage
+  ---
+  duration_ms: 0.179206
+  type: 'test'
+  ...
+# Subtest: dark stylesheet is loaded after every legacy and Flight Commander surface
+ok 251 - dark stylesheet is loaded after every legacy and Flight Commander surface
+  ---
+  duration_ms: 1.460475
+  type: 'test'
+  ...
+# Subtest: dark palette maintains readable body, secondary, disabled, warning, and action text
+ok 252 - dark palette maintains readable body, secondary, disabled, warning, and action text
+  ---
+  duration_ms: 0.906915
+  type: 'test'
+  ...
+# Subtest: contrast scrub explicitly covers every active configuration family
+ok 253 - contrast scrub explicitly covers every active configuration family
+  ---
+  duration_ms: 0.524718
+  type: 'test'
+  ...
+# Subtest: disabled fields, zebra rows, PID panels, and preset modal cannot fall back to light
+ok 254 - disabled fields, zebra rows, PID panels, and preset modal cannot fall back to light
+  ---
+  duration_ms: 0.373453
+  type: 'test'
+  ...
+# Subtest: battery and control profile fields use dark classes instead of inline light colors
+ok 255 - battery and control profile fields use dark classes instead of inline light colors
+  ---
+  duration_ms: 0.343449
+  type: 'test'
+  ...
+# Subtest: application theme normalization defaults safely to dark
+ok 256 - application theme normalization defaults safely to dark
+  ---
+  duration_ms: 1.373847
+  type: 'test'
+  ...
+# Subtest: startup replaces any legacy light preference with canonical dark
+ok 257 - startup replaces any legacy light preference with canonical dark
+  ---
+  duration_ms: 0.321877
+  type: 'test'
+  ...
+# Subtest: all theme requests persist and announce dark
+ok 258 - all theme requests persist and announce dark
+  ---
+  duration_ms: 0.264262
+  type: 'test'
+  ...
+# Subtest: dark-only header has no theme control that can overlap Connect
+ok 259 - dark-only header has no theme control that can overlap Connect
+  ---
+  duration_ms: 3.123191
+  type: 'test'
+  ...
+# Subtest: Quad X labels map motors 1-4 to the four motor circles
+ok 260 - Quad X labels map motors 1-4 to the four motor circles
+  ---
+  duration_ms: 1.49029
+  type: 'test'
+  ...
+# Subtest: Quad Plus labels center the front/rear and left/right motors
+ok 261 - Quad Plus labels center the front/rear and left/right motors
+  ---
+  duration_ms: 0.337781
+  type: 'test'
+  ...
+# Subtest: Mixer and Outputs both use the image-bound motor-number overlay
+ok 262 - Mixer and Outputs both use the image-bound motor-number overlay
+  ---
+  duration_ms: 1.959094
+  type: 'test'
+  ...
+# Subtest: INAV motor order and rotation stay aligned for Props-in and Props-out
+ok 263 - INAV motor order and rotation stay aligned for Props-in and Props-out
+  ---
+  duration_ms: 0.750903
+  type: 'test'
+  ...
+# Subtest: an empty live mixer falls back to the selected Quad X preset
+ok 264 - an empty live mixer falls back to the selected Quad X preset
+  ---
+  duration_ms: 0.218324
+  type: 'test'
+  ...
+# Subtest: the fallback renderer makes labels 1-4 visible at percentage positions
+ok 265 - the fallback renderer makes labels 1-4 visible at percentage positions
+  ---
+  duration_ms: 0.585588
+  type: 'test'
+  ...
+1..265
+# tests 318
+# suites 13
+# pass 310
+# fail 8
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1632.945481
+Flight Commander Node tests failed.
+error Command failed with exit code 1.
+info Visit https://yarnpkg.com/en/docs/cli/run for documentation about this command.

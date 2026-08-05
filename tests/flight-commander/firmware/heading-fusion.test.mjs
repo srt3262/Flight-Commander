@@ -15,7 +15,7 @@ import {
   previewWeightedHeading,
 } from '../../../js/flightCommander/headingFusion.js';
 
-const enabledCan = { gpsNodeId: 42, magNodeId: 73 };
+const enabledCan = { gpsNodeId: 42, movingRoverNodeId: 42, magNodeId: 73 };
 
 
 test('default heading priorities are unique and weights follow priority order', () => {
@@ -100,7 +100,7 @@ test('CAN compass and moving-baseline modes fail closed without assigned nodes',
   movingBaseline.movingBaselineProvider = BASELINE_PROVIDER_DRONECAN;
   assert.throws(
     () => encodeHeadingConfig(movingBaseline, { gpsNodeId: 255, magNodeId: 255 }),
-    /DroneCAN GNSS node/,
+    /moving-rover node/,
   );
 });
 

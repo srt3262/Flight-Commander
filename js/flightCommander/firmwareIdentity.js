@@ -26,6 +26,7 @@ export const FLIGHT_COMMANDER_CAPABILITIES = Object.freeze({
   GCS_RTK_BASE: 1 << 10,
   HEADING_FUSION: 1 << 11,
   MOVING_BASELINE_YAW: 1 << 12,
+  DRONECAN_MOVING_BASELINE_MANAGER: 1 << 13,
 });
 
 export const FLIGHT_COMMANDER_FEATURES = Object.freeze({
@@ -93,6 +94,11 @@ export const FLIGHT_COMMANDER_FEATURES = Object.freeze({
     capability: FLIGHT_COMMANDER_CAPABILITIES.MOVING_BASELINE_YAW,
     capabilityName: "MOVING_BASELINE_YAW",
     label: "Dual-GNSS moving-baseline yaw",
+  }),
+  dronecanMovingBaselineManager: Object.freeze({
+    capability: FLIGHT_COMMANDER_CAPABILITIES.DRONECAN_MOVING_BASELINE_MANAGER,
+    capabilityName: "DRONECAN_MOVING_BASELINE_MANAGER",
+    label: "Two-node DroneCAN moving-baseline setup manager",
   }),
 });
 

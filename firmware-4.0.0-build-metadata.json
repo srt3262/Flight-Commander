@@ -1,0 +1,9 @@
+{
+  "firmware_sha256": "8f034f1eb445260f96b8c0d6e47deb94b46d68e0a5c7a9721d0c8625dfcc5c04",
+  "firmware_bytes": 1916531,
+  "source_sha256": "bd4cb7081c7d2c13aa449f5ae5ae4cf89f6cb08e2348f03dc8389e98b7548b54",
+  "source_bytes": 5770838,
+  "source_revision": "8c5185549f62d536cefbf5d157fa18200475846a",
+  "source_tree": "4de2f8d46d1478581c48e35ef02a3cb31182198b",
+  "source_date_epoch": 1785895200
+}

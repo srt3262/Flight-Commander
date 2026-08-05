@@ -273,8 +273,8 @@ export function validateHeadingConfig(config, dronecanConfig = {}) {
     }
     if (normalized.movingBaselineEnabled
         && normalized.movingBaselineProvider === BASELINE_PROVIDER_DRONECAN
-        && Number(dronecanConfig?.gpsNodeId ?? 255) === 255) {
-        throw new RangeError('Enable a DroneCAN GNSS node before using DroneCAN moving-baseline yaw.');
+        && Number(dronecanConfig?.movingRoverNodeId ?? dronecanConfig?.gpsNodeId ?? 255) === 255) {
+        throw new RangeError('Bind a DroneCAN moving-rover node before using DroneCAN moving-baseline yaw.');
     }
     return normalized;
 }

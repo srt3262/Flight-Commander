@@ -90,6 +90,7 @@ var FC = {
     GEOZONES: null,
     DRONECAN_CONFIG: null,
     DRONECAN_STATUS: null,
+    DRONECAN_PAIR_STATUS: null,
     RTK_STATUS: null,
     DUAL_GPS_STATUS: null,
     HEADING_CONFIG: null,
@@ -256,18 +257,69 @@ var FC = {
         };
 
         this.DRONECAN_CONFIG = {
+            schema: 2,
             nodeId: 10,
             bitrate: 3,
+            navigationNodeId: 255,
             gpsNodeId: 255,
             batteryNodeId: 255,
             primaryGpsSource: 0,
-            magNodeId: 255
+            magNodeId: 255,
+            movingBaseNodeId: 255,
+            movingRoverNodeId: 255,
+            requireApPeriphIdentity: true,
+            baseTermination: 0,
+            roverTermination: 0
         };
 
         this.DRONECAN_STATUS = {
             state: 0,
             bitrateKbps: 0,
             nodes: []
+        };
+
+        this.DRONECAN_PAIR_STATUS = {
+            schema: 1,
+            state: 0,
+            progress: 0,
+            errorCode: 0,
+            activeNodeId: 0,
+            baseOnline: false,
+            roverOnline: false,
+            baseRoleVerified: false,
+            roverRoleVerified: false,
+            baseIdentityValid: false,
+            roverIdentityValid: false,
+            relativeHeadingFresh: false,
+            configured: false,
+            baseNodeId: 255,
+            roverNodeId: 255,
+            baseFixType: 0,
+            baseSatellites: 0,
+            baseAgeMs: 65535,
+            roverFixType: 0,
+            roverSatellites: 0,
+            roverAgeMs: 65535,
+            baseGpsType: -1,
+            roverGpsType: -1,
+            baseAutoConfig: -1,
+            roverAutoConfig: -1,
+            baseTermination: -1,
+            roverTermination: -1,
+            relativeHeadingCentidegrees: 0,
+            relativeAccuracyCentidegrees: 65535,
+            relativeDistanceCm: 0,
+            relativeAgeMs: 65535,
+            relativeHeadingCount: 0,
+            serviceRequestCount: 0,
+            serviceResponseCount: 0,
+            serviceTimeoutCount: 0,
+            baseSoftwareMajor: 0,
+            baseSoftwareMinor: 0,
+            roverSoftwareMajor: 0,
+            roverSoftwareMinor: 0,
+            baseName: '',
+            roverName: ''
         };
 
         this.RTK_STATUS = {

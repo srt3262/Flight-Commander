@@ -1,0 +1,62 @@
+name: Fix and diagnose Flight Commander 4.0.0 validation
+
+"on":
+  push:
+    branches:
+      - develop/4.0.0-holybro-moving-baseline
+    paths:
+      - .github/workflows/fix-and-diagnose-flight-commander-4.0.0.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix-windows-workflow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: develop/4.0.0-holybro-moving-baseline
+          fetch-depth: 1
+      - name: Correct PowerShell file-copy syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('.github/workflows/pr-package-flight-commander-4.0.0-windows.yml')
+          text = path.read_text(encoding='utf-8')
+          old_firmware = '''          Copy-Item \\
+            (Join-Path $PWD "release/firmware/Flight-Commander-Firmware-$version-MICOAIR743.hex") \\
+            (Join-Path $components "FC-Firmware-v$version-MICOAIR743.hex")
+'''
+          new_firmware = '''          Copy-Item -Path (Join-Path $PWD "release/firmware/Flight-Commander-Firmware-$version-MICOAIR743.hex") -Destination (Join-Path $components "FC-Firmware-v$version-MICOAIR743.hex")
+'''
+          old_source = '''          Copy-Item \\
+            (Join-Path $PWD "release/firmware/Flight-Commander-Firmware-Source-v$version.zip") \\
+            (Join-Path $components "FC-Firmware-Source-v$version.zip")
+'''
+          new_source = '''          Copy-Item -Path (Join-Path $PWD "release/firmware/Flight-Commander-Firmware-Source-v$version.zip") -Destination (Join-Path $components "FC-Firmware-Source-v$version.zip")
+'''
+          for old, new, label in [
+              (old_firmware, new_firmware, 'firmware HEX copy'),
+              (old_source, new_source, 'firmware source copy'),
+          ]:
+              if old in text:
+                  text = text.replace(old, new, 1)
+              elif new not in text:
+                  raise SystemExit(f'Could not locate {label} block')
+          path.write_text(text, encoding='utf-8')
+          PY
+          rm .github/workflows/fix-and-diagnose-flight-commander-4.0.0.yml
+      - name: Commit corrected Windows packaging workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m 'Fix Flight Commander 4.0.0 Windows packaging syntax'
+          git push origin HEAD:develop/4.0.0-holybro-moving-baseline
