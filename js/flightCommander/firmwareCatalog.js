@@ -43,15 +43,18 @@ export function normalizeFirmwareTarget(value) {
   return target?.id ?? normalized;
 }
 
+function knownFirmwareTarget(value) {
+  const normalized = normalizeFirmwareTarget(value);
+  return FLIGHT_COMMANDER_FIRMWARE_TARGETS.find(({ id }) => id === normalized) ?? null;
+}
+
 export function parseFlightCommanderFirmwareFilename(filename) {
   const match = /^Flight-Commander-Firmware-(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)-(MICOAIR743|MICROAIR743)(-BENCH-ONLY)?\.hex$/i.exec(
     String(filename ?? "").trim(),
   );
   if (!match) return null;
   const targetId = normalizeFirmwareTarget(match[2]);
-  const knownTarget = FLIGHT_COMMANDER_FIRMWARE_TARGETS.find(
-    ({ id }) => id === targetId,
-  );
+  const knownTarget = knownFirmwareTarget(targetId);
   if (!knownTarget) return null;
   return Object.freeze({
     family: "flight-commander",
@@ -162,16 +165,17 @@ export function catalogByTarget(descriptors = []) {
   return catalog;
 }
 
-export function parsedHexContainsFlightCommanderIdentity(parsedHex) {
+function parsedHexContainsBytes(parsedHex, expectedBytes) {
+  if (!expectedBytes?.length) return false;
   for (const block of parsedHex?.data ?? []) {
     const bytes = block?.data ?? [];
     for (
       let index = 0;
-      index <= bytes.length - FLIGHT_COMMANDER_MARKER.length;
+      index <= bytes.length - expectedBytes.length;
       index += 1
     ) {
       if (
-        FLIGHT_COMMANDER_MARKER.every(
+        expectedBytes.every(
           (expected, offset) => bytes[index + offset] === expected,
         )
       ) {
@@ -180,4 +184,53 @@ export function parsedHexContainsFlightCommanderIdentity(parsedHex) {
     }
   }
   return false;
+}
+
+function asciiBytes(value) {
+  return Array.from(String(value), (character) => character.charCodeAt(0));
+}
+
+export function parsedHexContainsFlightCommanderIdentity(parsedHex) {
+  return parsedHexContainsBytes(parsedHex, FLIGHT_COMMANDER_MARKER);
+}
+
+export function inferFlightCommanderFirmwareTarget(parsedHex) {
+  for (const target of FLIGHT_COMMANDER_FIRMWARE_TARGETS) {
+    for (const token of [target.id, ...target.aliases]) {
+      if (parsedHexContainsBytes(parsedHex, asciiBytes(token))) {
+        return target.id;
+      }
+    }
+  }
+  return null;
+}
+
+export function localFlightCommanderFirmwareDescriptor(
+  parsedHex,
+  { filename = "", selectedTarget = "" } = {},
+) {
+  const parsedFilename = parseFlightCommanderFirmwareFilename(filename);
+  const embeddedTarget = knownFirmwareTarget(
+    inferFlightCommanderFirmwareTarget(parsedHex),
+  );
+  const selected = knownFirmwareTarget(selectedTarget);
+  const filenameTarget = knownFirmwareTarget(parsedFilename?.target_id);
+  const target = embeddedTarget || selected || filenameTarget;
+  if (!target) return null;
+
+  return Object.freeze({
+    family: "flight-commander",
+    version: parsedFilename?.version ?? null,
+    target_id: target.id,
+    target: target.name,
+    format: "hex",
+    benchOnly: parsedFilename?.benchOnly ?? false,
+    local: true,
+    file: String(filename ?? ""),
+    targetEvidence: embeddedTarget
+      ? "firmware-content"
+      : selected
+        ? "selected-target"
+        : "filename-hint",
+  });
 }

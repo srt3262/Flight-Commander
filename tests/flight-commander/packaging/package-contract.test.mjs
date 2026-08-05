@@ -30,7 +30,7 @@ const releaseWorkflow = readFileSync(
   "utf8",
 );
 const releaseOrchestrator = readFileSync(
-  resolve(projectRoot, ".github/workflows/release-4.0.1-orchestrator.yml"),
+  resolve(projectRoot, ".github/workflows/publish-flight-commander-beta.yml"),
   "utf8",
 );
 const firmwareRebuildScript = readFileSync(
@@ -581,13 +581,13 @@ test("application remains dark-only", () => {
 });
 
 test("firmware is release-only and the flasher exposes local, online, then flash", () => {
-  assert.equal(packageManifest.flightCommander.firmwareReleaseVersion, "4.0.1");
+  assert.equal(packageManifest.flightCommander.firmwareReleaseVersion, "4.0.2");
   assert.equal(packageManifest.flightCommander.firmwareChangedInRelease, true);
   assert.equal(packageManifest.flightCommander.firmwareSourceAvailable, true);
-  assert.equal(packageManifest.flightCommander.firmwareSourceVersion, "4.0.1");
+  assert.equal(packageManifest.flightCommander.firmwareSourceVersion, "4.0.2");
   assert.equal(
     packageManifest.flightCommander.firmwareSourceArchive,
-    "release/firmware/Flight-Commander-Firmware-Source-v4.0.1.zip",
+    "release/firmware/Flight-Commander-Firmware-Source-v4.0.2.zip",
   );
   const releaseFirmwareIsPresent = existsSync(firmwareReleasePath);
   const releaseSourceIsPresent = existsSync(firmwareSourcePath);
@@ -690,7 +690,7 @@ test("all requested large-prop INAV presets are wired into the release source", 
 });
 
 test("landing page reports the current Flight Commander release", () => {
-  assert.equal(packageManifest.version, "4.0.1");
+  assert.equal(packageManifest.version, "4.0.2");
   assert.equal(manifest.version, packageManifest.version);
   assert.match(
     landingHtml,
@@ -698,9 +698,10 @@ test("landing page reports the current Flight Commander release", () => {
   );
 });
 
-test("guarded push publication is tied to the current release version", () => {
-  assert.match(releaseOrchestrator, /Publish Flight Commander 4\.0\.1 release/);
-  assert.match(releaseOrchestrator, /gh workflow run release\.yml/);
+test("guarded beta publication is tied to the current release version", () => {
+  assert.match(releaseOrchestrator, /name: Publish Flight Commander beta release/);
+  assert.match(releaseOrchestrator, /gh release create/);
+  assert.match(releaseOrchestrator, /--prerelease/);
 });
 
 test("release policy distinguishes software-only updates from firmware rebuilds", () => {
@@ -794,8 +795,8 @@ test("source-backed releases publish one complete bundle plus the online-flasher
     /\$releaseAssetPaths = @\(\$completeBundlePath, \$onlineFirmwarePath\)/,
   );
   assert.match(releaseWorkflow, /Published online-flasher firmware asset/);
-  assert.match(releaseOrchestrator, /Remove every standalone Flight Commander firmware asset older than 4\.0\.0/);
-  assert.match(releaseOrchestrator, /Superseded firmware remains after cleanup/);
+  assert.match(releaseOrchestrator, /The beta candidate does not contain exactly the four canonical components/);
+  assert.match(releaseOrchestrator, /Complete beta ZIP contains exactly four byte-matched components/);
   assert.match(releaseWorkflow, /must contain exactly the four canonical release files/);
   assert.doesNotMatch(releaseWorkflow, /Firmware-Package|firmwarePackageDirectory/);
 });
