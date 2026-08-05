@@ -1,0 +1,161 @@
+name: Prepare Flight Commander 4.0.1 release tree
+
+"on":
+  push:
+    branches:
+      - agent/fix-4.0.1-onboard-compass-transform
+    paths:
+      - .github/workflows/prepare-flight-commander-4.0.1-release-tree.yml
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  prepare-release-tree:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/fix-4.0.1-onboard-compass-transform
+          fetch-depth: 0
+
+      - name: Download strictly verified 4.0.1 firmware payload
+        uses: actions/download-artifact@v4
+        with:
+          name: flight-commander-4.0.1-firmware-payload
+          path: ${{ runner.temp }}/firmware-payload
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: 31014386005
+
+      - name: Coordinate source, tests, workflows, and release files
+        env:
+          PAYLOAD_DIR: ${{ runner.temp }}/firmware-payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib, json, os, shutil
+
+          root = Path.cwd()
+          payload = Path(os.environ['PAYLOAD_DIR'])
+          metadata = json.loads((payload / 'firmware-metadata.json').read_text())
+          assert metadata['version'] == '4.0.1'
+          hex_file = payload / 'Flight-Commander-Firmware-4.0.1-MICOAIR743.hex'
+          source_file = payload / 'Flight-Commander-Firmware-Source-v4.0.1.zip'
+          assert hashlib.sha256(hex_file.read_bytes()).hexdigest() == metadata['firmware_sha256']
+          assert hashlib.sha256(source_file.read_bytes()).hexdigest() == metadata['source_sha256']
+
+          package_path = root / 'package.json'
+          package = json.loads(package_path.read_text())
+          package['version'] = '4.0.1'
+          fc = package['flightCommander']
+          fc.update({
+              'firmwareMajor': 4,
+              'firmwareReleaseVersion': '4.0.1',
+              'firmwareReleaseSha256': metadata['firmware_sha256'],
+              'firmwareChangedInRelease': True,
+              'firmwareSourceAvailable': True,
+              'firmwareSourceVersion': '4.0.1',
+              'firmwareSourceArchive': 'release/firmware/Flight-Commander-Firmware-Source-v4.0.1.zip',
+              'firmwareSourceSha256': metadata['source_sha256'],
+              'firmwareSourceRevision': metadata['source_revision'],
+              'firmwareSourceTree': metadata['source_tree'],
+          })
+          package_path.write_text(json.dumps(package, indent=2) + '\n')
+
+          manifest_path = root / 'manifest.json'
+          manifest = json.loads(manifest_path.read_text())
+          manifest['version'] = '4.0.1'
+          manifest_path.write_text(json.dumps(manifest, indent=2) + '\n')
+
+          def replace(path, old, new, count=None):
+              p = root / path
+              text = p.read_text()
+              if old not in text:
+                  raise SystemExit(f'missing expected text in {path}: {old}')
+              text = text.replace(old, new, -1 if count is None else count)
+              p.write_text(text)
+
+          replace('js/main/ntripClient.js', 'NTRIP FlightCommander/4.0.0', 'NTRIP FlightCommander/4.0.1')
+          replace('tabs/landing.html', 'Flight Commander 4.0.0', 'Flight Commander 4.0.1')
+
+          contract = root / 'tests/flight-commander/packaging/package-contract.test.mjs'
+          text = contract.read_text()
+          replacements = {
+              'release-4.0.0-orchestrator.yml': 'release-4.0.1-orchestrator.yml',
+              'assert.equal(packageManifest.flightCommander.firmwareReleaseVersion, "4.0.0");': 'assert.equal(packageManifest.flightCommander.firmwareReleaseVersion, "4.0.1");',
+              'assert.equal(packageManifest.flightCommander.firmwareSourceVersion, "4.0.0");': 'assert.equal(packageManifest.flightCommander.firmwareSourceVersion, "4.0.1");',
+              '"release/firmware/Flight-Commander-Firmware-Source-v4.0.0.zip",': '"release/firmware/Flight-Commander-Firmware-Source-v4.0.1.zip",',
+              'assert.equal(packageManifest.version, "4.0.0");': 'assert.equal(packageManifest.version, "4.0.1");',
+              '/Publish Flight Commander 4\\.0\\.0 release/': '/Publish Flight Commander 4\\.0\\.1 release/',
+          }
+          for old, new in replacements.items():
+              if old not in text:
+                  raise SystemExit(f'missing package contract text: {old}')
+              text = text.replace(old, new)
+          contract.write_text(text)
+
+          onboard = root / 'tests/flight-commander/firmware/onboard-ist8310-transform-4.0.1.test.mjs'
+          onboard.write_text("""import assert from 'node:assert/strict';
+          import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+          import { tmpdir } from 'node:os';
+          import { dirname, join, resolve } from 'node:path';
+          import { spawnSync } from 'node:child_process';
+          import { after, test } from 'node:test';
+          import { fileURLToPath } from 'node:url';
+
+          const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
+          const output = mkdtempSync(join(tmpdir(), 'flight-commander-4.0.1-compass-'));
+          const python = process.env.PYTHON || (process.platform === 'win32' ? 'python' : 'python3');
+          const archive = join(projectRoot, 'release/firmware/Flight-Commander-Firmware-Source-v4.0.1.zip');
+          const result = spawnSync(python, ['-c', 'import sys,zipfile; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])', archive, output], { encoding: 'utf8' });
+          assert.equal(result.status, 0, `4.0.1 source extraction failed:\n${result.stdout}\n${result.stderr}`);
+          const driver = readFileSync(join(output, 'Flight-Commander-Firmware-Source-v4.0.1', 'src/main/drivers/compass/compass_ist8310.c'), 'utf8');
+          const guarded = driver.split('#if defined(FLIGHT_COMMANDER_MICOAIR743_ONBOARD_IST8310)', 2)[1].split('#endif', 1)[0];
+          after(() => rmSync(output, { recursive: true, force: true }));
+          test('4.0.1 restores the accepted MICOAIR743 onboard IST8310 signed permutation', () => {
+            assert.match(guarded, /if \\(mag->magSensorToUse == 0\\)/);
+            assert.match(guarded, /mag->magADCRaw\\[X\\] = -nativeY \\* IST8310_LSB_TO_MILLIGAUSS;/);
+            assert.match(guarded, /mag->magADCRaw\\[Y\\] = -nativeX \\* IST8310_LSB_TO_MILLIGAUSS;/);
+            assert.match(guarded, /mag->magADCRaw\\[Z\\] =  nativeZ \\* IST8310_LSB_TO_MILLIGAUSS;/);
+          });
+          test('4.0.1 no longer gates the onboard transform on mutable bus identity fields', () => assert.doesNotMatch(guarded, /busType ==|i2cBus ==|address ==/));
+          test('external tagged IST8310 devices retain the generic conversion path', () => {
+            const generic = driver.split('#endif', 2)[1];
+            assert.match(generic, /mag->magADCRaw\\[X\\] =  nativeX \\* IST8310_LSB_TO_MILLIGAUSS;/);
+            assert.match(generic, /mag->magADCRaw\\[Y\\] = -nativeY \\* IST8310_LSB_TO_MILLIGAUSS;/);
+            assert.match(generic, /mag->magADCRaw\\[Z\\] =  nativeZ \\* IST8310_LSB_TO_MILLIGAUSS;/);
+          });
+          """)
+
+          build = root / '.github/workflows/build-flight-commander-4.0.1-compass-fix.yml'
+          build_text = build.read_text()
+          baseline = """          $baselineArchive = Join-Path $env:RUNNER_TEMP 'Flight-Commander-Firmware-Source-v4.0.0.zip'\n          Copy-Item -LiteralPath (Join-Path $PWD 'release/firmware/Flight-Commander-Firmware-Source-v4.0.0.zip') -Destination $baselineArchive -Force\n          \"FLIGHT_COMMANDER_400_SOURCE_ARCHIVE=$baselineArchive\" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8\n\n"""
+          if baseline not in build_text:
+              raise SystemExit('baseline handoff block missing from build workflow')
+          build.write_text(build_text.replace(baseline, ''))
+
+          release_dir = root / 'release/firmware'
+          for item in release_dir.iterdir():
+              if item.is_file(): item.unlink()
+          shutil.copy2(hex_file, release_dir / hex_file.name)
+          shutil.copy2(source_file, release_dir / source_file.name)
+
+          rerun = root / '.github/workflows/package-flight-commander-4.0.1-compass-fix-rerun.yml'
+          if rerun.exists(): rerun.unlink()
+          PY
+
+      - name: Commit coordinated 4.0.1 release tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --stat
+          git commit -m 'Prepare Flight Commander 4.0.1 release tree'
+          git push origin HEAD:agent/fix-4.0.1-onboard-compass-transform
