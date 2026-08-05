@@ -1,0 +1,138 @@
+name: Validate Flight Commander 4.0.0 firmware
+
+"on":
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/pr-validate-flight-commander-4.0.0.yml
+      - scripts/prepare-flight-commander-firmware-4.0.0.py
+      - scripts/finalize-flight-commander-4.0.0-contracts.py
+      - js/**
+      - tabs/**
+      - tests/**
+      - package.json
+      - manifest.json
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flight-commander-4.0.0-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+
+      - name: Finalize coordinated source contracts
+        shell: bash
+        run: python3 scripts/finalize-flight-commander-4.0.0-contracts.py
+
+      - name: Install build prerequisites
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build curl xz-utils unzip zip python3
+
+      - name: Install Arm GNU Toolchain 13.2.1
+        shell: bash
+        run: |
+          set -euo pipefail
+          release=arm-gnu-toolchain-13.2.Rel1-x86_64-arm-none-eabi
+          archive=arm-gnu-toolchain-13.2.rel1-x86_64-arm-none-eabi.tar.xz
+          expected=6cd1bbc1d9ae57312bcd169ae283153a9572bd6a8e4eeae2fedfbc33b115fdbb
+          url="https://developer.arm.com/-/media/Files/downloads/gnu/13.2.rel1/binrel/$archive"
+          mkdir -p "$RUNNER_TEMP/toolchain"
+          curl --fail --location --retry 3 --output "$RUNNER_TEMP/toolchain/$archive" "$url"
+          printf '%s  %s\n' "$expected" "$RUNNER_TEMP/toolchain/$archive" | sha256sum --check --strict
+          tar -xJf "$RUNNER_TEMP/toolchain/$archive" -C "$RUNNER_TEMP/toolchain"
+          echo "$RUNNER_TEMP/toolchain/$release/bin" >> "$GITHUB_PATH"
+
+      - name: Prepare Flight Commander Firmware 4.0.0 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/prepare-flight-commander-firmware-4.0.0.py \
+            --archive release/firmware/Flight-Commander-Firmware-Source-v3.0.7.zip \
+            --output "$RUNNER_TEMP/flight-commander-firmware-4.0.0" \
+            | tee firmware-4.0.0-pr-validation.log
+
+      - name: Compile and verify MICOAIR743 firmware
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/flight-commander-firmware-4.0.0/Flight-Commander-Firmware-Source-v4.0.0"
+          build="$RUNNER_TEMP/build-flight-commander-4.0.0"
+          echo "Compiler: $(arm-none-eabi-gcc -dumpfullversion -dumpversion)" | tee -a firmware-4.0.0-pr-validation.log
+          bash "$root/flight-commander/build-micoair743.sh" "$build" \
+            2>&1 | tee -a firmware-4.0.0-pr-validation.log
+          install -m 0644 \
+            "$build/Flight-Commander-Firmware-4.0.0-MICOAIR743.hex" \
+            Flight-Commander-Firmware-4.0.0-MICOAIR743.hex
+
+      - name: Create deterministic firmware source archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/flight-commander-firmware-4.0.0/Flight-Commander-Firmware-Source-v4.0.0"
+          python3 - "$root" Flight-Commander-Firmware-Source-v4.0.0.zip <<'PY'
+          import json
+          import stat
+          import sys
+          import time
+          import zipfile
+          from pathlib import Path
+
+          root = Path(sys.argv[1])
+          output = Path(sys.argv[2])
+          manifest = json.loads((root / 'RELEASE-MANIFEST.json').read_text(encoding='utf-8'))
+          stamp = time.gmtime(manifest['source_date_epoch'])[:6]
+          with zipfile.ZipFile(output, 'w', compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
+              for path in sorted(root.rglob('*')):
+                  if not path.is_file():
+                      continue
+                  relative = Path(root.name) / path.relative_to(root)
+                  info = zipfile.ZipInfo(relative.as_posix(), stamp)
+                  info.create_system = 3
+                  mode = 0o755 if path.suffix in {'.sh', '.py'} else 0o644
+                  info.external_attr = (stat.S_IFREG | mode) << 16
+                  info.compress_type = zipfile.ZIP_DEFLATED
+                  archive.writestr(info, path.read_bytes(), compress_type=zipfile.ZIP_DEFLATED, compresslevel=9)
+          PY
+          sha256sum Flight-Commander-Firmware-4.0.0-MICOAIR743.hex \
+            Flight-Commander-Firmware-Source-v4.0.0.zip \
+            | tee firmware-4.0.0-pr-validation.sha256
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: yarn
+
+      - name: Run Flight Commander source tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          corepack enable
+          yarn install --frozen-lockfile
+          yarn test:flight-commander 2>&1 | tee configurator-4.0.0-pr-validation.log
+
+      - name: Upload validation outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: flight-commander-4.0.0-pr-validation
+          if-no-files-found: warn
+          retention-days: 7
+          path: |
+            Flight-Commander-Firmware-4.0.0-MICOAIR743.hex
+            Flight-Commander-Firmware-Source-v4.0.0.zip
+            firmware-4.0.0-pr-validation.log
+            firmware-4.0.0-pr-validation.sha256
+            configurator-4.0.0-pr-validation.log
