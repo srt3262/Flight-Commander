@@ -6,6 +6,7 @@ name: Build Flight Commander Firmware 4.0.0
       - develop/4.0.0-holybro-moving-baseline
     paths:
       - scripts/prepare-flight-commander-firmware-4.0.0.py
+      - scripts/finalize-flight-commander-4.0.0-contracts.py
       - .github/workflows/build-flight-commander-firmware-4.0.0.yml
   workflow_dispatch:
 
@@ -14,7 +15,7 @@ permissions:
 
 concurrency:
   group: flight-commander-4.0.0-firmware-build
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -26,54 +27,17 @@ jobs:
           ref: develop/4.0.0-holybro-moving-baseline
           fetch-depth: 1
 
+      - name: Finalize coordinated 4.0.0 source contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/finalize-flight-commander-4.0.0-contracts.py
+
       - name: Install build prerequisites
         shell: bash
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake ninja-build curl xz-utils unzip zip python3
-
-      - name: Correct and prepare the 4.0.0 source builder
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          from pathlib import Path
-
-          path = Path('scripts/prepare-flight-commander-firmware-4.0.0.py')
-          text = path.read_text(encoding='utf-8')
-          old = '''    if "bool dronecanSendServiceRequest(" not in value:
-                  value = value.replace("\\n#endif\\n", append + "\\n#endif\\n")
-                  path.write_text(value, encoding="utf-8")
-          '''
-          new = '''    if "bool dronecanSendServiceRequest(" not in value:
-                  marker = "\\n#endif\\n"
-                  insertion = value.rfind(marker)
-                  if insertion < 0:
-                      raise RuntimeError("dronecan.c has no final preprocessor terminator")
-                  value = value[:insertion] + append + value[insertion:]
-                  path.write_text(value, encoding="utf-8")
-          '''
-          if old in text:
-              text = text.replace(old, new, 1)
-          elif new not in text:
-              raise SystemExit('Unable to correct final dronecan.c insertion logic')
-
-          forward_target = '''#include "drivers/dronecan/libcanard/canard.h"
-
-#define DRONECAN_PAIR_STATUS_SCHEMA 1
-          '''
-          forward_value = '''#include "drivers/dronecan/libcanard/canard.h"
-
-struct ardupilot_gnss_RelPosHeading;
-
-#define DRONECAN_PAIR_STATUS_SCHEMA 1
-          '''
-          if forward_target in text:
-              text = text.replace(forward_target, forward_value, 1)
-          elif forward_value not in text:
-              raise SystemExit('Unable to add the RelPosHeading forward declaration')
-          path.write_text(text, encoding='utf-8')
-          PY
 
       - name: Install Arm GNU Toolchain 13.2.1
         shell: bash
@@ -95,7 +59,7 @@ struct ardupilot_gnss_RelPosHeading;
         run: |
           set +e
           : > firmware-4.0.0-build.log
-          rm -f firmware-4.0.0-build.status firmware-4.0.0-build-metadata.json
+          rm -f firmware-4.0.0-build.status firmware-4.0.0-build-metadata.json firmware-4.0.0-tests.status
           python3 scripts/prepare-flight-commander-firmware-4.0.0.py \
             --archive release/firmware/Flight-Commander-Firmware-Source-v3.0.7.zip \
             --output "$RUNNER_TEMP/flight-commander-firmware-4.0.0" \
@@ -197,7 +161,6 @@ struct ardupilot_gnss_RelPosHeading;
           set -euo pipefail
           python3 - <<'PY'
           import json
-          import re
           from pathlib import Path
 
           metadata = json.loads(Path('firmware-4.0.0-build-metadata.json').read_text(encoding='utf-8'))
@@ -223,16 +186,6 @@ struct ardupilot_gnss_RelPosHeading;
           manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
           manifest['version'] = '4.0.0'
           manifest_path.write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
-
-          replacements = {
-              Path('tabs/landing.html'): [('Flight Commander 3.0.7', 'Flight Commander 4.0.0')],
-              Path('js/main/ntripClient.js'): [('NTRIP FlightCommander/3.0.7', 'NTRIP FlightCommander/4.0.0')],
-          }
-          for path, values in replacements.items():
-              text = path.read_text(encoding='utf-8')
-              for old, new in values:
-                  text = text.replace(old, new)
-              path.write_text(text, encoding='utf-8')
           PY
 
       - uses: actions/setup-node@v4
