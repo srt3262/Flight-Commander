@@ -8,6 +8,13 @@ name: Build Flight Commander 4.0.1 compass-fix bench bundle
       - scripts/prepare-flight-commander-firmware-4.0.1.py
       - tests/flight-commander/firmware/onboard-ist8310-transform-4.0.1.test.mjs
       - .github/workflows/build-flight-commander-4.0.1-compass-fix.yml
+  pull_request:
+    branches:
+      - main
+    paths:
+      - scripts/prepare-flight-commander-firmware-4.0.1.py
+      - tests/flight-commander/firmware/onboard-ist8310-transform-4.0.1.test.mjs
+      - .github/workflows/build-flight-commander-4.0.1-compass-fix.yml
   workflow_dispatch:
 
 permissions:
