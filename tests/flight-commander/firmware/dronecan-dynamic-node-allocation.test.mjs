@@ -32,9 +32,10 @@ test('coordinated build applies allocation before source identity and compilatio
   assert.ok(compiler > manifestRefresh, 'firmware must compile only after the final source identity is known');
 });
 
-test('pull-request validation rebuilds the exact published firmware source archive', () => {
-  const workflow = read('.github/workflows/pr-validate-flight-commander-4.0.0.yml');
+test('permanent pull-request CI rebuilds the exact published firmware source archive', () => {
+  const workflow = read('.github/workflows/ci.yml');
 
+  assert.match(workflow, /name: Rebuild firmware from published source ZIP/);
   assert.match(workflow, /bash scripts\/rebuild-firmware-source-archive\.sh/);
-  assert.match(workflow, /yarn test/);
+  assert.match(workflow, /run: yarn test/);
 });
