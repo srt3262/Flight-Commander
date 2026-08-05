@@ -1,0 +1,191 @@
+name: Retire every pre-3.0.7 Flight Commander firmware bundle
+
+"on":
+  push:
+    branches:
+      - agent/retire-pre-3.0.7-firmware-bundles
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: retire-pre-3.0.7-flight-commander-firmware-bundles
+  cancel-in-progress: false
+
+jobs:
+  retire:
+    name: Remove old firmware wherever it is packaged
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Enumerate and delete pre-3.0.7 firmware-bearing assets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/retirement"
+          : > "$RUNNER_TEMP/retirement/assets.tsv"
+          page=1
+          while true; do
+            release_json="$RUNNER_TEMP/retirement/releases-$page.json"
+            gh api "/repos/$GITHUB_REPOSITORY/releases?per_page=100&page=$page" > "$release_json"
+            count="$(jq 'length' "$release_json")"
+            if [[ "$count" -eq 0 ]]; then break; fi
+            jq -r '.[] | .assets[]? | [.id, .name, .browser_download_url] | @tsv' \
+              "$release_json" >> "$RUNNER_TEMP/retirement/assets.tsv"
+            if [[ "$count" -lt 100 ]]; then break; fi
+            page=$((page + 1))
+          done
+
+          python3 - "$RUNNER_TEMP/retirement/assets.tsv" \
+            "$RUNNER_TEMP/retirement/delete.tsv" \
+            "$RUNNER_TEMP/retirement/plan.json" <<'PY'
+          from pathlib import Path
+          import json
+          import re
+          import sys
+
+          source = Path(sys.argv[1])
+          delete_path = Path(sys.argv[2])
+          report_path = Path(sys.argv[3])
+          minimum = (3, 0, 7)
+          patterns = (
+              # Complete historical package: contains Configurator, Configurator
+              # source, firmware HEX, and firmware source, so it is itself a
+              # firmware-bearing release asset and must be retired.
+              ("complete_bundle", re.compile(r'^Flight-Commander-v(\d+)\.(\d+)\.(\d+)\.zip$', re.I)),
+              ("online_firmware", re.compile(r'^Flight-Commander-Firmware-(\d+)\.(\d+)\.(\d+)-.+\.(?:hex|bin)$', re.I)),
+              ("packaged_firmware", re.compile(r'^FC-Firmware-v(\d+)\.(\d+)\.(\d+)-.+\.(?:hex|bin)$', re.I)),
+              ("firmware_source", re.compile(r'^Flight-Commander-Firmware-Source-v(\d+)\.(\d+)\.(\d+)\.zip$', re.I)),
+              ("packaged_firmware_source", re.compile(r'^FC-Firmware-Source-v(\d+)\.(\d+)\.(\d+)\.zip$', re.I)),
+          )
+          delete = []
+          retained = []
+          for line in source.read_text(encoding='utf-8').splitlines():
+              asset_id, name, url = line.split('\t', 2)
+              matched = False
+              for category, pattern in patterns:
+                  match = pattern.match(name)
+                  if not match:
+                      continue
+                  matched = True
+                  version = tuple(map(int, match.groups()))
+                  entry = {
+                      'id': int(asset_id),
+                      'name': name,
+                      'url': url,
+                      'category': category,
+                      'version': '.'.join(map(str, version)),
+                  }
+                  if version < minimum:
+                      delete.append(entry)
+                  else:
+                      retained.append(entry)
+                  break
+              if not matched:
+                  retained.append({'id': int(asset_id), 'name': name, 'url': url, 'category': 'non_firmware_asset'})
+          delete_path.write_text(
+              ''.join(f"{item['id']}\t{item['name']}\n" for item in delete),
+              encoding='utf-8',
+          )
+          report_path.write_text(
+              json.dumps({
+                  'minimum_supported_firmware': '3.0.7',
+                  'assets_to_delete': delete,
+                  'assets_to_retain': retained,
+              }, indent=2) + '\n',
+              encoding='utf-8',
+          )
+          print(json.dumps({'assets_to_delete': delete}, indent=2))
+          PY
+
+          while IFS=$'\t' read -r asset_id asset_name; do
+            [[ -n "$asset_id" ]] || continue
+            echo "Deleting pre-3.0.7 firmware-bearing asset: $asset_name"
+            gh api --method DELETE \
+              -H 'Accept: application/vnd.github+json' \
+              -H 'X-GitHub-Api-Version: 2022-11-28' \
+              "/repos/$GITHUB_REPOSITORY/releases/assets/$asset_id"
+          done < "$RUNNER_TEMP/retirement/delete.tsv"
+
+      - name: Verify old firmware is no longer downloadable from any release asset
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          : > "$RUNNER_TEMP/retirement/remaining.tsv"
+          page=1
+          while true; do
+            release_json="$RUNNER_TEMP/retirement/verify-$page.json"
+            gh api "/repos/$GITHUB_REPOSITORY/releases?per_page=100&page=$page" > "$release_json"
+            count="$(jq 'length' "$release_json")"
+            if [[ "$count" -eq 0 ]]; then break; fi
+            jq -r '.[] | .assets[]? | [.id, .name, .browser_download_url] | @tsv' \
+              "$release_json" >> "$RUNNER_TEMP/retirement/remaining.tsv"
+            if [[ "$count" -lt 100 ]]; then break; fi
+            page=$((page + 1))
+          done
+
+          python3 - "$RUNNER_TEMP/retirement/remaining.tsv" \
+            "$RUNNER_TEMP/retirement/result.json" <<'PY'
+          from pathlib import Path
+          import json
+          import re
+          import sys
+
+          source = Path(sys.argv[1])
+          output = Path(sys.argv[2])
+          minimum = (3, 0, 7)
+          patterns = (
+              re.compile(r'^Flight-Commander-v(\d+)\.(\d+)\.(\d+)\.zip$', re.I),
+              re.compile(r'^Flight-Commander-Firmware-(\d+)\.(\d+)\.(\d+)-.+\.(?:hex|bin)$', re.I),
+              re.compile(r'^FC-Firmware-v(\d+)\.(\d+)\.(\d+)-.+\.(?:hex|bin)$', re.I),
+              re.compile(r'^Flight-Commander-Firmware-Source-v(\d+)\.(\d+)\.(\d+)\.zip$', re.I),
+              re.compile(r'^FC-Firmware-Source-v(\d+)\.(\d+)\.(\d+)\.zip$', re.I),
+          )
+          stale = []
+          current = []
+          for line in source.read_text(encoding='utf-8').splitlines():
+              asset_id, name, url = line.split('\t', 2)
+              for pattern in patterns:
+                  match = pattern.match(name)
+                  if not match:
+                      continue
+                  version = tuple(map(int, match.groups()))
+                  item = {'id': int(asset_id), 'name': name, 'url': url, 'version': '.'.join(map(str, version))}
+                  if version < minimum:
+                      stale.append(item)
+                  else:
+                      current.append(item)
+                  break
+          report = {
+              'minimum_supported_firmware': '3.0.7',
+              'stale_firmware_bearing_assets': stale,
+              'current_firmware_bearing_assets': current,
+              'result': 'PASS' if not stale else 'FAIL',
+          }
+          output.write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
+          print(json.dumps(report, indent=2))
+          if stale:
+              raise SystemExit('Old firmware remains downloadable inside: ' + ', '.join(item['name'] for item in stale))
+          required = {
+              'Flight-Commander-v3.0.7.zip',
+              'Flight-Commander-Firmware-3.0.7-MICOAIR743.hex',
+          }
+          available = {item['name'] for item in current}
+          missing = required - available
+          if missing:
+              raise SystemExit('Required 3.0.7 assets are missing: ' + ', '.join(sorted(missing)))
+          PY
+
+      - name: Publish retirement evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: flight-commander-pre-3.0.7-firmware-retirement
+          path: ${{ runner.temp }}/retirement/**
+          if-no-files-found: error
+          retention-days: 7
