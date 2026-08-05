@@ -84,6 +84,15 @@ heading_fusion.h
 rtcm.c
 rtcm.h
 
+## DroneCAN generated-header location
+lib/main/Dronecan/dsdlc_generated/include/dronecan_msgs.h
+
+## Required DroneCAN definitions
+3:#include "ardupilot.gnss.RelPosHeading.h"
+68:#include "uavcan.protocol.GetNodeInfo.h"
+74:#include "uavcan.protocol.RestartNode.h"
+96:#include "uavcan.protocol.param.ExecuteOpcode.h"
+
 ## Protocol and DroneCAN symbol matches
 .firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/rx/rx.c:35:#include "config/parameter_group.h"
 .firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7/src/main/rx/rx.c:36:#include "config/parameter_group_ids.h"
