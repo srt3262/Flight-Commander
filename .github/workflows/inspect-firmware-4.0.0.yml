@@ -19,38 +19,62 @@ jobs:
         with:
           ref: develop/4.0.0-holybro-moving-baseline
           fetch-depth: 1
-      - name: Inventory firmware source archive
+      - name: Extract selected firmware source files
         shell: bash
         run: |
           set -euo pipefail
           archive=release/firmware/Flight-Commander-Firmware-Source-v3.0.7.zip
-          rm -rf .firmware-inspect
-          mkdir -p .firmware-inspect
+          rm -rf .firmware-inspect firmware-inspection
+          mkdir -p .firmware-inspect firmware-inspection
           unzip -q "$archive" -d .firmware-inspect/source
           root=.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7
+          files=(
+            src/main/drivers/dronecan/dronecan.h
+            src/main/drivers/dronecan/dronecan.c
+            src/main/io/gps_dronecan.h
+            src/main/io/gps_dronecan.c
+            src/main/io/gps.h
+            src/main/io/gps.c
+            src/main/flight_commander/heading_fusion.h
+            src/main/flight_commander/heading_fusion.c
+            src/main/msp/msp_flight_commander.h
+            src/main/msp/msp_flight_commander.c
+            src/main/msp/msp_protocol_v2_flight_commander.h
+            src/main/fc/fc_msp.c
+            src/main/config/parameter_group_ids.h
+            src/main/target/MICOAIR743/target.h
+            src/main/target/MICOAIR743/CMakeLists.txt
+            cmake/flight-commander-micoair743.cmake
+            flight-commander/build-micoair743.sh
+            flight-commander/verify-release.py
+            RELEASE-MANIFEST.json
+          )
+          for file in "${files[@]}"; do
+            if [[ -f "$root/$file" ]]; then
+              mkdir -p "firmware-inspection/$(dirname "$file")"
+              cp "$root/$file" "firmware-inspection/$file"
+            fi
+          done
           {
             echo '# Firmware source inventory'
             echo
             echo '## Top-level'
             find "$root" -mindepth 1 -maxdepth 2 -printf '%y %P\n' | LC_ALL=C sort
             echo
-            echo '## Flight Commander files'
-            find "$root/flight-commander" -type f -printf '%P\n' | LC_ALL=C sort
+            echo '## Flight Commander directories'
+            find "$root/src/main/flight_commander" -type f -printf '%P\n' 2>/dev/null | LC_ALL=C sort
             echo
-            echo '## DroneCAN-related source files'
-            find "$root/src" -type f \( -iname '*can*' -o -iname '*gps*' -o -iname '*msp*' -o -iname '*heading*' \) -printf '%P\n' | LC_ALL=C sort
-            echo
-            echo '## Flight Commander symbol matches'
-            grep -RInE 'flightCommander|FLIGHT_COMMANDER|DroneCAN|dronecan|RelPosHeading|MovingBaseline|heading fusion|headingFusion' \
-              "$root/src" "$root/flight-commander" 2>/dev/null | head -4000 || true
+            echo '## Protocol and DroneCAN symbol matches'
+            grep -RInE 'flightCommander|FLIGHT_COMMANDER|DroneCAN|dronecan|RelPosHeading|MovingBaseline|RTCMStream|GetNodeInfo|param' \
+              "$root/src/main" "$root/flight-commander" 2>/dev/null | head -6000 || true
           } > firmware-source-inventory-3.0.7.txt
           rm -rf .firmware-inspect
-      - name: Commit inventory
+      - name: Commit inspection material
         shell: bash
         run: |
           set -euo pipefail
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add firmware-source-inventory-3.0.7.txt
-          git commit -m 'Record firmware source inventory for 4.0.0 development'
+          git add firmware-source-inventory-3.0.7.txt firmware-inspection
+          git commit -m 'Expose moving-baseline firmware sources for 4.0.0 development'
           git push origin HEAD:develop/4.0.0-holybro-moving-baseline
