@@ -98,28 +98,47 @@ jobs:
 
           path = Path('tests/flight-commander/packaging/package-contract.test.mjs')
           text = path.read_text(encoding='utf-8')
-          release_constant = '''const releaseWorkflow = readFileSync(\n  resolve(projectRoot, ".github/workflows/release.yml"),\n  "utf8",\n);\n'''
-          orchestrator_constant = release_constant + '''const releaseOrchestrator = readFileSync(\n  resolve(projectRoot, ".github/workflows/release-3.0.7-orchestrator.yml"),\n  "utf8",\n);\n'''
+          release_constant = '''const releaseWorkflow = readFileSync(
+            resolve(projectRoot, ".github/workflows/release.yml"),
+            "utf8",
+          );
+          '''
+          orchestrator_constant = release_constant + '''const releaseOrchestrator = readFileSync(
+            resolve(projectRoot, ".github/workflows/release-3.0.7-orchestrator.yml"),
+            "utf8",
+          );
+          '''
           if 'const releaseOrchestrator =' not in text:
               if release_constant not in text:
                   raise SystemExit('release workflow constant anchor not found')
               text = text.replace(release_constant, orchestrator_constant, 1)
 
-          old_guard = '''test("guarded push publication is tied to the current release version", () => {\n  assert.match(\n    releaseWorkflow,\n    new RegExp(\n      `github\\.event\\.head_commit\\.message == 'Publish Flight Commander ${packageManifest.version.replaceAll(".", "\\\\.")} release'`,\n    ),\n  );\n});'''
-          new_guard = '''test("guarded push publication is tied to the current release version", () => {\n  assert.match(\n    releaseOrchestrator,\n    new RegExp(\n      `github\\.event\\.head_commit\\.message == 'Publish Flight Commander ${packageManifest.version.replaceAll(".", "\\\\.")} release'`,\n    ),\n  );\n  assert.match(releaseOrchestrator, /gh workflow run release\\.yml/);\n});'''
-          if old_guard not in text:
-              raise SystemExit('guarded publication test anchor not found')
-          text = text.replace(old_guard, new_guard, 1)
-          text = text.replace(
-              'assert.match(releaseWorkflow, /Remove every superseded standalone Flight Commander firmware asset/);',
-              'assert.match(releaseOrchestrator, /Remove every standalone Flight Commander firmware asset older than 3\\.0\\.7/);',
-              1,
+          start_marker = 'test("guarded push publication is tied to the current release version", () => {'
+          try:
+              start = text.index(start_marker)
+              end = text.index('\n});', start) + len('\n});')
+          except ValueError as error:
+              raise SystemExit('guarded publication test boundaries not found') from error
+          new_guard = r'''test("guarded push publication is tied to the current release version", () => {
+            assert.match(releaseOrchestrator, /Publish Flight Commander 3\.0\.7 release/);
+            assert.match(releaseOrchestrator, /gh workflow run release\.yml/);
+          });'''
+          text = text[:start] + new_guard + text[end:]
+
+          replacements = (
+              (
+                  'assert.match(releaseWorkflow, /Remove every superseded standalone Flight Commander firmware asset/);',
+                  'assert.match(releaseOrchestrator, /Remove every standalone Flight Commander firmware asset older than 3\\.0\\.7/);',
+              ),
+              (
+                  'assert.match(releaseWorkflow, /Superseded firmware asset remains after cleanup/);',
+                  'assert.match(releaseOrchestrator, /Superseded firmware remains after cleanup/);',
+              ),
           )
-          text = text.replace(
-              'assert.match(releaseWorkflow, /Superseded firmware asset remains after cleanup/);',
-              'assert.match(releaseOrchestrator, /Superseded firmware remains after cleanup/);',
-              1,
-          )
+          for old, new in replacements:
+              if old not in text:
+                  raise SystemExit(f'package contract cleanup assertion not found: {old}')
+              text = text.replace(old, new, 1)
           path.write_text(text, encoding='utf-8')
           PY
 
