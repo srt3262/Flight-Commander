@@ -29,6 +29,8 @@ jobs:
           unzip -q "$archive" -d .firmware-inspect/source
           root=.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7
           files=(
+            src/main/build/flight_commander.h
+            src/main/build/version.h
             src/main/drivers/dronecan/dronecan.h
             src/main/drivers/dronecan/dronecan.c
             src/main/drivers/dronecan/libcanard/canard.h
@@ -49,21 +51,41 @@ jobs:
             flight-commander/build-micoair743.sh
             flight-commander/verify-release.py
             RELEASE-MANIFEST.json
-            lib/main/Dronecan/dsdlc_generated/include/dronecan_msgs.h
-            lib/main/Dronecan/dsdlc_generated/include/uavcan.protocol.param.GetSet.h
-            lib/main/Dronecan/dsdlc_generated/include/uavcan.protocol.param.ExecuteOpcode.h
-            lib/main/Dronecan/dsdlc_generated/include/uavcan.protocol.RestartNode.h
-            lib/main/Dronecan/dsdlc_generated/include/uavcan.protocol.GetNodeInfo.h
-            lib/main/Dronecan/dsdlc_generated/include/uavcan.protocol.param.Value.h
-            lib/main/Dronecan/dsdlc_generated/src/uavcan.protocol.param.GetSet_req.c
-            lib/main/Dronecan/dsdlc_generated/src/uavcan.protocol.param.GetSet_res.c
-            lib/main/Dronecan/dsdlc_generated/src/uavcan.protocol.param.ExecuteOpcode_req.c
-            lib/main/Dronecan/dsdlc_generated/src/uavcan.protocol.param.ExecuteOpcode_res.c
-            lib/main/Dronecan/dsdlc_generated/src/uavcan.protocol.RestartNode_req.c
-            lib/main/Dronecan/dsdlc_generated/src/uavcan.protocol.RestartNode_res.c
-            lib/main/Dronecan/dsdlc_generated/src/uavcan.protocol.GetNodeInfo_req.c
-            lib/main/Dronecan/dsdlc_generated/src/uavcan.protocol.GetNodeInfo_res.c
           )
+          service_headers=(
+            dronecan_msgs.h
+            uavcan.protocol.param.GetSet.h
+            uavcan.protocol.param.GetSet_req.h
+            uavcan.protocol.param.GetSet_res.h
+            uavcan.protocol.param.ExecuteOpcode.h
+            uavcan.protocol.param.ExecuteOpcode_req.h
+            uavcan.protocol.param.ExecuteOpcode_res.h
+            uavcan.protocol.RestartNode.h
+            uavcan.protocol.RestartNode_req.h
+            uavcan.protocol.RestartNode_res.h
+            uavcan.protocol.GetNodeInfo.h
+            uavcan.protocol.GetNodeInfo_req.h
+            uavcan.protocol.GetNodeInfo_res.h
+            uavcan.protocol.param.Value.h
+            uavcan.protocol.param.NumericValue.h
+            uavcan.protocol.param.Empty.h
+          )
+          for header in "${service_headers[@]}"; do
+            files+=("lib/main/Dronecan/dsdlc_generated/include/$header")
+          done
+          service_sources=(
+            uavcan.protocol.param.GetSet_req.c
+            uavcan.protocol.param.GetSet_res.c
+            uavcan.protocol.param.ExecuteOpcode_req.c
+            uavcan.protocol.param.ExecuteOpcode_res.c
+            uavcan.protocol.RestartNode_req.c
+            uavcan.protocol.RestartNode_res.c
+            uavcan.protocol.GetNodeInfo_req.c
+            uavcan.protocol.GetNodeInfo_res.c
+          )
+          for source in "${service_sources[@]}"; do
+            files+=("lib/main/Dronecan/dsdlc_generated/src/$source")
+          done
           for file in "${files[@]}"; do
             if [[ -f "$root/$file" ]]; then
               mkdir -p "firmware-inspection/$(dirname "$file")"
@@ -75,6 +97,9 @@ jobs:
             echo
             echo '## Top-level'
             find "$root" -mindepth 1 -maxdepth 2 -printf '%y %P\n' | LC_ALL=C sort
+            echo
+            echo '## Build identity candidates'
+            find "$root/src/main" "$root/flight-commander" -type f \( -name '*flight*commander*' -o -name 'version.h' \) -printf '%P\n' | LC_ALL=C sort
             echo
             echo '## Flight Commander directories'
             find "$root/src/main/flight_commander" -type f -printf '%P\n' 2>/dev/null | LC_ALL=C sort
@@ -95,5 +120,5 @@ jobs:
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add firmware-source-inventory-3.0.7.txt firmware-inspection
-          git commit -m 'Expose DroneCAN service bindings for 4.0.0 development'
+          git commit -m 'Expose complete DroneCAN service structures for 4.0.0'
           git push origin HEAD:develop/4.0.0-holybro-moving-baseline
