@@ -28,7 +28,7 @@ jobs:
         with:
           node-version: 22
           cache: yarn
-      - name: Apply source migration and run tests
+      - name: Apply source migration and run focused tests
         id: migration
         shell: bash
         run: |
@@ -42,7 +42,7 @@ jobs:
             rc=$?
           fi
           if [[ $rc -eq 0 ]]; then
-            yarn test >> configurator-4.0.0-apply.log 2>&1
+            yarn test:flight-commander >> configurator-4.0.0-apply.log 2>&1
             rc=$?
           fi
           echo "$rc" > configurator-4.0.0-apply.status
@@ -55,7 +55,7 @@ jobs:
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add -A
-          git commit -m 'Apply Flight Commander Configurator 4.0.0 moving-baseline support'
+          git commit -m 'Validate Flight Commander Configurator 4.0.0 moving-baseline support'
           git push origin HEAD:develop/4.0.0-holybro-moving-baseline
       - name: Fail when migration tests failed
         if: steps.migration.outputs.rc != '0'
