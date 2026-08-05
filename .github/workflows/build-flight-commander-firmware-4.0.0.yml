@@ -9,6 +9,8 @@ name: Build Flight Commander Firmware 4.0.0
     paths:
       - scripts/prepare-flight-commander-firmware-4.0.0.py
       - scripts/finalize-flight-commander-4.0.0-contracts.py
+      - scripts/flight_commander_dronecan_allocator_4_0_0.py
+      - scripts/refresh-flight-commander-firmware-manifest-4.0.0.py
       - .github/workflows/build-flight-commander-firmware-4.0.0.yml
   workflow_dispatch:
 
@@ -62,12 +64,23 @@ jobs:
           set +e
           : > firmware-4.0.0-build.log
           rm -f firmware-4.0.0-build.status firmware-4.0.0-build-metadata.json firmware-4.0.0-tests.status
+          output="$RUNNER_TEMP/flight-commander-firmware-4.0.0"
+          root="$output/Flight-Commander-Firmware-Source-v4.0.0"
           python3 scripts/prepare-flight-commander-firmware-4.0.0.py \
             --archive release/firmware/Flight-Commander-Firmware-Source-v3.0.7.zip \
-            --output "$RUNNER_TEMP/flight-commander-firmware-4.0.0" \
+            --output "$output" \
             >> firmware-4.0.0-build.log 2>&1
           rc=$?
-          root="$RUNNER_TEMP/flight-commander-firmware-4.0.0/Flight-Commander-Firmware-Source-v4.0.0"
+          if [[ $rc -eq 0 ]]; then
+            python3 scripts/flight_commander_dronecan_allocator_4_0_0.py --root "$root" \
+              >> firmware-4.0.0-build.log 2>&1
+            rc=$?
+          fi
+          if [[ $rc -eq 0 ]]; then
+            python3 scripts/refresh-flight-commander-firmware-manifest-4.0.0.py --root "$root" \
+              >> firmware-4.0.0-build.log 2>&1
+            rc=$?
+          fi
           if [[ $rc -eq 0 ]]; then
             echo "Compiler: $(arm-none-eabi-gcc -dumpfullversion -dumpversion)" >> firmware-4.0.0-build.log
             bash "$root/flight-commander/build-micoair743.sh" "$RUNNER_TEMP/build-flight-commander-4.0.0" \
