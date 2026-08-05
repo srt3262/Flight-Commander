@@ -1,0 +1,145 @@
+name: Execute pre-3.0.7 firmware bundle retirement
+
+"on":
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: execute-pre-3.0.7-firmware-retirement
+  cancel-in-progress: false
+
+jobs:
+  retire:
+    name: Delete and verify old firmware-bearing assets
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Delete all pre-3.0.7 firmware and complete bundles
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/retirement"
+          : > "$RUNNER_TEMP/retirement/assets.tsv"
+          page=1
+          while true; do
+            json="$RUNNER_TEMP/retirement/releases-$page.json"
+            gh api "/repos/$GITHUB_REPOSITORY/releases?per_page=100&page=$page" > "$json"
+            count="$(jq 'length' "$json")"
+            [[ "$count" -gt 0 ]] || break
+            jq -r '.[] | .assets[]? | [.id, .name] | @tsv' "$json" >> "$RUNNER_TEMP/retirement/assets.tsv"
+            [[ "$count" -eq 100 ]] || break
+            page=$((page + 1))
+          done
+
+          python3 - "$RUNNER_TEMP/retirement/assets.tsv" "$RUNNER_TEMP/retirement/delete.tsv" <<'PY'
+          from pathlib import Path
+          import re
+          import sys
+
+          minimum = (3, 0, 7)
+          patterns = (
+              re.compile(r'^Flight-Commander-v(\d+)\.(\d+)\.(\d+)\.zip$', re.I),
+              re.compile(r'^Flight-Commander-Firmware-(\d+)\.(\d+)\.(\d+)-.+\.(?:hex|bin)$', re.I),
+              re.compile(r'^FC-Firmware-v(\d+)\.(\d+)\.(\d+)-.+\.(?:hex|bin)$', re.I),
+              re.compile(r'^Flight-Commander-Firmware-Source-v(\d+)\.(\d+)\.(\d+)\.zip$', re.I),
+              re.compile(r'^FC-Firmware-Source-v(\d+)\.(\d+)\.(\d+)\.zip$', re.I),
+          )
+          delete = []
+          for line in Path(sys.argv[1]).read_text(encoding='utf-8').splitlines():
+              asset_id, name = line.split('\t', 1)
+              for pattern in patterns:
+                  match = pattern.match(name)
+                  if match:
+                      if tuple(map(int, match.groups())) < minimum:
+                          delete.append((asset_id, name))
+                      break
+          Path(sys.argv[2]).write_text(
+              ''.join(f'{asset_id}\t{name}\n' for asset_id, name in delete),
+              encoding='utf-8',
+          )
+          print(f'Assets scheduled for retirement: {len(delete)}')
+          for _, name in delete:
+              print(name)
+          PY
+
+          while IFS=$'\t' read -r asset_id asset_name; do
+            [[ -n "$asset_id" ]] || continue
+            echo "Deleting $asset_name"
+            gh api --method DELETE "/repos/$GITHUB_REPOSITORY/releases/assets/$asset_id"
+          done < "$RUNNER_TEMP/retirement/delete.tsv"
+
+      - name: Verify only 3.0.7-or-newer firmware-bearing assets remain
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          : > "$RUNNER_TEMP/retirement/remaining.tsv"
+          page=1
+          while true; do
+            json="$RUNNER_TEMP/retirement/verify-$page.json"
+            gh api "/repos/$GITHUB_REPOSITORY/releases?per_page=100&page=$page" > "$json"
+            count="$(jq 'length' "$json")"
+            [[ "$count" -gt 0 ]] || break
+            jq -r '.[] | .assets[]? | [.name, .browser_download_url] | @tsv' "$json" >> "$RUNNER_TEMP/retirement/remaining.tsv"
+            [[ "$count" -eq 100 ]] || break
+            page=$((page + 1))
+          done
+
+          python3 - "$RUNNER_TEMP/retirement/remaining.tsv" "$RUNNER_TEMP/retirement/result.json" <<'PY'
+          from pathlib import Path
+          import json
+          import re
+          import sys
+
+          minimum = (3, 0, 7)
+          patterns = (
+              re.compile(r'^Flight-Commander-v(\d+)\.(\d+)\.(\d+)\.zip$', re.I),
+              re.compile(r'^Flight-Commander-Firmware-(\d+)\.(\d+)\.(\d+)-.+\.(?:hex|bin)$', re.I),
+              re.compile(r'^FC-Firmware-v(\d+)\.(\d+)\.(\d+)-.+\.(?:hex|bin)$', re.I),
+              re.compile(r'^Flight-Commander-Firmware-Source-v(\d+)\.(\d+)\.(\d+)\.zip$', re.I),
+              re.compile(r'^FC-Firmware-Source-v(\d+)\.(\d+)\.(\d+)\.zip$', re.I),
+          )
+          stale = []
+          current = []
+          for line in Path(sys.argv[1]).read_text(encoding='utf-8').splitlines():
+              name, url = line.split('\t', 1)
+              for pattern in patterns:
+                  match = pattern.match(name)
+                  if not match:
+                      continue
+                  version = tuple(map(int, match.groups()))
+                  item = {'name': name, 'version': '.'.join(map(str, version)), 'url': url}
+                  (stale if version < minimum else current).append(item)
+                  break
+          result = {
+              'minimum_supported_firmware': '3.0.7',
+              'stale_firmware_bearing_assets': stale,
+              'current_firmware_bearing_assets': current,
+              'result': 'PASS' if not stale else 'FAIL',
+          }
+          Path(sys.argv[2]).write_text(json.dumps(result, indent=2) + '\n', encoding='utf-8')
+          print(json.dumps(result, indent=2))
+          if stale:
+              raise SystemExit('Old firmware remains downloadable: ' + ', '.join(item['name'] for item in stale))
+          required = {'Flight-Commander-v3.0.7.zip', 'Flight-Commander-Firmware-3.0.7-MICOAIR743.hex'}
+          available = {item['name'] for item in current}
+          if not required <= available:
+              raise SystemExit('Current 3.0.7 release assets are incomplete.')
+          PY
+
+      - name: Upload retirement evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: flight-commander-pre-3.0.7-complete-retirement
+          path: ${{ runner.temp }}/retirement/**
+          if-no-files-found: error
+          retention-days: 7
