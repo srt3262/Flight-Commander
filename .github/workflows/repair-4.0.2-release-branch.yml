@@ -1,0 +1,127 @@
+name: Repair 4.0.2 release branch once
+
+"on":
+  push:
+    branches:
+      - agent/fix-compass-persistence-and-local-flashing
+    paths:
+      - .github/workflows/repair-4.0.2-release-branch.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: repair-flight-commander-4.0.2-release-branch
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    name: Consolidate beta publication workflow
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out the release branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: agent/fix-compass-persistence-and-local-flashing
+          fetch-depth: 0
+
+      - name: Repair stale references and remove legacy release workflows
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import re
+          from pathlib import Path
+
+          root = Path.cwd()
+          canonical = ".github/workflows/publish-flight-commander-beta.yml"
+          obsolete = ".github/workflows/publish-flight-commander-4.0.2-beta.yml"
+
+          replacements = {
+              Path("tests/flight-commander/packaging/package-contract.test.mjs"): (
+                  (obsolete, canonical),
+                  (
+                      "assert.match(releaseOrchestrator, /Publish Flight Commander 4\\.0\\.2 beta prerelease/);",
+                      "assert.match(releaseOrchestrator, /name: Publish Flight Commander beta release/);",
+                  ),
+              ),
+              Path("scripts/apply-flight-commander-4.0.2-beta.py"): (
+                  (
+                      'BETA_WORKFLOW = ".github/workflows/publish-flight-commander-4.0.2-beta.yml"',
+                      'BETA_WORKFLOW = ".github/workflows/publish-flight-commander-beta.yml"',
+                  ),
+                  (
+                      "assert.match(releaseOrchestrator, /Publish Flight Commander 4\\\\.0\\\\.2 beta prerelease/);",
+                      "assert.match(releaseOrchestrator, /name: Publish Flight Commander beta release/);",
+                  ),
+              ),
+          }
+
+          for relative, edits in replacements.items():
+              path = root / relative
+              text = path.read_text(encoding="utf-8")
+              for old, new in edits:
+                  count = text.count(old)
+                  if count != 1:
+                      raise RuntimeError(f"{relative}: expected one occurrence of {old!r}, found {count}")
+                  text = text.replace(old, new, 1)
+              path.write_text(text, encoding="utf-8", newline="\n")
+
+          workflow_dir = root / ".github/workflows"
+          repair_path = workflow_dir / "repair-4.0.2-release-branch.yml"
+          canonical_path = root / canonical
+          if not canonical_path.is_file():
+              raise RuntimeError(f"Canonical beta publisher is missing: {canonical}")
+
+          removed = []
+          explicit_obsolete = {
+              "release-4.0.1-orchestrator.yml",
+              "publish-flight-commander-4.0.2-beta.yml",
+          }
+          legacy_name = re.compile(
+              r"^name:\s*.*Flight Commander 4\.0\.[01].*$",
+              re.MULTILINE,
+          )
+          for path in sorted(workflow_dir.glob("*.y*ml")):
+              if path in {repair_path, canonical_path}:
+                  continue
+              text = path.read_text(encoding="utf-8")
+              if path.name in explicit_obsolete or legacy_name.search(text):
+                  removed.append(path.as_posix())
+                  path.unlink()
+
+          test_text = (root / "tests/flight-commander/packaging/package-contract.test.mjs").read_text(encoding="utf-8")
+          script_text = (root / "scripts/apply-flight-commander-4.0.2-beta.py").read_text(encoding="utf-8")
+          if obsolete in test_text or obsolete in script_text:
+              raise RuntimeError("A stale version-specific beta workflow reference remains.")
+          if "name: Publish Flight Commander beta release" not in test_text:
+              raise RuntimeError("The packaging contract does not validate the canonical workflow name.")
+
+          print("Removed legacy workflows:")
+          for path in removed:
+              print(f"  - {path}")
+          if not removed:
+              print("  - none found")
+
+          repair_path.unlink()
+          PY
+
+      - name: Run focused publication contract test
+        run: node --test tests/flight-commander/packaging/package-contract.test.mjs
+
+      - name: Commit the consolidated release path
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          if git diff --cached --quiet; then
+            echo "Release branch already repaired."
+            exit 0
+          fi
+          git commit -m "ci: consolidate beta publication workflow"
+          git push origin "HEAD:agent/fix-compass-persistence-and-local-flashing"
