@@ -60,6 +60,49 @@ struct ardupilot_gnss_RelPosHeading;
         "MSP2_FLIGHT_COMMANDER_DRONECAN_NODES         0x2F12",
         "MSP2_FLIGHT_COMMANDER_DRONECAN_NODES 0x2F12",
     )
+
+    # Match the guarded, validated 3.0.7 SET_DRONECAN_CONFIG handler exactly.
+    old_handler = '''    case MSP2_FLIGHT_COMMANDER_SET_DRONECAN_CONFIG:
+        if (dataSize != 6) {
+            return MSP_RESULT_ERROR;
+        }
+        dronecanConfigMutable()->nodeID = sbufReadU8(src);
+        dronecanConfigMutable()->bitRateKbps = sbufReadU8(src);
+        dronecanConfigMutable()->gpsNodeID = sbufReadU8(src);
+        dronecanConfigMutable()->batteryNodeID = sbufReadU8(src);
+        dronecanConfigMutable()->primaryGpsSource = sbufReadU8(src);
+        dronecanConfigMutable()->magNodeID = sbufReadU8(src);
+        return MSP_RESULT_ACK;
+'''
+    retained_handler = '''    case MSP2_FLIGHT_COMMANDER_SET_DRONECAN_CONFIG: {
+        if (ARMING_FLAG(ARMED) || dataSize != 6) {
+            return MSP_RESULT_ERROR;
+        }
+        dronecanConfig_t value;
+        value.nodeID = sbufReadU8(src);
+        value.bitRateKbps = sbufReadU8(src);
+        value.gpsNodeID = sbufReadU8(src);
+        value.batteryNodeID = sbufReadU8(src);
+        value.primaryGpsSource = sbufReadU8(src);
+        value.magNodeID = sbufReadU8(src);
+        const bool nodeValid = value.nodeID >= 1 && value.nodeID <= 127;
+        const bool gpsValid = value.gpsNodeID <= 127 || value.gpsNodeID == DRONECAN_NODE_ID_DISABLED;
+        const bool batteryValid = value.batteryNodeID <= 127 || value.batteryNodeID == DRONECAN_NODE_ID_DISABLED;
+        const bool magValid = value.magNodeID <= 127 || value.magNodeID == DRONECAN_NODE_ID_DISABLED;
+        if (!nodeValid || value.bitRateKbps >= DRONECAN_BITRATE_COUNT || !gpsValid || !batteryValid ||
+            !magValid || value.primaryGpsSource >= GPS_PRIMARY_SOURCE_COUNT ||
+            (value.primaryGpsSource == GPS_PRIMARY_SOURCE_DRONECAN && value.gpsNodeID == DRONECAN_NODE_ID_DISABLED)) {
+            return MSP_RESULT_ERROR;
+        }
+        *dronecanConfigMutable() = value;
+        break;
+    }
+'''
+    if old_handler in text:
+        text = text.replace(old_handler, retained_handler, 1)
+    elif retained_handler not in text:
+        raise RuntimeError("Unable to patch the retained DroneCAN config handler pattern")
+
     path.write_text(text, encoding="utf-8")
 
 
