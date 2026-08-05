@@ -1,0 +1,291 @@
+name: Build Flight Commander 4.0.2 compass persistence candidate
+
+"on":
+  push:
+    branches:
+      - agent/fix-compass-persistence-and-local-flashing
+    paths:
+      - scripts/prepare-flight-commander-firmware-4.0.2.py
+      - js/flightCommander/firmwareCatalog.js
+      - tabs/firmware_flasher.js
+      - tests/flight-commander/firmware/flight-commander-catalog.test.mjs
+      - .github/workflows/build-flight-commander-4.0.2-compass-persistence.yml
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flight-commander-4.0.2-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-firmware:
+    name: Build and verify MICOAIR743 firmware
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out exact repair revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Install firmware build prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build curl xz-utils unzip zip python3
+
+      - name: Install exact Arm GNU Toolchain 13.2.1
+        shell: bash
+        run: |
+          set -euo pipefail
+          release='arm-gnu-toolchain-13.2.Rel1-x86_64-arm-none-eabi'
+          archive='arm-gnu-toolchain-13.2.rel1-x86_64-arm-none-eabi.tar.xz'
+          expected='6cd1bbc1d9ae57312bcd169ae283153a9572bd6a8e4eeae2fedfbc33b115fdbb'
+          cache="${RUNNER_TEMP}/flight-commander-toolchains"
+          root="${cache}/${release}"
+          mkdir -p "${cache}"
+          if [[ ! -x "${root}/bin/arm-none-eabi-gcc" ]]; then
+            url="https://developer.arm.com/-/media/Files/downloads/gnu/13.2.rel1/binrel/${archive}"
+            curl --fail --location --retry 3 --output "${cache}/${archive}" "${url}"
+            printf '%s  %s\n' "${expected}" "${cache}/${archive}" | sha256sum --check --strict
+            tar -xJf "${cache}/${archive}" -C "${cache}"
+          fi
+          echo "${root}/bin" >> "${GITHUB_PATH}"
+
+      - name: Prepare reviewed 4.0.2 firmware source
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/prepare-flight-commander-firmware-4.0.2.py \
+            --archive release/firmware/Flight-Commander-Firmware-Source-v4.0.1.zip \
+            --output work/firmware-4.0.2
+
+      - name: Compile MICOAIR743 firmware
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(arm-none-eabi-gcc -dumpfullversion -dumpversion)" = '13.2.1'
+          root="${PWD}/work/firmware-4.0.2/Flight-Commander-Firmware-Source-v4.0.2"
+          bash "${root}/flight-commander/build-micoair743.sh" "${PWD}/work/build-4.0.2"
+
+      - name: Finalize and independently verify firmware artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="${PWD}/work/firmware-4.0.2/Flight-Commander-Firmware-Source-v4.0.2"
+          hex="${PWD}/work/build-4.0.2/Flight-Commander-Firmware-4.0.2-MICOAIR743.hex"
+          candidate="${PWD}/work/candidate"
+          mkdir -p "${candidate}"
+          python3 scripts/prepare-flight-commander-firmware-4.0.2.py \
+            --finalize-root "${root}" \
+            --firmware "${hex}" \
+            --source-zip "${candidate}/Flight-Commander-Firmware-Source-v4.0.2.zip"
+          cp "${hex}" "${candidate}/Flight-Commander-Firmware-4.0.2-MICOAIR743.hex"
+          python3 "${root}/flight-commander/verify-release.py" \
+            --source-root "${root}" \
+            --hex "${hex}" \
+            --manifest "${root}/RELEASE-MANIFEST.json"
+          python3 "${root}/flight-commander/verify-compass-release.py" "${hex}"
+          unzip -tq "${candidate}/Flight-Commander-Firmware-Source-v4.0.2.zip"
+          python3 - "${root}" "${candidate}" <<'PY'
+          import hashlib
+          import json
+          import sys
+          from pathlib import Path
+
+          root = Path(sys.argv[1])
+          candidate = Path(sys.argv[2])
+          manifest = json.loads((root / 'RELEASE-MANIFEST.json').read_text())
+          firmware = candidate / 'Flight-Commander-Firmware-4.0.2-MICOAIR743.hex'
+          source = candidate / 'Flight-Commander-Firmware-Source-v4.0.2.zip'
+          metadata = {
+              'version': '4.0.2',
+              'firmware_sha256': hashlib.sha256(firmware.read_bytes()).hexdigest(),
+              'firmware_bytes': firmware.stat().st_size,
+              'source_sha256': hashlib.sha256(source.read_bytes()).hexdigest(),
+              'source_bytes': source.stat().st_size,
+              'source_revision': manifest['source_revision'],
+              'source_tree': manifest['source_tree'],
+          }
+          (candidate / 'firmware-metadata.json').write_text(
+              json.dumps(metadata, indent=2) + '\n', encoding='utf-8'
+          )
+          for path in (firmware, source):
+              print(hashlib.sha256(path.read_bytes()).hexdigest(), path.name)
+          PY
+
+      - name: Run local firmware-loader tests
+        run: node --test tests/flight-commander/firmware/flight-commander-catalog.test.mjs
+
+      - name: Upload verified firmware candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: flight-commander-4.0.2-firmware-candidate
+          retention-days: 14
+          if-no-files-found: error
+          path: |
+            work/candidate/Flight-Commander-Firmware-4.0.2-MICOAIR743.hex
+            work/candidate/Flight-Commander-Firmware-Source-v4.0.2.zip
+            work/candidate/firmware-metadata.json
+
+  package-windows:
+    name: Test and package coordinated Windows candidate
+    needs: build-firmware
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out exact repair revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: yarn
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Download verified firmware candidate
+        uses: actions/download-artifact@v4
+        with:
+          name: flight-commander-4.0.2-firmware-candidate
+          path: firmware-candidate
+
+      - name: Stage exact 4.0.2 version and firmware metadata
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $metadata = Get-Content -Raw -LiteralPath (Join-Path $PWD 'firmware-candidate/firmware-metadata.json') | ConvertFrom-Json
+          $packagePath = Join-Path $PWD 'package.json'
+          $package = Get-Content -Raw -LiteralPath $packagePath | ConvertFrom-Json
+          $package.version = '4.0.2'
+          $package.flightCommander.firmwareReleaseVersion = '4.0.2'
+          $package.flightCommander.firmwareReleaseSha256 = $metadata.firmware_sha256
+          $package.flightCommander.firmwareChangedInRelease = $true
+          $package.flightCommander.firmwareSourceVersion = '4.0.2'
+          $package.flightCommander.firmwareSourceArchive = 'release/firmware/Flight-Commander-Firmware-Source-v4.0.2.zip'
+          $package.flightCommander.firmwareSourceSha256 = $metadata.source_sha256
+          $package.flightCommander.firmwareSourceRevision = $metadata.source_revision
+          $package.flightCommander.firmwareSourceTree = $metadata.source_tree
+          $package | ConvertTo-Json -Depth 32 | Set-Content -LiteralPath $packagePath -Encoding utf8
+
+          $release = Join-Path $PWD 'release/firmware'
+          Remove-Item -LiteralPath $release -Recurse -Force
+          New-Item -ItemType Directory -Force -Path $release | Out-Null
+          Copy-Item -LiteralPath (Join-Path $PWD 'firmware-candidate/Flight-Commander-Firmware-4.0.2-MICOAIR743.hex') -Destination $release
+          Copy-Item -LiteralPath (Join-Path $PWD 'firmware-candidate/Flight-Commander-Firmware-Source-v4.0.2.zip') -Destination $release
+
+      - name: Run complete tests and verify Windows application
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          corepack enable
+          corepack prepare yarn@1.22.22 --activate
+          yarn install --frozen-lockfile --non-interactive
+          yarn test
+          yarn package:windows
+          yarn verify:windows
+
+      - name: Assemble four coordinated candidate components
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $version = '4.0.2'
+          $stage = Join-Path $PWD 'release-candidate'
+          $components = Join-Path $stage "Flight-Commander-v$version"
+          New-Item -ItemType Directory -Force -Path $components | Out-Null
+
+          $packageDir = Get-ChildItem -LiteralPath (Join-Path $PWD 'out') -Directory -Recurse |
+            Where-Object {
+              $_.Name -match 'win32-x64$' -and
+              (Test-Path -LiteralPath (Join-Path $_.FullName 'flight-commander.exe'))
+            } |
+            Select-Object -First 1
+          if (-not $packageDir) { throw 'Verified Windows package directory not found.' }
+
+          $windowsZip = Join-Path $components "FC-Windows-v$version.zip"
+          [IO.Compression.ZipFile]::CreateFromDirectory(
+            $packageDir.FullName,
+            $windowsZip,
+            [IO.Compression.CompressionLevel]::Optimal,
+            $false
+          )
+
+          $archive = Join-Path $env:RUNNER_TEMP 'configurator-head.zip'
+          $configStage = Join-Path $env:RUNNER_TEMP 'configurator-source'
+          git archive --format=zip --output=$archive HEAD
+          if ($LASTEXITCODE -ne 0) { throw 'git archive failed.' }
+          Expand-Archive -LiteralPath $archive -DestinationPath $configStage -Force
+          Copy-Item -LiteralPath (Join-Path $PWD 'package.json') -Destination (Join-Path $configStage 'package.json') -Force
+          Remove-Item -LiteralPath (Join-Path $configStage 'release/firmware') -Recurse -Force
+          New-Item -ItemType Directory -Force -Path (Join-Path $configStage 'release/firmware') | Out-Null
+          Copy-Item -LiteralPath (Join-Path $PWD 'release/firmware/Flight-Commander-Firmware-4.0.2-MICOAIR743.hex') -Destination (Join-Path $configStage 'release/firmware')
+          Copy-Item -LiteralPath (Join-Path $PWD 'release/firmware/Flight-Commander-Firmware-Source-v4.0.2.zip') -Destination (Join-Path $configStage 'release/firmware')
+          $configZip = Join-Path $components "FC-Configurator-Source-v$version.zip"
+          [IO.Compression.ZipFile]::CreateFromDirectory(
+            $configStage,
+            $configZip,
+            [IO.Compression.CompressionLevel]::Optimal,
+            $false
+          )
+
+          Copy-Item -LiteralPath (Join-Path $PWD 'release/firmware/Flight-Commander-Firmware-4.0.2-MICOAIR743.hex') -Destination (Join-Path $components "FC-Firmware-v$version-MICOAIR743.hex")
+          Copy-Item -LiteralPath (Join-Path $PWD 'release/firmware/Flight-Commander-Firmware-Source-v4.0.2.zip') -Destination (Join-Path $components "FC-Firmware-Source-v$version.zip")
+
+          $componentFiles = @(Get-ChildItem -LiteralPath $components -File | Sort-Object Name)
+          $expected = @(
+            "FC-Configurator-Source-v$version.zip",
+            "FC-Firmware-Source-v$version.zip",
+            "FC-Firmware-v$version-MICOAIR743.hex",
+            "FC-Windows-v$version.zip"
+          ) | Sort-Object
+          $actual = @($componentFiles.Name | Sort-Object)
+          if ($componentFiles.Count -ne 4 -or (Compare-Object $expected $actual)) {
+            throw 'The candidate does not contain exactly the four coordinated components.'
+          }
+
+          $hashFile = Join-Path $components 'SHA256SUMS.txt'
+          $componentFiles | ForEach-Object {
+            $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $_.FullName).Hash.ToLowerInvariant()
+            "$hash  $($_.Name)" | Add-Content -LiteralPath $hashFile -Encoding ascii
+          }
+
+          $completeZip = Join-Path $stage "Flight-Commander-v$version.zip"
+          [IO.Compression.ZipFile]::CreateFromDirectory(
+            $components,
+            $completeZip,
+            [IO.Compression.CompressionLevel]::Optimal,
+            $true
+          )
+          $completeHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $completeZip).Hash.ToLowerInvariant()
+          "$completeHash  $([IO.Path]::GetFileName($completeZip))" |
+            Set-Content -LiteralPath (Join-Path $stage 'COMPLETE-BUNDLE-SHA256.txt') -Encoding ascii
+
+      - name: Upload coordinated 4.0.2 bench candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: flight-commander-4.0.2-complete-candidate
+          retention-days: 14
+          if-no-files-found: error
+          path: |
+            release-candidate/Flight-Commander-v4.0.2/FC-Windows-v4.0.2.zip
+            release-candidate/Flight-Commander-v4.0.2/FC-Configurator-Source-v4.0.2.zip
+            release-candidate/Flight-Commander-v4.0.2/FC-Firmware-v4.0.2-MICOAIR743.hex
+            release-candidate/Flight-Commander-v4.0.2/FC-Firmware-Source-v4.0.2.zip
+            release-candidate/Flight-Commander-v4.0.2/SHA256SUMS.txt
+            release-candidate/Flight-Commander-v4.0.2.zip
+            release-candidate/COMPLETE-BUNDLE-SHA256.txt
