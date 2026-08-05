@@ -1,0 +1,56 @@
+name: Publish Flight Commander 4.0.0 release
+
+"on":
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: Exact main-branch commit SHA to publish
+        required: true
+        type: string
+      publish_confirmation:
+        description: Type PUBLISH_FLIGHT_COMMANDER_4.0.0 after explicit release approval
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: flight-commander-4.0.0-orchestrator
+  cancel-in-progress: false
+
+jobs:
+  dispatch:
+    if: inputs.publish_confirmation == 'PUBLISH_FLIGHT_COMMANDER_4.0.0'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.expected_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify exact coordinated 4.0.0 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ inputs.expected_sha }}"
+          test "$(node -p "require('./package.json').version")" = '4.0.0'
+          test "$(node -p "require('./package.json').flightCommander.firmwareReleaseVersion")" = '4.0.0'
+          test -f release/firmware/Flight-Commander-Firmware-4.0.0-MICOAIR743.hex
+          test -f release/firmware/Flight-Commander-Firmware-Source-v4.0.0.zip
+          node scripts/check-flight-commander-version.mjs
+
+      - name: Dispatch existing verified release pipeline
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh workflow run release.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref main \
+            -f expected_sha="${{ inputs.expected_sha }}"
+          echo "Dispatched release.yml for explicitly approved Flight Commander 4.0.0 SHA ${{ inputs.expected_sha }}."
