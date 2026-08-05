@@ -29,80 +29,108 @@ jobs:
           test -n "$root"
           printf '%s\n' "$root" > work/firmware-root.txt
 
-      - name: Print IST8310 driver and target contract
+      - name: Print exact target and compass patch anchors
         shell: bash
         run: |
           set -euo pipefail
           root="$(cat work/firmware-root.txt)"
-          echo '===== src/main/drivers/compass/compass_ist8310.c ====='
-          sed -n '1,360p' "$root/src/main/drivers/compass/compass_ist8310.c"
-          echo '===== src/main/target/MICOAIR743/target.h ====='
-          sed -n '1,300p' "$root/src/main/target/MICOAIR743/target.h"
-          echo '===== src/main/target/MICOAIR743/config.c ====='
-          sed -n '1,320p' "$root/src/main/target/MICOAIR743/config.c"
+          echo '===== TARGET HEADER ====='
+          nl -ba "$root/src/main/target/MICOAIR743/target.h" | sed -n '1,240p'
+          echo '===== TARGET CONFIG ====='
+          nl -ba "$root/src/main/target/MICOAIR743/config.c" | sed -n '1,300p'
+          echo '===== COMPASS HEADER ====='
+          nl -ba "$root/src/main/sensors/compass.h" | sed -n '1,280p'
+          echo '===== COMPASS SOURCE RESET/VALIDATION ====='
+          nl -ba "$root/src/main/sensors/compass.c" | sed -n '80,250p'
+          echo '===== COMPASS SOURCE INIT ====='
+          nl -ba "$root/src/main/sensors/compass.c" | sed -n '250,430p'
+          echo '===== COMPASS SOURCE CALIBRATION COMPLETION ====='
+          nl -ba "$root/src/main/sensors/compass.c" | sed -n '430,650p'
+          echo '===== GENERIC ALIGNMENT FIXUP ====='
+          nl -ba "$root/src/main/fc/config.c" | sed -n '210,330p'
 
-      - name: Print compass calibration and persistent configuration paths
+      - name: Print firmware baseline and verifier extension contracts
         shell: bash
         run: |
           set -euo pipefail
           root="$(cat work/firmware-root.txt)"
-          echo '===== src/main/sensors/compass.c ====='
-          sed -n '1,660p' "$root/src/main/sensors/compass.c"
-          echo '===== src/main/sensors/compass.h ====='
-          sed -n '1,340p' "$root/src/main/sensors/compass.h"
-          echo '===== compass settings section ====='
-          sed -n '530,640p' "$root/src/main/fc/settings.yaml"
-          echo '===== compass default macro definitions ====='
-          grep -R -n -E 'SETTING_ALIGN_MAG_DEFAULT|SETTING_MAGGAIN_[XYZ]_DEFAULT|FLIGHT_COMMANDER_MAG_DEFAULT_ALIGN' \
-            "$root" --include='*.c' --include='*.h' --include='*.yaml' --include='*.yml' \
-            | head -n 400 || true
+          python3 - "$root/flight-commander/INAV-9.1.0-BASELINE.json" <<'PY'
+          import json, sys
+          path = sys.argv[1]
+          data = json.load(open(path, encoding='utf-8'))
+          print('===== BASELINE TOP-LEVEL KEYS =====')
+          print(sorted(data))
+          print('===== RELEVANT INTENTIONAL EXTENSIONS =====')
+          for key, value in data.get('intentional_extensions', {}).items():
+              if key in {
+                  'src/main/drivers/compass/compass_ist8310.c',
+                  'src/main/sensors/compass.c',
+                  'src/main/sensors/compass.h',
+                  'src/main/target/MICOAIR743/config.c',
+                  'src/main/target/MICOAIR743/target.h',
+              }:
+                  print(key)
+                  print(json.dumps(value, indent=2, sort_keys=True))
+          PY
+          echo '===== VERIFY RELEASE REFERENCES ====='
+          grep -n -E 'intentional_extensions|patched_sha256|compass_ist8310|sensors/compass|MICOAIR743/config|MICOAIR743/target' \
+            "$root/flight-commander/verify-release.py" | head -n 500 || true
+          echo '===== VERSION/BUILD REFERENCES ====='
+          grep -R -n -E '4\.0\.1|VERSION_PATCH|Firmware-4\.0\.1' \
+            "$root/CMakeLists.txt" "$root/src/main/build/flight_commander.h" "$root/flight-commander" \
+            --include='*.py' --include='*.sh' --include='*.h' --include='CMakeLists.txt' | head -n 500 || true
 
-      - name: Print generic config fixups and load order
+      - name: Print embedded local-firmware identity strings
         shell: bash
         run: |
           set -euo pipefail
-          root="$(cat work/firmware-root.txt)"
-          echo '===== src/main/fc/config.c ====='
-          sed -n '180,360p' "$root/src/main/fc/config.c"
-          echo '===== src/main/fc/fc_init.c configuration load sequence ====='
-          sed -n '180,330p' "$root/src/main/fc/fc_init.c"
-          echo '===== config-fixup callers ====='
-          grep -R -n -E 'validateAndFixConfig|validateAndFix.*Config|readEEPROM|loadConfig|writeEEPROM|saveConfig' \
-            "$root/src/main/fc" "$root/src/main/config" \
-            --include='*.c' --include='*.h' | head -n 800 || true
-
-      - name: Print parameter-group load and migration behavior
-        shell: bash
-        run: |
-          set -euo pipefail
-          root="$(cat work/firmware-root.txt)"
-          echo '===== src/main/config/config_eeprom.c ====='
-          sed -n '100,330p' "$root/src/main/config/config_eeprom.c"
-          echo '===== src/main/config/parameter_group.c ====='
-          sed -n '1,180p' "$root/src/main/config/parameter_group.c"
-          echo '===== src/main/config/parameter_group.h ====='
-          sed -n '90,250p' "$root/src/main/config/parameter_group.h"
-          echo '===== PG_COMPASS_CONFIG ID ====='
-          grep -n -E 'PG_COMPASS_CONFIG|PG_FLIGHT_COMMANDER' "$root/src/main/config/parameter_group_ids.h" || true
-
-      - name: Print Flight Commander heading configuration storage
-        shell: bash
-        run: |
-          set -euo pipefail
-          root="$(cat work/firmware-root.txt)"
-          echo '===== heading_fusion.h ====='
-          sed -n '1,250p' "$root/src/main/flight_commander/heading_fusion.h"
-          echo '===== heading_fusion.c reset and calibration sections ====='
-          sed -n '1,360p' "$root/src/main/flight_commander/heading_fusion.c"
-          sed -n '480,590p' "$root/src/main/flight_commander/heading_fusion.c"
+          python3 - release/firmware/Flight-Commander-Firmware-4.0.1-MICOAIR743.hex <<'PY'
+          import re, sys
+          memory = {}
+          upper = 0
+          for raw in open(sys.argv[1], encoding='ascii'):
+              raw = raw.strip()
+              if not raw or not raw.startswith(':'):
+                  continue
+              rec = bytes.fromhex(raw[1:])
+              length = rec[0]
+              address = (rec[1] << 8) | rec[2]
+              kind = rec[3]
+              payload = rec[4:4 + length]
+              if kind == 0:
+                  base = upper + address
+                  for index, value in enumerate(payload):
+                      memory[base + index] = value
+              elif kind == 4:
+                  upper = int.from_bytes(payload, 'big') << 16
+              elif kind == 2:
+                  upper = int.from_bytes(payload, 'big') << 4
+          addresses = sorted(memory)
+          regions = []
+          if addresses:
+              start = previous = addresses[0]
+              data = bytearray([memory[start]])
+              for address in addresses[1:]:
+                  if address != previous + 1:
+                      regions.append((start, bytes(data)))
+                      start = address
+                      data = bytearray()
+                  data.append(memory[address])
+                  previous = address
+              regions.append((start, bytes(data)))
+          print('===== MATCHING PRINTABLE STRINGS =====')
+          for start, data in regions:
+              for match in re.finditer(rb'[\x20-\x7e]{4,}', data):
+                  text = match.group().decode('ascii', errors='replace')
+                  if any(token.lower() in text.lower() for token in ('mico', 'micro', 'flight commander', 'fcfw', 'inav')):
+                      print(f'0x{start + match.start():08x}: {text}')
+          PY
 
       - name: Print Configurator local firmware acceptance code
         shell: bash
         run: |
           set -euo pipefail
           echo '===== tabs/firmware_flasher.js acceptance section ====='
-          sed -n '430,820p' tabs/firmware_flasher.js
+          nl -ba tabs/firmware_flasher.js | sed -n '430,820p'
           echo '===== js/flightCommander/firmwareCatalog.js ====='
-          sed -n '1,320p' js/flightCommander/firmwareCatalog.js
-          echo '===== related tests ====='
-          find tests -maxdepth 5 -type f | sort | grep -E 'firmware|flasher|catalog' || true
+          nl -ba js/flightCommander/firmwareCatalog.js | sed -n '1,340p'
