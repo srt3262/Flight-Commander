@@ -1334,6 +1334,9 @@ def patch_heading(root: Path) -> None:
         '#include "io/gps.h"\n',
         '#include "io/gps.h"\n#include "io/gps_dronecan.h"\n')
     replace_once(path,
+        '#include "io/gps.h"\n',
+        '#include "io/gps.h"\n#include "io/gps_dronecan.h"\n')
+    replace_once(path,
         '''    if (!baselineProviderEnabled(FLIGHT_COMMANDER_BASELINE_DRONECAN) ||
         !selectedNode(dronecanConfig()->gpsNodeID, sourceNodeID) || !message->heading_valid) {
         return;
