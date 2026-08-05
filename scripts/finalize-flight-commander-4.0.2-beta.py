@@ -10,6 +10,10 @@ PUBLISHER = ROOT / ".github/workflows/publish-flight-commander-beta.yml"
 INTEGRATION = ROOT / "scripts/apply-flight-commander-4.0.2-beta.py"
 SELF = ROOT / "scripts/finalize-flight-commander-4.0.2-beta.py"
 WORKFLOW = ROOT / ".github/workflows/finalize-flight-commander-4.0.2-beta-once.yml"
+COMPETING_WORKFLOWS = (
+    ROOT / ".github/workflows/repair-4.0.2-release-branch.yml",
+    ROOT / ".github/workflows/repair-4.0.2-release-branch-v2.yml",
+)
 
 
 def replace_once(text: str, old: str, new: str, label: str) -> str:
@@ -75,6 +79,11 @@ def trigger_canonical_publisher() -> None:
     PUBLISHER.write_text(text, encoding="utf-8", newline="\n")
 
 
+def remove_competing_workflows() -> None:
+    for path in COMPETING_WORKFLOWS:
+        path.unlink(missing_ok=True)
+
+
 def verify() -> None:
     contract = CONTRACT.read_text(encoding="utf-8")
     publisher = PUBLISHER.read_text(encoding="utf-8")
@@ -90,12 +99,16 @@ def verify() -> None:
     for marker in required:
         if marker not in contract and marker not in publisher:
             raise RuntimeError(f"Required publication contract is missing: {marker}")
+    for path in COMPETING_WORKFLOWS:
+        if path.exists():
+            raise RuntimeError(f"Competing repair workflow remains: {path}")
 
 
 def main() -> None:
     restore_contract()
     update_integration_helper()
     trigger_canonical_publisher()
+    remove_competing_workflows()
     verify()
     WORKFLOW.unlink()
     SELF.unlink()
