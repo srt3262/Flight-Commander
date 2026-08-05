@@ -1,0 +1,400 @@
+name: Publish Flight Commander beta release
+
+"on":
+  push:
+    branches:
+      - main
+    paths:
+      - package.json
+      - manifest.json
+      - release/firmware/**
+      - release/notes/**
+      - .github/workflows/publish-flight-commander-beta.yml
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: flight-commander-beta-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate-release:
+    name: Validate retained release inputs
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.metadata.outputs.version }}
+      tag: ${{ steps.metadata.outputs.tag }}
+      release_sha: ${{ steps.metadata.outputs.release_sha }}
+      firmware_file: ${{ steps.metadata.outputs.firmware_file }}
+      firmware_source_file: ${{ steps.metadata.outputs.firmware_source_file }}
+      notes_file: ${{ steps.metadata.outputs.notes_file }}
+
+    steps:
+      - name: Check out the exact release revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Verify version, checksums, archive, target and compass contract
+        id: metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib
+          import json
+          import os
+          import zipfile
+          from pathlib import Path
+
+          package = json.loads(Path('package.json').read_text(encoding='utf-8'))
+          manifest = json.loads(Path('manifest.json').read_text(encoding='utf-8'))
+          version = package['version']
+          assert manifest['version'] == version, (manifest['version'], version)
+
+          fc = package['flightCommander']
+          assert fc['firmwareChangedInRelease'] is True
+          assert fc['firmwareSourceAvailable'] is True
+          assert fc['firmwareReleaseVersion'] == version
+          assert fc['firmwareSourceVersion'] == version
+          assert fc['firmwareMajor'] == int(version.split('.', 1)[0])
+
+          firmware_name = f'Flight-Commander-Firmware-{version}-MICOAIR743.hex'
+          source_name = f'Flight-Commander-Firmware-Source-v{version}.zip'
+          firmware = Path('release/firmware') / firmware_name
+          source = Path('release/firmware') / source_name
+          assert firmware.is_file(), firmware
+          assert source.is_file(), source
+          assert firmware.stat().st_size > 1024 * 1024
+          assert source.stat().st_size > 1024 * 1024
+
+          firmware_hash = hashlib.sha256(firmware.read_bytes()).hexdigest()
+          source_hash = hashlib.sha256(source.read_bytes()).hexdigest()
+          assert firmware_hash == fc['firmwareReleaseSha256']
+          assert source_hash == fc['firmwareSourceSha256']
+          assert fc['firmwareSourceArchive'] == source.as_posix()
+
+          with zipfile.ZipFile(source) as archive:
+              assert archive.testzip() is None
+              roots = {name.split('/', 1)[0] for name in archive.namelist() if name}
+              assert roots == {f'Flight-Commander-Firmware-Source-v{version}'}
+              manifest_name = next(
+                  name for name in archive.namelist()
+                  if name.endswith('/RELEASE-MANIFEST.json')
+              )
+              source_manifest = json.loads(archive.read(manifest_name))
+          assert source_manifest['version'] == version
+          assert source_manifest['target'] == 'MICOAIR743'
+          assert source_manifest['artifact']['sha256'] == firmware_hash
+          assert source_manifest['source_revision'] == fc['firmwareSourceRevision']
+          assert source_manifest['source_tree'] == fc['firmwareSourceTree']
+
+          notes = Path('release/notes') / f'v{version}-beta.md'
+          assert notes.is_file(), notes
+
+          output = Path(os.environ['GITHUB_OUTPUT'])
+          with output.open('a', encoding='utf-8') as stream:
+              stream.write(f'version={version}\n')
+              stream.write(f'tag=v{version}-beta\n')
+              stream.write(f'release_sha={os.environ["GITHUB_SHA"]}\n')
+              stream.write(f'firmware_file={firmware_name}\n')
+              stream.write(f'firmware_source_file={source_name}\n')
+              stream.write(f'notes_file={notes.as_posix()}\n')
+
+          print(f'Flight Commander {version} retained release inputs: PASS')
+          print(f'Firmware SHA-256: {firmware_hash}')
+          print(f'Source SHA-256:   {source_hash}')
+          PY
+          node scripts/check-flight-commander-version.mjs
+          node --test \
+            tests/flight-commander/firmware/flight-commander-catalog.test.mjs \
+            tests/flight-commander/firmware/onboard-ist8310-transform.test.mjs
+
+  package-windows:
+    name: Test and package Windows beta
+    needs: validate-release
+    runs-on: windows-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out the exact validated revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ needs.validate-release.outputs.release_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: yarn
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install, test, package and verify
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          corepack enable
+          corepack prepare yarn@1.22.22 --activate
+          yarn install --frozen-lockfile --non-interactive
+          yarn test
+          yarn package:windows
+          yarn verify:windows
+
+      - name: Assemble the four canonical components
+        shell: pwsh
+        env:
+          VERSION: ${{ needs.validate-release.outputs.version }}
+          RELEASE_SHA: ${{ needs.validate-release.outputs.release_sha }}
+          FIRMWARE_FILE: ${{ needs.validate-release.outputs.firmware_file }}
+          FIRMWARE_SOURCE_FILE: ${{ needs.validate-release.outputs.firmware_source_file }}
+          RELEASE_TAG: ${{ needs.validate-release.outputs.tag }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Add-Type -AssemblyName System.IO.Compression
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+
+          $stage = Join-Path $PWD 'release-candidate'
+          $components = Join-Path $stage "Flight-Commander-v$env:VERSION"
+          Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force -Path $components | Out-Null
+
+          $packageDir = Get-ChildItem -LiteralPath (Join-Path $PWD 'out') -Directory -Recurse |
+            Where-Object {
+              $_.Name -match 'win32-x64$' -and
+              (Test-Path -LiteralPath (Join-Path $_.FullName 'flight-commander.exe'))
+            } |
+            Select-Object -First 1
+          if (-not $packageDir) { throw 'Verified Windows package directory not found.' }
+
+          $windowsZip = Join-Path $components "FC-Windows-v$env:VERSION.zip"
+          [IO.Compression.ZipFile]::CreateFromDirectory(
+            $packageDir.FullName,
+            $windowsZip,
+            [IO.Compression.CompressionLevel]::Optimal,
+            $false
+          )
+
+          $archive = Join-Path $env:RUNNER_TEMP 'configurator-source.zip'
+          $configParent = Join-Path $env:RUNNER_TEMP 'configurator-source-parent'
+          $configRootName = "FC-Configurator-Source-v$env:VERSION"
+          $configRoot = Join-Path $configParent $configRootName
+          Remove-Item -LiteralPath $configParent -Recurse -Force -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force -Path $configParent | Out-Null
+          git archive --format=zip "--prefix=$configRootName/" "--output=$archive" $env:RELEASE_SHA
+          if ($LASTEXITCODE -ne 0) { throw 'git archive failed.' }
+          Expand-Archive -LiteralPath $archive -DestinationPath $configParent -Force
+          $firmwareDir = Join-Path $configRoot 'release/firmware'
+          Remove-Item -LiteralPath $firmwareDir -Recurse -Force -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force -Path $firmwareDir | Out-Null
+          Copy-Item -LiteralPath (Join-Path $PWD "release/firmware/$env:FIRMWARE_FILE") -Destination $firmwareDir
+          Copy-Item -LiteralPath (Join-Path $PWD "release/firmware/$env:FIRMWARE_SOURCE_FILE") -Destination $firmwareDir
+          $configZip = Join-Path $components "FC-Configurator-Source-v$env:VERSION.zip"
+          [IO.Compression.ZipFile]::CreateFromDirectory(
+            $configParent,
+            $configZip,
+            [IO.Compression.CompressionLevel]::Optimal,
+            $false
+          )
+
+          $firmwareComponent = Join-Path $components "FC-Firmware-v$env:VERSION-MICOAIR743.hex"
+          $firmwareSourceComponent = Join-Path $components "FC-Firmware-Source-v$env:VERSION.zip"
+          Copy-Item -LiteralPath (Join-Path $PWD "release/firmware/$env:FIRMWARE_FILE") -Destination $firmwareComponent
+          Copy-Item -LiteralPath (Join-Path $PWD "release/firmware/$env:FIRMWARE_SOURCE_FILE") -Destination $firmwareSourceComponent
+
+          $expected = @(
+            "FC-Configurator-Source-v$env:VERSION.zip",
+            "FC-Firmware-Source-v$env:VERSION.zip",
+            "FC-Firmware-v$env:VERSION-MICOAIR743.hex",
+            "FC-Windows-v$env:VERSION.zip"
+          ) | Sort-Object
+          $componentFiles = @(Get-ChildItem -LiteralPath $components -File | Sort-Object Name)
+          $actual = @($componentFiles.Name | Sort-Object)
+          if ($componentFiles.Count -ne 4 -or (Compare-Object $expected $actual)) {
+            throw 'The beta candidate does not contain exactly the four canonical components.'
+          }
+
+          $completeZip = Join-Path $stage "Flight-Commander-v$env:VERSION.zip"
+          $bundle = [IO.Compression.ZipFile]::Open(
+            $completeZip,
+            [IO.Compression.ZipArchiveMode]::Create
+          )
+          try {
+            foreach ($component in $componentFiles) {
+              [IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
+                $bundle,
+                $component.FullName,
+                $component.Name,
+                [IO.Compression.CompressionLevel]::Optimal
+              ) | Out-Null
+            }
+          } finally {
+            $bundle.Dispose()
+          }
+
+          $readback = [IO.Compression.ZipFile]::OpenRead($completeZip)
+          try {
+            $bundleNames = @($readback.Entries | ForEach-Object { $_.FullName } | Sort-Object)
+          } finally {
+            $readback.Dispose()
+          }
+          if ($bundleNames.Count -ne 4 -or (Compare-Object $expected $bundleNames)) {
+            throw 'The complete beta ZIP does not contain exactly the four canonical components.'
+          }
+
+          $hashFile = Join-Path $stage 'SHA256SUMS.txt'
+          Remove-Item -LiteralPath $hashFile -Force -ErrorAction SilentlyContinue
+          @($componentFiles + (Get-Item -LiteralPath $completeZip)) | ForEach-Object {
+            $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $_.FullName).Hash.ToLowerInvariant()
+            "$hash  $($_.Name)" | Add-Content -LiteralPath $hashFile -Encoding ascii
+          }
+          $releaseManifest = [ordered]@{
+            version = $env:VERSION
+            prerelease = $true
+            tag = $env:RELEASE_TAG
+            commitSha = $env:RELEASE_SHA
+            componentCount = 4
+            completeBundle = [IO.Path]::GetFileName($completeZip)
+          }
+          $releaseManifest | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $stage 'release-manifest.json') -Encoding utf8
+
+      - name: Upload the verified beta bundle once
+        uses: actions/upload-artifact@v4
+        with:
+          name: flight-commander-${{ needs.validate-release.outputs.version }}-beta-bundle
+          retention-days: 30
+          if-no-files-found: error
+          path: |
+            release-candidate/Flight-Commander-v${{ needs.validate-release.outputs.version }}
+            release-candidate/Flight-Commander-v${{ needs.validate-release.outputs.version }}.zip
+            release-candidate/SHA256SUMS.txt
+            release-candidate/release-manifest.json
+
+  publish-beta:
+    name: Publish the beta prerelease
+    needs:
+      - validate-release
+      - package-windows
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check out release notes and canonical firmware assets
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ needs.validate-release.outputs.release_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Download the verified beta bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: flight-commander-${{ needs.validate-release.outputs.version }}-beta-bundle
+          path: beta-assets
+
+      - name: Verify and stage release assets
+        shell: bash
+        env:
+          VERSION: ${{ needs.validate-release.outputs.version }}
+          RELEASE_SHA: ${{ needs.validate-release.outputs.release_sha }}
+          FIRMWARE_FILE: ${{ needs.validate-release.outputs.firmware_file }}
+          FIRMWARE_SOURCE_FILE: ${{ needs.validate-release.outputs.firmware_source_file }}
+        run: |
+          set -euo pipefail
+          components="beta-assets/Flight-Commander-v${VERSION}"
+          complete="beta-assets/Flight-Commander-v${VERSION}.zip"
+          test -d "$components"
+          test -f "$complete"
+          test "$(find "$components" -maxdepth 1 -type f | wc -l)" -eq 4
+          python3 - "$components" "$complete" <<'PY'
+          import hashlib
+          import sys
+          import zipfile
+          from pathlib import Path
+
+          components = Path(sys.argv[1])
+          complete = Path(sys.argv[2])
+          expected = sorted(path.name for path in components.iterdir() if path.is_file())
+          assert len(expected) == 4
+          with zipfile.ZipFile(complete) as archive:
+              names = sorted(info.filename for info in archive.infolist() if not info.is_dir())
+              assert names == expected, (names, expected)
+              for name in expected:
+                  component_hash = hashlib.sha256((components / name).read_bytes()).hexdigest()
+                  archived_hash = hashlib.sha256(archive.read(name)).hexdigest()
+                  assert archived_hash == component_hash, name
+          print('Complete beta ZIP contains exactly four byte-matched components.')
+          PY
+
+          mkdir -p release-upload
+          cp "$components"/* release-upload/
+          cp "$complete" release-upload/
+          cp beta-assets/SHA256SUMS.txt release-upload/
+          cp beta-assets/release-manifest.json release-upload/
+          cp "release/firmware/$FIRMWARE_FILE" "release-upload/$FIRMWARE_FILE"
+          cp "release/firmware/$FIRMWARE_SOURCE_FILE" "release-upload/$FIRMWARE_SOURCE_FILE"
+          test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
+
+      - name: Create or refresh the exact beta prerelease
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.validate-release.outputs.version }}
+          RELEASE_TAG: ${{ needs.validate-release.outputs.tag }}
+          RELEASE_SHA: ${{ needs.validate-release.outputs.release_sha }}
+          NOTES_FILE: ${{ needs.validate-release.outputs.notes_file }}
+        run: |
+          set -euo pipefail
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            git fetch --force origin "refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"
+            existing_sha="$(git rev-list -n 1 "$RELEASE_TAG")"
+            if [[ "$existing_sha" != "$RELEASE_SHA" ]]; then
+              gh release delete "$RELEASE_TAG" \
+                --repo "$GITHUB_REPOSITORY" \
+                --cleanup-tag \
+                --yes
+            fi
+          fi
+
+          if ! gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$RELEASE_SHA" \
+              --title "Flight Commander ${VERSION} Beta" \
+              --notes-file "$NOTES_FILE" \
+              --prerelease
+          else
+            gh release edit "$RELEASE_TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "Flight Commander ${VERSION} Beta" \
+              --notes-file "$NOTES_FILE" \
+              --prerelease
+          fi
+
+          gh release upload "$RELEASE_TAG" release-upload/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
+          gh release view "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --json url,tagName,isPrerelease,publishedAt,targetCommitish
