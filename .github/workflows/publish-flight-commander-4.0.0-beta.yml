@@ -1,0 +1,93 @@
+name: Publish Flight Commander 4.0.0 beta after merge
+
+"on":
+  push:
+    branches:
+      - main
+
+permissions:
+  actions: write
+  contents: write
+
+concurrency:
+  group: publish-flight-commander-4.0.0-beta
+  cancel-in-progress: false
+
+jobs:
+  dispatch-and-finalize:
+    name: Dispatch verified 4.0.0 pipeline and mark the release as beta
+    if: github.event.head_commit.message == 'Publish Flight Commander 4.0.0 beta release'
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+
+    steps:
+      - name: Check out the exact merged release revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify the coordinated beta source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(node -p "require('./package.json').version")" = '4.0.0'
+          test "$(node -p "require('./package.json').flightCommander.firmwareReleaseVersion")" = '4.0.0'
+          test -f release/firmware/Flight-Commander-Firmware-4.0.0-MICOAIR743.hex
+          test -f release/firmware/Flight-Commander-Firmware-Source-v4.0.0.zip
+          node scripts/check-flight-commander-version.mjs
+
+      - name: Dispatch the approved cleanup and release orchestrator
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if gh release view v4.0.0 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo 'Release v4.0.0 already exists; skipping duplicate dispatch.'
+          else
+            gh workflow run release-4.0.0-orchestrator.yml \
+              --repo "$GITHUB_REPOSITORY" \
+              --ref main \
+              -f expected_sha="$GITHUB_SHA" \
+              -f publish_confirmation='PUBLISH_FLIGHT_COMMANDER_4.0.0'
+          fi
+
+      - name: Wait for the verified GitHub release and mark it prerelease
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          release_json="$RUNNER_TEMP/flight-commander-4.0.0-release.json"
+          found=false
+          for attempt in $(seq 1 180); do
+            if gh api "/repos/$GITHUB_REPOSITORY/releases/tags/v4.0.0" > "$release_json" 2>/dev/null; then
+              found=true
+              break
+            fi
+            sleep 30
+          done
+          if [[ "$found" != true ]]; then
+            echo 'The verified release pipeline did not publish v4.0.0 within the allowed window.' >&2
+            exit 1
+          fi
+
+          release_id="$(jq -r '.id' "$release_json")"
+          gh api --method PATCH \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "/repos/$GITHUB_REPOSITORY/releases/$release_id" \
+            -f name='Flight Commander 4.0.0 Beta' \
+            -F prerelease=true > "$release_json"
+
+          test "$(jq -r '.draft' "$release_json")" = 'false'
+          test "$(jq -r '.prerelease' "$release_json")" = 'true'
+          test "$(jq -r '.tag_name' "$release_json")" = 'v4.0.0'
+          test "$(jq '.assets | length' "$release_json")" -eq 2
+
+          tag_sha="$(gh api "/repos/$GITHUB_REPOSITORY/git/ref/tags/v4.0.0" --jq '.object.sha')"
+          test "$tag_sha" = "$GITHUB_SHA"
+          echo "Flight Commander 4.0.0 is published as a verified GitHub prerelease at $GITHUB_SHA."
