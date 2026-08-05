@@ -1,5 +1,7 @@
 name: Build Flight Commander Firmware 4.0.0
 
+# Development-only coordinated builder. It compiles the firmware, regenerates
+# reproducibility metadata, and exercises the complete Configurator contract.
 "on":
   push:
     branches:
