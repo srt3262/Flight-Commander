@@ -457,6 +457,8 @@ DRONECAN_PAIR_H = r'''#pragma once
 
 #include "drivers/dronecan/libcanard/canard.h"
 
+struct ardupilot_gnss_RelPosHeading;
+
 #define DRONECAN_PAIR_STATUS_SCHEMA 1
 #define DRONECAN_PAIR_COMMAND_SCHEMA 1
 
@@ -1313,7 +1315,11 @@ const dronecanNodeInfo_t *dronecanGetNodeById(uint8_t nodeID)
 '''
     value = path.read_text(encoding="utf-8")
     if "bool dronecanSendServiceRequest(" not in value:
-        value = value.replace("\n#endif\n", append + "\n#endif\n")
+        marker = "\n#endif\n"
+        insertion = value.rfind(marker)
+        if insertion < 0:
+            raise RuntimeError("dronecan.c has no final preprocessor terminator")
+        value = value[:insertion] + append + value[insertion:]
         path.write_text(value, encoding="utf-8")
 
 

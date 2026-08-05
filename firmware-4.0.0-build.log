@@ -1,0 +1,13 @@
+Traceback (most recent call last):
+  File "/home/runner/work/Flight-Commander/Flight-Commander/scripts/prepare-flight-commander-firmware-4.0.0.py", line 1615, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "/home/runner/work/Flight-Commander/Flight-Commander/scripts/prepare-flight-commander-firmware-4.0.0.py", line 1610, in main
+    prepare(args.archive.resolve(), args.output.resolve())
+  File "/home/runner/work/Flight-Commander/Flight-Commander/scripts/prepare-flight-commander-firmware-4.0.0.py", line 1598, in prepare
+    patch_msp(root)
+  File "/home/runner/work/Flight-Commander/Flight-Commander/scripts/prepare-flight-commander-firmware-4.0.0.py", line 1366, in patch_msp
+    replace_once(protocol,
+  File "/home/runner/work/Flight-Commander/Flight-Commander/scripts/prepare-flight-commander-firmware-4.0.0.py", line 30, in replace_once
+    raise RuntimeError(f"{path}: expected one replacement target, found {count}: {old[:120]!r}")
+RuntimeError: /home/runner/work/_temp/flight-commander-firmware-4.0.0/Flight-Commander-Firmware-Source-v4.0.0/src/main/msp/msp_protocol_v2_flight_commander.h: expected one replacement target, found 0: '#define MSP2_FLIGHT_COMMANDER_DRONECAN_NODES         0x2F12\n'
