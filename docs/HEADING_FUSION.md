@@ -1,6 +1,6 @@
 # Heading fusion and moving-baseline yaw
 
-Flight Commander Firmware 3.0.7 can keep four heading sources live at the
+Flight Commander Firmware 4.0.0 can keep four heading sources live at the
 same time. The Configurator exposes them only when the connected controller
 advertises `HEADING_FUSION`; moving-baseline controls additionally require
 `MOVING_BASELINE_YAW`.
@@ -93,6 +93,12 @@ the last plausible calibration for the same sensor binding; a different CAN
 node cannot inherit it.
 Moving-baseline yaw is not a magnetometer, so it uses antenna geometry,
 alignment, accuracy, and carrier-fix validation instead of compass calibration.
+
+## Holybro DroneCAN H-RTK F9P pair manager
+
+Flight Commander 4.0.0 can configure two AP_Periph-compatible DroneCAN F9P nodes without a separate CAN setup application. Select fixed node IDs for **Moving Base on aircraft** and **Moving Rover on aircraft**, review CAN termination, then use **Configure and verify pair**. The firmware writes and verifies the module roles, saves the remote parameters, restarts both nodes, and binds `RelPosHeading` acceptance to the rover identity.
+
+The role binding is independent of navigation-primary selection. Either paired module can provide normal position, but only the configured rover may provide moving-baseline yaw. A stationary RTK base or NTRIP stream remains a separate absolute-position correction source.
 
 ## Moving-baseline setup
 

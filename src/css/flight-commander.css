@@ -911,3 +911,19 @@
         grid-template-columns: 1fr;
     }
 }
+
+
+/* Flight Commander 4.0.0 DroneCAN moving-baseline pair manager */
+.gps-moving-baseline-pair {
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid rgba(255, 255, 255, 0.15);
+}
+.gps-moving-baseline-pair h3 { margin: 0 0 8px; }
+.gps-pair-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.gps-moving-baseline-pair progress { width: 100%; height: 12px; }
+.gps-pair-status { display: grid; gap: 8px; margin: 12px 0 0; }
+.gps-pair-status > div { padding: 8px; background: rgba(0, 0, 0, 0.18); border-radius: 4px; }
+.gps-pair-status dt { font-weight: 700; }
+.gps-pair-status dd { margin: 2px 0 0; overflow-wrap: anywhere; }
+.gps-pair-checkbox { align-items: center; }

@@ -132,7 +132,7 @@
                                 </select>
                             </label>
                             <label for="gpsDronecanNode">
-                                <span>DroneCAN GPS / RTK node</span>
+                                <span>DroneCAN navigation GPS / RTK node</span>
                                 <select id="gpsDronecanNode"></select>
                             </label>
                             <label for="gpsPrimarySource">
@@ -152,6 +152,58 @@
                             navigation primary, and both retain independent RTK Float/Fixed state and
                             receive RTCM corrections. Battery-node assignments remain available in Ports.
                         </p>
+
+                        <section id="dronecanMovingBaselinePair" class="gps-moving-baseline-pair is-hidden">
+                            <h3>Holybro / AP_Periph two-node moving-baseline setup</h3>
+                            <p>
+                                Select two fixed DroneCAN node IDs. Flight Commander configures the first F9P as the
+                                moving base (<code>GPS_TYPE=17</code>), the second as the moving rover
+                                (<code>GPS_TYPE=18</code>), enables GPS auto-configuration, saves both nodes, restarts
+                                them, and verifies the role readback. The rover must publish
+                                <code>ardupilot.gnss.RelPosHeading</code> before its yaw can enter heading fusion.
+                            </p>
+                            <div class="gps-can-grid">
+                                <label for="gpsMovingBaseNode"><span>Moving-base node</span><select id="gpsMovingBaseNode"></select></label>
+                                <label for="gpsMovingRoverNode"><span>Moving-rover node</span><select id="gpsMovingRoverNode"></select></label>
+                                <label for="gpsMovingBaseTermination">
+                                    <span>Moving-base termination</span>
+                                    <select id="gpsMovingBaseTermination">
+                                        <option value="0">Leave module setting unchanged</option>
+                                        <option value="1">Disable module termination</option>
+                                        <option value="2">Enable module termination</option>
+                                    </select>
+                                </label>
+                                <label for="gpsMovingRoverTermination">
+                                    <span>Moving-rover termination</span>
+                                    <select id="gpsMovingRoverTermination">
+                                        <option value="0">Leave module setting unchanged</option>
+                                        <option value="1">Disable module termination</option>
+                                        <option value="2">Enable module termination</option>
+                                    </select>
+                                </label>
+                                <label class="gps-pair-checkbox" for="gpsPairRequireApPeriph">
+                                    <span>Require AP_Periph-compatible identity</span>
+                                    <input id="gpsPairRequireApPeriph" type="checkbox" checked>
+                                </label>
+                            </div>
+                            <p class="gps-can-note">
+                                Do not enable termination on both modules unless they are the two physical ends of the
+                                CAN trunk. A CAN hub or other device may already provide the required end termination.
+                            </p>
+                            <div class="gps-pair-actions">
+                                <button id="gpsPairConfigure" type="button">Configure and verify pair</button>
+                                <button id="gpsPairVerify" type="button">Verify current roles</button>
+                                <button id="gpsPairAbort" type="button">Abort</button>
+                            </div>
+                            <progress id="gpsPairProgress" min="0" max="100" value="0"></progress>
+                            <dl class="gps-pair-status">
+                                <div><dt>Manager</dt><dd id="gpsPairState">Idle</dd></div>
+                                <div><dt>Moving base</dt><dd id="gpsPairBaseIdentity">Not selected</dd><dd id="gpsPairBaseLive"></dd></div>
+                                <div><dt>Moving rover</dt><dd id="gpsPairRoverIdentity">Not selected</dd><dd id="gpsPairRoverLive"></dd></div>
+                                <div><dt>Relative heading</dt><dd id="gpsPairRelativeLive">No solution</dd></div>
+                                <div><dt>DroneCAN services</dt><dd id="gpsPairServiceStats">0 requests</dd></div>
+                            </dl>
+                        </section>
                     </div>
                 </div>
 
@@ -234,7 +286,7 @@
                                 <label><span>Expected antenna separation</span><input id="movingBaselineLength" type="number" min="0.30" max="10" step="0.01"> m</label>
                                 <label><span>Allowed length error</span><input id="movingBaselineTolerance" type="number" min="0.01" max="9.99" step="0.01"> m</label>
                                 <label><span>Maximum heading accuracy</span><input id="movingBaselineAccuracy" type="number" min="0.10" max="45" step="0.01"> °</label>
-                                <label><span>Require RTK Fixed</span><input id="movingBaselineFixedOnly" type="checkbox"></label>
+                                <label><span>Require fixed relative-baseline solution</span><input id="movingBaselineFixedOnly" type="checkbox"></label>
                                 <p>Requires a real relative-heading solution; two ordinary position fixes are not enough.</p>
                             </fieldset>
 

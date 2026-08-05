@@ -57,6 +57,13 @@ If the module also publishes a compass, treat its node-bound compass as a
 separate calibration/alignment target. Do not transfer calibration coefficients
 between node IDs.
 
+
+### Two-node Holybro/AP_Periph moving-baseline pair
+
+With Flight Commander Firmware 4.0.0, select the two discovered GNSS nodes as **Moving Base** and **Moving Rover**. The one-stage setup manager assigns AP_Periph moving-baseline roles, saves and restarts both modules, and verifies role readback. Select the rover as navigation primary when practical, but keep navigation selection logically separate from the fixed base/rover heading roles.
+
+Leave module termination unchanged unless the physical CAN topology is known. Exactly the two ends of the CAN trunk should be terminated; a hub or another peripheral may already provide one or both terminations.
+
 ## Concurrent receivers and primary navigation
 
 When firmware advertises concurrent UART and DroneCAN GPS support, both

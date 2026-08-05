@@ -28,6 +28,10 @@ import {
     encodeDronecanConfig,
 } from './../flightCommander/dualGps';
 import {
+    decodeDronecanPairStatus,
+    encodeDronecanPairCommand,
+} from './../flightCommander/dronecanMovingBaseline';
+import {
     decodeHeadingConfig,
     decodeHeadingStatus,
     encodeHeadingConfig,
@@ -812,6 +816,14 @@ var mspHelper = (function () {
                 if (data.byteLength >= 4) {
                     Object.assign(FC.DRONECAN_CONFIG, decodeDronecanConfig(data));
                 }
+                break;
+
+            case MSPCodes.MSP2_FLIGHT_COMMANDER_DRONECAN_PAIR_STATUS:
+                Object.assign(FC.DRONECAN_PAIR_STATUS, decodeDronecanPairStatus(data));
+                break;
+
+            case MSPCodes.MSP2_FLIGHT_COMMANDER_DRONECAN_PAIR_COMMAND:
+                // Empty ACK confirms that the disarmed pair-management command was accepted.
                 break;
 
             case MSPCodes.MSP2_FLIGHT_COMMANDER_DRONECAN_NODES:
@@ -3770,6 +3782,19 @@ var mspHelper = (function () {
 
     self.loadDronecanNodes = function (callback) {
         MSP.send_message(MSPCodes.MSP2_FLIGHT_COMMANDER_DRONECAN_NODES, false, false, callback);
+    };
+
+    self.loadDronecanPairStatus = function (callback) {
+        MSP.send_message(MSPCodes.MSP2_FLIGHT_COMMANDER_DRONECAN_PAIR_STATUS, false, false, callback);
+    };
+
+    self.sendDronecanPairCommand = function (command, callback) {
+        MSP.send_message(
+            MSPCodes.MSP2_FLIGHT_COMMANDER_DRONECAN_PAIR_COMMAND,
+            [...encodeDronecanPairCommand(command)],
+            false,
+            callback,
+        );
     };
 
     self.saveDronecanConfig = function (callback) {

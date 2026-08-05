@@ -1,3 +1,11 @@
+# Flight Commander 4.0.0
+
+- Adds one-stage setup for two Holybro/AP_Periph DroneCAN F9P modules used as an aircraft moving-baseline pair.
+- Stores independent navigation, moving-base, moving-rover, compass, and battery node bindings.
+- Configures and verifies AP_Periph `CAN_NODE`, `GPS_TYPE`, `GPS_AUTO_CONFIG`, optional `CAN_TERMINATE`, parameter save, and node restart while disarmed.
+- Accepts relative heading only from the bound rover and reports per-node fix, role, service, timeout, baseline, and heading diagnostics.
+- Preserves Flight Commander 3.0.7's accepted MICOAIR743 onboard IST8310 transform as the magnetic fallback baseline.
+
 # Flight Commander 3.0.7
 
 - Publishes the first officially accepted MICOAIR743 onboard IST8310 compass baseline.

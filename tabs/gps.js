@@ -36,8 +36,18 @@ import dialog from '../js/dialog';
 import { firmwareFeatureSupport } from '../js/flightCommander/firmwareIdentity';
 import {
     DRONECAN_NODE_ID_DISABLED,
+    DRONECAN_TERMINATION_DISABLED,
+    DRONECAN_TERMINATION_ENABLED,
+    DRONECAN_TERMINATION_UNCHANGED,
     encodeDronecanConfig,
 } from '../js/flightCommander/dualGps';
+import {
+    DRONECAN_PAIR_COMMAND_ABORT,
+    DRONECAN_PAIR_COMMAND_CONFIGURE,
+    DRONECAN_PAIR_COMMAND_VERIFY,
+    DRONECAN_PAIR_ERROR_LABELS,
+    DRONECAN_PAIR_STATE_LABELS,
+} from '../js/flightCommander/dronecanMovingBaseline';
 import {
     EXTERNAL_MAG_HARDWARE,
     HEADING_SOURCE_COUNT,
@@ -63,6 +73,7 @@ gpsTab.initialize = function (callback) {
     const supportsDronecanConfig = firmwareFeatureSupport(firmwareIdentity, 'dronecanNodeConfig').enabled;
     const supportsHeadingFusion = firmwareFeatureSupport(firmwareIdentity, 'headingFusion').enabled;
     const supportsMovingBaseline = firmwareFeatureSupport(firmwareIdentity, 'movingBaselineYaw').enabled;
+    const supportsDronecanPairManager = firmwareFeatureSupport(firmwareIdentity, 'dronecanMovingBaselineManager').enabled;
 
     if (GUI.active_tab !== this) {
         GUI.active_tab = this;
@@ -242,6 +253,7 @@ gpsTab.initialize = function (callback) {
         $('#flightCommanderDronecanGpsConfig').toggleClass('is-hidden', !supportsDronecanConfig);
         $('#flightCommanderHeadingConfig').toggleClass('is-hidden', !supportsHeadingFusion);
         $('#movingBaselineConfig').toggleClass('is-hidden', !supportsMovingBaseline);
+        $('#dronecanMovingBaselinePair').toggleClass('is-hidden', !supportsDronecanPairManager);
 
         function describeDronecanNode(node) {
             const capabilities = [];
@@ -270,6 +282,23 @@ gpsTab.initialize = function (callback) {
             $select.val(String(configuredNodeId));
         }
 
+        function populatePairNodeSelect(selector, configuredNodeId, roleLabel) {
+            const $select = $(selector).empty().append('<option value="255">Disabled</option>');
+            let found = configuredNodeId === DRONECAN_NODE_ID_DISABLED;
+            for (const node of FC.DRONECAN_STATUS.nodes) {
+                if ((node.capabilities & (1 << 0)) === 0) continue;
+                $('<option/>').val(node.nodeId).text(`${roleLabel}: ${describeDronecanNode(node)}`).appendTo($select);
+                if (node.nodeId === configuredNodeId) found = true;
+            }
+            if (!found) {
+                $('<option/>')
+                    .val(configuredNodeId)
+                    .text(`${roleLabel}: Node ${configuredNodeId} · configured, not currently detected`)
+                    .appendTo($select);
+            }
+            $select.val(String(configuredNodeId));
+        }
+
         function renderDronecanGpsConfig() {
             if (!supportsDronecanConfig) return;
 
@@ -279,9 +308,9 @@ gpsTab.initialize = function (callback) {
 
             populateDronecanNodeSelect(
                 '#gpsDronecanNode',
-                FC.DRONECAN_CONFIG.gpsNodeId,
+                FC.DRONECAN_CONFIG.navigationNodeId ?? FC.DRONECAN_CONFIG.gpsNodeId,
                 1 << 0,
-                'Automatic GPS selection',
+                'Automatic navigation GPS selection',
             );
             populateDronecanNodeSelect(
                 '#gpsDronecanMagNode',
@@ -289,6 +318,13 @@ gpsTab.initialize = function (callback) {
                 1 << 3,
                 'Automatic compass selection',
             );
+            if (supportsDronecanPairManager) {
+                populatePairNodeSelect('#gpsMovingBaseNode', FC.DRONECAN_CONFIG.movingBaseNodeId, 'Moving base');
+                populatePairNodeSelect('#gpsMovingRoverNode', FC.DRONECAN_CONFIG.movingRoverNodeId, 'Moving rover');
+                $('#gpsPairRequireApPeriph').prop('checked', FC.DRONECAN_CONFIG.requireApPeriphIdentity !== false);
+                $('#gpsMovingBaseTermination').val(String(FC.DRONECAN_CONFIG.baseTermination));
+                $('#gpsMovingRoverTermination').val(String(FC.DRONECAN_CONFIG.roverTermination));
+            }
 
             const stateNames = ['Starting', 'Online', 'Bus off', 'Unavailable'];
             $('#gpsDronecanBusStatus').text(
@@ -301,10 +337,73 @@ gpsTab.initialize = function (callback) {
         function collectDronecanGpsConfig() {
             FC.DRONECAN_CONFIG.nodeId = Number.parseInt($('#gpsDronecanControllerNodeId').val(), 10);
             FC.DRONECAN_CONFIG.bitrate = Number.parseInt($('#gpsDronecanBitrate').val(), 10);
-            FC.DRONECAN_CONFIG.gpsNodeId = Number.parseInt($('#gpsDronecanNode').val(), 10);
+            FC.DRONECAN_CONFIG.navigationNodeId = Number.parseInt($('#gpsDronecanNode').val(), 10);
+            FC.DRONECAN_CONFIG.gpsNodeId = FC.DRONECAN_CONFIG.navigationNodeId;
             FC.DRONECAN_CONFIG.primaryGpsSource = Number.parseInt($('#gpsPrimarySource').val(), 10);
             FC.DRONECAN_CONFIG.magNodeId = Number.parseInt($('#gpsDronecanMagNode').val(), 10);
+            if (supportsDronecanPairManager) {
+                FC.DRONECAN_CONFIG.movingBaseNodeId = Number.parseInt($('#gpsMovingBaseNode').val(), 10);
+                FC.DRONECAN_CONFIG.movingRoverNodeId = Number.parseInt($('#gpsMovingRoverNode').val(), 10);
+                FC.DRONECAN_CONFIG.requireApPeriphIdentity = $('#gpsPairRequireApPeriph').prop('checked');
+                FC.DRONECAN_CONFIG.baseTermination = Number.parseInt($('#gpsMovingBaseTermination').val(), 10);
+                FC.DRONECAN_CONFIG.roverTermination = Number.parseInt($('#gpsMovingRoverTermination').val(), 10);
+            }
             encodeDronecanConfig(FC.DRONECAN_CONFIG);
+        }
+
+        function renderDronecanPairStatus() {
+            if (!supportsDronecanPairManager) return;
+            const status = FC.DRONECAN_PAIR_STATUS;
+            const fixNames = ['No fix', '2D', '3D', 'RTK Float', 'RTK Fixed'];
+            const state = DRONECAN_PAIR_STATE_LABELS[status.state] ?? `State ${status.state}`;
+            const error = status.errorCode
+                ? ` · ${DRONECAN_PAIR_ERROR_LABELS[status.errorCode] ?? `Error ${status.errorCode}`}`
+                : '';
+            $('#gpsPairState').text(`${state} · ${status.progress}%${error}`);
+            $('#gpsPairProgress').val(status.progress);
+            $('#gpsPairBaseIdentity').text(
+                `${status.baseName || `Node ${status.baseNodeId}`} · firmware ${status.baseSoftwareMajor}.${status.baseSoftwareMinor}`,
+            );
+            $('#gpsPairRoverIdentity').text(
+                `${status.roverName || `Node ${status.roverNodeId}`} · firmware ${status.roverSoftwareMajor}.${status.roverSoftwareMinor}`,
+            );
+            $('#gpsPairBaseLive').text(
+                `${status.baseOnline ? 'Online' : 'Offline'} · GPS_TYPE ${status.baseGpsType} · ` +
+                `${fixNames[status.baseFixType] ?? `Fix ${status.baseFixType}`} · ${status.baseSatellites} satellites`,
+            );
+            $('#gpsPairRoverLive').text(
+                `${status.roverOnline ? 'Online' : 'Offline'} · GPS_TYPE ${status.roverGpsType} · ` +
+                `${fixNames[status.roverFixType] ?? `Fix ${status.roverFixType}`} · ${status.roverSatellites} satellites`,
+            );
+            $('#gpsPairRelativeLive').text(
+                status.relativeHeadingFresh
+                    ? `${(status.relativeHeadingCentidegrees / 100).toFixed(2)}° · ` +
+                      `${(status.relativeAccuracyCentidegrees / 100).toFixed(2)}° accuracy · ` +
+                      `${(status.relativeDistanceCm / 100).toFixed(2)} m · ${status.relativeAgeMs} ms`
+                    : 'Waiting for rover RelPosHeading; satellite view is required for a live solution.',
+            );
+            $('#gpsPairServiceStats').text(
+                `${status.serviceRequestCount} requests · ${status.serviceResponseCount} responses · ` +
+                `${status.serviceTimeoutCount} timeouts`,
+            );
+        }
+
+        function sendPairCommand(command) {
+            try {
+                collectDronecanGpsConfig();
+            } catch (error) {
+                GUI.log(`<span class="error">${$('<div>').text(error.message).html()}</span>`);
+                return;
+            }
+            const buttons = $('#gpsPairConfigure, #gpsPairVerify, #gpsPairAbort').prop('disabled', true);
+            mspHelper.saveDronecanConfig(function () {
+                mspHelper.saveToEeprom(function () {
+                    mspHelper.sendDronecanPairCommand(command, function () {
+                        buttons.prop('disabled', false);
+                        mspHelper.loadDronecanPairStatus(renderDronecanPairStatus);
+                    });
+                });
+            });
         }
 
         function renderHeadingConfig() {
@@ -425,7 +524,24 @@ gpsTab.initialize = function (callback) {
             const $button = $(this).prop('disabled', true);
             mspHelper.loadDronecanNodes(function () {
                 renderDronecanGpsConfig();
+                if (supportsDronecanPairManager) {
+                    mspHelper.loadDronecanPairStatus(renderDronecanPairStatus);
+                }
                 $button.prop('disabled', false);
+            });
+        });
+        $('#gpsPairConfigure').on('click.gpsTab', (event) => {
+            event.preventDefault();
+            sendPairCommand(DRONECAN_PAIR_COMMAND_CONFIGURE);
+        });
+        $('#gpsPairVerify').on('click.gpsTab', (event) => {
+            event.preventDefault();
+            sendPairCommand(DRONECAN_PAIR_COMMAND_VERIFY);
+        });
+        $('#gpsPairAbort').on('click.gpsTab', (event) => {
+            event.preventDefault();
+            mspHelper.sendDronecanPairCommand(DRONECAN_PAIR_COMMAND_ABORT, () => {
+                mspHelper.loadDronecanPairStatus(renderDronecanPairStatus);
             });
         });
 
@@ -862,6 +978,12 @@ gpsTab.initialize = function (callback) {
             }, 1000, true);
         }
 
+        if (supportsDronecanPairManager) {
+            interval.add('flight_commander_dronecan_pair_pull', function () {
+                mspHelper.loadDronecanPairStatus(renderDronecanPairStatus);
+            }, 500, true);
+        }
+
         if (supportsHeadingFusion) {
             interval.add('flight_commander_heading_pull', function () {
                 mspHelper.loadFlightCommanderHeadingStatus(updateHeadingUi);
@@ -972,6 +1094,7 @@ gpsTab.cleanup = function (callback) {
     $('#gps_apply_optimal').off('.gpsTab');
     $('#center_button').off('.gpsTab');
     $('#gpsDronecanRefresh').off('.gpsTab');
+    $('#gpsPairConfigure, #gpsPairVerify, #gpsPairAbort').off('.gpsTab');
     $('#headingSourceEnabled3, #movingBaselineEnabled').off('.gpsTab');
     $('a.save').off('.gpsTab');
     $('a.loadAssistnowOnline').off('.gpsTab');
