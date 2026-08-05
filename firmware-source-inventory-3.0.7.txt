@@ -84,9 +84,6 @@ heading_fusion.h
 rtcm.c
 rtcm.h
 
-## DroneCAN generated-header location
-lib/main/Dronecan/dsdlc_generated/include/dronecan_msgs.h
-
 ## Required DroneCAN definitions
 3:#include "ardupilot.gnss.RelPosHeading.h"
 68:#include "uavcan.protocol.GetNodeInfo.h"
