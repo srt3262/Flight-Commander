@@ -587,7 +587,7 @@ test("firmware is release-only and the flasher exposes local, online, then flash
   assert.equal(packageManifest.flightCommander.firmwareSourceVersion, "4.0.0");
   assert.equal(
     packageManifest.flightCommander.firmwareSourceArchive,
-    "release/firmware/Flight-Commander-Firmware-Source-v3.0.7.zip",
+    "release/firmware/Flight-Commander-Firmware-Source-v4.0.0.zip",
   );
   const releaseFirmwareIsPresent = existsSync(firmwareReleasePath);
   const releaseSourceIsPresent = existsSync(firmwareSourcePath);
