@@ -58,14 +58,19 @@ jobs:
           tar -xJf "$RUNNER_TEMP/toolchain/$archive" -C "$RUNNER_TEMP/toolchain"
           echo "$RUNNER_TEMP/toolchain/$release/bin" >> "$GITHUB_PATH"
 
-      - name: Prepare exact Flight Commander Firmware 4.0.0 source
+      - name: Preserve the 3.0.7 build baseline and prepare exact 4.0.0 source
         shell: bash
         run: |
           set -euo pipefail
+          baseline=firmware-baseline/Flight-Commander-Firmware-Source-v3.0.7.zip
+          mkdir -p firmware-baseline
+          if [[ ! -f "$baseline" ]]; then
+            cp release/firmware/Flight-Commander-Firmware-Source-v3.0.7.zip "$baseline"
+          fi
           output="$RUNNER_TEMP/flight-commander-firmware-4.0.0"
           root="$output/Flight-Commander-Firmware-Source-v4.0.0"
           python3 scripts/prepare-flight-commander-firmware-4.0.0.py \
-            --archive release/firmware/Flight-Commander-Firmware-Source-v3.0.7.zip \
+            --archive "$baseline" \
             --output "$output" \
             | tee firmware-4.0.0-pr-validation.log
           python3 scripts/flight_commander_dronecan_allocator_4_0_0.py --root "$root" \
@@ -142,6 +147,9 @@ jobs:
           install -m 0644 \
             Flight-Commander-Firmware-Source-v4.0.0.zip \
             release/firmware/Flight-Commander-Firmware-Source-v4.0.0.zip
+          rm -f \
+            release/firmware/Flight-Commander-Firmware-3.0.7-MICOAIR743.hex \
+            release/firmware/Flight-Commander-Firmware-Source-v3.0.7.zip
 
           python3 - "$root" <<'PY'
           import hashlib
