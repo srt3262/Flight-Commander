@@ -1,0 +1,554 @@
+name: Publish Flight Commander 4.0.2 beta prerelease
+
+"on":
+  push:
+    branches:
+      - agent/fix-compass-persistence-and-local-flashing
+    paths:
+      - scripts/apply-flight-commander-4.0.2-beta.py
+      - .github/workflows/publish-flight-commander-4.0.2-beta.yml
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: flight-commander-4.0.2-beta-publication
+  cancel-in-progress: false
+
+env:
+  RELEASE_VERSION: 4.0.2
+  RELEASE_BRANCH: agent/fix-compass-persistence-and-local-flashing
+  RELEASE_TAG: v4.0.2-beta
+
+jobs:
+  prepare-source:
+    name: Commit coordinated 4.0.2 beta source metadata
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    outputs:
+      prepared_sha: ${{ steps.commit.outputs.sha }}
+
+    steps:
+      - name: Check out the beta branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ env.RELEASE_BRANCH }}
+          fetch-depth: 1
+
+      - name: Apply deterministic release integration
+        run: python3 scripts/apply-flight-commander-4.0.2-beta.py
+
+      - name: Verify focused source contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          node --test tests/flight-commander/firmware/flight-commander-catalog.test.mjs
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          package = json.loads(Path('package.json').read_text(encoding='utf-8'))
+          manifest = json.loads(Path('manifest.json').read_text(encoding='utf-8'))
+          assert package['version'] == '4.0.2'
+          assert manifest['version'] == '4.0.2'
+          assert package['flightCommander']['firmwareReleaseVersion'] == '4.0.2'
+          assert package['flightCommander']['firmwareSourceVersion'] == '4.0.2'
+          assert package['flightCommander']['firmwareChangedInRelease'] is True
+          assert 'NTRIP FlightCommander/4.0.2' in Path('js/main/ntripClient.js').read_text(encoding='utf-8')
+          print('4.0.2 beta source contracts: PASS')
+          PY
+
+      - name: Commit the coordinated beta source
+        id: commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add \
+            package.json \
+            manifest.json \
+            tabs/landing.html \
+            js/main/ntripClient.js \
+            tests/flight-commander/packaging/package-contract.test.mjs
+          if git diff --cached --quiet; then
+            echo 'The coordinated 4.0.2 beta source is already committed.'
+          else
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git commit -m 'Prepare Flight Commander 4.0.2 beta prerelease'
+            git push origin "HEAD:${RELEASE_BRANCH}"
+          fi
+          prepared_sha="$(git rev-parse HEAD)"
+          echo "sha=${prepared_sha}" >> "${GITHUB_OUTPUT}"
+          echo "Prepared source SHA: ${prepared_sha}"
+
+  build-firmware:
+    name: Build and verify MICOAIR743 firmware 4.0.2
+    needs: prepare-source
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out exact prepared source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ needs.prepare-source.outputs.prepared_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Install firmware build prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build curl xz-utils unzip zip python3
+
+      - name: Install exact Arm GNU Toolchain 13.2.1
+        shell: bash
+        run: |
+          set -euo pipefail
+          release='arm-gnu-toolchain-13.2.Rel1-x86_64-arm-none-eabi'
+          archive='arm-gnu-toolchain-13.2.rel1-x86_64-arm-none-eabi.tar.xz'
+          expected='6cd1bbc1d9ae57312bcd169ae283153a9572bd6a8e4eeae2fedfbc33b115fdbb'
+          cache="${RUNNER_TEMP}/flight-commander-toolchains"
+          root="${cache}/${release}"
+          mkdir -p "${cache}"
+          if [[ ! -x "${root}/bin/arm-none-eabi-gcc" ]]; then
+            url="https://developer.arm.com/-/media/Files/downloads/gnu/13.2.rel1/binrel/${archive}"
+            curl --fail --location --retry 3 --output "${cache}/${archive}" "${url}"
+            printf '%s  %s\n' "${expected}" "${cache}/${archive}" | sha256sum --check --strict
+            tar -xJf "${cache}/${archive}" -C "${cache}"
+          fi
+          echo "${root}/bin" >> "${GITHUB_PATH}"
+
+      - name: Prepare reviewed 4.0.2 firmware source
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/prepare-flight-commander-firmware-4.0.2.py \
+            --archive release/firmware/Flight-Commander-Firmware-Source-v4.0.1.zip \
+            --output work/firmware-4.0.2
+
+      - name: Compile MICOAIR743 firmware
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(arm-none-eabi-gcc -dumpfullversion -dumpversion)" = '13.2.1'
+          root="${PWD}/work/firmware-4.0.2/Flight-Commander-Firmware-Source-v4.0.2"
+          bash "${root}/flight-commander/build-micoair743.sh" "${PWD}/work/build-4.0.2"
+
+      - name: Finalize and independently verify firmware artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="${PWD}/work/firmware-4.0.2/Flight-Commander-Firmware-Source-v4.0.2"
+          hex="${PWD}/work/build-4.0.2/Flight-Commander-Firmware-4.0.2-MICOAIR743.hex"
+          candidate="${PWD}/work/candidate"
+          mkdir -p "${candidate}"
+          python3 scripts/prepare-flight-commander-firmware-4.0.2.py \
+            --finalize-root "${root}" \
+            --firmware "${hex}" \
+            --source-zip "${candidate}/Flight-Commander-Firmware-Source-v4.0.2.zip"
+          cp "${hex}" "${candidate}/Flight-Commander-Firmware-4.0.2-MICOAIR743.hex"
+          python3 "${root}/flight-commander/verify-release.py" \
+            --source-root "${root}" \
+            --hex "${hex}" \
+            --manifest "${root}/RELEASE-MANIFEST.json"
+          python3 "${root}/flight-commander/verify-compass-release.py" "${hex}"
+          unzip -tq "${candidate}/Flight-Commander-Firmware-Source-v4.0.2.zip"
+          python3 - "${root}" "${candidate}" <<'PY'
+          import hashlib
+          import json
+          import sys
+          from pathlib import Path
+
+          root = Path(sys.argv[1])
+          candidate = Path(sys.argv[2])
+          package = json.loads(Path('package.json').read_text(encoding='utf-8'))
+          manifest = json.loads((root / 'RELEASE-MANIFEST.json').read_text(encoding='utf-8'))
+          firmware = candidate / 'Flight-Commander-Firmware-4.0.2-MICOAIR743.hex'
+          source = candidate / 'Flight-Commander-Firmware-Source-v4.0.2.zip'
+          metadata = {
+              'version': '4.0.2',
+              'firmware_sha256': hashlib.sha256(firmware.read_bytes()).hexdigest(),
+              'firmware_bytes': firmware.stat().st_size,
+              'source_sha256': hashlib.sha256(source.read_bytes()).hexdigest(),
+              'source_bytes': source.stat().st_size,
+              'source_revision': manifest['source_revision'],
+              'source_tree': manifest['source_tree'],
+          }
+          expected = package['flightCommander']
+          assert metadata['firmware_sha256'] == expected['firmwareReleaseSha256']
+          assert metadata['source_sha256'] == expected['firmwareSourceSha256']
+          assert metadata['source_revision'] == expected['firmwareSourceRevision']
+          assert metadata['source_tree'] == expected['firmwareSourceTree']
+          (candidate / 'firmware-metadata.json').write_text(
+              json.dumps(metadata, indent=2) + '\n', encoding='utf-8'
+          )
+          print(json.dumps(metadata, indent=2))
+          PY
+
+      - name: Upload verified firmware candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: flight-commander-4.0.2-beta-firmware
+          retention-days: 30
+          if-no-files-found: error
+          path: |
+            work/candidate/Flight-Commander-Firmware-4.0.2-MICOAIR743.hex
+            work/candidate/Flight-Commander-Firmware-Source-v4.0.2.zip
+            work/candidate/firmware-metadata.json
+
+  retain-firmware-source:
+    name: Retain exact firmware and source on the beta branch
+    needs:
+      - prepare-source
+      - build-firmware
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    outputs:
+      release_sha: ${{ steps.commit.outputs.sha }}
+
+    steps:
+      - name: Check out the prepared beta branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ env.RELEASE_BRANCH }}
+          fetch-depth: 1
+
+      - name: Verify the branch has not moved
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ needs.prepare-source.outputs.prepared_sha }}"
+
+      - name: Download verified firmware candidate
+        uses: actions/download-artifact@v4
+        with:
+          name: flight-commander-4.0.2-beta-firmware
+          path: firmware-candidate
+
+      - name: Retain the exact 4.0.2 firmware pair
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          metadata = json.loads(Path('firmware-candidate/firmware-metadata.json').read_text(encoding='utf-8'))
+          package = json.loads(Path('package.json').read_text(encoding='utf-8'))['flightCommander']
+          firmware = Path('firmware-candidate/Flight-Commander-Firmware-4.0.2-MICOAIR743.hex')
+          source = Path('firmware-candidate/Flight-Commander-Firmware-Source-v4.0.2.zip')
+          assert hashlib.sha256(firmware.read_bytes()).hexdigest() == package['firmwareReleaseSha256']
+          assert hashlib.sha256(source.read_bytes()).hexdigest() == package['firmwareSourceSha256']
+          assert metadata['source_revision'] == package['firmwareSourceRevision']
+          assert metadata['source_tree'] == package['firmwareSourceTree']
+          PY
+          mkdir -p release/firmware
+          find release/firmware -maxdepth 1 -type f -name '*.hex' \
+            ! -name 'Flight-Commander-Firmware-4.0.2-MICOAIR743.hex' -delete
+          cp -f \
+            firmware-candidate/Flight-Commander-Firmware-4.0.2-MICOAIR743.hex \
+            release/firmware/Flight-Commander-Firmware-4.0.2-MICOAIR743.hex
+          cp -f \
+            firmware-candidate/Flight-Commander-Firmware-Source-v4.0.2.zip \
+            release/firmware/Flight-Commander-Firmware-Source-v4.0.2.zip
+          test "$(find release/firmware -maxdepth 1 -type f -name '*.hex' | wc -l)" -eq 1
+          test -f release/firmware/Flight-Commander-Firmware-Source-v4.0.1.zip
+          node scripts/check-flight-commander-version.mjs
+
+      - name: Commit retained release inputs
+        id: commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add -A release/firmware
+          if git diff --cached --quiet; then
+            echo 'The exact 4.0.2 firmware pair is already retained.'
+          else
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git commit -m 'Retain Flight Commander 4.0.2 firmware and source'
+            git push origin "HEAD:${RELEASE_BRANCH}"
+          fi
+          release_sha="$(git rev-parse HEAD)"
+          echo "sha=${release_sha}" >> "${GITHUB_OUTPUT}"
+          echo "Release source SHA: ${release_sha}"
+
+  package-windows:
+    name: Test and package the coordinated Windows beta
+    needs: retain-firmware-source
+    runs-on: windows-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out exact retained release source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ needs.retain-firmware-source.outputs.release_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: yarn
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run complete tests and verify Windows application
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          corepack enable
+          corepack prepare yarn@1.22.22 --activate
+          yarn install --frozen-lockfile --non-interactive
+          yarn test
+          yarn package:windows
+          yarn verify:windows
+
+      - name: Assemble the four coordinated components
+        shell: pwsh
+        env:
+          RELEASE_SHA: ${{ needs.retain-firmware-source.outputs.release_sha }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Add-Type -AssemblyName System.IO.Compression
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $version = '4.0.2'
+          $stage = Join-Path $PWD 'release-candidate'
+          $components = Join-Path $stage "Flight-Commander-v$version"
+          New-Item -ItemType Directory -Force -Path $components | Out-Null
+
+          $packageDir = Get-ChildItem -LiteralPath (Join-Path $PWD 'out') -Directory -Recurse |
+            Where-Object {
+              $_.Name -match 'win32-x64$' -and
+              (Test-Path -LiteralPath (Join-Path $_.FullName 'flight-commander.exe'))
+            } |
+            Select-Object -First 1
+          if (-not $packageDir) { throw 'Verified Windows package directory not found.' }
+
+          $windowsZip = Join-Path $components "FC-Windows-v$version.zip"
+          [IO.Compression.ZipFile]::CreateFromDirectory(
+            $packageDir.FullName,
+            $windowsZip,
+            [IO.Compression.CompressionLevel]::Optimal,
+            $false
+          )
+
+          $archive = Join-Path $env:RUNNER_TEMP 'configurator-head.zip'
+          $configParent = Join-Path $env:RUNNER_TEMP 'configurator-source-parent'
+          $configRootName = "FC-Configurator-Source-v$version"
+          $configRoot = Join-Path $configParent $configRootName
+          git archive --format=zip "--prefix=$configRootName/" "--output=$archive" $env:RELEASE_SHA
+          if ($LASTEXITCODE -ne 0) { throw 'git archive failed.' }
+          Expand-Archive -LiteralPath $archive -DestinationPath $configParent -Force
+          Remove-Item -LiteralPath (Join-Path $configRoot 'release/firmware') -Recurse -Force
+          New-Item -ItemType Directory -Force -Path (Join-Path $configRoot 'release/firmware') | Out-Null
+          Copy-Item -LiteralPath (Join-Path $PWD 'release/firmware/Flight-Commander-Firmware-4.0.2-MICOAIR743.hex') -Destination (Join-Path $configRoot 'release/firmware')
+          Copy-Item -LiteralPath (Join-Path $PWD 'release/firmware/Flight-Commander-Firmware-Source-v4.0.2.zip') -Destination (Join-Path $configRoot 'release/firmware')
+          $configZip = Join-Path $components "FC-Configurator-Source-v$version.zip"
+          [IO.Compression.ZipFile]::CreateFromDirectory(
+            $configParent,
+            $configZip,
+            [IO.Compression.CompressionLevel]::Optimal,
+            $false
+          )
+
+          $firmwareComponent = Join-Path $components "FC-Firmware-v$version-MICOAIR743.hex"
+          $firmwareSourceComponent = Join-Path $components "FC-Firmware-Source-v$version.zip"
+          Copy-Item -LiteralPath (Join-Path $PWD 'release/firmware/Flight-Commander-Firmware-4.0.2-MICOAIR743.hex') -Destination $firmwareComponent
+          Copy-Item -LiteralPath (Join-Path $PWD 'release/firmware/Flight-Commander-Firmware-Source-v4.0.2.zip') -Destination $firmwareSourceComponent
+
+          $componentFiles = @(Get-ChildItem -LiteralPath $components -File | Sort-Object Name)
+          $expected = @(
+            "FC-Configurator-Source-v$version.zip",
+            "FC-Firmware-Source-v$version.zip",
+            "FC-Firmware-v$version-MICOAIR743.hex",
+            "FC-Windows-v$version.zip"
+          ) | Sort-Object
+          $actual = @($componentFiles.Name | Sort-Object)
+          if ($componentFiles.Count -ne 4 -or (Compare-Object $expected $actual)) {
+            throw 'The beta candidate does not contain exactly the four coordinated components.'
+          }
+
+          $completeZip = Join-Path $stage "Flight-Commander-v$version.zip"
+          $bundle = [IO.Compression.ZipFile]::Open(
+            $completeZip,
+            [IO.Compression.ZipArchiveMode]::Create
+          )
+          try {
+            foreach ($component in $componentFiles) {
+              [IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
+                $bundle,
+                $component.FullName,
+                $component.Name,
+                [IO.Compression.CompressionLevel]::Optimal
+              ) | Out-Null
+            }
+          } finally {
+            $bundle.Dispose()
+          }
+
+          $readback = [IO.Compression.ZipFile]::OpenRead($completeZip)
+          try {
+            $bundleNames = @($readback.Entries | ForEach-Object { $_.FullName } | Sort-Object)
+          } finally {
+            $readback.Dispose()
+          }
+          if ($bundleNames.Count -ne 4 -or (Compare-Object $expected $bundleNames)) {
+            throw 'The complete beta ZIP does not contain exactly the four canonical components.'
+          }
+
+          $hashFile = Join-Path $stage 'SHA256SUMS.txt'
+          @($componentFiles + (Get-Item -LiteralPath $completeZip)) | ForEach-Object {
+            $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $_.FullName).Hash.ToLowerInvariant()
+            "$hash  $($_.Name)" | Add-Content -LiteralPath $hashFile -Encoding ascii
+          }
+          $manifest = [ordered]@{
+            version = $version
+            prerelease = $true
+            tag = 'v4.0.2-beta'
+            commitSha = $env:RELEASE_SHA
+            componentCount = 4
+            completeBundle = [IO.Path]::GetFileName($completeZip)
+          }
+          $manifest | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $stage 'release-manifest.json') -Encoding utf8
+
+      - name: Upload coordinated 4.0.2 beta bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: flight-commander-4.0.2-beta-complete
+          retention-days: 30
+          if-no-files-found: error
+          path: |
+            release-candidate/Flight-Commander-v4.0.2/FC-Windows-v4.0.2.zip
+            release-candidate/Flight-Commander-v4.0.2/FC-Configurator-Source-v4.0.2.zip
+            release-candidate/Flight-Commander-v4.0.2/FC-Firmware-v4.0.2-MICOAIR743.hex
+            release-candidate/Flight-Commander-v4.0.2/FC-Firmware-Source-v4.0.2.zip
+            release-candidate/Flight-Commander-v4.0.2.zip
+            release-candidate/SHA256SUMS.txt
+            release-candidate/release-manifest.json
+
+  publish-beta:
+    name: Publish Flight Commander 4.0.2 beta prerelease
+    needs:
+      - retain-firmware-source
+      - package-windows
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check out exact published source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ needs.retain-firmware-source.outputs.release_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Download verified beta bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: flight-commander-4.0.2-beta-complete
+          path: beta-assets
+
+      - name: Verify and stage release assets
+        shell: bash
+        env:
+          RELEASE_SHA: ${{ needs.retain-firmware-source.outputs.release_sha }}
+        run: |
+          set -euo pipefail
+          components='beta-assets/Flight-Commander-v4.0.2'
+          complete='beta-assets/Flight-Commander-v4.0.2.zip'
+          test -d "$components"
+          test -f "$complete"
+          test "$(find "$components" -maxdepth 1 -type f | wc -l)" -eq 4
+          python3 - "$components" "$complete" <<'PY'
+          import hashlib
+          import sys
+          import zipfile
+          from pathlib import Path
+
+          components = Path(sys.argv[1])
+          complete = Path(sys.argv[2])
+          expected = sorted(path.name for path in components.iterdir() if path.is_file())
+          assert len(expected) == 4
+          with zipfile.ZipFile(complete) as archive:
+              names = sorted(info.filename for info in archive.infolist() if not info.is_dir())
+              assert names == expected, (names, expected)
+              for name in expected:
+                  disk_hash = hashlib.sha256((components / name).read_bytes()).hexdigest()
+                  zip_hash = hashlib.sha256(archive.read(name)).hexdigest()
+                  assert disk_hash == zip_hash, name
+          print('Complete beta bundle: exactly four verified components')
+          PY
+          mkdir -p release-upload
+          cp "$components"/* release-upload/
+          cp "$complete" release-upload/
+          cp beta-assets/SHA256SUMS.txt release-upload/
+          cp \
+            "$components/FC-Firmware-v4.0.2-MICOAIR743.hex" \
+            release-upload/Flight-Commander-Firmware-4.0.2-MICOAIR743.hex
+          test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
+
+      - name: Publish GitHub beta prerelease
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_SHA: ${{ needs.retain-firmware-source.outputs.release_sha }}
+        run: |
+          set -euo pipefail
+          notes="$RUNNER_TEMP/flight-commander-4.0.2-beta-notes.md"
+          cat > "$notes" <<'NOTES'
+          Flight Commander 4.0.2 Beta is a coordinated Configurator and MICOAIR743 firmware prerelease for propeller-off bench validation.
+
+          Compass persistence repair:
+          - preserves the verified onboard IST8310 mapping X=-nativeY, Y=-nativeX, Z=nativeZ;
+          - makes CW0_DEG the fixed MICOAIR743 physical compass contract at every boot;
+          - invalidates legacy compass state through the new configuration schema;
+          - accepts calibration only when its hidden transform revision and signature match the current target and calibration values.
+
+          Local firmware loading repair:
+          - local filenames are informational only;
+          - Intel HEX structure, embedded FCFW identity, embedded target identity when present, and selected-target compatibility remain enforced;
+          - renamed older or newer local Flight Commander HEX files can be loaded without matching a release filename.
+
+          The complete ZIP contains exactly four components: Windows Configurator, Configurator source, MICOAIR743 firmware HEX, and matching firmware source.
+          NOTES
+
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            git fetch --force origin "refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"
+            existing_sha="$(git rev-list -n 1 "$RELEASE_TAG")"
+            if [[ "$existing_sha" != "$RELEASE_SHA" ]]; then
+              echo "Existing tag $RELEASE_TAG points to $existing_sha instead of verified SHA $RELEASE_SHA." >&2
+              exit 1
+            fi
+            echo "Updating assets on existing prerelease $RELEASE_TAG."
+          else
+            gh release create "$RELEASE_TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$RELEASE_SHA" \
+              --title 'Flight Commander 4.0.2 Beta' \
+              --notes-file "$notes" \
+              --prerelease
+          fi
+          gh release upload "$RELEASE_TAG" release-upload/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber
+          gh release view "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --json url,tagName,isPrerelease,publishedAt
