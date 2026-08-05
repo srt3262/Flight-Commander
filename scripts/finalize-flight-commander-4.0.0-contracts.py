@@ -138,6 +138,52 @@ target_sources(MICOAIR743.elf PRIVATE ${FLIGHT_COMMANDER_PAIR_SOURCES})
     elif conditional_sources not in text:
         raise RuntimeError("Unable to make DroneCAN service source selection conditional")
 
+    # heading_fusion.c needs the 4.0 multi-node DroneCAN status type and accessor.
+    old_heading_patch = '''def patch_heading(root: Path) -> None:
+    path = root / "src/main/flight_commander/heading_fusion.c"
+'''
+    new_heading_patch = '''def patch_heading(root: Path) -> None:
+    path = root / "src/main/flight_commander/heading_fusion.c"
+    replace_once(path,
+        '#include "io/gps.h"\\n',
+        '#include "io/gps.h"\\n#include "io/gps_dronecan.h"\\n')
+'''
+    if old_heading_patch in text:
+        text = text.replace(old_heading_patch, new_heading_patch, 1)
+    elif new_heading_patch not in text:
+        raise RuntimeError("Unable to add the multi-node DroneCAN GPS include")
+
+    # Generated GetNodeInfo request structures are empty; declaring one is valid,
+    # but an aggregate initializer is rejected with warnings-as-errors.
+    text = text.replace(
+        "    struct uavcan_protocol_GetNodeInfoRequest request = { 0 };",
+        "    struct uavcan_protocol_GetNodeInfoRequest request;",
+    )
+
+    # Keep 32-bit millisecond ages explicit before narrowing them to the MSP u16 wire format.
+    old_helper_anchor = '''static uint8_t restartTransferID;
+
+static void setError(uint8_t error)
+'''
+    new_helper_anchor = '''static uint8_t restartTransferID;
+
+static uint16_t saturatingU16(uint32_t value)
+{
+    return value > 65535U ? 65535U : (uint16_t)value;
+}
+
+static void setError(uint8_t error)
+'''
+    if old_helper_anchor in text:
+        text = text.replace(old_helper_anchor, new_helper_anchor, 1)
+    elif new_helper_anchor not in text:
+        raise RuntimeError("Unable to add pair-status age saturation helper")
+    text = text.replace("MIN(gpsStatus.ageMs, UINT16_MAX)", "saturatingU16(gpsStatus.ageMs)")
+    text = text.replace(
+        "lastRelPosMs ? MIN(millis() - lastRelPosMs, UINT16_MAX) : UINT16_MAX",
+        "lastRelPosMs ? saturatingU16(millis() - lastRelPosMs) : UINT16_MAX",
+    )
+
     path.write_text(text, encoding="utf-8")
 
 
