@@ -29,8 +29,9 @@ import {
     FLIGHT_COMMANDER_FIRMWARE_TARGETS,
     catalogByTarget,
     flightCommanderReleaseDescriptors,
+    inferFlightCommanderFirmwareTarget,
+    localFlightCommanderFirmwareDescriptor,
     normalizeFirmwareTarget,
-    parseFlightCommanderFirmwareFilename,
     parsedHexContainsFlightCommanderIdentity,
     verifyFlightCommanderOnlinePayload,
 } from './../js/flightCommander/firmwareCatalog';
@@ -508,14 +509,6 @@ firmwareFlasherTab.initialize = function (callback) {
             const containsFlightCommanderIdentity =
                 parsedHexContainsFlightCommanderIdentity(data);
             if (firmwareBackend === 'flight-commander') {
-                const parsedFilename = descriptor || parseFlightCommanderFirmwareFilename(filename);
-                if (!parsedFilename) {
-                    rejectLoadedFirmware(
-                        'This is not a recognized Flight Commander Firmware HEX filename. ' +
-                        'Expected Flight-Commander-Firmware-<version>-<target>.hex.',
-                    );
-                    return false;
-                }
                 if (!containsFlightCommanderIdentity) {
                     rejectLoadedFirmware(
                         'The HEX does not contain the required FCFW firmware identity. ' +
@@ -524,11 +517,53 @@ firmwareFlasherTab.initialize = function (callback) {
                     return false;
                 }
 
-                const imageTarget = normalizeFirmwareTarget(
-                    parsedFilename.target_id || parsedFilename.target,
-                );
                 const selectedTarget = selectedFirmwareTarget();
-                if (selectedTarget && selectedTarget !== '0' && selectedTarget !== imageTarget) {
+                const embeddedTarget = inferFlightCommanderFirmwareTarget(data);
+                let imageDescriptor = descriptor;
+
+                if (local) {
+                    imageDescriptor = localFlightCommanderFirmwareDescriptor(data, {
+                        filename,
+                        selectedTarget,
+                    });
+                    if (!imageDescriptor) {
+                        rejectLoadedFirmware(
+                            'The firmware family is valid, but its controller target could not be determined. ' +
+                            'Select the controller target and load the local HEX again.',
+                        );
+                        return false;
+                    }
+                } else if (!imageDescriptor) {
+                    rejectLoadedFirmware(
+                        'The online firmware is missing its verified release descriptor.',
+                    );
+                    return false;
+                }
+
+                const imageTarget = normalizeFirmwareTarget(
+                    imageDescriptor.target_id || imageDescriptor.target,
+                );
+                const knownImageTarget = FLIGHT_COMMANDER_FIRMWARE_TARGETS.some(
+                    ({ id }) => id === imageTarget,
+                );
+                if (!knownImageTarget) {
+                    rejectLoadedFirmware(
+                        `Firmware target ${imageTarget || 'unknown'} is not supported by this Configurator.`,
+                    );
+                    return false;
+                }
+
+                if (!local && embeddedTarget && embeddedTarget !== imageTarget) {
+                    rejectLoadedFirmware(
+                        `The compiled firmware target ${embeddedTarget} does not match the verified online descriptor target ${imageTarget}.`,
+                    );
+                    return false;
+                }
+                if (
+                    selectedTarget &&
+                    selectedTarget !== '0' &&
+                    selectedTarget !== imageTarget
+                ) {
                     rejectLoadedFirmware(
                         `Firmware target ${imageTarget} does not match the selected controller target ${selectedTarget}.`,
                     );
@@ -537,7 +572,7 @@ firmwareFlasherTab.initialize = function (callback) {
                 if (selectedTarget === '0') {
                     $('select[name="board"]').val(imageTarget).trigger('change');
                 }
-                loadedFirmwareDescriptor = parsedFilename;
+                loadedFirmwareDescriptor = imageDescriptor;
             } else if (containsFlightCommanderIdentity) {
                 rejectLoadedFirmware(
                     'This HEX contains the Flight Commander Firmware identity. ' +
