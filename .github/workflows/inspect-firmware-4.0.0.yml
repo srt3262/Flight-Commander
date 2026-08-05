@@ -1,0 +1,56 @@
+name: Inspect retained firmware source for 4.0.0
+
+"on":
+  push:
+    branches:
+      - develop/4.0.0-holybro-moving-baseline
+    paths:
+      - .github/workflows/inspect-firmware-4.0.0.yml
+
+permissions:
+  contents: write
+
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: develop/4.0.0-holybro-moving-baseline
+          fetch-depth: 1
+      - name: Inventory firmware source archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive=release/firmware/Flight-Commander-Firmware-Source-v3.0.7.zip
+          rm -rf .firmware-inspect
+          mkdir -p .firmware-inspect
+          unzip -q "$archive" -d .firmware-inspect/source
+          root=.firmware-inspect/source/Flight-Commander-Firmware-Source-v3.0.7
+          {
+            echo '# Firmware source inventory'
+            echo
+            echo '## Top-level'
+            find "$root" -mindepth 1 -maxdepth 2 -printf '%y %P\n' | LC_ALL=C sort
+            echo
+            echo '## Flight Commander files'
+            find "$root/flight-commander" -type f -printf '%P\n' | LC_ALL=C sort
+            echo
+            echo '## DroneCAN-related source files'
+            find "$root/src" -type f \( -iname '*can*' -o -iname '*gps*' -o -iname '*msp*' -o -iname '*heading*' \) -printf '%P\n' | LC_ALL=C sort
+            echo
+            echo '## Flight Commander symbol matches'
+            grep -RInE 'flightCommander|FLIGHT_COMMANDER|DroneCAN|dronecan|RelPosHeading|MovingBaseline|heading fusion|headingFusion' \
+              "$root/src" "$root/flight-commander" 2>/dev/null | head -4000 || true
+          } > firmware-source-inventory-3.0.7.txt
+          rm -rf .firmware-inspect
+      - name: Commit inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add firmware-source-inventory-3.0.7.txt
+          git commit -m 'Record firmware source inventory for 4.0.0 development'
+          git push origin HEAD:develop/4.0.0-holybro-moving-baseline
