@@ -1,0 +1,283 @@
+name: Build Flight Commander Firmware 4.0.0
+
+"on":
+  push:
+    branches:
+      - develop/4.0.0-holybro-moving-baseline
+    paths:
+      - scripts/prepare-flight-commander-firmware-4.0.0.py
+      - .github/workflows/build-flight-commander-firmware-4.0.0.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: flight-commander-4.0.0-firmware-build
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: develop/4.0.0-holybro-moving-baseline
+          fetch-depth: 1
+
+      - name: Install build prerequisites
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build curl xz-utils unzip zip python3
+
+      - name: Correct and prepare the 4.0.0 source builder
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('scripts/prepare-flight-commander-firmware-4.0.0.py')
+          text = path.read_text(encoding='utf-8')
+          old = '''    if "bool dronecanSendServiceRequest(" not in value:
+                  value = value.replace("\\n#endif\\n", append + "\\n#endif\\n")
+                  path.write_text(value, encoding="utf-8")
+          '''
+          new = '''    if "bool dronecanSendServiceRequest(" not in value:
+                  marker = "\\n#endif\\n"
+                  insertion = value.rfind(marker)
+                  if insertion < 0:
+                      raise RuntimeError("dronecan.c has no final preprocessor terminator")
+                  value = value[:insertion] + append + value[insertion:]
+                  path.write_text(value, encoding="utf-8")
+          '''
+          if old in text:
+              text = text.replace(old, new, 1)
+          elif new not in text:
+              raise SystemExit('Unable to correct final dronecan.c insertion logic')
+
+          forward_target = '''#include "drivers/dronecan/libcanard/canard.h"
+
+#define DRONECAN_PAIR_STATUS_SCHEMA 1
+          '''
+          forward_value = '''#include "drivers/dronecan/libcanard/canard.h"
+
+struct ardupilot_gnss_RelPosHeading;
+
+#define DRONECAN_PAIR_STATUS_SCHEMA 1
+          '''
+          if forward_target in text:
+              text = text.replace(forward_target, forward_value, 1)
+          elif forward_value not in text:
+              raise SystemExit('Unable to add the RelPosHeading forward declaration')
+          path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Install Arm GNU Toolchain 13.2.1
+        shell: bash
+        run: |
+          set -euo pipefail
+          release=arm-gnu-toolchain-13.2.Rel1-x86_64-arm-none-eabi
+          archive=arm-gnu-toolchain-13.2.rel1-x86_64-arm-none-eabi.tar.xz
+          expected=6cd1bbc1d9ae57312bcd169ae283153a9572bd6a8e4eeae2fedfbc33b115fdbb
+          url="https://developer.arm.com/-/media/Files/downloads/gnu/13.2.rel1/binrel/$archive"
+          mkdir -p "$RUNNER_TEMP/toolchain"
+          curl --fail --location --retry 3 --output "$RUNNER_TEMP/toolchain/$archive" "$url"
+          printf '%s  %s\n' "$expected" "$RUNNER_TEMP/toolchain/$archive" | sha256sum --check --strict
+          tar -xJf "$RUNNER_TEMP/toolchain/$archive" -C "$RUNNER_TEMP/toolchain"
+          echo "$RUNNER_TEMP/toolchain/$release/bin" >> "$GITHUB_PATH"
+
+      - name: Prepare and build coordinated firmware source
+        id: firmware
+        shell: bash
+        run: |
+          set +e
+          : > firmware-4.0.0-build.log
+          rm -f firmware-4.0.0-build.status firmware-4.0.0-build-metadata.json
+          python3 scripts/prepare-flight-commander-firmware-4.0.0.py \
+            --archive release/firmware/Flight-Commander-Firmware-Source-v3.0.7.zip \
+            --output "$RUNNER_TEMP/flight-commander-firmware-4.0.0" \
+            >> firmware-4.0.0-build.log 2>&1
+          rc=$?
+          root="$RUNNER_TEMP/flight-commander-firmware-4.0.0/Flight-Commander-Firmware-Source-v4.0.0"
+          if [[ $rc -eq 0 ]]; then
+            echo "Compiler: $(arm-none-eabi-gcc -dumpfullversion -dumpversion)" >> firmware-4.0.0-build.log
+            bash "$root/flight-commander/build-micoair743.sh" "$RUNNER_TEMP/build-flight-commander-4.0.0" \
+              >> firmware-4.0.0-build.log 2>&1
+            rc=$?
+          fi
+          if [[ $rc -eq 0 ]]; then
+            hex="$RUNNER_TEMP/build-flight-commander-4.0.0/Flight-Commander-Firmware-4.0.0-MICOAIR743.hex"
+            install -m 0644 "$hex" release/firmware/Flight-Commander-Firmware-4.0.0-MICOAIR743.hex
+            python3 - "$root" "$hex" <<'PY' >> firmware-4.0.0-build.log 2>&1
+          import hashlib
+          import json
+          import sys
+          from pathlib import Path
+
+          root = Path(sys.argv[1])
+          hex_path = Path(sys.argv[2])
+          manifest_path = root / 'RELEASE-MANIFEST.json'
+          manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
+          manifest['artifact']['sha256'] = hashlib.sha256(hex_path.read_bytes()).hexdigest()
+          manifest['artifact']['bytes'] = hex_path.stat().st_size
+          manifest_path.write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
+          print(json.dumps({
+              'source_revision': manifest['source_revision'],
+              'source_tree': manifest['source_tree'],
+              'source_date_epoch': manifest['source_date_epoch'],
+              'firmware_sha256': manifest['artifact']['sha256'],
+              'firmware_bytes': manifest['artifact']['bytes'],
+          }))
+          PY
+            rc=$?
+          fi
+          if [[ $rc -eq 0 ]]; then
+            python3 - "$root" release/firmware/Flight-Commander-Firmware-Source-v4.0.0.zip <<'PY' \
+              >> firmware-4.0.0-build.log 2>&1
+          import json
+          import stat
+          import sys
+          import time
+          import zipfile
+          from pathlib import Path
+
+          root = Path(sys.argv[1])
+          output = Path(sys.argv[2])
+          manifest = json.loads((root / 'RELEASE-MANIFEST.json').read_text(encoding='utf-8'))
+          stamp = time.gmtime(manifest['source_date_epoch'])[:6]
+          output.parent.mkdir(parents=True, exist_ok=True)
+          with zipfile.ZipFile(output, 'w', compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
+              for path in sorted(root.rglob('*')):
+                  if not path.is_file():
+                      continue
+                  relative = Path(root.name) / path.relative_to(root)
+                  info = zipfile.ZipInfo(relative.as_posix(), stamp)
+                  info.create_system = 3
+                  mode = 0o755 if path.suffix in {'.sh', '.py'} else 0o644
+                  info.external_attr = (stat.S_IFREG | mode) << 16
+                  info.compress_type = zipfile.ZIP_DEFLATED
+                  archive.writestr(info, path.read_bytes(), compress_type=zipfile.ZIP_DEFLATED, compresslevel=9)
+          print(f'Created {output} ({output.stat().st_size} bytes)')
+          PY
+            rc=$?
+          fi
+          if [[ $rc -eq 0 ]]; then
+            python3 - "$root" <<'PY' > firmware-4.0.0-build-metadata.json
+          import hashlib
+          import json
+          import sys
+          from pathlib import Path
+
+          root = Path(sys.argv[1])
+          manifest = json.loads((root / 'RELEASE-MANIFEST.json').read_text(encoding='utf-8'))
+          source_zip = Path('release/firmware/Flight-Commander-Firmware-Source-v4.0.0.zip')
+          print(json.dumps({
+              'firmware_sha256': manifest['artifact']['sha256'],
+              'firmware_bytes': manifest['artifact']['bytes'],
+              'source_sha256': hashlib.sha256(source_zip.read_bytes()).hexdigest(),
+              'source_bytes': source_zip.stat().st_size,
+              'source_revision': manifest['source_revision'],
+              'source_tree': manifest['source_tree'],
+              'source_date_epoch': manifest['source_date_epoch'],
+          }, indent=2))
+          PY
+            rc=$?
+          fi
+          echo "$rc" > firmware-4.0.0-build.status
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Update coordinated 4.0.0 package metadata
+        if: steps.firmware.outputs.rc == '0'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import re
+          from pathlib import Path
+
+          metadata = json.loads(Path('firmware-4.0.0-build-metadata.json').read_text(encoding='utf-8'))
+          package_path = Path('package.json')
+          package = json.loads(package_path.read_text(encoding='utf-8'))
+          package['version'] = '4.0.0'
+          fc = package['flightCommander']
+          fc.update({
+              'firmwareMajor': 4,
+              'firmwareReleaseVersion': '4.0.0',
+              'firmwareReleaseSha256': metadata['firmware_sha256'],
+              'firmwareChangedInRelease': True,
+              'firmwareSourceAvailable': True,
+              'firmwareSourceVersion': '4.0.0',
+              'firmwareSourceArchive': 'release/firmware/Flight-Commander-Firmware-Source-v4.0.0.zip',
+              'firmwareSourceSha256': metadata['source_sha256'],
+              'firmwareSourceRevision': metadata['source_revision'],
+              'firmwareSourceTree': metadata['source_tree'],
+          })
+          package_path.write_text(json.dumps(package, indent=2) + '\n', encoding='utf-8')
+
+          manifest_path = Path('manifest.json')
+          manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
+          manifest['version'] = '4.0.0'
+          manifest_path.write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
+
+          replacements = {
+              Path('tabs/landing.html'): [('Flight Commander 3.0.7', 'Flight Commander 4.0.0')],
+              Path('js/main/ntripClient.js'): [('NTRIP FlightCommander/3.0.7', 'NTRIP FlightCommander/4.0.0')],
+          }
+          for path, values in replacements.items():
+              text = path.read_text(encoding='utf-8')
+              for old, new in values:
+                  text = text.replace(old, new)
+              path.write_text(text, encoding='utf-8')
+          PY
+
+      - uses: actions/setup-node@v4
+        if: steps.firmware.outputs.rc == '0'
+        with:
+          node-version: 22
+          cache: yarn
+
+      - name: Run coordinated source and package tests
+        id: tests
+        if: steps.firmware.outputs.rc == '0'
+        shell: bash
+        run: |
+          set +e
+          corepack enable >> firmware-4.0.0-build.log 2>&1
+          yarn install --frozen-lockfile >> firmware-4.0.0-build.log 2>&1
+          rc=$?
+          if [[ $rc -eq 0 ]]; then
+            yarn test >> firmware-4.0.0-build.log 2>&1
+            rc=$?
+          fi
+          echo "$rc" > firmware-4.0.0-tests.status
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Commit build outputs and diagnostics
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m 'Build Flight Commander Firmware 4.0.0 moving-baseline support'
+          git push origin HEAD:develop/4.0.0-holybro-moving-baseline
+
+      - name: Report firmware build failure
+        if: steps.firmware.outputs.rc != '0'
+        shell: bash
+        run: |
+          tail -300 firmware-4.0.0-build.log
+          exit 1
+
+      - name: Report coordinated test failure
+        if: steps.firmware.outputs.rc == '0' && steps.tests.outputs.rc != '0'
+        shell: bash
+        run: |
+          tail -400 firmware-4.0.0-build.log
+          exit 1
