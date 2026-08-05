@@ -54,6 +54,12 @@ struct ardupilot_gnss_RelPosHeading;
         text = text.replace(old, new, 1)
     elif new not in text:
         raise RuntimeError("Unable to add RelPosHeading forward declaration")
+
+    # The retained 3.0.7 protocol header uses compact macro spacing.
+    text = text.replace(
+        "MSP2_FLIGHT_COMMANDER_DRONECAN_NODES         0x2F12",
+        "MSP2_FLIGHT_COMMANDER_DRONECAN_NODES 0x2F12",
+    )
     path.write_text(text, encoding="utf-8")
 
 
