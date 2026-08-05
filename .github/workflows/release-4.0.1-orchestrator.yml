@@ -1,0 +1,62 @@
+name: Publish Flight Commander 4.0.1 release
+
+"on":
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: Exact main-branch commit SHA to publish
+        required: true
+        type: string
+      publish_confirmation:
+        description: Type PUBLISH_FLIGHT_COMMANDER_4.0.1 after explicit release approval
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: flight-commander-4.0.1-orchestrator
+  cancel-in-progress: false
+
+jobs:
+  verify-and-dispatch:
+    name: Verify and dispatch Flight Commander 4.0.1
+    if: inputs.publish_confirmation == 'PUBLISH_FLIGHT_COMMANDER_4.0.1'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out exact coordinated 4.0.1 source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ inputs.expected_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify exact coordinated 4.0.1 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ inputs.expected_sha }}"
+          test "$(node -p "require('./package.json').version")" = '4.0.1'
+          test "$(node -p "require('./package.json').flightCommander.firmwareReleaseVersion")" = '4.0.1'
+          test -f release/firmware/Flight-Commander-Firmware-4.0.1-MICOAIR743.hex
+          test -f release/firmware/Flight-Commander-Firmware-Source-v4.0.1.zip
+          node scripts/check-flight-commander-version.mjs
+
+      - name: Dispatch verified release pipeline
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if gh release view v4.0.1 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo 'Release v4.0.1 already exists; skipping duplicate dispatch.'
+          else
+            gh workflow run release.yml \
+              --repo "$GITHUB_REPOSITORY" \
+              --ref main \
+              -f expected_sha="${{ inputs.expected_sha }}"
+          fi
