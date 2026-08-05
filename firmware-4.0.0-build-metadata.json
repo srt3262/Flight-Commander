@@ -1,9 +1,9 @@
 {
-  "firmware_sha256": "6bc8bb8a4c53f36919e34ac67d7971889afceb45513fde5354b61a2488487b8c",
-  "firmware_bytes": 1913201,
-  "source_sha256": "1a3c94400f337c42c10c64874d9050a7fb4ef7cb00259739fedda2f8247ea1bf",
-  "source_bytes": 5767207,
-  "source_revision": "03a5f9ad64bf376c4e54473cfc2095746876a0e4",
-  "source_tree": "ad0f2cbf1962005418c8ec2c04c87fdcf3d0aa66",
+  "firmware_sha256": "2297459807f78993d6144cd2673592b0623d4068ce0fba401fd045a941b6fd84",
+  "firmware_bytes": 1916531,
+  "source_sha256": "b1ab68ff4cff60edcb4b923242ac7dcbf15a420f9c9551feb79c8d2f3ddbac84",
+  "source_bytes": 5770842,
+  "source_revision": "3ae5148196e15f6c3af6f7ce08f568be66a66c09",
+  "source_tree": "baf38fc99d381a38bd4e4665d4dbb0d547332fa4",
   "source_date_epoch": 1785895200
 }
