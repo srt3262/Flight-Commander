@@ -1,0 +1,49 @@
+name: Trigger Flight Commander 4.0.0 revalidation
+
+"on":
+  push:
+    branches:
+      - develop/4.0.0-holybro-moving-baseline
+    paths:
+      - .github/workflows/revalidate-flight-commander-4.0.0.yml
+
+permissions:
+  contents: write
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: develop/4.0.0-holybro-moving-baseline
+          fetch-depth: 1
+      - name: Record the coordinated contract revalidation trigger
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('scripts/finalize-flight-commander-4.0.0-contracts.py')
+          text = path.read_text(encoding='utf-8')
+          marker = '# Coordinated source and package contracts validated together.\n'
+          if marker not in text:
+              text = text.replace(
+                  'ROOT = Path(__file__).resolve().parents[1]\n',
+                  'ROOT = Path(__file__).resolve().parents[1]\n\n' + marker,
+                  1,
+              )
+          path.write_text(text, encoding='utf-8')
+          PY
+          rm .github/workflows/revalidate-flight-commander-4.0.0.yml
+      - name: Commit the revalidation trigger
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m 'Revalidate coordinated Flight Commander 4.0.0 artifacts'
+          git push origin HEAD:develop/4.0.0-holybro-moving-baseline
