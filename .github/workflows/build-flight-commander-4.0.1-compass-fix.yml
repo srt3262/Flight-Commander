@@ -127,11 +127,16 @@ jobs:
           if (-not $packageDir) {
             throw 'The verified Flight Commander win32-x64 package directory was not found.'
           }
-          $windowsEntries = @(Get-ChildItem -LiteralPath $packageDir.FullName -Force)
-          if ($windowsEntries.Count -eq 0) {
-            throw 'The verified Windows package directory is empty.'
+          $windowsZip = Join-Path $components "FC-Windows-v$version.zip"
+          Push-Location -LiteralPath $packageDir.FullName
+          try {
+            & tar.exe -a -c -f $windowsZip .
+            if ($LASTEXITCODE -ne 0) {
+              throw 'Windows application ZIP creation failed.'
+            }
+          } finally {
+            Pop-Location
           }
-          Compress-Archive -LiteralPath $windowsEntries.FullName -DestinationPath (Join-Path $components "FC-Windows-v$version.zip") -CompressionLevel Optimal
 
           $archive = Join-Path $env:RUNNER_TEMP 'configurator-head.zip'
           $configStage = Join-Path $env:RUNNER_TEMP 'configurator-source'
@@ -144,8 +149,16 @@ jobs:
           Get-ChildItem -LiteralPath $configFirmware -File | Remove-Item -Force
           Copy-Item -LiteralPath (Join-Path $PWD 'release/firmware/Flight-Commander-Firmware-4.0.1-MICOAIR743.hex') -Destination $configFirmware
           Copy-Item -LiteralPath (Join-Path $PWD 'release/firmware/Flight-Commander-Firmware-Source-v4.0.1.zip') -Destination $configFirmware
-          $configEntries = @(Get-ChildItem -LiteralPath $configStage -Force)
-          Compress-Archive -LiteralPath $configEntries.FullName -DestinationPath (Join-Path $components "FC-Configurator-Source-v$version.zip") -CompressionLevel Optimal
+          $configZip = Join-Path $components "FC-Configurator-Source-v$version.zip"
+          Push-Location -LiteralPath $configStage
+          try {
+            & tar.exe -a -c -f $configZip .
+            if ($LASTEXITCODE -ne 0) {
+              throw 'Configurator source ZIP creation failed.'
+            }
+          } finally {
+            Pop-Location
+          }
 
           Copy-Item -LiteralPath (Join-Path $PWD 'release/firmware/Flight-Commander-Firmware-4.0.1-MICOAIR743.hex') -Destination (Join-Path $components "FC-Firmware-v$version-MICOAIR743.hex")
           Copy-Item -LiteralPath (Join-Path $PWD 'release/firmware/Flight-Commander-Firmware-Source-v4.0.1.zip') -Destination (Join-Path $components "FC-Firmware-Source-v$version.zip")
@@ -172,7 +185,15 @@ jobs:
           }
 
           $completeZip = Join-Path $stage "Flight-Commander-v$version-Bench-Test.zip"
-          Compress-Archive -LiteralPath $components -DestinationPath $completeZip -CompressionLevel Optimal
+          Push-Location -LiteralPath $stage
+          try {
+            & tar.exe -a -c -f $completeZip "Flight-Commander-v$version"
+            if ($LASTEXITCODE -ne 0) {
+              throw 'Complete bench-test ZIP creation failed.'
+            }
+          } finally {
+            Pop-Location
+          }
           $completeHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $completeZip).Hash.ToLowerInvariant()
           "$completeHash  $([IO.Path]::GetFileName($completeZip))" |
             Set-Content -LiteralPath (Join-Path $stage 'COMPLETE-BUNDLE-SHA256.txt') -Encoding ascii
