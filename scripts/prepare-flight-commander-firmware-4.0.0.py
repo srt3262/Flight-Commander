@@ -577,6 +577,8 @@ DRONECAN_PAIR_C = r'''/*
 #include <math.h>
 #include <string.h>
 
+#define CANARD_DSDLC_INTERNAL
+
 #include "common/maths.h"
 #include "drivers/dronecan/dronecan.h"
 #include "drivers/dronecan/dronecan_pair.h"
@@ -660,6 +662,52 @@ static uint16_t saturatingU16(uint32_t value)
     return value > 65535U ? 65535U : (uint16_t)value;
 }
 
+static uint16_t encodeGetSetRequest(struct uavcan_protocol_param_GetSetRequest *message, uint8_t *buffer)
+{
+    uint32_t bitOffset = 0;
+    memset(buffer, 0, UAVCAN_PROTOCOL_PARAM_GETSET_REQUEST_MAX_SIZE);
+    _uavcan_protocol_param_GetSetRequest_encode(buffer, &bitOffset, message, true);
+    return (bitOffset + 7U) / 8U;
+}
+
+static bool decodeGetSetResponse(const CanardRxTransfer *transfer,
+    struct uavcan_protocol_param_GetSetResponse *message)
+{
+    uint32_t bitOffset = 0;
+    if (_uavcan_protocol_param_GetSetResponse_decode(transfer, &bitOffset, message, true)) {
+        return true;
+    }
+    return ((bitOffset + 7U) / 8U) != transfer->payload_len;
+}
+
+static uint16_t encodeExecuteOpcodeRequest(
+    struct uavcan_protocol_param_ExecuteOpcodeRequest *message, uint8_t *buffer)
+{
+    uint32_t bitOffset = 0;
+    memset(buffer, 0, UAVCAN_PROTOCOL_PARAM_EXECUTEOPCODE_REQUEST_MAX_SIZE);
+    _uavcan_protocol_param_ExecuteOpcodeRequest_encode(buffer, &bitOffset, message, true);
+    return (bitOffset + 7U) / 8U;
+}
+
+static bool decodeExecuteOpcodeResponse(const CanardRxTransfer *transfer,
+    struct uavcan_protocol_param_ExecuteOpcodeResponse *message)
+{
+    uint32_t bitOffset = 0;
+    if (_uavcan_protocol_param_ExecuteOpcodeResponse_decode(transfer, &bitOffset, message, true)) {
+        return true;
+    }
+    return ((bitOffset + 7U) / 8U) != transfer->payload_len;
+}
+
+static uint16_t encodeRestartNodeRequest(struct uavcan_protocol_RestartNodeRequest *message,
+    uint8_t *buffer)
+{
+    uint32_t bitOffset = 0;
+    memset(buffer, 0, UAVCAN_PROTOCOL_RESTARTNODE_REQUEST_MAX_SIZE);
+    _uavcan_protocol_RestartNodeRequest_encode(buffer, &bitOffset, message, true);
+    return (bitOffset + 7U) / 8U;
+}
+
 static void setError(uint8_t error)
 {
     status.state = DRONECAN_PAIR_STATE_ERROR;
@@ -719,9 +767,8 @@ static const char *parameterName(pairParameter_e parameter)
 
 static bool sendNodeInfo(uint8_t nodeID)
 {
-    struct uavcan_protocol_GetNodeInfoRequest request;
-    uint8_t buffer[1] = { 0 };
-    const uint16_t length = uavcan_protocol_GetNodeInfoRequest_encode(&request, buffer);
+    const uint8_t buffer[1] = { 0 };
+    const uint16_t length = 0;
     if (!dronecanSendServiceRequest(nodeID, UAVCAN_PROTOCOL_GETNODEINFO_SIGNATURE,
         UAVCAN_PROTOCOL_GETNODEINFO_ID, &nodeInfoTransferID, buffer, length)) {
         return false;
@@ -749,7 +796,7 @@ static bool sendParameter(uint8_t nodeID, pairParameter_e parameter, bool write,
         request.value.integer_value = value;
     }
     uint8_t buffer[UAVCAN_PROTOCOL_PARAM_GETSET_REQUEST_MAX_SIZE];
-    const uint16_t length = uavcan_protocol_param_GetSetRequest_encode(&request, buffer);
+    const uint16_t length = encodeGetSetRequest(&request, buffer);
     if (!dronecanSendServiceRequest(nodeID, UAVCAN_PROTOCOL_PARAM_GETSET_SIGNATURE,
         UAVCAN_PROTOCOL_PARAM_GETSET_ID, &parameterTransferID, buffer, length)) {
         return false;
@@ -774,7 +821,7 @@ static bool sendSave(uint8_t nodeID)
         .argument = 0,
     };
     uint8_t buffer[UAVCAN_PROTOCOL_PARAM_EXECUTEOPCODE_REQUEST_MAX_SIZE];
-    const uint16_t length = uavcan_protocol_param_ExecuteOpcodeRequest_encode(&request, buffer);
+    const uint16_t length = encodeExecuteOpcodeRequest(&request, buffer);
     if (!dronecanSendServiceRequest(nodeID, UAVCAN_PROTOCOL_PARAM_EXECUTEOPCODE_SIGNATURE,
         UAVCAN_PROTOCOL_PARAM_EXECUTEOPCODE_ID, &executeOpcodeTransferID, buffer, length)) {
         return false;
@@ -795,7 +842,7 @@ static bool sendRestart(uint8_t nodeID)
         .magic_number = UAVCAN_PROTOCOL_RESTARTNODE_REQUEST_MAGIC_NUMBER,
     };
     uint8_t buffer[UAVCAN_PROTOCOL_RESTARTNODE_REQUEST_MAX_SIZE];
-    const uint16_t length = uavcan_protocol_RestartNodeRequest_encode(&request, buffer);
+    const uint16_t length = encodeRestartNodeRequest(&request, buffer);
     if (!dronecanSendServiceRequest(nodeID, UAVCAN_PROTOCOL_RESTARTNODE_SIGNATURE,
         UAVCAN_PROTOCOL_RESTARTNODE_ID, &restartTransferID, buffer, length)) {
         return false;
@@ -1098,7 +1145,7 @@ bool dronecanPairHandleResponse(const CanardRxTransfer *transfer)
 
     if (pending.kind == REQUEST_PARAMETER && transfer->data_type_id == UAVCAN_PROTOCOL_PARAM_GETSET_ID) {
         struct uavcan_protocol_param_GetSetResponse response;
-        if (uavcan_protocol_param_GetSetResponse_decode(transfer, &response) || response.name.len == 0 ||
+        if (decodeGetSetResponse(transfer, &response) || response.name.len == 0 ||
             response.value.union_tag != UAVCAN_PROTOCOL_PARAM_VALUE_INTEGER_VALUE) {
             setError(DRONECAN_PAIR_ERROR_PARAMETER_MISSING);
             return true;
@@ -1130,7 +1177,7 @@ bool dronecanPairHandleResponse(const CanardRxTransfer *transfer)
 
     if (pending.kind == REQUEST_SAVE && transfer->data_type_id == UAVCAN_PROTOCOL_PARAM_EXECUTEOPCODE_ID) {
         struct uavcan_protocol_param_ExecuteOpcodeResponse response;
-        if (uavcan_protocol_param_ExecuteOpcodeResponse_decode(transfer, &response) || !response.ok) {
+        if (decodeExecuteOpcodeResponse(transfer, &response) || !response.ok) {
             setError(DRONECAN_PAIR_ERROR_SAVE);
             return true;
         }
