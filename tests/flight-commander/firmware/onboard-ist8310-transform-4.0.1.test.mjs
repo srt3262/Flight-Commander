@@ -9,40 +9,13 @@ import { fileURLToPath } from 'node:url';
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 const output = mkdtempSync(join(tmpdir(), 'flight-commander-4.0.1-compass-'));
 const python = process.env.PYTHON || (process.platform === 'win32' ? 'python' : 'python3');
-const baselineArchive = process.env.FLIGHT_COMMANDER_400_SOURCE_ARCHIVE || join(
-  projectRoot,
-  'release/firmware/Flight-Commander-Firmware-Source-v4.0.0.zip',
-);
-const result = spawnSync(
-  python,
-  [
-    join(projectRoot, 'scripts/prepare-flight-commander-firmware-4.0.1.py'),
-    '--archive',
-    baselineArchive,
-    '--output',
-    output,
-  ],
-  { cwd: projectRoot, encoding: 'utf8' },
-);
-
-assert.equal(
-  result.status,
-  0,
-  `4.0.1 source preparation failed:\n${result.stdout}\n${result.stderr}`,
-);
-
-const driver = readFileSync(
-  join(
-    output,
-    'Flight-Commander-Firmware-Source-v4.0.1',
-    'src/main/drivers/compass/compass_ist8310.c',
-  ),
-  'utf8',
-);
-const guarded = driver
-  .split('#if defined(FLIGHT_COMMANDER_MICOAIR743_ONBOARD_IST8310)', 2)[1]
-  .split('#endif', 1)[0];
-
+const archive = join(projectRoot, 'release/firmware/Flight-Commander-Firmware-Source-v4.0.1.zip');
+const result = spawnSync(python, ['-c', 'import sys,zipfile; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])', archive, output], { encoding: 'utf8' });
+assert.equal(result.status, 0, `4.0.1 source extraction failed:
+${result.stdout}
+${result.stderr}`);
+const driver = readFileSync(join(output, 'Flight-Commander-Firmware-Source-v4.0.1', 'src/main/drivers/compass/compass_ist8310.c'), 'utf8');
+const guarded = driver.split('#if defined(FLIGHT_COMMANDER_MICOAIR743_ONBOARD_IST8310)', 2)[1].split('#endif', 1)[0];
 after(() => rmSync(output, { recursive: true, force: true }));
 
 test('4.0.1 restores the accepted MICOAIR743 onboard IST8310 signed permutation', () => {

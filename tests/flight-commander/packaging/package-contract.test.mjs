@@ -30,7 +30,7 @@ const releaseWorkflow = readFileSync(
   "utf8",
 );
 const releaseOrchestrator = readFileSync(
-  resolve(projectRoot, ".github/workflows/release-4.0.0-orchestrator.yml"),
+  resolve(projectRoot, ".github/workflows/release-4.0.1-orchestrator.yml"),
   "utf8",
 );
 const firmwareRebuildScript = readFileSync(
@@ -581,13 +581,13 @@ test("application remains dark-only", () => {
 });
 
 test("firmware is release-only and the flasher exposes local, online, then flash", () => {
-  assert.equal(packageManifest.flightCommander.firmwareReleaseVersion, "4.0.0");
+  assert.equal(packageManifest.flightCommander.firmwareReleaseVersion, "4.0.1");
   assert.equal(packageManifest.flightCommander.firmwareChangedInRelease, true);
   assert.equal(packageManifest.flightCommander.firmwareSourceAvailable, true);
-  assert.equal(packageManifest.flightCommander.firmwareSourceVersion, "4.0.0");
+  assert.equal(packageManifest.flightCommander.firmwareSourceVersion, "4.0.1");
   assert.equal(
     packageManifest.flightCommander.firmwareSourceArchive,
-    "release/firmware/Flight-Commander-Firmware-Source-v4.0.0.zip",
+    "release/firmware/Flight-Commander-Firmware-Source-v4.0.1.zip",
   );
   const releaseFirmwareIsPresent = existsSync(firmwareReleasePath);
   const releaseSourceIsPresent = existsSync(firmwareSourcePath);
@@ -690,7 +690,7 @@ test("all requested large-prop INAV presets are wired into the release source", 
 });
 
 test("landing page reports the current Flight Commander release", () => {
-  assert.equal(packageManifest.version, "4.0.0");
+  assert.equal(packageManifest.version, "4.0.1");
   assert.equal(manifest.version, packageManifest.version);
   assert.match(
     landingHtml,
@@ -699,7 +699,7 @@ test("landing page reports the current Flight Commander release", () => {
 });
 
 test("guarded push publication is tied to the current release version", () => {
-  assert.match(releaseOrchestrator, /Publish Flight Commander 4\.0\.0 release/);
+  assert.match(releaseOrchestrator, /Publish Flight Commander 4\.0\.1 release/);
   assert.match(releaseOrchestrator, /gh workflow run release\.yml/);
 });
 
