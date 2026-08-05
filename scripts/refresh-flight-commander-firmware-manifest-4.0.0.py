@@ -16,6 +16,7 @@ from pathlib import Path
 
 # This helper is a required coordinated-build step after every generated-source
 # transformation, including dynamic DroneCAN node allocation support.
+# Release rebuild trigger: regenerate the final verified 4.0.0 source archive.
 
 
 def source_records(root: Path) -> list[str]:
