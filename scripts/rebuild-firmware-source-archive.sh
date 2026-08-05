@@ -80,19 +80,36 @@ unzip -q "${source_archive}" -d "${work_root}/source"
 source_root="${work_root}/source/Flight-Commander-Firmware-Source-v${firmware_version}"
 [[ -d "${source_root}" ]]
 
-computed_source_revision="$({
-    cd "${source_root}"
-    find . -type f ! -path './RELEASE-MANIFEST.json' -print0 |
-        LC_ALL=C sort -z |
-        xargs -0 sha256sum
-} | sha1sum | cut -d' ' -f1)"
-computed_source_tree="$({
-    printf 'flight-commander-source-tree-v1\n'
-    cd "${source_root}"
-    find . -type f ! -path './RELEASE-MANIFEST.json' -print0 |
-        LC_ALL=C sort -z |
-        xargs -0 sha256sum
-} | sha1sum | cut -d' ' -f1)"
+# Recompute the source identity with the same canonical relative-path records as
+# scripts/refresh-flight-commander-firmware-manifest-4.0.0.py.  sha256sum emits
+# a leading './' for find(1) paths, which previously made the verifier disagree
+# with the manifest even though the shipped source bytes were correct.
+mapfile -t source_identity < <(python3 - "${source_root}" <<'PY'
+from __future__ import annotations
+
+import hashlib
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1]).resolve()
+records: list[str] = []
+for path in sorted(root.rglob('*')):
+    if not path.is_file() or path.name == 'RELEASE-MANIFEST.json':
+        continue
+    relative = path.relative_to(root).as_posix()
+    digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    records.append(f'{digest}  {relative}\n')
+canonical = ''.join(records).encode()
+print(hashlib.sha1(canonical).hexdigest())
+print(hashlib.sha1(b'flight-commander-source-tree-v1\n' + canonical).hexdigest())
+PY
+)
+if [[ "${#source_identity[@]}" -ne 2 ]]; then
+    echo 'Unable to compute the firmware source identities.' >&2
+    exit 1
+fi
+computed_source_revision="${source_identity[0]}"
+computed_source_tree="${source_identity[1]}"
 if [[ "${computed_source_revision}" != "${source_revision}" ]]; then
     echo 'Firmware source revision does not identify the shipped source tree.' >&2
     exit 1
