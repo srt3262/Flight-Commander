@@ -37,7 +37,9 @@ jobs:
           echo '===== src/main/drivers/compass/compass_ist8310.c ====='
           sed -n '1,360p' "$root/src/main/drivers/compass/compass_ist8310.c"
           echo '===== src/main/target/MICOAIR743/target.h ====='
-          sed -n '1,260p' "$root/src/main/target/MICOAIR743/target.h"
+          sed -n '1,300p' "$root/src/main/target/MICOAIR743/target.h"
+          echo '===== src/main/target/MICOAIR743/config.c ====='
+          sed -n '1,320p' "$root/src/main/target/MICOAIR743/config.c"
 
       - name: Print compass calibration and persistent configuration paths
         shell: bash
@@ -45,28 +47,54 @@ jobs:
           set -euo pipefail
           root="$(cat work/firmware-root.txt)"
           echo '===== src/main/sensors/compass.c ====='
-          sed -n '1,620p' "$root/src/main/sensors/compass.c"
+          sed -n '1,660p' "$root/src/main/sensors/compass.c"
           echo '===== src/main/sensors/compass.h ====='
-          sed -n '1,320p' "$root/src/main/sensors/compass.h"
-          echo '===== compass-related configuration references ====='
-          grep -R -n -E 'magZero|magGain|magAlignment|mag_align|MAG_CONFIG|PG_MAG|compassConfig|sensorCalibration|calibration' \
-            "$root/src/main" \
-            --include='*.c' --include='*.h' --include='*.yaml' --include='*.yml' \
-            | head -n 1200 || true
+          sed -n '1,340p' "$root/src/main/sensors/compass.h"
+          echo '===== compass settings section ====='
+          sed -n '530,640p' "$root/src/main/fc/settings.yaml"
+          echo '===== compass default macro definitions ====='
+          grep -R -n -E 'SETTING_ALIGN_MAG_DEFAULT|SETTING_MAGGAIN_[XYZ]_DEFAULT|FLIGHT_COMMANDER_MAG_DEFAULT_ALIGN' \
+            "$root" --include='*.c' --include='*.h' --include='*.yaml' --include='*.yml' \
+            | head -n 400 || true
 
-      - name: Print configuration reset and migration hooks
+      - name: Print generic config fixups and load order
         shell: bash
         run: |
           set -euo pipefail
           root="$(cat work/firmware-root.txt)"
-          echo '===== likely reset and EEPROM files ====='
-          find "$root/src/main" -type f \
-            \( -iname '*config*' -o -iname '*eeprom*' -o -iname '*settings*' -o -iname '*parameter_group*' \) \
-            | sort | head -n 500
-          echo '===== PG reset and version references ====='
-          grep -R -n -E 'PG_REGISTER|PG_RESET|pgReset|resetTemplate|CONFIG_VERSION|EEPROM_CONF_VERSION|parameterGroup' \
-            "$root/src/main" --include='*.c' --include='*.h' \
-            | head -n 1200 || true
+          echo '===== src/main/fc/config.c ====='
+          sed -n '180,360p' "$root/src/main/fc/config.c"
+          echo '===== src/main/fc/fc_init.c configuration load sequence ====='
+          sed -n '180,330p' "$root/src/main/fc/fc_init.c"
+          echo '===== config-fixup callers ====='
+          grep -R -n -E 'validateAndFixConfig|validateAndFix.*Config|readEEPROM|loadConfig|writeEEPROM|saveConfig' \
+            "$root/src/main/fc" "$root/src/main/config" \
+            --include='*.c' --include='*.h' | head -n 800 || true
+
+      - name: Print parameter-group load and migration behavior
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$(cat work/firmware-root.txt)"
+          echo '===== src/main/config/config_eeprom.c ====='
+          sed -n '100,330p' "$root/src/main/config/config_eeprom.c"
+          echo '===== src/main/config/parameter_group.c ====='
+          sed -n '1,180p' "$root/src/main/config/parameter_group.c"
+          echo '===== src/main/config/parameter_group.h ====='
+          sed -n '90,250p' "$root/src/main/config/parameter_group.h"
+          echo '===== PG_COMPASS_CONFIG ID ====='
+          grep -n -E 'PG_COMPASS_CONFIG|PG_FLIGHT_COMMANDER' "$root/src/main/config/parameter_group_ids.h" || true
+
+      - name: Print Flight Commander heading configuration storage
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$(cat work/firmware-root.txt)"
+          echo '===== heading_fusion.h ====='
+          sed -n '1,250p' "$root/src/main/flight_commander/heading_fusion.h"
+          echo '===== heading_fusion.c reset and calibration sections ====='
+          sed -n '1,360p' "$root/src/main/flight_commander/heading_fusion.c"
+          sed -n '480,590p' "$root/src/main/flight_commander/heading_fusion.c"
 
       - name: Print Configurator local firmware acceptance code
         shell: bash
@@ -75,4 +103,6 @@ jobs:
           echo '===== tabs/firmware_flasher.js acceptance section ====='
           sed -n '430,820p' tabs/firmware_flasher.js
           echo '===== js/flightCommander/firmwareCatalog.js ====='
-          sed -n '1,280p' js/flightCommander/firmwareCatalog.js
+          sed -n '1,320p' js/flightCommander/firmwareCatalog.js
+          echo '===== related tests ====='
+          find tests -maxdepth 5 -type f | sort | grep -E 'firmware|flasher|catalog' || true
