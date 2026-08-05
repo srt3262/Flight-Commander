@@ -13,6 +13,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 # Coordinated source and package contracts validated together.
+# Flight Commander 4.0.0 is the minimum supported firmware for this coordinated release.
 
 
 def replace(path: str, old: str, new: str, *, required: bool = True) -> None:
