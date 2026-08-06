@@ -1,83 +1,136 @@
-name: Export retained firmware and Configurator source snapshots
+name: Validate automatic compass vector matching
 
 "on":
   push:
     branches:
       - agent/auto-compass-vector-matching
+    paths:
+      - .github/workflows/export-firmware-source.yml
+      - docs/AUTO_COMPASS_VECTOR_MATCHING.md
+      - firmware/auto-compass/**
+      - scripts/apply-auto-compass-configurator-prototype.py
+      - scripts/prepare-flight-commander-firmware-4.0.6.py
+      - js/flightCommander/compassOrientation.js
+      - js/flightCommander/compassVectorMatching.js
+      - tests/flight-commander/firmware/compass-orientation-status.test.mjs
+      - tests/flight-commander/firmware/compass-vector-matching.test.mjs
   pull_request:
     branches:
       - main
-  workflow_dispatch:
+    paths:
+      - .github/workflows/export-firmware-source.yml
+      - docs/AUTO_COMPASS_VECTOR_MATCHING.md
+      - firmware/auto-compass/**
+      - scripts/apply-auto-compass-configurator-prototype.py
+      - scripts/prepare-flight-commander-firmware-4.0.6.py
+      - js/flightCommander/compassOrientation.js
+      - js/flightCommander/compassVectorMatching.js
+      - tests/flight-commander/firmware/compass-orientation-status.test.mjs
+      - tests/flight-commander/firmware/compass-vector-matching.test.mjs
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  export-source:
-    name: Export Flight Commander 4.0.5 source snapshots
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
     steps:
-      - name: Check out proposed revision
+      - name: Check out draft implementation branch
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          fetch-depth: 1
-          persist-credentials: false
+          fetch-depth: 0
 
-      - name: Verify retained firmware source archive
-        shell: bash
-        run: |
-          set -euo pipefail
-          archive='release/firmware/Flight-Commander-Firmware-Source-v4.0.5.zip'
-          test -f "$archive"
-          python3 - "$archive" <<'PY'
-          import sys
-          import zipfile
-          from pathlib import Path
-
-          archive = Path(sys.argv[1])
-          with zipfile.ZipFile(archive) as source:
-              assert source.testzip() is None
-              roots = {name.split('/', 1)[0] for name in source.namelist() if name}
-          assert roots == {'Flight-Commander-Firmware-Source-v4.0.5'}, roots
-          print(f'{archive}: verified')
-          PY
-
-      - name: Create Configurator source snapshot
-        shell: bash
-        run: |
-          set -euo pipefail
-          git archive \
-            --format=zip \
-            --prefix=Flight-Commander-Configurator-v4.0.5/ \
-            --output=/tmp/Flight-Commander-Configurator-v4.0.5.zip \
-            HEAD
-          python3 - /tmp/Flight-Commander-Configurator-v4.0.5.zip <<'PY'
-          import sys
-          import zipfile
-          from pathlib import Path
-
-          archive = Path(sys.argv[1])
-          with zipfile.ZipFile(archive) as source:
-              assert source.testzip() is None
-              roots = {name.split('/', 1)[0] for name in source.namelist() if name}
-          assert roots == {'Flight-Commander-Configurator-v4.0.5'}, roots
-          print(f'{archive}: verified')
-          PY
-
-      - name: Upload retained firmware source archive
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          name: flight-commander-firmware-source-v4.0.5
-          path: release/firmware/Flight-Commander-Firmware-Source-v4.0.5.zip
+          node-version: 22
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Apply Configurator integration
+        run: python3 scripts/apply-auto-compass-configurator-prototype.py
+
+      - name: Run automatic compass host tests
+        run: |
+          node --test \
+            tests/flight-commander/firmware/compass-vector-matching.test.mjs \
+            tests/flight-commander/firmware/compass-orientation-status.test.mjs
+
+      - name: Install firmware build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            cmake \
+            ninja-build \
+            python3 \
+            python3-pip \
+            git \
+            unzip \
+            zip
+
+      - name: Prepare exact 4.0.6 firmware source from retained 4.0.5 archive
+        run: |
+          python3 scripts/prepare-flight-commander-firmware-4.0.6.py \
+            --archive release/firmware/Flight-Commander-Firmware-Source-v4.0.5.zip \
+            --output "$RUNNER_TEMP/flight-commander-4.0.6"
+
+      - name: Build MICOAIR743 draft firmware
+        run: |
+          SOURCE_ROOT="$RUNNER_TEMP/flight-commander-4.0.6/Flight-Commander-Firmware-Source-v4.0.6"
+          cd "$SOURCE_ROOT"
+          ./flight-commander/build-micoair743.sh
+
+      - name: Finalize deterministic draft source archive
+        run: |
+          SOURCE_ROOT="$RUNNER_TEMP/flight-commander-4.0.6/Flight-Commander-Firmware-Source-v4.0.6"
+          FIRMWARE="$SOURCE_ROOT/flight-commander/output/Flight-Commander-Firmware-4.0.6-MICOAIR743.hex"
+          SOURCE_ZIP="$RUNNER_TEMP/Flight-Commander-Firmware-Source-v4.0.6.zip"
+          python3 scripts/prepare-flight-commander-firmware-4.0.6.py \
+            --finalize-root "$SOURCE_ROOT" \
+            --firmware "$FIRMWARE" \
+            --source-zip "$SOURCE_ZIP"
+          python3 "$SOURCE_ROOT/flight-commander/verify-release.py" \
+            --firmware "$FIRMWARE" \
+            --source "$SOURCE_ZIP"
+          python3 "$SOURCE_ROOT/flight-commander/verify-compass-release.py" \
+            --firmware "$FIRMWARE" \
+            --source "$SOURCE_ZIP"
+
+      - name: Stage draft artifacts
+        run: |
+          mkdir -p "$RUNNER_TEMP/vector-matching-artifacts"
+          SOURCE_ROOT="$RUNNER_TEMP/flight-commander-4.0.6/Flight-Commander-Firmware-Source-v4.0.6"
+          cp "$SOURCE_ROOT/flight-commander/output/Flight-Commander-Firmware-4.0.6-MICOAIR743.hex" \
+            "$RUNNER_TEMP/vector-matching-artifacts/"
+          cp "$RUNNER_TEMP/Flight-Commander-Firmware-Source-v4.0.6.zip" \
+            "$RUNNER_TEMP/vector-matching-artifacts/"
+          cp docs/AUTO_COMPASS_VECTOR_MATCHING.md \
+            "$RUNNER_TEMP/vector-matching-artifacts/"
+          sha256sum "$RUNNER_TEMP/vector-matching-artifacts"/* \
+            > "$RUNNER_TEMP/vector-matching-artifacts/SHA256SUMS.txt"
+
+      - name: Upload draft firmware artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: flight-commander-auto-compass-vector-matching
+          path: ${{ runner.temp }}/vector-matching-artifacts/*
           if-no-files-found: error
           retention-days: 7
 
-      - name: Upload Configurator source snapshot
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: flight-commander-configurator-source-v4.0.5
-          path: /tmp/Flight-Commander-Configurator-v4.0.5.zip
-          if-no-files-found: error
-          retention-days: 7
+      - name: Commit generated Configurator integration to draft branch
+        if: github.event_name == 'push' && github.actor != 'github-actions[bot]'
+        run: |
+          if git diff --quiet -- tabs/calibration.js js/flightCommander/headingFusion.js; then
+            echo "Configurator integration already current."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tabs/calibration.js js/flightCommander/headingFusion.js
+          git commit -m "Wire Configurator automatic compass orientation workflow"
+          git push origin HEAD:agent/auto-compass-vector-matching
