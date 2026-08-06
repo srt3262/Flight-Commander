@@ -1,0 +1,165 @@
+diff --git a/.github/workflows/publish-flight-commander-beta.yml b/.github/workflows/publish-flight-commander-beta.yml
+index fafabba..cff5c7a 100644
+--- a/.github/workflows/publish-flight-commander-beta.yml
++++ b/.github/workflows/publish-flight-commander-beta.yml
+@@ -124,6 +124,8 @@ jobs:
+           node scripts/check-flight-commander-version.mjs
+           node --test \
+             tests/flight-commander/firmware/flight-commander-catalog.test.mjs \
++            tests/flight-commander/firmware/heading-fusion.test.mjs \
++            tests/flight-commander/firmware/heading-source-liveness.test.mjs \
+             tests/flight-commander/firmware/onboard-ist8310-transform.test.mjs
+ 
+   package-windows:
+diff --git a/js/flightCommander/headingFusion.js b/js/flightCommander/headingFusion.js
+index 934b4c6..9e78c60 100644
+--- a/js/flightCommander/headingFusion.js
++++ b/js/flightCommander/headingFusion.js
+@@ -12,6 +12,59 @@ export const HEADING_SOURCE_MOVING_BASELINE = 3;
+ export const HEADING_SOURCE_COUNT = 4;
+ export const HEADING_SOURCE_NONE = 255;
+ 
++export const HEADING_SOURCE_NO_SAMPLE_AGE = 0xffff;
++
++export function diagnoseHeadingSourceAvailability(source, {
++    timeoutMs = 750,
++    magnetic = true,
++} = {}) {
++    const ageMs = Number(source?.ageMs);
++    const quality = Number.isFinite(Number(source?.quality))
++        ? Math.max(0, Math.min(100, Number(source.quality)))
++        : 0;
++    const normalizedTimeout = Number.isFinite(Number(timeoutMs))
++        ? Math.max(0, Number(timeoutMs))
++        : 750;
++
++    if (!source || !Number.isFinite(ageMs) || ageMs === HEADING_SOURCE_NO_SAMPLE_AGE) {
++        return {
++            reason: 'no-sample',
++            label: 'No source sample',
++            stateClass: 'is-stale',
++            ageMs: null,
++            quality,
++        };
++    }
++
++    if (ageMs > normalizedTimeout) {
++        return {
++            reason: 'stale',
++            label: `Stale sample · ${ageMs} ms`,
++            stateClass: 'is-stale',
++            ageMs,
++            quality,
++        };
++    }
++
++    if (magnetic && quality === 0) {
++        return {
++            reason: 'field-rejected',
++            label: `Magnetic field rejected · Q0% · ${ageMs} ms`,
++            stateClass: 'is-warning',
++            ageMs,
++            quality,
++        };
++    }
++
++    return {
++        reason: 'fresh-rejected',
++        label: `Fresh sample rejected · Q${quality}% · ${ageMs} ms`,
++        stateClass: 'is-warning',
++        ageMs,
++        quality,
++    };
++}
++
+ export const BASELINE_PROVIDER_AUTO = 0;
+ export const BASELINE_PROVIDER_UART = 1;
+ export const BASELINE_PROVIDER_DRONECAN = 2;
+diff --git a/tabs/gps.js b/tabs/gps.js
+index 647749b..fe22630 100644
+--- a/tabs/gps.js
++++ b/tabs/gps.js
+@@ -54,6 +54,7 @@ import {
+     HEADING_SOURCE_LABELS,
+     HEADING_SOURCE_MOVING_BASELINE,
+     clearLegacyCompassYawOffsets,
++    diagnoseHeadingSourceAvailability,
+     encodeHeadingConfig,
+ } from '../js/flightCommander/headingFusion';
+ import {
+@@ -486,7 +487,8 @@ gpsTab.initialize = function (callback) {
+                 const sourceConfig = FC.HEADING_CONFIG?.sources?.[sourceIndex];
+                 const $row = $(`[data-heading-source="${sourceIndex}"]`)
+                     .removeClass('heading-source-active heading-source-rejected');
+-                let label = 'Unavailable / stale';
++                let label;
++                let appendAge = false;
+                 if (!sourceConfig?.enabled) {
+                     label = 'Disabled';
+                 } else if (sourceIndex < HEADING_SOURCE_MOVING_BASELINE && source?.calibrating) {
+@@ -498,14 +500,22 @@ gpsTab.initialize = function (callback) {
+                     label = 'Calibration required';
+                 } else if (source?.rejected) {
+                     label = `Rejected · ${(source.headingCentidegrees / 100).toFixed(2)}°`;
++                    appendAge = true;
+                     $row.addClass('heading-source-rejected');
+                 } else if (source?.active) {
+                     label = `Active · ${(source.headingCentidegrees / 100).toFixed(2)}° · Q${source.quality}%`;
++                    appendAge = true;
+                     $row.addClass('heading-source-active');
+                 } else if (source?.healthy) {
+-                    label = `Healthy standby · ${(source.headingCentidegrees / 100).toFixed(2)}°`;
++                    label = `Healthy standby · ${(source.headingCentidegrees / 100).toFixed(2)}° · Q${source.quality}%`;
++                    appendAge = true;
++                } else {
++                    label = diagnoseHeadingSourceAvailability(source, {
++                        timeoutMs: FC.HEADING_CONFIG?.sourceTimeoutMs,
++                        magnetic: sourceIndex < HEADING_SOURCE_MOVING_BASELINE,
++                    }).label;
+                 }
+-                if (source && source.ageMs !== 0xffff) {
++                if (appendAge && source && source.ageMs !== 0xffff) {
+                     label += ` · ${source.ageMs} ms`;
+                 }
+                 $(`#headingSourceStatus${sourceIndex}`).text(label);
+diff --git a/tabs/magnetometer.js b/tabs/magnetometer.js
+index 1c0a916..61700d4 100644
+--- a/tabs/magnetometer.js
++++ b/tabs/magnetometer.js
+@@ -24,6 +24,10 @@ import {
+     updateAlignmentDraft,
+     updateAlignmentDraftAxis,
+ } from './../js/flightCommander/alignmentTargets';
++import {
++    HEADING_SOURCE_MOVING_BASELINE,
++    diagnoseHeadingSourceAvailability,
++} from './../js/flightCommander/headingFusion';
+ 
+ const magnetometerTab = {};
+ 
+@@ -519,8 +523,12 @@ magnetometerTab.initialize = function (callback) {
+             `R ${Number(angles.roll).toFixed(1)}° · P ${Number(angles.pitch).toFixed(1)}° · Y ${Number(angles.yaw).toFixed(1)}°`,
+         );
+ 
+-        let state = config?.enabled === false ? 'Disabled' : 'Unavailable / stale';
+-        let stateClass = 'is-stale';
++        const unavailable = diagnoseHeadingSourceAvailability(source, {
++            timeoutMs: FC.HEADING_CONFIG?.sourceTimeoutMs,
++            magnetic: sourceIndex < HEADING_SOURCE_MOVING_BASELINE,
++        });
++        let state = config?.enabled === false ? 'Disabled' : unavailable.label;
++        let stateClass = config?.enabled === false ? 'is-stale' : unavailable.stateClass;
+         if (source?.calibrationFailed) {
+             state = 'Calibration failed';
+             stateClass = 'is-error';
+@@ -554,9 +562,13 @@ magnetometerTab.initialize = function (callback) {
+                 : '—',
+         );
+         $('#alignmentDiagnosticSample').text(
+-            source && source.ageMs !== 0xffff
+-                ? `${source.ageMs} ms old · quality ${source.quality}%`
+-                : 'No current source sample',
++            unavailable.reason === 'no-sample'
++                ? 'No current source sample'
++                : unavailable.reason === 'stale'
++                    ? `${unavailable.ageMs} ms old · stale · quality ${unavailable.quali
