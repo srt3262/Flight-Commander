@@ -7,7 +7,7 @@
 - Initialize disarmed startup yaw after four stable fresh samples using a
   dedicated state independent of INAV's legacy GPS-heading initialization.
 - Reset, migrate and save disabled heading-source weights as 0.
-- Retire firmware older than 4.0.5 from the online flasher selection list.
+- Keep the physically verified 3.0.7 recovery baseline selectable alongside 4.0.5 and later, while removing failed 3.0.6-and-earlier, 3.0.8, and 4.0.0-through-4.0.4 firmware from the managed flasher.
 
 
 - Adds one-stage setup for two Holybro/AP_Periph DroneCAN F9P modules used as an aircraft moving-baseline pair.

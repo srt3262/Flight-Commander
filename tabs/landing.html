@@ -51,9 +51,10 @@
             four stable samples initialize yaw through a dedicated startup state
             that is not blocked by the legacy GPS-heading flag. Disabled heading
             sources now reset, migrate and save with weight 0. The online flasher
-            offers 4.0.5 and later only, removing the previously failed firmware
-            revisions from its selectable list while local-file loading remains
-            content- and target-validated.
+            offers the verified 3.0.7 recovery baseline plus 4.0.5 and later,
+            while removing every failed intervening firmware revision from its
+            selectable list. Local-file loading remains content- and
+            target-validated.
             Flight Commander adds weighted heading fusion and UART/DroneCAN
             moving-baseline RTK yaw. The GPS and Alignment workflows retain
             per-source diagnostics and editable installation offsets; the fixed

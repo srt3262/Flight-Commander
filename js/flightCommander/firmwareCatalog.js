@@ -4,6 +4,9 @@ export const FLIGHT_COMMANDER_FIRMWARE_RELEASES_URL =
   "https://api.github.com/repos/srt3262/Flight-Commander/releases?per_page=20";
 
 export const FLIGHT_COMMANDER_MINIMUM_SUPPORTED_FIRMWARE_VERSION = "4.0.5";
+export const FLIGHT_COMMANDER_KNOWN_GOOD_FIRMWARE_VERSIONS = Object.freeze([
+  "3.0.7",
+]);
 
 function semverCore(version) {
   const match = /^(\d+)\.(\d+)\.(\d+)(?:-|$)/.exec(String(version ?? ""));
@@ -14,6 +17,12 @@ export function isSupportedFlightCommanderFirmwareVersion(version) {
   const candidate = semverCore(version);
   const minimum = semverCore(FLIGHT_COMMANDER_MINIMUM_SUPPORTED_FIRMWARE_VERSION);
   if (!candidate || !minimum) return false;
+
+  const candidateCore = candidate.join(".");
+  if (FLIGHT_COMMANDER_KNOWN_GOOD_FIRMWARE_VERSIONS.includes(candidateCore)) {
+    return true;
+  }
+
   for (let index = 0; index < 3; index += 1) {
     if (candidate[index] > minimum[index]) return true;
     if (candidate[index] < minimum[index]) return false;
