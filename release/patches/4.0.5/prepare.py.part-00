@@ -1,0 +1,120 @@
+#!/usr/bin/env python3
+"""Advance the verified Flight Commander 4.0.4 candidate source to 4.0.5.
+
+4.0.5 keeps the 4.0.4 time-based IST8310 recovery work, but corrects the
+remaining startup contract: sample freshness, heading availability, displayed
+field quality, fusion authority, and one-time yaw initialization are separate
+states.  A fresh finite magnetic heading remains available at displayed Q0,
+receives only a one-percent authority floor, and may seed startup only after a
+short stationary stability window.  The startup seed has its own state and is
+not blocked by INAV's legacy gpsHeadingInitialized flag.
+"""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import re
+import shutil
+import stat
+import sys
+import time
+import zipfile
+from pathlib import Path
+
+BASE_VERSION = "4.0.4"
+VERSION = "4.0.5"
+SOURCE_DATE_EPOCH = 1786068000
+
+
+def digest(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def replace_once(path: Path, old: str, new: str, label: str | None = None) -> None:
+    text = path.read_text(encoding="utf-8")
+    count = text.count(old)
+    if count != 1:
+        raise RuntimeError(
+            f"{label or path}: expected one occurrence of {old!r}, found {count}"
+        )
+    path.write_text(text.replace(old, new, 1), encoding="utf-8", newline="\n")
+
+
+def sub_once(
+    path: Path,
+    pattern: str,
+    replacement: str,
+    *,
+    label: str,
+    flags: int = re.MULTILINE | re.DOTALL,
+) -> None:
+    text = path.read_text(encoding="utf-8")
+    updated, count = re.subn(pattern, replacement, text, count=1, flags=flags)
+    if count != 1:
+        raise RuntimeError(f"{label}: expected one regex match, found {count}")
+    path.write_text(updated, encoding="utf-8", newline="\n")
+
+
+def clean_bytecode(root: Path) -> None:
+    for path in list(root.rglob("__pycache__")):
+        if path.is_dir():
+            shutil.rmtree(path)
+    for path in list(root.rglob("*.pyc")):
+        path.unlink(missing_ok=True)
+
+
+def source_identities(root: Path) -> tuple[str, str]:
+    records: list[str] = []
+    for path in sorted(root.rglob("*")):
+        if (
+            not path.is_file()
+            or path.name == "RELEASE-MANIFEST.json"
+            or "__pycache__" in path.parts
+            or path.suffix == ".pyc"
+        ):
+            continue
+        records.append(f"{digest(path)}  {path.relative_to(root).as_posix()}\n")
+    canonical = "".join(records).encode()
+    return (
+        hashlib.sha1(canonical).hexdigest(),
+        hashlib.sha1(b"flight-commander-source-tree-v1\n" + canonical).hexdigest(),
+    )
+
+
+def rename_root(root: Path) -> Path:
+    root = root.resolve()
+    expected = f"Flight-Commander-Firmware-Source-v{BASE_VERSION}"
+    if root.name != expected:
+        raise RuntimeError(f"Expected prepared {expected} source root, received {root}")
+    destination = root.with_name(f"Flight-Commander-Firmware-Source-v{VERSION}")
+    if destination.exists():
+        shutil.rmtree(destination)
+    root.rename(destination)
+    return destination
+
+
+def patch_version(root: Path) -> None:
+    replace_once(
+        root / "CMakeLists.txt",
+        "set(FLIGHT_COMMANDER_FIRMWARE_VERSION 4.0.4)",
+        "set(FLIGHT_COMMANDER_FIRMWARE_VERSION 4.0.5)",
+        "CMake firmware version",
+    )
+    replace_once(
+        root / "flight-commander/build-micoair743.sh",
+        "Flight-Commander-Firmware-4.0.4-MICOAIR743.hex",
+        "Flight-Commander-Firmware-4.0.5-MICOAIR743.hex",
+        "firmware output filename",
+    )
+    replace_once(
+        root / "src/main/build/flight_commander.h",
+        "#define FLIGHT_COMMANDER_VERSION_PATCH 4",
+        "#define FLIGHT_COMMANDER_VERSION_PATCH 5",
+        "embedded firmware patch version",
+    )
+
+    for relative in (
+        "flight-commander/verify-compass-release.py",
+        "flight-commander/verify-release.py",
