@@ -187,20 +187,28 @@ jobs:
         run: |
           set -euo pipefail
           rm -rf release/patches/4.0.4 release/patches/4.0.5
-          rm -f \
-            .github/workflows/build-flight-commander-firmware-4.0.4.yml \
-            .github/workflows/build-flight-commander-firmware-4.0.5.yml
+
+          # The release integration script also strengthens the publication test
+          # list. GitHub's Actions token cannot push workflow-file changes without
+          # the workflows permission, so keep that independently reviewable change
+          # out of the generated source commit. All 4.0.5 tests already ran above.
+          git restore --source=HEAD -- .github/workflows/publish-flight-commander-beta.yml
 
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add -A
           git diff --cached --check
+          if ! git diff --cached --quiet -- .github/workflows; then
+            echo "Generated release commit unexpectedly modifies a workflow file." >&2
+            git diff --cached -- .github/workflows >&2
+            exit 1
+          fi
           if git diff --cached --quiet; then
             echo "Expected generated 4.0.5 release changes, but the staged tree is empty." >&2
             exit 1
           fi
           git commit \
-            -m "Flight Commander 4.0.5: fix stationary heading startup" \
+            -m "[skip ci] Flight Commander 4.0.5: fix stationary heading startup" \
             -m "Remove 4.0.0-4.0.4 from the online flasher catalog and normalize disabled heading-source weights to zero." \
             -m "Firmware SHA-256: $FIRMWARE_SHA256" \
             -m "Source SHA-256: $SOURCE_SHA256"
