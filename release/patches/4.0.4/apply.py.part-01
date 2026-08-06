@@ -1,0 +1,130 @@
+4.zip"'),
+        ('packageManifest.version, "4.0.3"', 'packageManifest.version, "4.0.4"'),
+    )
+    for old, new in replacements:
+        if text.count(old) != 1:
+            raise RuntimeError(f"{relative}: expected exactly one occurrence of {old!r}")
+        text = text.replace(old, new, 1)
+    write_text(relative, text)
+
+
+def write_release_notes() -> None:
+    notes = f"""# Flight Commander {VERSION} Beta
+
+This coordinated beta contains Flight Commander Configurator {VERSION} and
+MICOAIR743 firmware {VERSION} for propeller-off bench validation.
+
+## Heading-source liveness and startup repair
+
+- Preserves the physically validated onboard IST8310 transform:
+  `X = -nativeY`, `Y = -nativeX`, `Z = nativeZ`.
+- Preserves the independent, editable and saved CW 0 user-alignment layer from
+  4.0.3. Alignment-tab changes still cannot modify the driver transform.
+- Replaces the IST8310's 20-missed-call recovery threshold, which began at the
+  same 500 ms boundary used to declare the compass unhealthy, with a 75 ms
+  time-based conversion timeout.
+- Retriggers one missed conversion and performs a nonblocking reset and full
+  reconfiguration after a second consecutive timeout.
+- Reads DRDY and all three magnetic axes in one transaction.
+- Removes the hard quality-25 validity cutoff. Fresh nonzero magnetic samples
+  remain available while INAV's field-magnitude quality continuously scales
+  their AHRS authority.
+- Reports the onboard compass's real sample age even when fusion rejects a fresh
+  sample, instead of converting every invalid state into an apparent stale age.
+- Initializes the disarmed yaw quaternion once from the first trustworthy fused
+  magnetic heading, or from any validated moving-baseline heading. Startup no
+  longer treats the controller's power-on orientation as north and waits minutes
+  for slow convergence.
+
+## Configurator diagnostics
+
+The GPS and Alignment tabs now distinguish:
+
+- no sensor sample received;
+- a genuinely stale sample older than the configured source timeout;
+- a fresh magnetic sample rejected because its field quality is zero; and
+- a fresh source rejected for another validity condition.
+
+## Calibration and migration
+
+4.0.4 does not change the accepted compass coordinate transform, alignment
+parameter group, or calibration signature used by 4.0.3. A valid 4.0.3
+calibration remains compatible as long as the saved alignment has not changed.
+A full-chip-erase installation still requires one normal accelerometer and
+compass calibration.
+
+## Required bench validation
+
+1. Flash 4.0.4 with propellers removed.
+2. Power up while the controller is pointed in an arbitrary direction, not
+   north, and confirm the initial heading resolves to magnetic north rather than
+   0 degrees.
+3. Leave the controller completely stationary for at least five minutes and
+   confirm the onboard compass remains the primary authority with a current
+   sample age.
+4. Rotate through north, east, south and west, then stop at each heading and
+   confirm the value remains stable while motionless.
+5. Reboot in at least three different orientations and confirm startup direction
+   never becomes the temporary north reference.
+
+## Included components
+
+The complete `Flight-Commander-v{VERSION}.zip` contains exactly four
+coordinated files:
+
+1. `FC-Windows-v{VERSION}.zip`
+2. `FC-Configurator-Source-v{VERSION}.zip`
+3. `FC-Firmware-v{VERSION}-MICOAIR743.hex`
+4. `FC-Firmware-Source-v{VERSION}.zip`
+
+This is a beta release. Perform all initial checks with propellers removed.
+"""
+    path = ROOT / f"release/notes/v{VERSION}-beta.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(notes, encoding="utf-8", newline="\n")
+
+
+def verify(firmware: Path, source_zip: Path, source: dict) -> None:
+    package = json.loads(read_text("package.json"))
+    manifest = json.loads(read_text("manifest.json"))
+    assert package["version"] == VERSION
+    assert manifest["version"] == VERSION
+    assert package["flightCommander"]["firmwareReleaseSha256"] == digest(firmware)
+    assert package["flightCommander"]["firmwareSourceSha256"] == digest(source_zip)
+    assert package["flightCommander"]["firmwareSourceRevision"] == source["source_revision"]
+    assert package["flightCommander"]["firmwareSourceTree"] == source["source_tree"]
+    assert source["version"] == VERSION
+    assert source["artifact"]["sha256"] == digest(firmware)
+    assert source["artifact"]["bytes"] == firmware.stat().st_size
+    assert "heading_source_liveness" in source
+    assert "Unavailable / stale" not in read_text("tabs/gps.js")
+    assert "Unavailable / stale" not in read_text("tabs/magnetometer.js")
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--firmware", required=True, type=Path)
+    parser.add_argument("--source-zip", required=True, type=Path)
+    parser.add_argument("--config-patch", required=True, type=Path)
+    args = parser.parse_args()
+
+    firmware = args.firmware.resolve()
+    source_zip = args.source_zip.resolve()
+    config_patch = args.config_patch.resolve()
+    if firmware.name != f"Flight-Commander-Firmware-{VERSION}-MICOAIR743.hex" or not firmware.is_file():
+        raise RuntimeError("Expected compiled Flight Commander 4.0.4 MICOAIR743 firmware")
+    if source_zip.name != f"Flight-Commander-Firmware-Source-v{VERSION}.zip" or not source_zip.is_file():
+        raise RuntimeError("Expected finalized Flight Commander 4.0.4 source archive")
+
+    source = source_manifest(source_zip)
+    apply_config_patch(config_patch)
+    installed_firmware, installed_source = install_artifacts(firmware, source_zip)
+    update_package(installed_firmware, installed_source, source)
+    update_versioned_files()
+    write_release_notes()
+    verify(installed_firmware, installed_source, source)
+    print(f"Flight Commander {VERSION} coordinated beta metadata: READY")
+
+
+if __name__ == "__main__":
+    main()
