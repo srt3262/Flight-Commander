@@ -1,0 +1,143 @@
+#!/usr/bin/env python3
+"""Apply the reviewed Flight Commander 4.0.4 Configurator and release metadata."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import shutil
+import subprocess
+import zipfile
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1] if Path(__file__).resolve().parent.name == "scripts" else Path.cwd()
+VERSION = "4.0.4"
+PREVIOUS_VERSION = "4.0.3"
+
+
+def digest(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def read_text(relative: str) -> str:
+    return (ROOT / relative).read_text(encoding="utf-8")
+
+
+def write_text(relative: str, value: str) -> None:
+    (ROOT / relative).write_text(value, encoding="utf-8", newline="\n")
+
+
+def replace_once(relative: str, old: str, new: str) -> None:
+    text = read_text(relative)
+    if text.count(old) != 1:
+        raise RuntimeError(f"{relative}: expected exactly one occurrence of {old!r}")
+    write_text(relative, text.replace(old, new, 1))
+
+
+def source_manifest(source_zip: Path) -> dict:
+    suffix = f"Flight-Commander-Firmware-Source-v{VERSION}/RELEASE-MANIFEST.json"
+    with zipfile.ZipFile(source_zip) as archive:
+        bad = archive.testzip()
+        if bad is not None:
+            raise RuntimeError(f"Corrupt firmware source archive member: {bad}")
+        matches = [name for name in archive.namelist() if name.endswith(suffix)]
+        if len(matches) != 1:
+            raise RuntimeError(f"Expected exactly one {suffix} in {source_zip}")
+        return json.loads(archive.read(matches[0]).decode("utf-8"))
+
+
+def install_artifacts(firmware: Path, source_zip: Path) -> tuple[Path, Path]:
+    destination = ROOT / "release/firmware"
+    destination.mkdir(parents=True, exist_ok=True)
+    installed_firmware = destination / firmware.name
+    installed_source = destination / source_zip.name
+    shutil.copy2(firmware, installed_firmware)
+    shutil.copy2(source_zip, installed_source)
+    (destination / f"Flight-Commander-Firmware-{PREVIOUS_VERSION}-MICOAIR743.hex").unlink(missing_ok=True)
+    (destination / f"Flight-Commander-Firmware-Source-v{PREVIOUS_VERSION}.zip").unlink(missing_ok=True)
+    return installed_firmware, installed_source
+
+
+def apply_config_patch(patch: Path) -> None:
+    for relative in (
+        ".github/workflows/publish-flight-commander-beta.yml",
+        "js/flightCommander/headingFusion.js",
+        "tabs/gps.js",
+        "tabs/magnetometer.js",
+        "tests/flight-commander/firmware/heading-fusion.test.mjs",
+    ):
+        path = ROOT / relative
+        path.write_text(path.read_text(encoding="utf-8"), encoding="utf-8", newline="\n")
+    subprocess.run(["git", "apply", "--check", str(patch)], cwd=ROOT, check=True)
+    subprocess.run(["git", "apply", str(patch)], cwd=ROOT, check=True)
+
+
+def update_package(firmware: Path, source_zip: Path, source: dict) -> None:
+    path = ROOT / "package.json"
+    package = json.loads(path.read_text(encoding="utf-8"))
+    package["version"] = VERSION
+    fc = package["flightCommander"]
+    fc.update({
+        "firmwareReleaseVersion": VERSION,
+        "firmwareReleaseSha256": digest(firmware),
+        "firmwareChangedInRelease": True,
+        "firmwareSourceAvailable": True,
+        "firmwareSourceVersion": VERSION,
+        "firmwareSourceArchive": f"release/firmware/Flight-Commander-Firmware-Source-v{VERSION}.zip",
+        "firmwareSourceSha256": digest(source_zip),
+        "firmwareSourceRevision": source["source_revision"],
+        "firmwareSourceTree": source["source_tree"],
+    })
+    path.write_text(json.dumps(package, indent=2) + "\n", encoding="utf-8", newline="\n")
+
+
+def update_versioned_files() -> None:
+    manifest_path = ROOT / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["version"] = VERSION
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8", newline="\n")
+
+    replace_once("tabs/landing.html", "<h2>Flight Commander 4.0.3</h2>", "<h2>Flight Commander 4.0.4</h2>")
+    replace_once(
+        "tabs/landing.html",
+        "Flight Commander 4.0.3 Beta ships coordinated Configurator and firmware",
+        "Flight Commander 4.0.4 Beta ships coordinated Configurator and firmware",
+    )
+    replace_once(
+        "tabs/landing.html",
+        """            Firmware 4.0.3 permanently separates the fixed onboard
+            chip-to-board transform from the saved user alignment. The Alignment
+            tab now starts at CW 0 degrees after reset or migration, preserves any
+            manually selected onboard alignment or custom angles across reboot,
+            and never changes the driver's physical sensor transform. Changing the
+            saved alignment deliberately invalidates the previous calibration
+            signature, so calibration is performed in the same coordinate system
+            that will be used for heading. Local Flight Commander firmware remains
+            validated by Intel HEX content, embedded FCFW identity, and target
+            compatibility instead of requiring a particular filename.
+""",
+        """            Firmware 4.0.4 keeps the accepted onboard transform and
+            independent CW 0 user alignment from 4.0.3, then repairs heading-source
+            liveness. The IST8310 now recovers stalled single-shot conversions before
+            the health timeout, fresh magnetic samples use continuous soft quality
+            weighting instead of a hard cutoff, and the first trustworthy fused
+            heading initializes yaw immediately while disarmed. GPS and Alignment
+            diagnostics now distinguish a missing sample, a genuinely stale sample,
+            and a fresh magnetic sample rejected for field quality. Local Flight
+            Commander firmware remains validated by Intel HEX content, embedded FCFW
+            identity, and target compatibility instead of requiring a filename.
+""",
+    )
+    replace_once(
+        "js/main/ntripClient.js",
+        "User-Agent: NTRIP FlightCommander/4.0.3",
+        "User-Agent: NTRIP FlightCommander/4.0.4",
+    )
+
+    relative = "tests/flight-commander/packaging/package-contract.test.mjs"
+    text = read_text(relative)
+    replacements = (
+        ('firmwareReleaseVersion, "4.0.3"', 'firmwareReleaseVersion, "4.0.4"'),
+        ('firmwareSourceVersion, "4.0.3"', 'firmwareSourceVersion, "4.0.4"'),
+        ('"release/firmware/Flight-Commander-Firmware-Source-v4.0.3.zip"', '"release/firmware/Flight-Commander-Firmware-Source-v4.0.
