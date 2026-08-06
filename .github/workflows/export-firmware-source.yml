@@ -1,0 +1,52 @@
+name: Export retained firmware source snapshot
+
+"on":
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/export-firmware-source.yml
+      - release/firmware/Flight-Commander-Firmware-Source-v4.0.5.zip
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export-source:
+    name: Export Flight Commander 4.0.5 firmware source
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out proposed revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+
+      - name: Verify retained source archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive='release/firmware/Flight-Commander-Firmware-Source-v4.0.5.zip'
+          test -f "$archive"
+          python3 - "$archive" <<'PY'
+          import sys
+          import zipfile
+          from pathlib import Path
+
+          archive = Path(sys.argv[1])
+          with zipfile.ZipFile(archive) as source:
+              assert source.testzip() is None
+              roots = {name.split('/', 1)[0] for name in source.namelist() if name}
+          assert roots == {'Flight-Commander-Firmware-Source-v4.0.5'}, roots
+          print(f'{archive}: verified')
+          PY
+
+      - name: Upload retained source archive
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: flight-commander-firmware-source-v4.0.5
+          path: release/firmware/Flight-Commander-Firmware-Source-v4.0.5.zip
+          if-no-files-found: error
+          retention-days: 7
