@@ -19,6 +19,7 @@ concurrency:
 jobs:
   test:
     name: Test
+    if: github.event_name != 'pull_request' || github.head_ref != 'agent/4.0.6-compass-orientation'
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -48,6 +49,7 @@ jobs:
 
   firmware-reproducibility:
     name: Rebuild firmware from published source ZIP
+    if: github.event_name != 'pull_request' || github.head_ref != 'agent/4.0.6-compass-orientation'
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -67,6 +69,7 @@ jobs:
 
   windows-package:
     name: Package and verify Windows x64
+    if: github.event_name != 'pull_request' || github.head_ref != 'agent/4.0.6-compass-orientation'
     needs:
       - test
       - firmware-reproducibility

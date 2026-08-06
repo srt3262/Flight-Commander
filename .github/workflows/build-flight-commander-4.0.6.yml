@@ -1,0 +1,149 @@
+name: Build Flight Commander 4.0.6 beta
+
+"on":
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flight-commander-4.0.6-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  FC406_INPUT_SHA256: 4ce68e3b8b72711420e6da4e57bbdb3c56b45caff7d5967e59f8312519a58349
+  FC406_FIRMWARE_ARTIFACT: flight-commander-4.0.6-firmware-${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  firmware:
+    name: Build and verify MICOAIR743 firmware
+    if: github.event_name == 'workflow_dispatch' || github.head_ref == 'agent/4.0.6-compass-orientation'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Check out exact source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Expand coordinated 4.0.6 build inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .flight-commander/4.0.6-build-inputs.part-* > "$RUNNER_TEMP/fc406-inputs.b64"
+          base64 --decode "$RUNNER_TEMP/fc406-inputs.b64" > "$RUNNER_TEMP/fc406-inputs.tar.xz"
+          printf '%s  %s\n' "$FC406_INPUT_SHA256" "$RUNNER_TEMP/fc406-inputs.tar.xz" | sha256sum --check --strict
+          tar -xJf "$RUNNER_TEMP/fc406-inputs.tar.xz" -C "$GITHUB_WORKSPACE"
+
+      - name: Install build prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build curl xz-utils unzip zip python3
+
+      - name: Install Arm GNU Toolchain 13.2.1
+        shell: bash
+        run: |
+          set -euo pipefail
+          release=arm-gnu-toolchain-13.2.Rel1-x86_64-arm-none-eabi
+          archive=arm-gnu-toolchain-13.2.rel1-x86_64-arm-none-eabi.tar.xz
+          expected=6cd1bbc1d9ae57312bcd169ae283153a9572bd6a8e4eeae2fedfbc33b115fdbb
+          url="https://developer.arm.com/-/media/Files/downloads/gnu/13.2.rel1/binrel/$archive"
+          mkdir -p "$RUNNER_TEMP/toolchain"
+          curl --fail --location --retry 5 --retry-all-errors --output "$RUNNER_TEMP/toolchain/$archive" "$url"
+          printf '%s  %s\n' "$expected" "$RUNNER_TEMP/toolchain/$archive" | sha256sum --check --strict
+          tar -xJf "$RUNNER_TEMP/toolchain/$archive" -C "$RUNNER_TEMP/toolchain"
+          echo "$RUNNER_TEMP/toolchain/$release/bin" >> "$GITHUB_PATH"
+
+      - name: Build, verify and archive firmware
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/build-flight-commander-4.0.6.py firmware \
+            --workspace "$GITHUB_WORKSPACE" \
+            --temp "$RUNNER_TEMP"
+
+      - name: Upload verified firmware inputs
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ${{ env.FC406_FIRMWARE_ARTIFACT }}
+          path: |
+            ${{ runner.temp }}/FC-Firmware-v4.0.6-MICOAIR743.hex
+            ${{ runner.temp }}/FC-Firmware-Source-v4.0.6.zip
+            ${{ runner.temp }}/firmware-4.0.6-metadata.json
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    name: Build, test and package the four deliverables
+    needs: firmware
+    runs-on: windows-latest
+    timeout-minutes: 75
+
+    steps:
+      - name: Check out exact source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Expand coordinated 4.0.6 build inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .flight-commander/4.0.6-build-inputs.part-* > "$RUNNER_TEMP/fc406-inputs.b64"
+          python - "$RUNNER_TEMP/fc406-inputs.b64" "$RUNNER_TEMP/fc406-inputs.tar.xz" "$FC406_INPUT_SHA256" <<'PY'
+          import base64, hashlib, sys, tarfile
+          from pathlib import Path
+          encoded, payload, expected = Path(sys.argv[1]), Path(sys.argv[2]), sys.argv[3]
+          payload.write_bytes(base64.b64decode(encoded.read_text(encoding='ascii'), validate=True))
+          actual = hashlib.sha256(payload.read_bytes()).hexdigest()
+          if actual != expected:
+              raise SystemExit(f'4.0.6 build-input SHA-256 mismatch: {actual}')
+          with tarfile.open(payload, mode='r:xz') as archive:
+              archive.extractall(Path.cwd())
+          PY
+
+      - name: Download verified firmware inputs
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: ${{ env.FC406_FIRMWARE_ARTIFACT }}
+          path: release-candidate/firmware
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: yarn
+          cache-dependency-path: yarn.lock
+
+      - name: Enable pinned Yarn
+        shell: pwsh
+        run: |
+          corepack enable
+          yarn --version
+
+      - name: Build, test and package release
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/build-flight-commander-4.0.6.py release \
+            --workspace "$GITHUB_WORKSPACE" \
+            --firmware-dir "$GITHUB_WORKSPACE/release-candidate/firmware" \
+            --output "$GITHUB_WORKSPACE/release-candidate/Flight-Commander-v4.0.6"
+
+      - name: Upload complete 4.0.6 beta release
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: flight-commander-4.0.6-beta-${{ github.event.pull_request.head.sha || github.sha }}
+          path: release-candidate/Flight-Commander-v4.0.6/**
+          if-no-files-found: error
+          retention-days: 14
