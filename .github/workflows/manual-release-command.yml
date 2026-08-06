@@ -1,0 +1,63 @@
+name: Manual Flight Commander release command
+
+"on":
+  issue_comment:
+    types:
+      - created
+
+permissions:
+  actions: write
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: manual-flight-commander-release-command
+  cancel-in-progress: true
+
+jobs:
+  dispatch-4-0-6:
+    name: Dispatch Flight Commander 4.0.6 beta
+    if: >-
+      github.event.issue.number == 21 &&
+      github.event.comment.body == '/publish-flight-commander-4.0.6'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Dispatch the canonical publisher
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh workflow run publish-flight-commander-4.0.6.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref main
+
+      - name: Report the dispatched run
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          run=''
+          for attempt in {1..12}; do
+            run="$(gh run list \
+              --repo "$GITHUB_REPOSITORY" \
+              --workflow publish-flight-commander-4.0.6.yml \
+              --event workflow_dispatch \
+              --limit 1 \
+              --json databaseId,url,status,createdAt \
+              --jq '.[0] | "\(.databaseId)\t\(.url)\t\(.status)\t\(.createdAt)"')"
+            if [[ -n "$run" && "$run" != 'null' ]]; then
+              break
+            fi
+            sleep 5
+          done
+          if [[ -z "$run" || "$run" == 'null' ]]; then
+            echo 'The workflow dispatch was accepted, but the run could not yet be listed.' >&2
+            exit 1
+          fi
+          IFS=$'\t' read -r run_id run_url run_status created_at <<< "$run"
+          gh issue comment 21 --repo "$GITHUB_REPOSITORY" --body \
+            "Explicit 4.0.6 publication dispatch accepted. Run **${run_id}** is ${run_status}: ${run_url} (created ${created_at})."
