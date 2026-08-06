@@ -91,7 +91,8 @@ jobs:
           cat release/patches/4.0.4/apply.py.part-* > "$RUNNER_TEMP/apply-4.0.4.py"
           printf '%s  %s\n' bb0ddd325ec139b901544511d6efda53bf87264775f562db2015f0d6f8dc6c8b "$RUNNER_TEMP/firmware-4.0.4.patch" | sha256sum --check --strict
           printf '%s  %s\n' 6e5a5d54ba47c1bd33dcfcd27fea699f03ceec1a1da9803f7855ba91407e526b "$RUNNER_TEMP/config-ui-4.0.4.patch" | sha256sum --check --strict
-          printf '%s  %s\n' 98133bdf565c7c07fa52bdb07bedf2202be21f47acafc0ad382b531e97f751fd "$RUNNER_TEMP/prepare-4.0.4.py" | sha256sum --check --strict
+          printf '%s  %s\n' 548583a05168e5dcb7d45ad21c4e91ef3ca69e46087f57e087f0e6a6a5a768e9 "$RUNNER_TEMP/prepare-4.0.4.py" | sha256sum --check --strict
+          printf '%s  %s\n' dee87c3c349a597dfab79621ad4a9d35869bb9f7f3873876fb46a38ce82aeb9a release/patches/4.0.4/firmware-compile-fix.patch | sha256sum --check --strict
           printf '%s  %s\n' 5d0e07f8d12409c74cea36db79caabc48c5436997b8b1d460321aca59934ddf7 "$RUNNER_TEMP/apply-4.0.4.py" | sha256sum --check --strict
           python3 -B -m py_compile "$RUNNER_TEMP/prepare-4.0.4.py" "$RUNNER_TEMP/apply-4.0.4.py"
 
@@ -109,7 +110,8 @@ jobs:
           python3 -B "$RUNNER_TEMP/prepare-4.0.4.py" \
             --archive release/firmware/Flight-Commander-Firmware-Source-v4.0.3.zip \
             --output "$output" \
-            --patch "$RUNNER_TEMP/firmware-4.0.4.patch"
+            --patch "$RUNNER_TEMP/firmware-4.0.4.patch" \
+            --compile-fix-patch release/patches/4.0.4/firmware-compile-fix.patch
           echo "Compiler: $(arm-none-eabi-gcc -dumpfullversion -dumpversion)"
           bash "$root/flight-commander/build-micoair743.sh" "$build"
           python3 -B "$RUNNER_TEMP/prepare-4.0.4.py" \
