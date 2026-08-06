@@ -1,0 +1,89 @@
+## Flasher catalog cleanup
+
+The online Flight Commander firmware catalog now requires version 4.0.5 or
+later. Previously released 4.0.0 through 4.0.4 firmware is no longer selectable
+in the flasher. Historical GitHub releases remain available for auditability;
+local firmware loading remains based on embedded identity and hardware target,
+not filename.
+
+## Bench validation
+
+1. Flash 4.0.5 with propellers removed.
+2. Reboot while pointed away from north and leave the controller motionless.
+3. Confirm source heading and reported heading agree after the short four-sample
+   startup window without moving the controller.
+4. Confirm a current sample with quality 0% is reported as fresh and low quality,
+   not stale, and remains the fused source when it is the only enabled source.
+5. Rotate through north, east, south and west and repeat with moderate roll and
+   pitch before any controlled flight test.
+
+## Included components
+
+The complete `Flight-Commander-v{VERSION}.zip` contains exactly four files:
+
+1. `FC-Windows-v{VERSION}.zip`
+2. `FC-Configurator-Source-v{VERSION}.zip`
+3. `FC-Firmware-v{VERSION}-MICOAIR743.hex`
+4. `FC-Firmware-Source-v{VERSION}.zip`
+
+This is a beta release. Perform initial testing with propellers removed.
+"""
+    path = ROOT / f"release/notes/v{VERSION}-beta.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(notes, encoding="utf-8", newline="\n")
+
+
+def verify(firmware: Path, source_zip: Path, source: dict) -> None:
+    package = json.loads(read_text("package.json"))
+    manifest = json.loads(read_text("manifest.json"))
+    assert package["version"] == VERSION
+    assert manifest["version"] == VERSION
+    assert package["flightCommander"]["firmwareReleaseSha256"] == digest(firmware)
+    assert package["flightCommander"]["firmwareSourceSha256"] == digest(source_zip)
+    assert package["flightCommander"]["firmwareSourceRevision"] == source["source_revision"]
+    assert package["flightCommander"]["firmwareSourceTree"] == source["source_tree"]
+    assert source["version"] == VERSION
+    assert source["artifact"]["sha256"] == digest(firmware)
+    assert source["artifact"]["bytes"] == firmware.stat().st_size
+    assert "heading_source_liveness" in source
+    assert 'MINIMUM_SUPPORTED_FIRMWARE_VERSION = "4.0.5"' in read_text(
+        "js/flightCommander/firmwareCatalog.js"
+    )
+    defaults = read_text("js/flightCommander/headingFusion.js")
+    assert "priority: 2, weight: 0" in defaults
+    assert "clearDisabledHeadingSourceWeights" in defaults
+    assert "Unavailable / stale" not in read_text("tabs/gps.js")
+    assert "Unavailable / stale" not in read_text("tabs/magnetometer.js")
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--firmware", required=True, type=Path)
+    parser.add_argument("--source-zip", required=True, type=Path)
+    args = parser.parse_args()
+
+    firmware = args.firmware.resolve()
+    source_zip = args.source_zip.resolve()
+    if firmware.name != f"Flight-Commander-Firmware-{VERSION}-MICOAIR743.hex" or not firmware.is_file():
+        raise RuntimeError("Expected compiled Flight Commander 4.0.5 MICOAIR743 firmware")
+    if source_zip.name != f"Flight-Commander-Firmware-Source-v{VERSION}.zip" or not source_zip.is_file():
+        raise RuntimeError("Expected finalized Flight Commander 4.0.5 source archive")
+
+    source = source_manifest(source_zip)
+    installed_firmware, installed_source = install_artifacts(firmware, source_zip)
+    update_package(installed_firmware, installed_source, source)
+    update_versioned_files()
+    patch_publish_workflow()
+    patch_firmware_catalog()
+    patch_heading_configurator()
+    patch_gps_ui()
+    patch_alignment_ui()
+    patch_tests()
+    update_docs_and_changelog()
+    write_release_notes()
+    verify(installed_firmware, installed_source, source)
+    print(f"Flight Commander {VERSION} coordinated beta metadata: READY")
+
+
+if __name__ == "__main__":
+    main()
