@@ -1,4 +1,4 @@
-name: Export retained firmware source snapshot
+name: Export retained firmware and Configurator source snapshots
 
 "on":
   push:
@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   export-source:
-    name: Export Flight Commander 4.0.5 firmware source
+    name: Export Flight Commander 4.0.5 source snapshots
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -22,9 +22,10 @@ jobs:
       - name: Check out proposed revision
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
+          fetch-depth: 1
           persist-credentials: false
 
-      - name: Verify retained source archive
+      - name: Verify retained firmware source archive
         shell: bash
         run: |
           set -euo pipefail
@@ -43,10 +44,40 @@ jobs:
           print(f'{archive}: verified')
           PY
 
-      - name: Upload retained source archive
+      - name: Create Configurator source snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          git archive \
+            --format=zip \
+            --prefix=Flight-Commander-Configurator-v4.0.5/ \
+            --output=/tmp/Flight-Commander-Configurator-v4.0.5.zip \
+            HEAD
+          python3 - /tmp/Flight-Commander-Configurator-v4.0.5.zip <<'PY'
+          import sys
+          import zipfile
+          from pathlib import Path
+
+          archive = Path(sys.argv[1])
+          with zipfile.ZipFile(archive) as source:
+              assert source.testzip() is None
+              roots = {name.split('/', 1)[0] for name in source.namelist() if name}
+          assert roots == {'Flight-Commander-Configurator-v4.0.5'}, roots
+          print(f'{archive}: verified')
+          PY
+
+      - name: Upload retained firmware source archive
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: flight-commander-firmware-source-v4.0.5
           path: release/firmware/Flight-Commander-Firmware-Source-v4.0.5.zip
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload Configurator source snapshot
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: flight-commander-configurator-source-v4.0.5
+          path: /tmp/Flight-Commander-Configurator-v4.0.5.zip
           if-no-files-found: error
           retention-days: 7
