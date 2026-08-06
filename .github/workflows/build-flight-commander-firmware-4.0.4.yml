@@ -163,7 +163,7 @@ jobs:
             release/notes/v4.0.4-beta.md
 
       - name: Commit only verified 4.0.4 release inputs
-        if: github.event_name == 'push'
+        if: github.event_name == 'pull_request'
         shell: bash
         env:
           FIRMWARE_SHA256: ${{ steps.firmware.outputs.firmware_sha256 }}
@@ -185,7 +185,7 @@ jobs:
             release/firmware/Flight-Commander-Firmware-Source-v4.0.4.zip
           git add -u release/firmware
           git diff --cached --check
-          git commit -m "Build verified Flight Commander 4.0.4 heading liveness fix" \
+          git commit -m "[skip ci] Build verified Flight Commander 4.0.4 heading liveness fix" \
             -m "Firmware SHA-256: $FIRMWARE_SHA256" \
             -m "Source SHA-256: $SOURCE_SHA256"
           git push origin HEAD:agent/fix-heading-source-liveness-4.0.4
