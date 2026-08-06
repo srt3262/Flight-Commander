@@ -17,8 +17,8 @@ from pathlib import Path
 BASE_VERSION = "4.0.3"
 VERSION = "4.0.4"
 SOURCE_DATE_EPOCH = 1786057200
-EXPECTED_REVISION = "991777b2021d9d07ace8ac8b9902bb3888a62659"
-EXPECTED_TREE = "72d8abd7bb7472406d942256abb2c3c4ecaeb8d1"
+EXPECTED_REVISION = "02dcd5cc195f74b26028d588e96d4118199ece46"
+EXPECTED_TREE = "fe56ef9881c12696d27cf90666f31c959a103a66"
 
 
 def digest(path: Path) -> str:
@@ -91,64 +91,3 @@ def update_reviewed_baseline(root: Path) -> None:
         "src/main/sensors/compass.c": (
             "Commit compass calibration only after solver success, preserve the "
             "target CW0 reset default, validate saved calibration metadata, preserve "
-            "the last valid sample on read failure, and expose true sample age to "
-            "heading fusion."
-        ),
-        "src/main/sensors/compass.h": (
-            "Persist hidden compass calibration contract metadata and expose true "
-            "onboard compass sample age for fusion diagnostics."
-        ),
-    }
-    extensions = baseline["intentional_extensions"]
-    for relative, purpose in purposes.items():
-        if relative not in extensions:
-            raise RuntimeError(f"Reviewed baseline extension missing: {relative}")
-        extensions[relative]["patched_sha256"] = digest(root / relative)
-        extensions[relative]["purpose"] = purpose
-    baseline_path.write_text(json.dumps(baseline, indent=2) + "\n", encoding="utf-8")
-
-
-def update_manifest(root: Path, firmware: Path | None = None) -> None:
-    manifest_path = root / "RELEASE-MANIFEST.json"
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    manifest["version"] = VERSION
-    manifest["source_date_epoch"] = SOURCE_DATE_EPOCH
-    manifest["artifact"] = {
-        "filename": f"Flight-Commander-Firmware-{VERSION}-MICOAIR743.hex",
-        "sha256": digest(firmware) if firmware else "0" * 64,
-        "bytes": firmware.stat().st_size if firmware else 0,
-    }
-    manifest["heading_source_liveness"] = {
-        "root_causes": [
-            (
-                "IST8310 recovery waited for 20 missed 40 Hz task calls, so it "
-                "began at the same 500 ms boundary used to declare the compass unhealthy"
-            ),
-            (
-                "fusion hard-rejected otherwise fresh magnetic samples below quality "
-                "25 instead of applying INAV soft weighting"
-            ),
-            (
-                "the first valid Flight Commander heading set the initialized flag "
-                "without initializing the yaw quaternion"
-            ),
-        ],
-        "driver_recovery": (
-            "75 ms time-based conversion timeout; retrigger once, then perform a "
-            "nonblocking reset/reconfigure on the second consecutive timeout"
-        ),
-        "field_quality": (
-            "fresh nonzero samples remain valid down to quality 1 and quality "
-            "continuously scales AHRS authority"
-        ),
-        "startup_yaw": (
-            "first fused magnetic heading with quality at least 10, or any validated "
-            "moving-baseline heading, seeds the quaternion once while disarmed"
-        ),
-        "diagnostics": (
-            "heading status reports real sensor sample age and preserves quality even "
-            "when a fresh sample is rejected"
-        ),
-    }
-    clean_bytecode(root)
-    revision, 
