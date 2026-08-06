@@ -1,0 +1,76 @@
+name: Apply Flight Commander 4.0.6 Configurator implementation
+
+"on":
+  push:
+    branches:
+      - agent/flight-commander-4.0.6
+    paths:
+      - scripts/flight-commander-configurator-4.0.6.patch.gz.b64.part-*
+      - .github/workflows/apply-flight-commander-configurator-4.0.6.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-flight-commander-configurator-4.0.6
+  cancel-in-progress: true
+
+jobs:
+  apply-configurator:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out the development branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: agent/flight-commander-4.0.6
+          fetch-depth: 1
+          persist-credentials: true
+
+      - name: Reconstruct and apply the reviewed Configurator patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          patch="$RUNNER_TEMP/flight-commander-configurator-4.0.6.patch"
+          cat scripts/flight-commander-configurator-4.0.6.patch.gz.b64.part-* \
+            | base64 --decode \
+            | gzip --decompress > "$patch"
+          test "$(sha256sum "$patch" | cut -d' ' -f1)" = "4f36dfdaf5493efef36d9e653cee9fed899b4702638ac5b80dd180477328685c"
+          git apply --check "$patch"
+          git apply "$patch"
+
+      - name: Verify protocol, source wiring and syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check js/flightCommander/compassOrientation.js
+          node --check js/flightCommander/firmwareIdentity.js
+          node --check js/fc.js
+          node --check js/msp/MSPCodes.js
+          node --check js/msp/MSPHelper.js
+          node --check tabs/calibration.js
+          node --test tests/flight-commander/firmware/compass-orientation.test.mjs
+
+      - name: Commit the Configurator implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add \
+            js/fc.js \
+            js/flightCommander/compassOrientation.js \
+            js/flightCommander/firmwareIdentity.js \
+            js/msp/MSPCodes.js \
+            js/msp/MSPHelper.js \
+            src/css/tabs/calibration.css \
+            tabs/calibration.html \
+            tabs/calibration.js \
+            tests/flight-commander/firmware/compass-orientation.test.mjs
+          if git diff --cached --quiet; then
+            echo 'Configurator implementation is already present.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Flight Commander 4.0.6: learn and persist compass orientation'
+          git push origin HEAD:agent/flight-commander-4.0.6
