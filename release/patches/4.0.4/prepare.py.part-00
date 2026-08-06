@@ -1,0 +1,154 @@
+#!/usr/bin/env python3
+"""Prepare and finalize the reviewed Flight Commander 4.0.4 firmware source."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import shutil
+import stat
+import subprocess
+import sys
+import time
+import zipfile
+from pathlib import Path
+
+BASE_VERSION = "4.0.3"
+VERSION = "4.0.4"
+SOURCE_DATE_EPOCH = 1786057200
+EXPECTED_REVISION = "991777b2021d9d07ace8ac8b9902bb3888a62659"
+EXPECTED_TREE = "72d8abd7bb7472406d942256abb2c3c4ecaeb8d1"
+
+
+def digest(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def clean_bytecode(root: Path) -> None:
+    for path in list(root.rglob("__pycache__")):
+        if path.is_dir():
+            shutil.rmtree(path)
+    for path in list(root.rglob("*.pyc")):
+        path.unlink(missing_ok=True)
+
+
+def source_identities(root: Path) -> tuple[str, str]:
+    records: list[str] = []
+    for path in sorted(root.rglob("*")):
+        if (
+            not path.is_file()
+            or path.name == "RELEASE-MANIFEST.json"
+            or "__pycache__" in path.parts
+            or path.suffix == ".pyc"
+        ):
+            continue
+        records.append(f"{digest(path)}  {path.relative_to(root).as_posix()}\n")
+    canonical = "".join(records).encode()
+    return (
+        hashlib.sha1(canonical).hexdigest(),
+        hashlib.sha1(b"flight-commander-source-tree-v1\n" + canonical).hexdigest(),
+    )
+
+
+def extract_archive(archive: Path, output: Path) -> Path:
+    if output.exists():
+        shutil.rmtree(output)
+    output.mkdir(parents=True)
+    with zipfile.ZipFile(archive) as source:
+        bad = source.testzip()
+        if bad is not None:
+            raise RuntimeError(f"Corrupt retained source archive member: {bad}")
+        source.extractall(output)
+    old = output / f"Flight-Commander-Firmware-Source-v{BASE_VERSION}"
+    root = output / f"Flight-Commander-Firmware-Source-v{VERSION}"
+    if not old.is_dir():
+        raise RuntimeError(f"Expected retained source root is missing: {old}")
+    old.rename(root)
+    return root
+
+
+def apply_patch(root: Path, patch: Path) -> None:
+    subprocess.run(["git", "apply", "--check", str(patch)], cwd=root, check=True)
+    subprocess.run(["git", "apply", str(patch)], cwd=root, check=True)
+
+
+def update_reviewed_baseline(root: Path) -> None:
+    baseline_path = root / "flight-commander/INAV-9.1.0-BASELINE.json"
+    baseline = json.loads(baseline_path.read_text(encoding="utf-8"))
+    purposes = {
+        "src/main/flight/imu.c": (
+            "Inject weighted Flight Commander heading references into Mahony yaw "
+            "correction and initialize the disarmed startup quaternion once from "
+            "the first trustworthy fused heading."
+        ),
+        "src/main/drivers/compass/compass_ist8310.c": (
+            "Use a time-based IST8310 single-shot state machine matched to the 40 Hz "
+            "fusion task, recover before the 500 ms health timeout, perform "
+            "nonblocking reset/reconfiguration for persistent stalls, and preserve "
+            "the bench-validated MICOAIR743 transform."
+        ),
+        "src/main/sensors/compass.c": (
+            "Commit compass calibration only after solver success, preserve the "
+            "target CW0 reset default, validate saved calibration metadata, preserve "
+            "the last valid sample on read failure, and expose true sample age to "
+            "heading fusion."
+        ),
+        "src/main/sensors/compass.h": (
+            "Persist hidden compass calibration contract metadata and expose true "
+            "onboard compass sample age for fusion diagnostics."
+        ),
+    }
+    extensions = baseline["intentional_extensions"]
+    for relative, purpose in purposes.items():
+        if relative not in extensions:
+            raise RuntimeError(f"Reviewed baseline extension missing: {relative}")
+        extensions[relative]["patched_sha256"] = digest(root / relative)
+        extensions[relative]["purpose"] = purpose
+    baseline_path.write_text(json.dumps(baseline, indent=2) + "\n", encoding="utf-8")
+
+
+def update_manifest(root: Path, firmware: Path | None = None) -> None:
+    manifest_path = root / "RELEASE-MANIFEST.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["version"] = VERSION
+    manifest["source_date_epoch"] = SOURCE_DATE_EPOCH
+    manifest["artifact"] = {
+        "filename": f"Flight-Commander-Firmware-{VERSION}-MICOAIR743.hex",
+        "sha256": digest(firmware) if firmware else "0" * 64,
+        "bytes": firmware.stat().st_size if firmware else 0,
+    }
+    manifest["heading_source_liveness"] = {
+        "root_causes": [
+            (
+                "IST8310 recovery waited for 20 missed 40 Hz task calls, so it "
+                "began at the same 500 ms boundary used to declare the compass unhealthy"
+            ),
+            (
+                "fusion hard-rejected otherwise fresh magnetic samples below quality "
+                "25 instead of applying INAV soft weighting"
+            ),
+            (
+                "the first valid Flight Commander heading set the initialized flag "
+                "without initializing the yaw quaternion"
+            ),
+        ],
+        "driver_recovery": (
+            "75 ms time-based conversion timeout; retrigger once, then perform a "
+            "nonblocking reset/reconfigure on the second consecutive timeout"
+        ),
+        "field_quality": (
+            "fresh nonzero samples remain valid down to quality 1 and quality "
+            "continuously scales AHRS authority"
+        ),
+        "startup_yaw": (
+            "first fused magnetic heading with quality at least 10, or any validated "
+            "moving-baseline heading, seeds the quaternion once while disarmed"
+        ),
+        "diagnostics": (
+            "heading status reports real sensor sample age and preserves quality even "
+            "when a fresh sample is rejected"
+        ),
+    }
+    clean_bytecode(root)
+    revision, 
