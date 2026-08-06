@@ -1,0 +1,66 @@
+not a substitute for configuring two active sources with the same priority.
+"""
+    replacement = anchor + """
+Disabled sources reset and migrate with weight 0. When a source is enabled in
+the Configurator, its suggested enabled weight is restored; disabling it again
+immediately returns the saved weight to 0.
+
+Magnetic field quality is reported separately from freshness and heading
+availability. A fresh finite magnetic heading may remain available at displayed
+quality 0 with only a one-percent authority floor. This keeps a single-source
+heading defined without concealing the warning, and it prevents that source
+from outweighing any healthier compass or moving-baseline source. Startup yaw
+is seeded only after four fresh fused samples agree within five degrees while
+the aircraft is disarmed.
+"""
+    if anchor not in text:
+        raise RuntimeError("HEADING_FUSION priority/weight documentation anchor missing")
+    path.write_text(text.replace(anchor, replacement, 1), encoding="utf-8", newline="\n")
+
+    changelog = ROOT / "CHANGELOG.md"
+    value = changelog.read_text(encoding="utf-8")
+    entry = """\n## 4.0.5\n\n- Keep fresh finite magnetic headings available at displayed quality 0 with a
+  one-percent authority floor while preserving the field-quality warning.
+- Initialize disarmed startup yaw after four stable fresh samples using a
+  dedicated state independent of INAV's legacy GPS-heading initialization.
+- Reset, migrate and save disabled heading-source weights as 0.
+- Retire firmware older than 4.0.5 from the online flasher selection list.
+\n"""
+    if "## 4.0.5" not in value:
+        first_break = value.find("\n", value.find("# "))
+        value = value[: first_break + 1] + entry + value[first_break + 1 :]
+        changelog.write_text(value, encoding="utf-8", newline="\n")
+
+
+def write_release_notes() -> None:
+    notes = f"""# Flight Commander {VERSION} Beta
+
+This coordinated beta contains Flight Commander Configurator {VERSION} and
+MICOAIR743 firmware {VERSION} with the four standard release deliverables.
+
+## Startup heading and stationary fusion
+
+- Retains the accepted onboard IST8310 transform:
+  `X = -nativeY`, `Y = -nativeX`, `Z = nativeZ`.
+- Retains the 4.0.4 time-based conversion timeout, atomic DRDY/XYZ read and
+  nonblocking sensor reset/reconfiguration.
+- Separates sample freshness, heading availability, displayed magnetic-field
+  quality and fusion authority.
+- Keeps a fresh finite magnetic heading available even when the displayed field
+  quality is 0%. A one-percent authority floor keeps a single-source fused
+  heading defined without hiding the warning or outweighing a healthier source.
+- Requires four fresh fused samples that agree within 5 degrees before seeding
+  disarmed startup yaw.
+- Uses a dedicated Flight Commander startup-initialized state, so INAV's normal
+  compass path can no longer set `gpsHeadingInitialized` first and permanently
+  block the correct fused-heading seed.
+- Startup no longer requires moving the controller before reported yaw catches
+  the stationary source heading.
+
+## Heading-source defaults
+
+- Every disabled heading source resets and migrates to weight 0 in firmware.
+- MSP configuration writes normalize disabled source weights to 0.
+- The Configurator displays and saves disabled weights as 0, and restores the
+  suggested enabled weight when the source is turned on.
+
