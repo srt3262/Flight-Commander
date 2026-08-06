@@ -1,6 +1,7 @@
 name: Finalize Flight Commander 4.0.6 beta
 run-name: Finalize Flight Commander 4.0.6 beta from ${{ github.sha }}
 # This one-time update triggers the finalizer after the workflow exists on main.
+# Merged through a dedicated trigger PR so GitHub emits a normal main push event.
 
 "on":
   push:
