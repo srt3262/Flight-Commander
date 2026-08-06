@@ -1,0 +1,120 @@
+        startup_replacement,
+        label="stable startup heading selector",
+    )
+
+    # Normalize disabled source weights received from the Configurator before validation.
+    replace_once(
+        path,
+        """        value.sources[index].weight = sbufReadU8(src);
+        value.sources[index].yawOffsetCentidegrees = sbufReadU16(src);
+""",
+        """        value.sources[index].weight = sbufReadU8(src);
+        if (!value.sources[index].enabled) {
+            value.sources[index].weight = 0;
+        }
+        value.sources[index].yawOffsetCentidegrees = sbufReadU16(src);
+""",
+        "MSP disabled source weight normalization",
+    )
+
+
+def patch_startup_seed(root: Path) -> None:
+    path = root / "src/main/flight/imu.c"
+    pattern = r'''#if defined\(USE_FLIGHT_COMMANDER_HEADING_FUSION\)\n    uint16_t fusedHeadingCentidegrees = 0;\n    if \(!gpsHeadingInitialized &&\n        flightCommanderHeadingGetFusedHeading\(&fusedHeadingCentidegrees\)\) \{[\s\S]*?\n    \}\n#endif'''
+    replacement = '''#if defined(USE_FLIGHT_COMMANDER_HEADING_FUSION)
+    static bool flightCommanderHeadingInitialized = false;
+    uint16_t fusedHeadingCentidegrees = 0;
+    if (!flightCommanderHeadingInitialized && !ARMING_FLAG(ARMED) &&
+        flightCommanderHeadingGetFusedHeading(&fusedHeadingCentidegrees)) {
+        // Keep Flight Commander's startup seed independent from INAV's legacy
+        // gpsHeadingInitialized flag. The normal compass path sets that flag on
+        // its first healthy sample, which previously blocked the later fused seed.
+        const int16_t fusedHeadingDecidegrees =
+            lrintf(CENTIDEGREES_TO_DECIDEGREES(fusedHeadingCentidegrees));
+        imuComputeQuaternionFromRPY(
+            attitude.values.roll, attitude.values.pitch, fusedHeadingDecidegrees);
+        attitude.values.yaw = fusedHeadingDecidegrees;
+        resetHeadingHoldTarget(CENTIDEGREES_TO_DEGREES(fusedHeadingCentidegrees));
+        flightCommanderHeadingInitialized = true;
+        gpsHeadingInitialized = true;
+    }
+#endif'''
+    sub_once(path, pattern, replacement, label="dedicated Flight Commander startup seed")
+
+
+def patch_verifier_contract(root: Path) -> None:
+    path = root / "flight-commander/verify-release.py"
+    text = path.read_text(encoding="utf-8")
+    replacements = (
+        (
+            r'r"config->sources\[2\] = \(flightCommanderHeadingSourceConfig_t\)\{ false, 3, 50, 0 \}",',
+            r'r"config->sources\[2\] = \(flightCommanderHeadingSourceConfig_t\)\{ false, 3, 0, 0 \}",',
+        ),
+        (
+            r'r"config->sources\[3\] = \(flightCommanderHeadingSourceConfig_t\)\{ false, 4, 25, 0 \}",',
+            r'r"config->sources\[3\] = \(flightCommanderHeadingSourceConfig_t\)\{ false, 4, 0, 0 \}",',
+        ),
+        (
+            r'r"FLIGHT_COMMANDER_MAG_MIN_FIELD_QUALITY 1U",',
+            r'r"FLIGHT_COMMANDER_MAG_FUSION_QUALITY_FLOOR 1U",',
+        ),
+        (
+            r'r"FLIGHT_COMMANDER_MAG_STARTUP_MIN_FIELD_QUALITY 10U",',
+            r'r"FLIGHT_COMMANDER_STARTUP_STABLE_SAMPLE_COUNT 4U",',
+        ),
+    )
+    for old, new in replacements:
+        if old not in text:
+            raise RuntimeError(f"verify-release.py missing expected 4.0.4 token: {old}")
+        text = text.replace(old, new, 1)
+
+    source_two = r'r"config->sources\[2\] = \(flightCommanderHeadingSourceConfig_t\)\{ false, 3, 0, 0 \}",'
+    source_one = '            r"config->sources\\[1\\] = \\(flightCommanderHeadingSourceConfig_t\\)\\{ false, 2, 0, 0 \\}",\n'
+    if source_one.strip() not in text:
+        text = text.replace(source_two, source_one + source_two, 1)
+
+    anchor = r'r"resetHeadingHoldTarget\(CENTIDEGREES_TO_DEGREES\(fusedHeadingCentidegrees\)\)",'
+    if anchor not in text:
+        raise RuntimeError("verify-release.py startup verifier anchor is missing")
+    text = text.replace(
+        anchor,
+        anchor + '\n            r"static bool flightCommanderHeadingInitialized = false",',
+        1,
+    )
+
+    heading_anchor = r'r"FLIGHT_COMMANDER_STARTUP_STABLE_SAMPLE_COUNT 4U",'
+    if heading_anchor not in text:
+        raise RuntimeError("verify-release.py heading startup constant anchor is missing")
+    text = text.replace(
+        heading_anchor,
+        heading_anchor
+        + '\n            r"FLIGHT_COMMANDER_STARTUP_MAX_STEP_CENTIDEGREES 500U",'
+        + '\n            r"effectiveSourceQuality",'
+        + '\n            r"!isfinite\\(fieldBody->x\\)",',
+        1,
+    )
+    path.write_text(text, encoding="utf-8", newline="\n")
+
+
+def update_reviewed_baseline(root: Path) -> None:
+    baseline_path = root / "flight-commander/INAV-9.1.0-BASELINE.json"
+    baseline = json.loads(baseline_path.read_text(encoding="utf-8"))
+    purposes = {
+        "src/main/flight/imu.c": (
+            "Inject weighted Flight Commander heading references and initialize yaw "
+            "from four stable fresh fused samples using a dedicated startup state "
+            "that cannot be preempted by gpsHeadingInitialized."
+        ),
+        "src/main/flight_commander/heading_fusion.c": (
+            "Keep freshness, heading availability, displayed field quality and "
+            "authority independent; retain Q0 magnetic headings with a one-percent "
+            "authority floor, normalize disabled weights to zero, and validate a "
+            "stationary startup heading without requiring controller motion."
+        ),
+    }
+    extensions = baseline.get("intentional_extensions", {})
+    for relative, purpose in purposes.items():
+        if relative in extensions:
+            extensions[relative]["patched_sha256"] = digest(root / relative)
+            extensions[relative]["purpose"] = purpose
+    baseline_path.write_text(json.dumps(baseline, indent=2) + "\n", encoding="utf-8", newline="\n")
