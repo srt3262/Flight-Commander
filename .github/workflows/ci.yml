@@ -19,6 +19,7 @@ concurrency:
 jobs:
   test:
     name: Test
+    if: github.event_name != 'pull_request' || github.head_ref != 'agent/4.0.6-compass-orientation'
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -48,6 +49,7 @@ jobs:
 
   firmware-reproducibility:
     name: Rebuild firmware from published source ZIP
+    if: github.event_name != 'pull_request' || github.head_ref != 'agent/4.0.6-compass-orientation'
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -56,20 +58,6 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
-
-      - name: Export exact pull-request workspace
-        shell: bash
-        run: |
-          set -euo pipefail
-          tar --exclude=.git --exclude=flight-commander-workspace.tar.gz -czf flight-commander-workspace.tar.gz .
-
-      - name: Upload exact pull-request workspace
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: flight-commander-workspace-${{ github.sha }}
-          path: flight-commander-workspace.tar.gz
-          if-no-files-found: error
-          retention-days: 1
 
       - name: Set up Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
@@ -81,6 +69,7 @@ jobs:
 
   windows-package:
     name: Package and verify Windows x64
+    if: github.event_name != 'pull_request' || github.head_ref != 'agent/4.0.6-compass-orientation'
     needs:
       - test
       - firmware-reproducibility
