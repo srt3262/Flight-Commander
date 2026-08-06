@@ -4,6 +4,7 @@ import { describe, test } from "node:test";
 
 import {
   FLIGHT_COMMANDER_FIRMWARE_RELEASES_URL,
+  FLIGHT_COMMANDER_KNOWN_GOOD_FIRMWARE_VERSIONS,
   FLIGHT_COMMANDER_MINIMUM_SUPPORTED_FIRMWARE_VERSION,
   catalogByTarget,
   flightCommanderReleaseDescriptors,
@@ -27,13 +28,18 @@ function parsedFirmwareBytes(...chunks) {
 }
 
 describe("Flight Commander firmware catalog", () => {
-  test("uses Flight Commander releases and preserves the legacy target alias", () => {
+  test("uses Flight Commander releases, preserves the recovery baseline, and rejects failed revisions", () => {
     assert.equal(
       FLIGHT_COMMANDER_FIRMWARE_RELEASES_URL,
       "https://api.github.com/repos/srt3262/Flight-Commander/releases?per_page=20",
     );
     assert.equal(FLIGHT_COMMANDER_MINIMUM_SUPPORTED_FIRMWARE_VERSION, "4.0.5");
-    assert.equal(isSupportedFlightCommanderFirmwareVersion("3.9.9"), false);
+    assert.deepEqual(FLIGHT_COMMANDER_KNOWN_GOOD_FIRMWARE_VERSIONS, ["3.0.7"]);
+    assert.equal(isSupportedFlightCommanderFirmwareVersion("3.0.6"), false);
+    assert.equal(isSupportedFlightCommanderFirmwareVersion("3.0.7"), true);
+    assert.equal(isSupportedFlightCommanderFirmwareVersion("3.0.7-recovery"), true);
+    assert.equal(isSupportedFlightCommanderFirmwareVersion("3.0.8"), false);
+    assert.equal(isSupportedFlightCommanderFirmwareVersion("4.0.0"), false);
     assert.equal(isSupportedFlightCommanderFirmwareVersion("4.0.4"), false);
     assert.equal(isSupportedFlightCommanderFirmwareVersion("4.0.5"), true);
     assert.equal(isSupportedFlightCommanderFirmwareVersion("4.1.0"), true);
@@ -110,7 +116,7 @@ describe("Flight Commander firmware catalog", () => {
     assert.equal(catalogByTarget(descriptors).MICOAIR743.length, 1);
   });
 
-  test("uses the standalone GitHub HEX as the only managed firmware source", () => {
+  test("uses standalone GitHub HEX assets for the current release and verified recovery baseline", () => {
     const filename = "Flight-Commander-Firmware-4.0.5-MICOAIR743.hex";
     const online = flightCommanderReleaseDescriptors([
       {
@@ -120,7 +126,7 @@ describe("Flight Commander firmware catalog", () => {
         assets: [
           {
             name: "Flight-Commander-Firmware-3.0.7-MICOAIR743.hex",
-            browser_download_url: "https://example.invalid/superseded.hex",
+            browser_download_url: "https://example.invalid/recovery.hex",
             digest: `sha256:${"b".repeat(64)}`,
             size: 1200,
           },
@@ -134,11 +140,12 @@ describe("Flight Commander firmware catalog", () => {
       },
     ]);
 
-    assert.equal(online.length, 1);
-    assert.equal(online[0].version, "4.0.5");
+    assert.equal(online.length, 2);
+    assert.deepEqual(online.map(({ version }) => version), ["4.0.5", "3.0.7"]);
     assert.equal(online[0].url, "https://example.invalid/firmware.hex");
     assert.equal(online[0].bytes, 1234);
-    assert.equal(catalogByTarget(online).MICOAIR743.length, 1);
+    assert.equal(online[1].url, "https://example.invalid/recovery.hex");
+    assert.equal(catalogByTarget(online).MICOAIR743.length, 2);
     assert.equal("bundled" in online[0], false);
   });
 
@@ -223,30 +230,29 @@ describe("Flight Commander firmware catalog", () => {
 });
 
 
-test("removes known-bad pre-4.0.5 releases from the online selection catalog", () => {
+test("keeps 3.0.7 and 4.0.5 while removing every verified-bad intervening release", () => {
+  const releaseFor = (version, marker) => ({
+    draft: false,
+    prerelease: true,
+    tag_name: `v${version}-beta`,
+    assets: [{
+      name: `Flight-Commander-Firmware-${version}-MICOAIR743.hex`,
+      browser_download_url: `https://example.invalid/${version}.hex`,
+      digest: `sha256:${marker.repeat(64)}`,
+      size: 1200,
+    }],
+  });
+
   const descriptors = flightCommanderReleaseDescriptors([
-    {
-      draft: false,
-      prerelease: true,
-      tag_name: "v4.0.4-beta",
-      assets: [{
-        name: "Flight-Commander-Firmware-4.0.4-MICOAIR743.hex",
-        browser_download_url: "https://example.invalid/bad-4.0.4.hex",
-        digest: `sha256:${"4".repeat(64)}`,
-        size: 1200,
-      }],
-    },
-    {
-      draft: false,
-      prerelease: true,
-      tag_name: "v4.0.5-beta",
-      assets: [{
-        name: "Flight-Commander-Firmware-4.0.5-MICOAIR743.hex",
-        browser_download_url: "https://example.invalid/4.0.5.hex",
-        digest: `sha256:${"5".repeat(64)}`,
-        size: 1300,
-      }],
-    },
+    releaseFor("3.0.6", "6"),
+    releaseFor("3.0.7", "7"),
+    releaseFor("3.0.8", "8"),
+    releaseFor("4.0.0", "0"),
+    releaseFor("4.0.1", "1"),
+    releaseFor("4.0.2", "2"),
+    releaseFor("4.0.3", "3"),
+    releaseFor("4.0.4", "4"),
+    releaseFor("4.0.5", "5"),
   ]);
-  assert.deepEqual(descriptors.map(({ version }) => version), ["4.0.5"]);
+  assert.deepEqual(descriptors.map(({ version }) => version), ["4.0.5", "3.0.7"]);
 });
