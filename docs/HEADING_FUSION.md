@@ -28,6 +28,18 @@ contribute to the correction. Weight 100 contributes twice as much as weight
 50 at equal measured quality. A weight of zero disables contribution and is
 not a substitute for configuring two active sources with the same priority.
 
+Disabled sources reset and migrate with weight 0. When a source is enabled in
+the Configurator, its suggested enabled weight is restored; disabling it again
+immediately returns the saved weight to 0.
+
+Magnetic field quality is reported separately from freshness and heading
+availability. A fresh finite magnetic heading may remain available at displayed
+quality 0 with only a one-percent authority floor. This keeps a single-source
+heading defined without concealing the warning, and it prevents that source
+from outweighing any healthier compass or moving-baseline source. Startup yaw
+is seeded only after four fresh fused samples agree within five degrees while
+the aircraft is disarmed.
+
 Flight Commander excludes a source when any applicable guard fails:
 
 - a local compass has not completed calibration or stops producing data;

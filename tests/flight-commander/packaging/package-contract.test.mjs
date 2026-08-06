@@ -581,13 +581,13 @@ test("application remains dark-only", () => {
 });
 
 test("firmware is release-only and the flasher exposes local, online, then flash", () => {
-  assert.equal(packageManifest.flightCommander.firmwareReleaseVersion, "4.0.3");
+  assert.equal(packageManifest.flightCommander.firmwareReleaseVersion, "4.0.5");
   assert.equal(packageManifest.flightCommander.firmwareChangedInRelease, true);
   assert.equal(packageManifest.flightCommander.firmwareSourceAvailable, true);
-  assert.equal(packageManifest.flightCommander.firmwareSourceVersion, "4.0.3");
+  assert.equal(packageManifest.flightCommander.firmwareSourceVersion, "4.0.5");
   assert.equal(
     packageManifest.flightCommander.firmwareSourceArchive,
-    "release/firmware/Flight-Commander-Firmware-Source-v4.0.3.zip",
+    "release/firmware/Flight-Commander-Firmware-Source-v4.0.5.zip",
   );
   const releaseFirmwareIsPresent = existsSync(firmwareReleasePath);
   const releaseSourceIsPresent = existsSync(firmwareSourcePath);
@@ -649,7 +649,7 @@ test("firmware is release-only and the flasher exposes local, online, then flash
   assert.match(firmwareIdentitySource, /retryCounter: 0/);
   assert.match(firmwareCatalogSource, /MICOAIR743/);
   assert.match(firmwareCatalogSource, /MICROAIR743/);
-  assert.match(firmwareCatalogSource, /FLIGHT_COMMANDER_MINIMUM_SUPPORTED_FIRMWARE_VERSION = "4\.0\.0"/);
+  assert.match(firmwareCatalogSource, /FLIGHT_COMMANDER_MINIMUM_SUPPORTED_FIRMWARE_VERSION = "4\.0\.5"/);
   assert.match(firmwareCatalogSource, /isSupportedFlightCommanderFirmwareVersion/);
   assert.match(packageVerifier, /firmware must not be packaged/i);
   assert.match(packageVerifier, /firmwareBundled: false/);
@@ -690,7 +690,7 @@ test("all requested large-prop INAV presets are wired into the release source", 
 });
 
 test("landing page reports the current Flight Commander release", () => {
-  assert.equal(packageManifest.version, "4.0.3");
+  assert.equal(packageManifest.version, "4.0.5");
   assert.equal(manifest.version, packageManifest.version);
   assert.match(
     landingHtml,

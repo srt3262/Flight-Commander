@@ -54,6 +54,8 @@ import {
     HEADING_SOURCE_LABELS,
     HEADING_SOURCE_MOVING_BASELINE,
     clearLegacyCompassYawOffsets,
+    defaultHeadingSourceWeight,
+    diagnoseHeadingSourceAvailability,
     encodeHeadingConfig,
 } from '../js/flightCommander/headingFusion';
 import {
@@ -421,7 +423,9 @@ gpsTab.initialize = function (callback) {
                 }
                 $(`#headingSourceEnabled${sourceIndex}`).prop('checked', source.enabled);
                 $priority.val(String(source.priority));
-                $(`#headingSourceWeight${sourceIndex}`).val(source.weight);
+                $(`#headingSourceWeight${sourceIndex}`)
+                    .val(source.enabled ? source.weight : 0)
+                    .prop('disabled', !source.enabled);
             }
 
             const $hardware = $('#externalMagHardware').empty();
@@ -451,7 +455,9 @@ gpsTab.initialize = function (callback) {
             for (let sourceIndex = 0; sourceIndex < HEADING_SOURCE_COUNT; sourceIndex += 1) {
                 config.sources[sourceIndex].enabled = $(`#headingSourceEnabled${sourceIndex}`).prop('checked');
                 config.sources[sourceIndex].priority = Number.parseInt($(`#headingSourcePriority${sourceIndex}`).val(), 10);
-                config.sources[sourceIndex].weight = Number.parseInt($(`#headingSourceWeight${sourceIndex}`).val(), 10);
+                config.sources[sourceIndex].weight = config.sources[sourceIndex].enabled
+                    ? Number.parseInt($(`#headingSourceWeight${sourceIndex}`).val(), 10)
+                    : 0;
             }
 
             config.externalMagHardware = Number.parseInt($('#externalMagHardware').val(), 10);
@@ -486,7 +492,8 @@ gpsTab.initialize = function (callback) {
                 const sourceConfig = FC.HEADING_CONFIG?.sources?.[sourceIndex];
                 const $row = $(`[data-heading-source="${sourceIndex}"]`)
                     .removeClass('heading-source-active heading-source-rejected');
-                let label = 'Unavailable / stale';
+                let label;
+                let appendAge = false;
                 if (!sourceConfig?.enabled) {
                     label = 'Disabled';
                 } else if (sourceIndex < HEADING_SOURCE_MOVING_BASELINE && source?.calibrating) {
@@ -498,14 +505,24 @@ gpsTab.initialize = function (callback) {
                     label = 'Calibration required';
                 } else if (source?.rejected) {
                     label = `Rejected · ${(source.headingCentidegrees / 100).toFixed(2)}°`;
+                    appendAge = true;
                     $row.addClass('heading-source-rejected');
                 } else if (source?.active) {
-                    label = `Active · ${(source.headingCentidegrees / 100).toFixed(2)}° · Q${source.quality}%`;
+                    label = sourceIndex < HEADING_SOURCE_MOVING_BASELINE && source.quality === 0
+                        ? `Active · field quality low · ${(source.headingCentidegrees / 100).toFixed(2)}° · Q0%`
+                        : `Active · ${(source.headingCentidegrees / 100).toFixed(2)}° · Q${source.quality}%`;
+                    appendAge = true;
                     $row.addClass('heading-source-active');
                 } else if (source?.healthy) {
-                    label = `Healthy standby · ${(source.headingCentidegrees / 100).toFixed(2)}°`;
+                    label = `Healthy standby · ${(source.headingCentidegrees / 100).toFixed(2)}° · Q${source.quality}%`;
+                    appendAge = true;
+                } else {
+                    label = diagnoseHeadingSourceAvailability(source, {
+                        timeoutMs: FC.HEADING_CONFIG?.sourceTimeoutMs,
+                        magnetic: sourceIndex < HEADING_SOURCE_MOVING_BASELINE,
+                    }).label;
                 }
-                if (source && source.ageMs !== 0xffff) {
+                if (appendAge && source && source.ageMs !== 0xffff) {
                     label += ` · ${source.ageMs} ms`;
                 }
                 $(`#headingSourceStatus${sourceIndex}`).text(label);
@@ -515,9 +532,26 @@ gpsTab.initialize = function (callback) {
 
         renderDronecanGpsConfig();
         renderHeadingConfig();
+        for (let sourceIndex = 0; sourceIndex < HEADING_SOURCE_MOVING_BASELINE; sourceIndex += 1) {
+            $(`#headingSourceEnabled${sourceIndex}`).on('change.gpsTab', function () {
+                const enabled = $(this).prop('checked');
+                const $weight = $(`#headingSourceWeight${sourceIndex}`);
+                if (!enabled) $weight.val(0);
+                else if (Number.parseInt($weight.val(), 10) === 0) {
+                    $weight.val(defaultHeadingSourceWeight(sourceIndex));
+                }
+                $weight.prop('disabled', !enabled);
+            });
+        }
         $('#headingSourceEnabled3, #movingBaselineEnabled').on('change.gpsTab', function () {
             const enabled = $(this).prop('checked');
             $('#headingSourceEnabled3, #movingBaselineEnabled').prop('checked', enabled);
+            const $weight = $('#headingSourceWeight3');
+            if (!enabled) $weight.val(0);
+            else if (Number.parseInt($weight.val(), 10) === 0) {
+                $weight.val(defaultHeadingSourceWeight(3));
+            }
+            $weight.prop('disabled', !enabled);
         });
         $('#gpsDronecanRefresh').on('click.gpsTab', function (event) {
             event.preventDefault();

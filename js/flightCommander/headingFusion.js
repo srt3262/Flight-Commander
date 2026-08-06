@@ -11,6 +11,63 @@ export const HEADING_SOURCE_DRONECAN_MAG = 2;
 export const HEADING_SOURCE_MOVING_BASELINE = 3;
 export const HEADING_SOURCE_COUNT = 4;
 export const HEADING_SOURCE_NONE = 255;
+export const HEADING_SOURCE_DEFAULT_ENABLED_WEIGHTS = Object.freeze([100, 75, 50, 25]);
+export const HEADING_SOURCE_NO_SAMPLE_AGE = 0xffff;
+
+export function defaultHeadingSourceWeight(index) {
+    return HEADING_SOURCE_DEFAULT_ENABLED_WEIGHTS[Number(index)] ?? 0;
+}
+
+export function diagnoseHeadingSourceAvailability(source, {
+    timeoutMs = 750,
+    magnetic = true,
+} = {}) {
+    const ageMs = Number(source?.ageMs);
+    const quality = Number.isFinite(Number(source?.quality))
+        ? Math.max(0, Math.min(100, Number(source.quality)))
+        : 0;
+    const normalizedTimeout = Number.isFinite(Number(timeoutMs))
+        ? Math.max(0, Number(timeoutMs))
+        : 750;
+
+    if (!source || !Number.isFinite(ageMs) || ageMs === HEADING_SOURCE_NO_SAMPLE_AGE) {
+        return {
+            reason: 'no-sample',
+            label: 'No source sample',
+            stateClass: 'is-stale',
+            ageMs: null,
+            quality,
+        };
+    }
+
+    if (ageMs > normalizedTimeout) {
+        return {
+            reason: 'stale',
+            label: `Stale sample · ${ageMs} ms`,
+            stateClass: 'is-stale',
+            ageMs,
+            quality,
+        };
+    }
+
+    if (magnetic && quality === 0) {
+        return {
+            reason: 'field-quality-low',
+            label: `Fresh magnetic sample · field quality 0% · ${ageMs} ms`,
+            stateClass: 'is-warning',
+            ageMs,
+            quality,
+        };
+    }
+
+    return {
+        reason: 'fresh-rejected',
+        label: `Fresh sample rejected · Q${quality}% · ${ageMs} ms`,
+        stateClass: 'is-warning',
+        ageMs,
+        quality,
+    };
+}
 
 export const BASELINE_PROVIDER_AUTO = 0;
 export const BASELINE_PROVIDER_UART = 1;
@@ -69,10 +126,17 @@ function signed16(value, label, minimum = -32768, maximum = 32767) {
 }
 
 function normalizeSource(source, index) {
+    const enabled = Boolean(source?.enabled);
+    const weight = finiteInteger(
+        source?.weight,
+        `${HEADING_SOURCE_LABELS[index]} weight`,
+        0,
+        100,
+    );
     return {
-        enabled: Boolean(source?.enabled),
+        enabled,
         priority: finiteInteger(source?.priority, `${HEADING_SOURCE_LABELS[index]} priority`, 1, HEADING_SOURCE_COUNT),
-        weight: finiteInteger(source?.weight, `${HEADING_SOURCE_LABELS[index]} weight`, 0, 100),
+        weight: enabled ? weight : 0,
         yawOffsetCentidegrees: signed16(
             source?.yawOffsetCentidegrees,
             `${HEADING_SOURCE_LABELS[index]} yaw offset`,
@@ -100,6 +164,18 @@ export function clearLegacyCompassYawOffsets(config) {
     return changed;
 }
 
+export function clearDisabledHeadingSourceWeights(config) {
+    if (!Array.isArray(config?.sources)) return false;
+    let changed = false;
+    for (const source of config.sources) {
+        if (source && !source.enabled && Number(source.weight) !== 0) {
+            source.weight = 0;
+            changed = true;
+        }
+    }
+    return changed;
+}
+
 export function createDefaultHeadingConfig() {
     return {
         movingBaselineEnabled: false,
@@ -108,9 +184,9 @@ export function createDefaultHeadingConfig() {
         externalMagHardware: 1,
         sources: [
             { enabled: true, priority: 1, weight: 100, yawOffsetCentidegrees: 0 },
-            { enabled: false, priority: 2, weight: 75, yawOffsetCentidegrees: 0 },
-            { enabled: false, priority: 3, weight: 50, yawOffsetCentidegrees: 0 },
-            { enabled: false, priority: 4, weight: 25, yawOffsetCentidegrees: 0 },
+            { enabled: false, priority: 2, weight: 0, yawOffsetCentidegrees: 0 },
+            { enabled: false, priority: 3, weight: 0, yawOffsetCentidegrees: 0 },
+            { enabled: false, priority: 4, weight: 0, yawOffsetCentidegrees: 0 },
         ],
         expectedBaselineCm: 50,
         baselineToleranceCm: 20,
@@ -190,6 +266,7 @@ export function decodeHeadingConfig(payload) {
         ],
         dronecanMagCalibrationNodeId: data.getUint8(offset + 46),
     };
+    clearDisabledHeadingSourceWeights(result);
     return result;
 }
 
@@ -227,6 +304,7 @@ export function validateHeadingConfig(config, dronecanConfig = {}) {
         ),
     };
     clearLegacyCompassYawOffsets(normalized);
+    clearDisabledHeadingSourceWeights(normalized);
     if (!EXTERNAL_MAG_HARDWARE_VALUES.has(normalized.externalMagHardware)) {
         throw new RangeError('External compass hardware is not supported on the MICOAIR743 external I²C1 connector.');
     }

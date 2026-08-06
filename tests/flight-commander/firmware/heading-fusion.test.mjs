@@ -7,10 +7,13 @@ import {
   HEADING_SOURCE_DRONECAN_MAG,
   HEADING_SOURCE_EXTERNAL_I2C_MAG,
   HEADING_SOURCE_MOVING_BASELINE,
+  clearDisabledHeadingSourceWeights,
   clearLegacyCompassYawOffsets,
   createDefaultHeadingConfig,
+  defaultHeadingSourceWeight,
   decodeHeadingConfig,
   decodeHeadingStatus,
+  diagnoseHeadingSourceAvailability,
   encodeHeadingConfig,
   previewWeightedHeading,
 } from '../../../js/flightCommander/headingFusion.js';
@@ -18,10 +21,10 @@ import {
 const enabledCan = { gpsNodeId: 42, movingRoverNodeId: 42, magNodeId: 73 };
 
 
-test('default heading priorities are unique and weights follow priority order', () => {
+test('default heading priorities are unique and disabled weights are zero', () => {
   const config = createDefaultHeadingConfig();
   assert.deepEqual(config.sources.map((source) => source.priority), [1, 2, 3, 4]);
-  assert.deepEqual(config.sources.map((source) => source.weight), [100, 75, 50, 25]);
+  assert.deepEqual(config.sources.map((source) => source.weight), [100, 0, 0, 0]);
 });
 
 function clone(value) {
@@ -65,6 +68,7 @@ test('legacy compass yaw offsets are removed while moving-baseline alignment rem
 test('enabled heading sources form an unambiguous priority order', () => {
   const config = createDefaultHeadingConfig();
   config.sources[HEADING_SOURCE_EXTERNAL_I2C_MAG].enabled = true;
+  config.sources[HEADING_SOURCE_EXTERNAL_I2C_MAG].weight = defaultHeadingSourceWeight(HEADING_SOURCE_EXTERNAL_I2C_MAG);
   config.sources[HEADING_SOURCE_EXTERNAL_I2C_MAG].priority = 1;
   assert.throws(
     () => encodeHeadingConfig(config, enabledCan),
@@ -158,6 +162,7 @@ test('a source outside the configured disagreement guard is rejected', () => {
   const config = createDefaultHeadingConfig();
   config.sources[HEADING_SOURCE_EXTERNAL_I2C_MAG].enabled = true;
   config.sources[HEADING_SOURCE_EXTERNAL_I2C_MAG].priority = 2;
+  config.sources[HEADING_SOURCE_EXTERNAL_I2C_MAG].weight = defaultHeadingSourceWeight(HEADING_SOURCE_EXTERNAL_I2C_MAG);
   config.maxDisagreementCentidegrees = 3000;
 
   const result = previewWeightedHeading([
@@ -207,4 +212,47 @@ test('heading status decodes live masks, baseline geometry, quality, and age', (
   assert.equal(status.sources[2].calibrating, true);
   assert.equal(status.sources[2].ageMs, 0xffff);
   assert.equal(status.sources[3].quality, 87);
+});
+
+
+
+test('heading diagnostics distinguish missing, stale, and fresh low-quality magnetic samples', () => {
+  assert.deepEqual(
+    diagnoseHeadingSourceAvailability({ ageMs: 0xffff, quality: 0 }, { timeoutMs: 750 }),
+    {
+      reason: 'no-sample',
+      label: 'No source sample',
+      stateClass: 'is-stale',
+      ageMs: null,
+      quality: 0,
+    },
+  );
+  assert.equal(
+    diagnoseHeadingSourceAvailability({ ageMs: 751, quality: 82 }, { timeoutMs: 750 }).label,
+    'Stale sample · 751 ms',
+  );
+  assert.equal(
+    diagnoseHeadingSourceAvailability({ ageMs: 25, quality: 0 }, { timeoutMs: 750 }).label,
+    'Fresh magnetic sample · field quality 0% · 25 ms',
+  );
+  assert.equal(
+    diagnoseHeadingSourceAvailability(
+      { ageMs: 30, quality: 12 },
+      { timeoutMs: 750, magnetic: false },
+    ).label,
+    'Fresh sample rejected · Q12% · 30 ms',
+  );
+});
+
+
+test('disabled heading sources default, decode, validate and migrate to zero weight', () => {
+  const config = createDefaultHeadingConfig();
+  assert.deepEqual(config.sources.map((source) => source.weight), [100, 0, 0, 0]);
+  assert.equal(defaultHeadingSourceWeight(1), 75);
+  config.sources[1].weight = 75;
+  assert.equal(clearDisabledHeadingSourceWeights(config), true);
+  assert.equal(config.sources[1].weight, 0);
+
+  const encoded = encodeHeadingConfig(config, enabledCan);
+  assert.equal(decodeHeadingConfig(encoded).sources[1].weight, 0);
 });

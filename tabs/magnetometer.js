@@ -24,6 +24,10 @@ import {
     updateAlignmentDraft,
     updateAlignmentDraftAxis,
 } from './../js/flightCommander/alignmentTargets';
+import {
+    HEADING_SOURCE_MOVING_BASELINE,
+    diagnoseHeadingSourceAvailability,
+} from './../js/flightCommander/headingFusion';
 
 const magnetometerTab = {};
 
@@ -519,8 +523,12 @@ magnetometerTab.initialize = function (callback) {
             `R ${Number(angles.roll).toFixed(1)}° · P ${Number(angles.pitch).toFixed(1)}° · Y ${Number(angles.yaw).toFixed(1)}°`,
         );
 
-        let state = config?.enabled === false ? 'Disabled' : 'Unavailable / stale';
-        let stateClass = 'is-stale';
+        const unavailable = diagnoseHeadingSourceAvailability(source, {
+            timeoutMs: FC.HEADING_CONFIG?.sourceTimeoutMs,
+            magnetic: sourceIndex < HEADING_SOURCE_MOVING_BASELINE,
+        });
+        let state = config?.enabled === false ? 'Disabled' : unavailable.label;
+        let stateClass = config?.enabled === false ? 'is-stale' : unavailable.stateClass;
         if (source?.calibrationFailed) {
             state = 'Calibration failed';
             stateClass = 'is-error';
@@ -528,8 +536,13 @@ magnetometerTab.initialize = function (callback) {
             state = 'Rejected by fusion';
             stateClass = 'is-warning';
         } else if (source?.active) {
-            state = 'Active in fused heading';
-            stateClass = 'is-active';
+            if (sourceIndex < HEADING_SOURCE_MOVING_BASELINE && source.quality === 0) {
+                state = 'Active in fused heading · field quality low';
+                stateClass = 'is-warning';
+            } else {
+                state = 'Active in fused heading';
+                stateClass = 'is-active';
+            }
         } else if (source?.healthy) {
             state = 'Healthy standby';
             stateClass = 'is-healthy';
@@ -554,9 +567,13 @@ magnetometerTab.initialize = function (callback) {
                 : '—',
         );
         $('#alignmentDiagnosticSample').text(
-            source && source.ageMs !== 0xffff
-                ? `${source.ageMs} ms old · quality ${source.quality}%`
-                : 'No current source sample',
+            unavailable.reason === 'no-sample'
+                ? 'No current source sample'
+                : unavailable.reason === 'stale'
+                    ? `${unavailable.ageMs} ms old · stale · quality ${unavailable.quality}%`
+                    : unavailable.reason === 'field-quality-low'
+                        ? `${unavailable.ageMs} ms old · fresh · field quality 0%`
+                        : `${unavailable.ageMs} ms old · quality ${unavailable.quality}%`,
         );
 
         let calibration = '—';
