@@ -1,0 +1,182 @@
+name: Build Flight Commander Firmware 4.0.4
+run-name: Build and verify Flight Commander 4.0.4 from ${{ github.sha }}
+
+"on":
+  push:
+    branches:
+      - agent/fix-heading-source-liveness-4.0.4
+    paths:
+      - .github/workflows/build-flight-commander-firmware-4.0.4.yml
+      - release/patches/4.0.4/**
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: flight-commander-4.0.4-firmware-build
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Compile, verify and retain coordinated 4.0.4 inputs
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Check out the exact development branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: agent/fix-heading-source-liveness-4.0.4
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: yarn
+
+      - name: Install native build prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build curl xz-utils unzip zip python3
+
+      - name: Restore Arm GNU Toolchain 13.2.1
+        id: arm-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/arm-gnu-toolchain-13.2.Rel1-x86_64-arm-none-eabi
+          key: arm-gnu-toolchain-13.2.Rel1-x86_64-arm-none-eabi
+
+      - name: Install Arm GNU Toolchain 13.2.1
+        if: steps.arm-cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          release=arm-gnu-toolchain-13.2.Rel1-x86_64-arm-none-eabi
+          archive=arm-gnu-toolchain-13.2.rel1-x86_64-arm-none-eabi.tar.xz
+          expected=6cd1bbc1d9ae57312bcd169ae283153a9572bd6a8e4eeae2fedfbc33b115fdbb
+          url="https://developer.arm.com/-/media/Files/downloads/gnu/13.2.rel1/binrel/$archive"
+          curl --fail --location --retry 3 --output "$RUNNER_TEMP/$archive" "$url"
+          printf '%s  %s\n' "$expected" "$RUNNER_TEMP/$archive" | sha256sum --check --strict
+          tar -xJf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP"
+          test -x "$RUNNER_TEMP/$release/bin/arm-none-eabi-gcc"
+
+      - name: Add the verified compiler to PATH
+        shell: bash
+        run: |
+          set -euo pipefail
+          toolchain="$RUNNER_TEMP/arm-gnu-toolchain-13.2.Rel1-x86_64-arm-none-eabi/bin"
+          test -x "$toolchain/arm-none-eabi-gcc"
+          echo "$toolchain" >> "$GITHUB_PATH"
+
+      - name: Reconstruct and verify every reviewed build input
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat release/patches/4.0.4/firmware.patch.part-* > "$RUNNER_TEMP/firmware-4.0.4.patch"
+          cat release/patches/4.0.4/config-ui.patch.part-* > "$RUNNER_TEMP/config-ui-4.0.4.patch"
+          cat release/patches/4.0.4/prepare.py.part-* > "$RUNNER_TEMP/prepare-4.0.4.py"
+          cat release/patches/4.0.4/apply.py.part-* > "$RUNNER_TEMP/apply-4.0.4.py"
+          printf '%s  %s\n' bb0ddd325ec139b901544511d6efda53bf87264775f562db2015f0d6f8dc6c8b "$RUNNER_TEMP/firmware-4.0.4.patch" | sha256sum --check --strict
+          printf '%s  %s\n' 6e5a5d54ba47c1bd33dcfcd27fea699f03ceec1a1da9803f7855ba91407e526b "$RUNNER_TEMP/config-ui-4.0.4.patch" | sha256sum --check --strict
+          printf '%s  %s\n' 98133bdf565c7c07fa52bdb07bedf2202be21f47acafc0ad382b531e97f751fd "$RUNNER_TEMP/prepare-4.0.4.py" | sha256sum --check --strict
+          printf '%s  %s\n' 5d0e07f8d12409c74cea36db79caabc48c5436997b8b1d460321aca59934ddf7 "$RUNNER_TEMP/apply-4.0.4.py" | sha256sum --check --strict
+          python3 -B -m py_compile "$RUNNER_TEMP/prepare-4.0.4.py" "$RUNNER_TEMP/apply-4.0.4.py"
+
+      - name: Prepare, compile, finalize and apply Flight Commander 4.0.4
+        id: firmware
+        shell: bash
+        run: |
+          set -euo pipefail
+          output="$RUNNER_TEMP/flight-commander-firmware-4.0.4"
+          root="$output/Flight-Commander-Firmware-Source-v4.0.4"
+          build="$RUNNER_TEMP/build-flight-commander-4.0.4"
+          hex="$build/Flight-Commander-Firmware-4.0.4-MICOAIR743.hex"
+          source_zip="$RUNNER_TEMP/Flight-Commander-Firmware-Source-v4.0.4.zip"
+
+          python3 -B "$RUNNER_TEMP/prepare-4.0.4.py" \
+            --archive release/firmware/Flight-Commander-Firmware-Source-v4.0.3.zip \
+            --output "$output" \
+            --patch "$RUNNER_TEMP/firmware-4.0.4.patch"
+          echo "Compiler: $(arm-none-eabi-gcc -dumpfullversion -dumpversion)"
+          bash "$root/flight-commander/build-micoair743.sh" "$build"
+          python3 -B "$RUNNER_TEMP/prepare-4.0.4.py" \
+            --finalize-root "$root" \
+            --firmware "$hex" \
+            --source-zip "$source_zip"
+          python3 -B "$root/flight-commander/verify-release.py" \
+            --source-root "$root" \
+            --hex "$hex" \
+            --manifest "$root/RELEASE-MANIFEST.json"
+          python3 -B "$RUNNER_TEMP/apply-4.0.4.py" \
+            --firmware "$hex" \
+            --source-zip "$source_zip" \
+            --config-patch "$RUNNER_TEMP/config-ui-4.0.4.patch"
+
+          echo "firmware_sha256=$(sha256sum "$hex" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+          echo "source_sha256=$(sha256sum "$source_zip" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+
+      - name: Run focused source-liveness and package contract tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test \
+            tests/flight-commander/firmware/heading-fusion.test.mjs \
+            tests/flight-commander/firmware/onboard-ist8310-transform.test.mjs \
+            tests/flight-commander/firmware/heading-source-liveness.test.mjs \
+            tests/flight-commander/firmware/flight-commander-catalog.test.mjs \
+            tests/flight-commander/packaging/package-contract.test.mjs
+          node scripts/check-flight-commander-version.mjs
+
+      - name: Install and run the complete Configurator test suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          corepack enable
+          corepack prepare yarn@1.22.22 --activate
+          yarn install --frozen-lockfile --non-interactive
+          yarn test
+
+      - name: Upload verified coordinated firmware inputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: flight-commander-4.0.4-coordinated-inputs
+          retention-days: 30
+          if-no-files-found: error
+          path: |
+            release/firmware/Flight-Commander-Firmware-4.0.4-MICOAIR743.hex
+            release/firmware/Flight-Commander-Firmware-Source-v4.0.4.zip
+            release/notes/v4.0.4-beta.md
+
+      - name: Commit only verified 4.0.4 release inputs
+        shell: bash
+        env:
+          FIRMWARE_SHA256: ${{ steps.firmware.outputs.firmware_sha256 }}
+          SOURCE_SHA256: ${{ steps.firmware.outputs.source_sha256 }}
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add \
+            package.json manifest.json \
+            .github/workflows/publish-flight-commander-beta.yml \
+            js/flightCommander/headingFusion.js js/main/ntripClient.js \
+            tabs/gps.js tabs/magnetometer.js tabs/landing.html \
+            tests/flight-commander/firmware/heading-fusion.test.mjs \
+            tests/flight-commander/firmware/heading-source-liveness.test.mjs \
+            tests/flight-commander/packaging/package-contract.test.mjs \
+            release/notes/v4.0.4-beta.md \
+            release/firmware/Flight-Commander-Firmware-4.0.4-MICOAIR743.hex \
+            release/firmware/Flight-Commander-Firmware-Source-v4.0.4.zip
+          git add -u release/firmware
+          git diff --cached --check
+          git commit -m "Build verified Flight Commander 4.0.4 heading liveness fix" \
+            -m "Firmware SHA-256: $FIRMWARE_SHA256" \
+            -m "Source SHA-256: $SOURCE_SHA256"
+          git push origin HEAD:agent/fix-heading-source-liveness-4.0.4
