@@ -1,0 +1,120 @@
+            else if (Number.parseInt($weight.val(), 10) === 0) {
+                $weight.val(defaultHeadingSourceWeight(3));
+            }
+            $weight.prop('disabled', !enabled);
+        });
+""",
+    )
+
+
+def patch_alignment_ui() -> None:
+    relative = "tabs/magnetometer.js"
+    replace_once(
+        relative,
+        """} from './../js/flightCommander/alignmentTargets';
+
+const magnetometerTab = {};
+""",
+        """} from './../js/flightCommander/alignmentTargets';
+import {
+    HEADING_SOURCE_MOVING_BASELINE,
+    diagnoseHeadingSourceAvailability,
+} from './../js/flightCommander/headingFusion';
+
+const magnetometerTab = {};
+""",
+    )
+
+    replace_once(
+        relative,
+        """        let state = config?.enabled === false ? 'Disabled' : 'Unavailable / stale';
+        let stateClass = 'is-stale';
+""",
+        """        const unavailable = diagnoseHeadingSourceAvailability(source, {
+            timeoutMs: FC.HEADING_CONFIG?.sourceTimeoutMs,
+            magnetic: sourceIndex < HEADING_SOURCE_MOVING_BASELINE,
+        });
+        let state = config?.enabled === false ? 'Disabled' : unavailable.label;
+        let stateClass = config?.enabled === false ? 'is-stale' : unavailable.stateClass;
+""",
+    )
+    replace_once(
+        relative,
+        """        } else if (source?.active) {
+            state = 'Active in fused heading';
+            stateClass = 'is-active';
+""",
+        """        } else if (source?.active) {
+            if (sourceIndex < HEADING_SOURCE_MOVING_BASELINE && source.quality === 0) {
+                state = 'Active in fused heading · field quality low';
+                stateClass = 'is-warning';
+            } else {
+                state = 'Active in fused heading';
+                stateClass = 'is-active';
+            }
+""",
+    )
+    replace_once(
+        relative,
+        """        $('#alignmentDiagnosticSample').text(
+            source && source.ageMs !== 0xffff
+                ? `${source.ageMs} ms old · quality ${source.quality}%`
+                : 'No current source sample',
+        );
+""",
+        """        $('#alignmentDiagnosticSample').text(
+            unavailable.reason === 'no-sample'
+                ? 'No current source sample'
+                : unavailable.reason === 'stale'
+                    ? `${unavailable.ageMs} ms old · stale · quality ${unavailable.quality}%`
+                    : unavailable.reason === 'field-quality-low'
+                        ? `${unavailable.ageMs} ms old · fresh · field quality 0%`
+                        : `${unavailable.ageMs} ms old · quality ${unavailable.quality}%`,
+        );
+""",
+    )
+
+
+def patch_tests() -> None:
+    catalog = "tests/flight-commander/firmware/flight-commander-catalog.test.mjs"
+    text = read_text(catalog).replace("4.0.0", "4.0.5")
+    old_support = """    assert.equal(FLIGHT_COMMANDER_MINIMUM_SUPPORTED_FIRMWARE_VERSION, "4.0.5");
+    assert.equal(isSupportedFlightCommanderFirmwareVersion("3.9.9"), false);
+    assert.equal(isSupportedFlightCommanderFirmwareVersion("4.0.5"), true);
+    assert.equal(isSupportedFlightCommanderFirmwareVersion("4.1.0"), true);
+"""
+    new_support = """    assert.equal(FLIGHT_COMMANDER_MINIMUM_SUPPORTED_FIRMWARE_VERSION, "4.0.5");
+    assert.equal(isSupportedFlightCommanderFirmwareVersion("3.9.9"), false);
+    assert.equal(isSupportedFlightCommanderFirmwareVersion("4.0.4"), false);
+    assert.equal(isSupportedFlightCommanderFirmwareVersion("4.0.5"), true);
+    assert.equal(isSupportedFlightCommanderFirmwareVersion("4.1.0"), true);
+"""
+    if text.count(old_support) != 1:
+        raise RuntimeError("catalog support-version test anchor missing")
+    text = text.replace(old_support, new_support, 1)
+    text += '''
+
+
+test("removes known-bad pre-4.0.5 releases from the online selection catalog", () => {
+  const descriptors = flightCommanderReleaseDescriptors([
+    {
+      draft: false,
+      prerelease: true,
+      tag_name: "v4.0.4-beta",
+      assets: [{
+        name: "Flight-Commander-Firmware-4.0.4-MICOAIR743.hex",
+        browser_download_url: "https://example.invalid/bad-4.0.4.hex",
+        digest: `sha256:${"4".repeat(64)}`,
+        size: 1200,
+      }],
+    },
+    {
+      draft: false,
+      prerelease: true,
+      tag_name: "v4.0.5-beta",
+      assets: [{
+        name: "Flight-Commander-Firmware-4.0.5-MICOAIR743.hex",
+        browser_download_url: "https://example.invalid/4.0.5.hex",
+        digest: `sha256:${"5".repeat(64)}`,
+        size: 1300,
+      }],
