@@ -1,4 +1,5 @@
 name: Clean duplicate Flight Commander workflow artifacts
+# Triggered through a dedicated main-branch merge before the 4.0.6 finalizer.
 
 "on":
   push:
