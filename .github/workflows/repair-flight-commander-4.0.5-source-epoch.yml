@@ -2,9 +2,9 @@ name: Repair Flight Commander 4.0.5 source epoch
 run-name: Repair and verify Flight Commander 4.0.5 firmware-source epoch
 
 "on":
-  push:
+  pull_request:
     branches:
-      - agent/complete-4.0.5-known-good-catalog
+      - main
     paths:
       - .github/workflows/repair-flight-commander-4.0.5-source-epoch.yml
 
@@ -17,6 +17,7 @@ concurrency:
 
 jobs:
   repair:
+    if: github.actor != 'github-actions[bot]'
     name: Normalize source epoch, rebuild firmware, and commit corrected archive
     runs-on: ubuntu-latest
     timeout-minutes: 90
