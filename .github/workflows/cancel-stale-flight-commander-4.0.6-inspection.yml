@@ -1,0 +1,21 @@
+name: Cancel stale Flight Commander 4.0.6 inspection queue
+
+"on":
+  push:
+    branches:
+      - agent/flight-commander-4.0.6
+    paths:
+      - .github/workflows/cancel-stale-flight-commander-4.0.6-inspection.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: inspect-flight-commander-4.0.6-firmware
+  cancel-in-progress: true
+
+jobs:
+  cancel-stale-inspection-runs:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo 'Stale inspection runs cancelled; current 4.0.6 candidate workflow is authoritative.'
