@@ -56,7 +56,7 @@ jobs:
           cat "$GITHUB_WORKSPACE"/scripts/flight-commander-firmware-4.0.6.patch.gz.b64.part-* \
             | base64 --decode \
             | gzip --decompress > "$patch"
-          test "$(sha256sum "$patch" | cut -d' ' -f1)" = "b09d02be8cf75710be43e59f87c7156deaa80d94aeaa1bb73983b933a7d70ebd"
+          test "$(sha256sum "$patch" | cut -d' ' -f1)" = "9fdc567d3b29f52393d04101b3b4823d9b623a2382b3dd225b625201dce3fd1b"
           unzip -q release/firmware/Flight-Commander-Firmware-Source-v4.0.5.zip -d "$work"
           old="$work/Flight-Commander-Firmware-Source-v4.0.5"
           root="$work/Flight-Commander-Firmware-Source-v4.0.6"
