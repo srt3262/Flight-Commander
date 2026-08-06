@@ -6,6 +6,9 @@ name: Inspect Flight Commander 4.0.5 firmware source
       - agent/flight-commander-4.0.6
     paths:
       - .github/workflows/inspect-flight-commander-4.0.6-firmware.yml
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
