@@ -1,0 +1,120 @@
+name: Export Flight Commander 4.0.5 release bundle
+run-name: Verify and export Flight Commander 4.0.5 release assets
+
+"on":
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/export-flight-commander-4.0.5-release-bundle.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    name: Download and byte-verify the published 4.0.5 bundle
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Download the complete bundle and four standard deliverables
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: v4.0.5-beta
+          VERSION: 4.0.5
+        run: |
+          set -euo pipefail
+          mkdir -p export
+          for asset in \
+            "Flight-Commander-v${VERSION}.zip" \
+            "FC-Windows-v${VERSION}.zip" \
+            "FC-Configurator-Source-v${VERSION}.zip" \
+            "FC-Firmware-v${VERSION}-MICOAIR743.hex" \
+            "FC-Firmware-Source-v${VERSION}.zip"
+          do
+            gh release download "$TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --dir export \
+              --pattern "$asset" \
+              --clobber
+            test -s "export/$asset"
+          done
+
+      - name: Verify exact contents, byte identity and release checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib
+          import json
+          import zipfile
+          from pathlib import Path
+
+          version = "4.0.5"
+          root = Path("export")
+          expected_components = [
+              f"FC-Windows-v{version}.zip",
+              f"FC-Configurator-Source-v{version}.zip",
+              f"FC-Firmware-v{version}-MICOAIR743.hex",
+              f"FC-Firmware-Source-v{version}.zip",
+          ]
+          complete = root / f"Flight-Commander-v{version}.zip"
+          expected_hashes = {
+              f"FC-Firmware-v{version}-MICOAIR743.hex":
+                  "3b13e8f303a27171cc9484be3ac83412e23d0471eb5321d99964c61a7d0f580e",
+              f"FC-Firmware-Source-v{version}.zip":
+                  "85a6d8727eee3b607804f6fd2ef17762af121fa3b4de5fae27021fd496d1c51e",
+          }
+
+          for name in expected_components:
+              path = root / name
+              assert path.is_file() and path.stat().st_size > 0, path
+              if path.suffix == ".zip":
+                  with zipfile.ZipFile(path) as archive:
+                      assert archive.testzip() is None, name
+
+          with zipfile.ZipFile(complete) as archive:
+              assert archive.testzip() is None
+              names = sorted(info.filename for info in archive.infolist() if not info.is_dir())
+              assert names == sorted(expected_components), (names, expected_components)
+              for name in expected_components:
+                  published = (root / name).read_bytes()
+                  bundled = archive.read(name)
+                  assert bundled == published, f"bundle mismatch: {name}"
+
+          hashes = {}
+          for path in sorted(root.iterdir()):
+              if path.is_file():
+                  hashes[path.name] = hashlib.sha256(path.read_bytes()).hexdigest()
+          for name, expected in expected_hashes.items():
+              assert hashes[name] == expected, (name, hashes[name], expected)
+
+          (root / "SHA256SUMS.txt").write_text(
+              "".join(f"{digest}  {name}\n" for name, digest in sorted(hashes.items())),
+              encoding="ascii",
+          )
+          manifest = {
+              "version": version,
+              "tag": "v4.0.5-beta",
+              "completeBundle": complete.name,
+              "componentCount": len(expected_components),
+              "components": expected_components,
+              "sha256": hashes,
+          }
+          (root / "release-export-manifest.json").write_text(
+              json.dumps(manifest, indent=2) + "\n",
+              encoding="utf-8",
+          )
+          print(json.dumps(manifest, indent=2))
+          PY
+
+      - name: Upload the verified release downloads
+        uses: actions/upload-artifact@v4
+        with:
+          name: flight-commander-4.0.5-release-downloads
+          retention-days: 30
+          if-no-files-found: error
+          path: export
