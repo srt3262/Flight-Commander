@@ -1,4 +1,64 @@
-tree = source_identities(root)
+            "the last valid sample on read failure, and expose true sample age to "
+            "heading fusion."
+        ),
+        "src/main/sensors/compass.h": (
+            "Persist hidden compass calibration contract metadata and expose true "
+            "onboard compass sample age for fusion diagnostics."
+        ),
+    }
+    extensions = baseline["intentional_extensions"]
+    for relative, purpose in purposes.items():
+        if relative not in extensions:
+            raise RuntimeError(f"Reviewed baseline extension missing: {relative}")
+        extensions[relative]["patched_sha256"] = digest(root / relative)
+        extensions[relative]["purpose"] = purpose
+    baseline_path.write_text(json.dumps(baseline, indent=2) + "\n", encoding="utf-8")
+
+
+def update_manifest(root: Path, firmware: Path | None = None) -> None:
+    manifest_path = root / "RELEASE-MANIFEST.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["version"] = VERSION
+    manifest["source_date_epoch"] = SOURCE_DATE_EPOCH
+    manifest["artifact"] = {
+        "filename": f"Flight-Commander-Firmware-{VERSION}-MICOAIR743.hex",
+        "sha256": digest(firmware) if firmware else "0" * 64,
+        "bytes": firmware.stat().st_size if firmware else 0,
+    }
+    manifest["heading_source_liveness"] = {
+        "root_causes": [
+            (
+                "IST8310 recovery waited for 20 missed 40 Hz task calls, so it "
+                "began at the same 500 ms boundary used to declare the compass unhealthy"
+            ),
+            (
+                "fusion hard-rejected otherwise fresh magnetic samples below quality "
+                "25 instead of applying INAV soft weighting"
+            ),
+            (
+                "the first valid Flight Commander heading set the initialized flag "
+                "without initializing the yaw quaternion"
+            ),
+        ],
+        "driver_recovery": (
+            "75 ms time-based conversion timeout; retrigger once, then perform a "
+            "nonblocking reset/reconfigure on the second consecutive timeout"
+        ),
+        "field_quality": (
+            "fresh nonzero samples remain valid down to quality 1 and quality "
+            "continuously scales AHRS authority"
+        ),
+        "startup_yaw": (
+            "first fused magnetic heading with quality at least 10, or any validated "
+            "moving-baseline heading, seeds the quaternion once while disarmed"
+        ),
+        "diagnostics": (
+            "heading status reports real sensor sample age and preserves quality even "
+            "when a fresh sample is rejected"
+        ),
+    }
+    clean_bytecode(root)
+    revision, tree = source_identities(root)
     if revision != EXPECTED_REVISION:
         raise RuntimeError(f"Unexpected reviewed source revision: {revision}")
     if tree != EXPECTED_TREE:
@@ -17,73 +77,3 @@ def verify_source(root: Path) -> None:
     namespace["verify_source"](root)
 
 
-def create_source_zip(root: Path, destination: Path) -> None:
-    manifest = json.loads((root / "RELEASE-MANIFEST.json").read_text(encoding="utf-8"))
-    stamp = time.gmtime(manifest["source_date_epoch"])[:6]
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    destination.unlink(missing_ok=True)
-    clean_bytecode(root)
-    with zipfile.ZipFile(destination, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
-        for path in sorted(root.rglob("*")):
-            if not path.is_file():
-                continue
-            relative = Path(root.name) / path.relative_to(root)
-            info = zipfile.ZipInfo(relative.as_posix(), stamp)
-            info.create_system = 3
-            mode = 0o755 if path.suffix in {".sh", ".py"} else 0o644
-            info.external_attr = (stat.S_IFREG | mode) << 16
-            info.compress_type = zipfile.ZIP_DEFLATED
-            archive.writestr(
-                info,
-                path.read_bytes(),
-                compress_type=zipfile.ZIP_DEFLATED,
-                compresslevel=9,
-            )
-
-
-def prepare(archive: Path, output: Path, patch: Path) -> Path:
-    root = extract_archive(archive, output)
-    apply_patch(root, patch)
-    update_reviewed_baseline(root)
-    update_manifest(root)
-    verify_source(root)
-    return root
-
-
-def finalize(root: Path, firmware: Path, source_zip: Path) -> None:
-    if not root.is_dir() or not firmware.is_file():
-        raise RuntimeError("Prepared source root or compiled firmware is missing")
-    update_manifest(root, firmware)
-    verify_source(root)
-    create_source_zip(root, source_zip)
-
-
-def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--archive", type=Path)
-    parser.add_argument("--output", type=Path)
-    parser.add_argument("--patch", type=Path)
-    parser.add_argument("--finalize-root", type=Path)
-    parser.add_argument("--firmware", type=Path)
-    parser.add_argument("--source-zip", type=Path)
-    args = parser.parse_args()
-
-    preparing = args.archive is not None or args.output is not None or args.patch is not None
-    finalizing = args.finalize_root is not None or args.firmware is not None or args.source_zip is not None
-    if preparing == finalizing:
-        parser.error("select exactly one of prepare or finalize mode")
-
-    if preparing:
-        if args.archive is None or args.output is None or args.patch is None:
-            parser.error("prepare mode requires --archive, --output, and --patch")
-        print(prepare(args.archive.resolve(), args.output.resolve(), args.patch.resolve()))
-        return
-
-    if args.finalize_root is None or args.firmware is None or args.source_zip is None:
-        parser.error("finalize mode requires --finalize-root, --firmware, and --source-zip")
-    finalize(args.finalize_root.resolve(), args.firmware.resolve(), args.source_zip.resolve())
-    print(args.source_zip.resolve())
-
-
-if __name__ == "__main__":
-    main()
