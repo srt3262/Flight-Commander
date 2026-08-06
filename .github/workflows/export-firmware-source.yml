@@ -1,12 +1,12 @@
 name: Export retained firmware source snapshot
 
 "on":
+  push:
+    branches:
+      - agent/auto-compass-vector-matching
   pull_request:
     branches:
       - main
-    paths:
-      - .github/workflows/export-firmware-source.yml
-      - release/firmware/Flight-Commander-Firmware-Source-v4.0.5.zip
   workflow_dispatch:
 
 permissions:
