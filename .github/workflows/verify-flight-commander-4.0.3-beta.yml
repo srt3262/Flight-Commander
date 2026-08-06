@@ -1,0 +1,206 @@
+name: Verify Flight Commander 4.0.3 beta release assets
+
+"on":
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/verify-flight-commander-4.0.3-beta.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-release-assets:
+    name: Audit published 4.0.3 beta assets
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      RELEASE_TAG: v4.0.3-beta
+      RELEASE_SHA: aad847a9e46b3d9a6c844f21633c80ae1a546950
+      VERSION: 4.0.3
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Check out verification source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Read and download the published prerelease
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release view "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --json name,tagName,isPrerelease,targetCommitish,publishedAt,url,assets \
+            > release-view.json
+          rm -rf release-assets
+          mkdir release-assets
+          gh release download "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --dir release-assets \
+            --clobber
+          git fetch --force origin \
+            "refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"
+          test "$(git rev-list -n 1 "$RELEASE_TAG")" = "$RELEASE_SHA"
+
+      - name: Audit asset set, bundle members and hashes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from __future__ import annotations
+
+          import hashlib
+          import json
+          import os
+          import zipfile
+          from pathlib import Path
+
+          version = os.environ["VERSION"]
+          release_tag = os.environ["RELEASE_TAG"]
+          release_sha = os.environ["RELEASE_SHA"]
+          release = json.loads(Path("release-view.json").read_text(encoding="utf-8"))
+
+          expected_components = {
+              f"FC-Windows-v{version}.zip",
+              f"FC-Configurator-Source-v{version}.zip",
+              f"FC-Firmware-v{version}-MICOAIR743.hex",
+              f"FC-Firmware-Source-v{version}.zip",
+          }
+          complete_name = f"Flight-Commander-v{version}.zip"
+          retained_firmware = f"Flight-Commander-Firmware-{version}-MICOAIR743.hex"
+          retained_source = f"Flight-Commander-Firmware-Source-v{version}.zip"
+          expected_assets = expected_components | {
+              complete_name,
+              retained_firmware,
+              retained_source,
+              "SHA256SUMS.txt",
+              "release-manifest.json",
+          }
+
+          assert release["tagName"] == release_tag, release
+          assert release["isPrerelease"] is True, release
+          assert release["targetCommitish"] == release_sha, release
+          assert release.get("publishedAt"), release
+          assert release.get("url"), release
+
+          release_assets = {asset["name"]: asset for asset in release["assets"]}
+          assert set(release_assets) == expected_assets, (
+              sorted(release_assets),
+              sorted(expected_assets),
+          )
+          for name, asset in release_assets.items():
+              assert int(asset["size"]) > 0, (name, asset)
+
+          root = Path("release-assets")
+          downloaded = {path.name: path for path in root.iterdir() if path.is_file()}
+          assert set(downloaded) == expected_assets, (
+              sorted(downloaded),
+              sorted(expected_assets),
+          )
+
+          def sha256(path: Path) -> str:
+              return hashlib.sha256(path.read_bytes()).hexdigest()
+
+          complete = downloaded[complete_name]
+          with zipfile.ZipFile(complete) as archive:
+              assert archive.testzip() is None
+              members = {
+                  info.filename: info
+                  for info in archive.infolist()
+                  if not info.is_dir()
+              }
+              assert set(members) == expected_components, (
+                  sorted(members),
+                  sorted(expected_components),
+              )
+              for name in expected_components:
+                  assert hashlib.sha256(archive.read(name)).hexdigest() == sha256(
+                      downloaded[name]
+                  ), name
+
+          assert downloaded[retained_firmware].read_bytes() == downloaded[
+              f"FC-Firmware-v{version}-MICOAIR743.hex"
+          ].read_bytes()
+          assert downloaded[retained_source].read_bytes() == downloaded[
+              f"FC-Firmware-Source-v{version}.zip"
+          ].read_bytes()
+
+          sums: dict[str, str] = {}
+          for raw_line in downloaded["SHA256SUMS.txt"].read_text(
+              encoding="ascii"
+          ).splitlines():
+              digest, filename = raw_line.split(None, 1)
+              sums[filename.strip()] = digest.lower()
+          expected_sums = expected_components | {complete_name}
+          assert set(sums) == expected_sums, (sorted(sums), sorted(expected_sums))
+          for name, digest in sums.items():
+              assert sha256(downloaded[name]) == digest, name
+
+          manifest = json.loads(
+              downloaded["release-manifest.json"].read_text(encoding="utf-8-sig")
+          )
+          assert manifest["version"] == version, manifest
+          assert manifest["prerelease"] is True, manifest
+          assert manifest["tag"] == release_tag, manifest
+          assert manifest["commitSha"] == release_sha, manifest
+          assert manifest["componentCount"] == 4, manifest
+          assert manifest["completeBundle"] == complete_name, manifest
+
+          report = {
+              "releaseUrl": release["url"],
+              "tag": release_tag,
+              "targetCommit": release_sha,
+              "publishedAt": release["publishedAt"],
+              "assetCount": len(expected_assets),
+              "assets": {
+                  name: {
+                      "bytes": downloaded[name].stat().st_size,
+                      "sha256": sha256(downloaded[name]),
+                  }
+                  for name in sorted(downloaded)
+              },
+              "completeBundleMembers": sorted(expected_components),
+              "status": "PASS",
+          }
+          Path("release-audit.json").write_text(
+              json.dumps(report, indent=2) + "\n",
+              encoding="utf-8",
+          )
+          print(json.dumps(report, indent=2))
+          PY
+
+      - name: Publish audit summary
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          from pathlib import Path
+
+          report = json.loads(Path("release-audit.json").read_text())
+          print("# Flight Commander 4.0.3 beta release audit: PASS")
+          print()
+          print(f"- Release: {report['releaseUrl']}")
+          print(f"- Target commit: `{report['targetCommit']}`")
+          print(f"- Uploaded assets: {report['assetCount']}")
+          print("- Complete bundle members: exactly four")
+          print()
+          for name in report["completeBundleMembers"]:
+              asset = report["assets"][name]
+              print(f"  - `{name}` — {asset['bytes']} bytes — `{asset['sha256']}`")
+          PY
+
+      - name: Retain the audit and complete bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: verified-flight-commander-4.0.3-beta
+          retention-days: 30
+          if-no-files-found: error
+          path: |
+            release-audit.json
+            release-assets/Flight-Commander-v4.0.3.zip
