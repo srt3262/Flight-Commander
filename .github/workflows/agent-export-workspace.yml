@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   export-workspace:
-    runs-on: macos-latest
+    runs-on: ubuntu-slim
     timeout-minutes: 15
     steps:
       - name: Clone exact pull-request branch without marketplace actions
