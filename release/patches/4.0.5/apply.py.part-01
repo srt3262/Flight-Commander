@@ -1,0 +1,120 @@
+        """            Firmware 4.0.3 permanently separates the fixed onboard
+            chip-to-board transform from the saved user alignment. The Alignment
+            tab now starts at CW 0 degrees after reset or migration, preserves any
+            manually selected onboard alignment or custom angles across reboot,
+            and never changes the driver's physical sensor transform. Changing the
+            saved alignment deliberately invalidates the previous calibration
+            signature, so calibration is performed in the same coordinate system
+            that will be used for heading. Local Flight Commander firmware remains
+            validated by Intel HEX content, embedded FCFW identity, and target
+            compatibility instead of requiring a particular filename.
+""",
+        """            Firmware 4.0.5 keeps the accepted MICOAIR743 IST8310
+            transform and the 4.0.4 time-based sensor recovery, then separates
+            sample freshness, heading availability, displayed field quality and
+            fusion authority. A fresh stationary magnetic heading remains usable
+            at displayed quality 0 with only a one-percent authority floor, and
+            four stable samples initialize yaw through a dedicated startup state
+            that is not blocked by the legacy GPS-heading flag. Disabled heading
+            sources now reset, migrate and save with weight 0. The online flasher
+            offers 4.0.5 and later only, removing the previously failed firmware
+            revisions from its selectable list while local-file loading remains
+            content- and target-validated.
+""",
+    )
+    replace_once(
+        "js/main/ntripClient.js",
+        "User-Agent: NTRIP FlightCommander/4.0.3",
+        "User-Agent: NTRIP FlightCommander/4.0.5",
+    )
+
+    relative = "tests/flight-commander/packaging/package-contract.test.mjs"
+    text = read_text(relative)
+    replacements = (
+        ('firmwareReleaseVersion, "4.0.3"', 'firmwareReleaseVersion, "4.0.5"'),
+        ('firmwareSourceVersion, "4.0.3"', 'firmwareSourceVersion, "4.0.5"'),
+        ('"release/firmware/Flight-Commander-Firmware-Source-v4.0.3.zip"', '"release/firmware/Flight-Commander-Firmware-Source-v4.0.5.zip"'),
+        ('packageManifest.version, "4.0.3"', 'packageManifest.version, "4.0.5"'),
+        (
+            'FLIGHT_COMMANDER_MINIMUM_SUPPORTED_FIRMWARE_VERSION = "4\\.0\\.0"',
+            'FLIGHT_COMMANDER_MINIMUM_SUPPORTED_FIRMWARE_VERSION = "4\\.0\\.5"',
+        ),
+    )
+    for old, new in replacements:
+        if text.count(old) != 1:
+            raise RuntimeError(f"{relative}: expected one occurrence of {old!r}")
+        text = text.replace(old, new, 1)
+    write_text(relative, text)
+
+
+def patch_publish_workflow() -> None:
+    replace_once(
+        ".github/workflows/publish-flight-commander-beta.yml",
+        """          node --test \\
+            tests/flight-commander/firmware/flight-commander-catalog.test.mjs \\
+            tests/flight-commander/firmware/onboard-ist8310-transform.test.mjs
+""",
+        """          node --test \\
+            tests/flight-commander/firmware/flight-commander-catalog.test.mjs \\
+            tests/flight-commander/firmware/heading-fusion.test.mjs \\
+            tests/flight-commander/firmware/heading-source-liveness.test.mjs \\
+            tests/flight-commander/firmware/onboard-ist8310-transform.test.mjs
+""",
+    )
+
+
+def patch_firmware_catalog() -> None:
+    replace_once(
+        "js/flightCommander/firmwareCatalog.js",
+        'export const FLIGHT_COMMANDER_MINIMUM_SUPPORTED_FIRMWARE_VERSION = "4.0.0";',
+        'export const FLIGHT_COMMANDER_MINIMUM_SUPPORTED_FIRMWARE_VERSION = "4.0.5";',
+    )
+
+
+def patch_heading_configurator() -> None:
+    relative = "js/flightCommander/headingFusion.js"
+    replace_once(
+        relative,
+        """export const HEADING_SOURCE_COUNT = 4;
+export const HEADING_SOURCE_NONE = 255;
+
+export const BASELINE_PROVIDER_AUTO = 0;
+""",
+        """export const HEADING_SOURCE_COUNT = 4;
+export const HEADING_SOURCE_NONE = 255;
+export const HEADING_SOURCE_DEFAULT_ENABLED_WEIGHTS = Object.freeze([100, 75, 50, 25]);
+export const HEADING_SOURCE_NO_SAMPLE_AGE = 0xffff;
+
+export function defaultHeadingSourceWeight(index) {
+    return HEADING_SOURCE_DEFAULT_ENABLED_WEIGHTS[Number(index)] ?? 0;
+}
+
+export function diagnoseHeadingSourceAvailability(source, {
+    timeoutMs = 750,
+    magnetic = true,
+} = {}) {
+    const ageMs = Number(source?.ageMs);
+    const quality = Number.isFinite(Number(source?.quality))
+        ? Math.max(0, Math.min(100, Number(source.quality)))
+        : 0;
+    const normalizedTimeout = Number.isFinite(Number(timeoutMs))
+        ? Math.max(0, Number(timeoutMs))
+        : 750;
+
+    if (!source || !Number.isFinite(ageMs) || ageMs === HEADING_SOURCE_NO_SAMPLE_AGE) {
+        return {
+            reason: 'no-sample',
+            label: 'No source sample',
+            stateClass: 'is-stale',
+            ageMs: null,
+            quality,
+        };
+    }
+
+    if (ageMs > normalizedTimeout) {
+        return {
+            reason: 'stale',
+            label: `Stale sample · ${ageMs} ms`,
+            stateClass: 'is-stale',
+            ageMs,
+            quality,
