@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   apply-configurator:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     timeout-minutes: 15
     steps:
       - name: Check out the development branch
