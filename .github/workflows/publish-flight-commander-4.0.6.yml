@@ -114,6 +114,21 @@ jobs:
             --workspace "$GITHUB_WORKSPACE" \
             --temp "$RUNNER_TEMP/fc406-firmware"
 
+      - name: Prepare the canonical release source tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          ci = Path('.github/workflows/ci.yml')
+          text = ci.read_text(encoding='utf-8')
+          guard = "    if: $" + "{{ github.event_name != 'push' || !contains(github.event.head_commit.message, 'Start Flight Commander 4.0.6 release') }}\n"
+          text = text.replace(guard, '')
+          ci.write_text(text, encoding='utf-8')
+          PY
+          rm -f .github/workflows/publish-flight-commander-4.0.6.yml \
+            .flight-commander/publish-4.0.6.trigger
+
       - name: Test and package the coordinated release
         shell: bash
         run: |
@@ -182,12 +197,6 @@ jobs:
           import os
           from pathlib import Path
 
-          ci = Path('.github/workflows/ci.yml')
-          text = ci.read_text(encoding='utf-8')
-          guard = "    if: $" + "{{ github.event_name != 'push' || !contains(github.event.head_commit.message, 'Start Flight Commander 4.0.6 release') }}\n"
-          text = text.replace(guard, '')
-          ci.write_text(text, encoding='utf-8')
-
           root = Path('release-candidate/Flight-Commander-v4.0.6')
           sums = {}
           for raw in (root / 'SHA256SUMS.txt').read_text(encoding='utf-8').splitlines():
@@ -211,9 +220,8 @@ jobs:
           path.write_text(json.dumps(marker, indent=2) + '\n', encoding='utf-8')
           print(json.dumps(marker, indent=2))
           PY
-          rm -f .flight-commander/4.0.6-build-inputs.part-* \
-            .flight-commander/publish-4.0.6.trigger \
-            .github/workflows/publish-flight-commander-4.0.6.yml
+          rm -f .flight-commander/4.0.6-build-inputs.part-*
+          printf '%s\n' 'release-candidate/' >> .git/info/exclude
           git add -A
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
