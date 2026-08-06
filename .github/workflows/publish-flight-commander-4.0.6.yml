@@ -1,0 +1,279 @@
+name: Publish Flight Commander 4.0.6 beta
+run-name: Build, publish and verify Flight Commander 4.0.6 beta
+
+"on":
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/publish-flight-commander-4.0.6.yml
+      - .flight-commander/publish-4.0.6.trigger
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: publish-flight-commander-4.0.6
+  cancel-in-progress: false
+
+env:
+  FC_VERSION: 4.0.6
+  FC_TAG: v4.0.6-beta
+  FC_INPUT_SHA256: 4ce68e3b8b72711420e6da4e57bbdb3c56b45caff7d5967e59f8312519a58349
+  XPACK_URL: https://github.com/xpack-dev-tools/arm-none-eabi-gcc-xpack/releases/download/v13.2.1-1.1/xpack-arm-none-eabi-gcc-13.2.1-1.1-win32-x64.zip
+  XPACK_SHA256: 56b18ccb0a50f536332ec5de57799342ff0cd005ca2c54288c74759b51929e4f
+
+jobs:
+  build-publish-verify:
+    name: Build four deliverables, publish and verify
+    runs-on: windows-latest
+    timeout-minutes: 180
+
+    steps:
+      - name: Check out the exact release trigger
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Expand checksum-guarded 4.0.6 inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          encoded="$RUNNER_TEMP/fc406-inputs.b64"
+          payload="$RUNNER_TEMP/fc406-inputs.tar.xz"
+          cat .flight-commander/4.0.6-build-inputs.part-* > "$encoded"
+          python - "$encoded" "$payload" "$FC_INPUT_SHA256" <<'PY'
+          import base64, hashlib, sys, tarfile
+          from pathlib import Path
+          encoded, payload, expected = Path(sys.argv[1]), Path(sys.argv[2]), sys.argv[3]
+          payload.write_bytes(base64.b64decode(encoded.read_text(encoding='ascii'), validate=False))
+          actual = hashlib.sha256(payload.read_bytes()).hexdigest()
+          if actual != expected:
+              raise SystemExit(f'4.0.6 input SHA-256 mismatch: {actual}')
+          with tarfile.open(payload, mode='r:xz') as archive:
+              archive.extractall(Path.cwd())
+          print(f'Expanded verified 4.0.6 build inputs: {actual}')
+          PY
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: '3.12'
+
+      - name: Install verified Arm GNU Toolchain 13.2.1
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $archive = Join-Path $env:RUNNER_TEMP 'xpack-arm-none-eabi-gcc-13.2.1-1.1-win32-x64.zip'
+          $root = Join-Path $env:RUNNER_TEMP 'xpack-arm-none-eabi-gcc'
+          Invoke-WebRequest -Uri $env:XPACK_URL -OutFile $archive
+          $actual = (Get-FileHash -Algorithm SHA256 -LiteralPath $archive).Hash.ToLowerInvariant()
+          if ($actual -ne $env:XPACK_SHA256) {
+            throw "xPack Arm toolchain SHA-256 mismatch: $actual"
+          }
+          Expand-Archive -LiteralPath $archive -DestinationPath $root -Force
+          $toolchain = Get-ChildItem -LiteralPath $root -Directory |
+            Where-Object { $_.Name -like 'xpack-arm-none-eabi-gcc-*' } |
+            Select-Object -First 1
+          if (-not $toolchain) { throw 'Extracted Arm toolchain directory was not found.' }
+          $bin = Join-Path $toolchain.FullName 'bin'
+          $bin | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          "ARM_TOOLCHAIN_BIN=$bin" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: yarn
+          cache-dependency-path: yarn.lock
+
+      - name: Enable pinned Yarn and verify build tools
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          corepack enable
+          corepack prepare yarn@1.22.22 --activate
+          yarn --version
+          python --version
+          cmake --version
+          ninja --version
+          bash --version
+          $version = (& arm-none-eabi-gcc -dumpfullversion -dumpversion).Trim()
+          if ($version -ne '13.2.1') { throw "Arm GCC 13.2.1 required; found $version" }
+          arm-none-eabi-gcc --version
+
+      - name: Build and verify MICOAIR743 firmware
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/build-flight-commander-4.0.6.py firmware \
+            --workspace "$GITHUB_WORKSPACE" \
+            --temp "$RUNNER_TEMP/fc406-firmware"
+
+      - name: Prepare the canonical release source tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          ci = Path('.github/workflows/ci.yml')
+          text = ci.read_text(encoding='utf-8')
+          guard = "    if: $" + "{{ github.event_name != 'push' || !contains(github.event.head_commit.message, 'Start Flight Commander 4.0.6 release') }}\n"
+          text = text.replace(guard, '')
+          ci.write_text(text, encoding='utf-8')
+          PY
+          rm -f .github/workflows/publish-flight-commander-4.0.6.yml \
+            .flight-commander/publish-4.0.6.trigger
+
+      - name: Test and package the coordinated release
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/build-flight-commander-4.0.6.py release \
+            --workspace "$GITHUB_WORKSPACE" \
+            --firmware-dir "$RUNNER_TEMP/fc406-firmware" \
+            --output "$GITHUB_WORKSPACE/release-candidate/Flight-Commander-v4.0.6"
+
+      - name: Verify exact four-file complete ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib, zipfile
+          from pathlib import Path
+          root = Path('release-candidate/Flight-Commander-v4.0.6')
+          complete = root / 'Flight-Commander-v4.0.6.zip'
+          expected = sorted([
+              'FC-Windows-v4.0.6.zip',
+              'FC-Configurator-Source-v4.0.6.zip',
+              'FC-Firmware-v4.0.6-MICOAIR743.hex',
+              'FC-Firmware-Source-v4.0.6.zip',
+          ])
+          disk = sorted(path.name for path in root.iterdir() if path.is_file() and path.name.startswith('FC-'))
+          if disk != expected:
+              raise SystemExit(f'Canonical component mismatch: {disk}')
+          with zipfile.ZipFile(complete) as archive:
+              names = sorted(info.filename for info in archive.infolist() if not info.is_dir())
+              if names != expected:
+                  raise SystemExit(f'Complete bundle mismatch: {names}')
+              for name in expected:
+                  local_hash = hashlib.sha256((root / name).read_bytes()).digest()
+                  archived_hash = hashlib.sha256(archive.read(name)).digest()
+                  if local_hash != archived_hash:
+                      raise SystemExit(f'Byte mismatch inside bundle: {name}')
+          print('Flight Commander 4.0.6 bundle contains exactly four byte-matched deliverables.')
+          PY
+
+      - name: Remove retained duplicate workflow artifacts
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for artifact_id in 8966074845 8965978980 8965846690; do
+            gh api --method DELETE "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}" || true
+          done
+
+      - name: Upload verified release for direct download
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: flight-commander-4.0.6-release-downloads
+          path: release-candidate/Flight-Commander-v4.0.6/**
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+      - name: Integrate the verified 4.0.6 source into main
+        id: integrate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          root = Path('release-candidate/Flight-Commander-v4.0.6')
+          sums = {}
+          for raw in (root / 'SHA256SUMS.txt').read_text(encoding='utf-8').splitlines():
+              digest, name = raw.split('  ', 1)
+              sums[name] = digest
+          marker = {
+              'version': '4.0.6',
+              'tag': 'v4.0.6-beta',
+              'workflow_run_id': int(os.environ['GITHUB_RUN_ID']),
+              'workflow_run_attempt': int(os.environ['GITHUB_RUN_ATTEMPT']),
+              'trigger_sha': os.environ['GITHUB_SHA'],
+              'artifact_name': 'flight-commander-4.0.6-release-downloads',
+              'bundle_sha256': sums['Flight-Commander-v4.0.6.zip'],
+              'component_sha256': {
+                  name: digest for name, digest in sums.items()
+                  if name.startswith('FC-')
+              },
+          }
+          path = Path('release/published/v4.0.6-beta-build.json')
+          path.parent.mkdir(parents=True, exist_ok=True)
+          path.write_text(json.dumps(marker, indent=2) + '\n', encoding='utf-8')
+          print(json.dumps(marker, indent=2))
+          PY
+          rm -f .flight-commander/4.0.6-build-inputs.part-*
+          printf '%s\n' 'release-candidate/' >> .git/info/exclude
+          git add -A
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Flight Commander 4.0.6: learned compass orientation'
+          git push origin HEAD:main
+          integrated_sha="$(git rev-parse HEAD)"
+          echo "integrated_sha=$integrated_sha" >> "$GITHUB_OUTPUT"
+          echo "Integrated source commit: $integrated_sha"
+
+      - name: Publish the 4.0.6 beta prerelease
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INTEGRATED_SHA: ${{ steps.integrate.outputs.integrated_sha }}
+        run: |
+          set -euo pipefail
+          tag="$FC_TAG"
+          root='release-candidate/Flight-Commander-v4.0.6'
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release delete "$tag" --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag
+          fi
+          gh release create "$tag" \
+            "$root/FC-Windows-v4.0.6.zip" \
+            "$root/FC-Configurator-Source-v4.0.6.zip" \
+            "$root/FC-Firmware-v4.0.6-MICOAIR743.hex" \
+            "$root/FC-Firmware-Source-v4.0.6.zip" \
+            "$root/Flight-Commander-v4.0.6.zip" \
+            "$root/SHA256SUMS.txt" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$INTEGRATED_SHA" \
+            --title 'Flight Commander 4.0.6 Beta' \
+            --notes-file release/notes/v4.0.6-beta.md \
+            --prerelease
+
+      - name: Re-download and verify the published complete bundle
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INTEGRATED_SHA: ${{ steps.integrate.outputs.integrated_sha }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $published = Join-Path $env:RUNNER_TEMP 'published-fc406'
+          New-Item -ItemType Directory -Force -Path $published | Out-Null
+          gh release download $env:FC_TAG --repo $env:GITHUB_REPOSITORY `
+            --pattern 'Flight-Commander-v4.0.6.zip' --dir $published
+          $local = 'release-candidate/Flight-Commander-v4.0.6/Flight-Commander-v4.0.6.zip'
+          $remote = Join-Path $published 'Flight-Commander-v4.0.6.zip'
+          $localHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $local).Hash
+          $remoteHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $remote).Hash
+          if ($localHash -ne $remoteHash) { throw 'Published bundle is not byte-identical to the verified local bundle.' }
+          $release = gh release view $env:FC_TAG --repo $env:GITHUB_REPOSITORY `
+            --json url,tagName,isPrerelease,targetCommitish,publishedAt,assets | ConvertFrom-Json
+          if (-not $release.isPrerelease) { throw 'Published release is not marked as a prerelease.' }
+          if ($release.targetCommitish -ne $env:INTEGRATED_SHA) { throw 'Published tag target does not match integrated source.' }
+          $release | ConvertTo-Json -Depth 8
