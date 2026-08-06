@@ -1,0 +1,60 @@
+    },
+  ]);
+  assert.deepEqual(descriptors.map(({ version }) => version), ["4.0.5"]);
+});
+'''
+    write_text(catalog, text)
+
+    heading_test = "tests/flight-commander/firmware/heading-fusion.test.mjs"
+    replace_once(
+        heading_test,
+        """  clearLegacyCompassYawOffsets,
+  createDefaultHeadingConfig,
+  decodeHeadingConfig,
+  decodeHeadingStatus,
+""",
+        """  clearDisabledHeadingSourceWeights,
+  clearLegacyCompassYawOffsets,
+  createDefaultHeadingConfig,
+  defaultHeadingSourceWeight,
+  decodeHeadingConfig,
+  decodeHeadingStatus,
+  diagnoseHeadingSourceAvailability,
+""",
+    )
+    replace_once(
+        heading_test,
+        "test('default heading priorities are unique and weights follow priority order'",
+        "test('default heading priorities are unique and disabled weights are zero'",
+    )
+    replace_once(
+        heading_test,
+        "assert.deepEqual(config.sources.map((source) => source.weight), [100, 75, 50, 25]);",
+        "assert.deepEqual(config.sources.map((source) => source.weight), [100, 0, 0, 0]);",
+    )
+    replace_once(
+        heading_test,
+        """  config.sources[HEADING_SOURCE_EXTERNAL_I2C_MAG].enabled = true;
+  config.sources[HEADING_SOURCE_EXTERNAL_I2C_MAG].priority = 1;
+""",
+        """  config.sources[HEADING_SOURCE_EXTERNAL_I2C_MAG].enabled = true;
+  config.sources[HEADING_SOURCE_EXTERNAL_I2C_MAG].weight = defaultHeadingSourceWeight(HEADING_SOURCE_EXTERNAL_I2C_MAG);
+  config.sources[HEADING_SOURCE_EXTERNAL_I2C_MAG].priority = 1;
+""",
+    )
+    replace_once(
+        heading_test,
+        """  config.sources[HEADING_SOURCE_EXTERNAL_I2C_MAG].enabled = true;
+  config.sources[HEADING_SOURCE_EXTERNAL_I2C_MAG].priority = 2;
+  config.maxDisagreementCentidegrees = 3000;
+""",
+        """  config.sources[HEADING_SOURCE_EXTERNAL_I2C_MAG].enabled = true;
+  config.sources[HEADING_SOURCE_EXTERNAL_I2C_MAG].priority = 2;
+  config.sources[HEADING_SOURCE_EXTERNAL_I2C_MAG].weight = defaultHeadingSourceWeight(HEADING_SOURCE_EXTERNAL_I2C_MAG);
+  config.maxDisagreementCentidegrees = 3000;
+""",
+    )
+    write_text(
+        heading_test,
+        read_text(heading_test)
+        + '''
