@@ -1,0 +1,110 @@
+name: One-time Flight Commander 4.0.6 bootstrap
+
+"on":
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: write
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: bootstrap-flight-commander-4.0.6
+  cancel-in-progress: true
+
+jobs:
+  bootstrap:
+    name: Dispatch canonical 4.0.6 publisher once
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out main
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Find or dispatch the canonical publisher
+        id: dispatch
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          workflow='publish-flight-commander-4.0.6.yml'
+          active="$(gh run list \
+            --repo "$GITHUB_REPOSITORY" \
+            --workflow "$workflow" \
+            --limit 20 \
+            --json databaseId,url,status,event,createdAt \
+            --jq '[.[] | select(.status != "completed")][0] | if . == null then "" else "\(.databaseId)\t\(.url)\t\(.status)\t\(.event)\t\(.createdAt)" end')"
+
+          if [[ -n "$active" ]]; then
+            run="$active"
+          else
+            before="$(date -u +%s)"
+            gh workflow run "$workflow" --repo "$GITHUB_REPOSITORY" --ref main
+            run=''
+            for attempt in {1..24}; do
+              candidate="$(gh run list \
+                --repo "$GITHUB_REPOSITORY" \
+                --workflow "$workflow" \
+                --event workflow_dispatch \
+                --limit 5 \
+                --json databaseId,url,status,event,createdAt \
+                --jq '.[0] | if . == null then "" else "\(.databaseId)\t\(.url)\t\(.status)\t\(.event)\t\(.createdAt)" end')"
+              if [[ -n "$candidate" ]]; then
+                created="$(cut -f5 <<< "$candidate")"
+                created_epoch="$(date -u -d "$created" +%s)"
+                if (( created_epoch >= before )); then
+                  run="$candidate"
+                  break
+                fi
+              fi
+              sleep 5
+            done
+            if [[ -z "$run" ]]; then
+              echo 'Workflow dispatch was accepted but its run was not listed within the bootstrap window.' >&2
+              exit 1
+            fi
+          fi
+
+          IFS=$'\t' read -r run_id run_url run_status run_event created_at <<< "$run"
+          {
+            echo "run_id=$run_id"
+            echo "run_url=$run_url"
+            echo "run_status=$run_status"
+            echo "run_event=$run_event"
+            echo "created_at=$created_at"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Report canonical publisher run
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ steps.dispatch.outputs.run_id }}
+          RUN_URL: ${{ steps.dispatch.outputs.run_url }}
+          RUN_STATUS: ${{ steps.dispatch.outputs.run_status }}
+          RUN_EVENT: ${{ steps.dispatch.outputs.run_event }}
+          CREATED_AT: ${{ steps.dispatch.outputs.created_at }}
+        run: |
+          set -euo pipefail
+          gh issue comment 21 --repo "$GITHUB_REPOSITORY" --body \
+            "Canonical Flight Commander 4.0.6 publisher run **${RUN_ID}** is ${RUN_STATUS} (event: ${RUN_EVENT}): ${RUN_URL} — created ${CREATED_AT}."
+
+      - name: Remove one-time dispatch helpers
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm -f \
+            .github/workflows/bootstrap-flight-commander-4.0.6.yml \
+            .github/workflows/manual-release-command.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'ci: remove one-time 4.0.6 dispatch helpers'
+          git push origin HEAD:main
