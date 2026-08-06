@@ -15,8 +15,8 @@ concurrency:
 
 jobs:
   firmware:
-    runs-on: ubuntu-latest
-    timeout-minutes: 35
+    runs-on: macos-13
+    timeout-minutes: 40
     steps:
       - name: Check out candidate
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -27,20 +27,19 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y cmake ninja-build curl xz-utils unzip zip python3
+          brew install ninja coreutils
 
       - name: Install Arm GNU Toolchain 13.2.1
         shell: bash
         run: |
           set -euo pipefail
-          release=arm-gnu-toolchain-13.2.Rel1-x86_64-arm-none-eabi
-          archive=arm-gnu-toolchain-13.2.rel1-x86_64-arm-none-eabi.tar.xz
-          expected=6cd1bbc1d9ae57312bcd169ae283153a9572bd6a8e4eeae2fedfbc33b115fdbb
+          release=arm-gnu-toolchain-13.2.Rel1-darwin-x86_64-arm-none-eabi
+          archive=arm-gnu-toolchain-13.2.rel1-darwin-x86_64-arm-none-eabi.tar.xz
+          expected_md5=41d49840b0fc676d2ae35aab21a58693
           url="https://developer.arm.com/-/media/Files/downloads/gnu/13.2.rel1/binrel/$archive"
           mkdir -p "$RUNNER_TEMP/toolchain"
           curl --fail --location --retry 3 --output "$RUNNER_TEMP/toolchain/$archive" "$url"
-          printf '%s  %s\n' "$expected" "$RUNNER_TEMP/toolchain/$archive" | sha256sum --check --strict
+          test "$(md5 -q "$RUNNER_TEMP/toolchain/$archive")" = "$expected_md5"
           tar -xJf "$RUNNER_TEMP/toolchain/$archive" -C "$RUNNER_TEMP/toolchain"
           echo "$RUNNER_TEMP/toolchain/$release/bin" >> "$GITHUB_PATH"
 
@@ -54,8 +53,8 @@ jobs:
           rm -rf "$work"
           mkdir -p "$work"
           cat "$GITHUB_WORKSPACE"/scripts/flight-commander-firmware-4.0.6.patch.gz.b64.part-* \
-            | base64 --decode \
-            | gzip --decompress > "$patch"
+            | base64 -D \
+            | gzip -dc > "$patch"
           test "$(sha256sum "$patch" | cut -d' ' -f1)" = "9fdc567d3b29f52393d04101b3b4823d9b623a2382b3dd225b625201dce3fd1b"
           unzip -q release/firmware/Flight-Commander-Firmware-Source-v4.0.5.zip -d "$work"
           old="$work/Flight-Commander-Firmware-Source-v4.0.5"
