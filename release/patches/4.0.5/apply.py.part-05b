@@ -1,0 +1,60 @@
+
+
+test('heading diagnostics distinguish missing, stale, and fresh low-quality magnetic samples', () => {
+  assert.deepEqual(
+    diagnoseHeadingSourceAvailability({ ageMs: 0xffff, quality: 0 }, { timeoutMs: 750 }),
+    {
+      reason: 'no-sample',
+      label: 'No source sample',
+      stateClass: 'is-stale',
+      ageMs: null,
+      quality: 0,
+    },
+  );
+  assert.equal(
+    diagnoseHeadingSourceAvailability({ ageMs: 751, quality: 82 }, { timeoutMs: 750 }).label,
+    'Stale sample · 751 ms',
+  );
+  assert.equal(
+    diagnoseHeadingSourceAvailability({ ageMs: 25, quality: 0 }, { timeoutMs: 750 }).label,
+    'Fresh magnetic sample · field quality 0% · 25 ms',
+  );
+  assert.equal(
+    diagnoseHeadingSourceAvailability(
+      { ageMs: 30, quality: 12 },
+      { timeoutMs: 750, magnetic: false },
+    ).label,
+    'Fresh sample rejected · Q12% · 30 ms',
+  );
+});
+
+
+test('disabled heading sources default, decode, validate and migrate to zero weight', () => {
+  const config = createDefaultHeadingConfig();
+  assert.deepEqual(config.sources.map((source) => source.weight), [100, 0, 0, 0]);
+  assert.equal(defaultHeadingSourceWeight(1), 75);
+  config.sources[1].weight = 75;
+  assert.equal(clearDisabledHeadingSourceWeights(config), true);
+  assert.equal(config.sources[1].weight, 0);
+
+  const encoded = encodeHeadingConfig(config, enabledCan);
+  assert.equal(decodeHeadingConfig(encoded).sources[1].weight, 0);
+});
+''',
+    )
+
+    liveness = r'''import assert from 'node:assert/strict';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { after, test } from 'node:test';
+import { fileURLToPath } from 'node:url';
+
+const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
+const packageManifest = JSON.parse(readFileSync(join(projectRoot, 'package.json'), 'utf8'));
+const firmwareVersion = packageManifest.flightCommander.firmwareSourceVersion;
+const firmwareSourceArchive = packageManifest.flightCommander.firmwareSourceArchive;
+const output = mkdtempSync(join(tmpdir(), `flight-commander-${firmwareVersion}-heading-liveness-`));
+const python = process.env.PYTHON || (process.platform === 'win32' ? 'python' : 'python3');
+const archive = join(projectRoot, ...firmwareSourceArchive.split('/'));
