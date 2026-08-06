@@ -1,0 +1,120 @@
+#!/usr/bin/env python3
+"""Apply the coordinated Flight Commander 4.0.5 Configurator release."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import re
+import shutil
+import zipfile
+from pathlib import Path
+
+ROOT = Path.cwd()
+VERSION = "4.0.5"
+PREVIOUS_VERSION = "4.0.3"
+
+
+def digest(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def read_text(relative: str) -> str:
+    return (ROOT / relative).read_text(encoding="utf-8")
+
+
+def write_text(relative: str, value: str) -> None:
+    (ROOT / relative).write_text(value, encoding="utf-8", newline="\n")
+
+
+def replace_once(relative: str, old: str, new: str) -> None:
+    text = read_text(relative)
+    count = text.count(old)
+    if count != 1:
+        raise RuntimeError(
+            f"{relative}: expected one occurrence of {old!r}, found {count}"
+        )
+    write_text(relative, text.replace(old, new, 1))
+
+
+def sub_once(relative: str, pattern: str, replacement: str, label: str) -> None:
+    text = read_text(relative)
+    updated, count = re.subn(
+        pattern,
+        replacement,
+        text,
+        count=1,
+        flags=re.MULTILINE | re.DOTALL,
+    )
+    if count != 1:
+        raise RuntimeError(f"{label}: expected one match, found {count}")
+    write_text(relative, updated)
+
+
+def source_manifest(source_zip: Path) -> dict:
+    suffix = f"Flight-Commander-Firmware-Source-v{VERSION}/RELEASE-MANIFEST.json"
+    with zipfile.ZipFile(source_zip) as archive:
+        bad = archive.testzip()
+        if bad is not None:
+            raise RuntimeError(f"Corrupt firmware source member: {bad}")
+        matches = [name for name in archive.namelist() if name.endswith(suffix)]
+        if len(matches) != 1:
+            raise RuntimeError(f"Expected exactly one {suffix} in {source_zip}")
+        return json.loads(archive.read(matches[0]).decode("utf-8"))
+
+
+def install_artifacts(firmware: Path, source_zip: Path) -> tuple[Path, Path]:
+    destination = ROOT / "release/firmware"
+    destination.mkdir(parents=True, exist_ok=True)
+    installed_firmware = destination / firmware.name
+    installed_source = destination / source_zip.name
+    shutil.copy2(firmware, installed_firmware)
+    shutil.copy2(source_zip, installed_source)
+
+    for path in destination.glob("Flight-Commander-Firmware-*-MICOAIR743.hex"):
+        if path != installed_firmware:
+            path.unlink()
+    for path in destination.glob("Flight-Commander-Firmware-Source-v*.zip"):
+        if path != installed_source:
+            path.unlink()
+    return installed_firmware, installed_source
+
+
+def update_package(firmware: Path, source_zip: Path, source: dict) -> None:
+    path = ROOT / "package.json"
+    package = json.loads(path.read_text(encoding="utf-8"))
+    package["version"] = VERSION
+    fc = package["flightCommander"]
+    fc.update({
+        "firmwareReleaseVersion": VERSION,
+        "firmwareReleaseSha256": digest(firmware),
+        "firmwareChangedInRelease": True,
+        "firmwareSourceAvailable": True,
+        "firmwareSourceVersion": VERSION,
+        "firmwareSourceArchive": f"release/firmware/Flight-Commander-Firmware-Source-v{VERSION}.zip",
+        "firmwareSourceSha256": digest(source_zip),
+        "firmwareSourceRevision": source["source_revision"],
+        "firmwareSourceTree": source["source_tree"],
+    })
+    path.write_text(json.dumps(package, indent=2) + "\n", encoding="utf-8", newline="\n")
+
+
+def update_versioned_files() -> None:
+    manifest_path = ROOT / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["version"] = VERSION
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8", newline="\n")
+
+    replace_once(
+        "tabs/landing.html",
+        "<h2>Flight Commander 4.0.3</h2>",
+        "<h2>Flight Commander 4.0.5</h2>",
+    )
+    replace_once(
+        "tabs/landing.html",
+        "Flight Commander 4.0.3 Beta ships coordinated Configurator and firmware",
+        "Flight Commander 4.0.5 Beta ships coordinated Configurator and firmware",
+    )
+    replace_once(
+        "tabs/landing.html",
