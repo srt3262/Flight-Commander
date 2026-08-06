@@ -34,21 +34,25 @@
       </div>
       <div class="column half text2">
         <div class="wrap">
-          <h2>Flight Commander 4.0.2</h2>
+          <h2>Flight Commander 4.0.3</h2>
           <div>
-            Flight Commander 4.0.2 Beta ships coordinated Configurator and firmware
+            Flight Commander 4.0.3 Beta ships coordinated Configurator and firmware
             builds with matching downloadable source. Its MICOAIR743 firmware
             is built from the official INAV 9.1.0 target while retaining
             reviewed Flight Commander extensions for fresh IST8310 sampling,
             validated compass calibration, and the MICOAIR743 board transform.
             Physical testing established the canonical onboard mapping as
             X=-nativeY, Y=-nativeX, Z=nativeZ with user alignment CW 0 degrees.
-            Firmware 4.0.2 enforces that target-owned alignment at every boot,
-            rejects calibration data stamped for a different transform revision,
-            and prevents restored legacy settings from silently reintroducing the
-            wrong board orientation. The Configurator now validates locally stored
-            Flight Commander firmware by Intel HEX content, embedded FCFW identity,
-            and target compatibility instead of requiring a particular filename.
+            Firmware 4.0.3 permanently separates the fixed onboard
+            chip-to-board transform from the saved user alignment. The Alignment
+            tab now starts at CW 0 degrees after reset or migration, preserves any
+            manually selected onboard alignment or custom angles across reboot,
+            and never changes the driver's physical sensor transform. Changing the
+            saved alignment deliberately invalidates the previous calibration
+            signature, so calibration is performed in the same coordinate system
+            that will be used for heading. Local Flight Commander firmware remains
+            validated by Intel HEX content, embedded FCFW identity, and target
+            compatibility instead of requiring a particular filename.
             Flight Commander adds weighted heading fusion and UART/DroneCAN
             moving-baseline RTK yaw. The GPS and Alignment workflows retain
             per-source diagnostics and editable installation offsets; the fixed
