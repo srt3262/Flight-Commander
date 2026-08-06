@@ -1,5 +1,15 @@
 # Flight Commander 4.0.0
 
+## 4.0.5
+
+- Keep fresh finite magnetic headings available at displayed quality 0 with a
+  one-percent authority floor while preserving the field-quality warning.
+- Initialize disarmed startup yaw after four stable fresh samples using a
+  dedicated state independent of INAV's legacy GPS-heading initialization.
+- Reset, migrate and save disabled heading-source weights as 0.
+- Retire firmware older than 4.0.5 from the online flasher selection list.
+
+
 - Adds one-stage setup for two Holybro/AP_Periph DroneCAN F9P modules used as an aircraft moving-baseline pair.
 - Stores independent navigation, moving-base, moving-rover, compass, and battery node bindings.
 - Configures and verifies AP_Periph `CAN_NODE`, `GPS_TYPE`, `GPS_AUTO_CONFIG`, optional `CAN_TERMINATE`, parameter save, and node restart while disarmed.

@@ -1,3 +1,18 @@
+import assert from 'node:assert/strict';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { after, test } from 'node:test';
+import { fileURLToPath } from 'node:url';
+
+const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
+const packageManifest = JSON.parse(readFileSync(join(projectRoot, 'package.json'), 'utf8'));
+const firmwareVersion = packageManifest.flightCommander.firmwareSourceVersion;
+const firmwareSourceArchive = packageManifest.flightCommander.firmwareSourceArchive;
+const output = mkdtempSync(join(tmpdir(), `flight-commander-${firmwareVersion}-heading-liveness-`));
+const python = process.env.PYTHON || (process.platform === 'win32' ? 'python' : 'python3');
+const archive = join(projectRoot, ...firmwareSourceArchive.split('/'));
 const result = spawnSync(
   python,
   ['-c', 'import sys,zipfile; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])', archive, output],
@@ -49,12 +64,3 @@ test('disabled sources use zero weight in reset, migration and MSP input paths',
   assert.match(fusion, /if \(!config->sources\[index\]\.enabled\) \{\s*config->sources\[index\]\.weight = 0;/);
   assert.match(fusion, /if \(!value\.sources\[index\]\.enabled\) \{\s*value\.sources\[index\]\.weight = 0;/);
 });
-'''
-    write_text("tests/flight-commander/firmware/heading-source-liveness.test.mjs", liveness)
-
-
-def update_docs_and_changelog() -> None:
-    path = ROOT / "docs/HEADING_FUSION.md"
-    text = path.read_text(encoding="utf-8")
-    anchor = """Weight 100 contributes twice as much as weight
-50 at equal measured quality. A weight of zero disables contribution and is
