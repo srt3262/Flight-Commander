@@ -1,0 +1,32 @@
+name: Agent export workspace
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  export-workspace:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out pull request
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Create source workspace archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar --exclude=.git --exclude=flight-commander-workspace.tar.gz -czf flight-commander-workspace.tar.gz .
+
+      - name: Upload source workspace
+        uses: actions/upload-artifact@v4
+        with:
+          name: flight-commander-workspace
+          path: flight-commander-workspace.tar.gz
+          if-no-files-found: error
+          retention-days: 1
