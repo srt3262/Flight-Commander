@@ -1,0 +1,115 @@
+name: Inspect Flight Commander 4.0.5 firmware source
+
+"on":
+  push:
+    branches:
+      - agent/flight-commander-4.0.6
+    paths:
+      - .github/workflows/inspect-flight-commander-4.0.6-firmware.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: inspect-flight-commander-4.0.6-firmware
+  cancel-in-progress: false
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out development branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: agent/flight-commander-4.0.6
+          fetch-depth: 1
+
+      - name: Extract retained 4.0.5 firmware source
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf work/firmware-4.0.5 inspection/firmware-4.0.5
+          mkdir -p work/firmware-4.0.5 inspection/firmware-4.0.5
+          unzip -q release/firmware/Flight-Commander-Firmware-Source-v4.0.5.zip -d work/firmware-4.0.5
+          root="$(find work/firmware-4.0.5 -mindepth 1 -maxdepth 1 -type d | head -n 1)"
+          test -n "$root"
+          printf '%s\n' "$root" > work/firmware-root.txt
+
+      - name: Retain exact source anchors for implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$(cat work/firmware-root.txt)"
+          out='inspection/firmware-4.0.5'
+          copy_file() {
+            local path="$1"
+            if [[ -f "$root/$path" ]]; then
+              mkdir -p "$out/$(dirname "$path")"
+              cp "$root/$path" "$out/$path"
+            fi
+          }
+          copy_tree() {
+            local path="$1"
+            if [[ -d "$root/$path" ]]; then
+              mkdir -p "$out/$path"
+              cp -R "$root/$path/." "$out/$path/"
+            fi
+          }
+
+          copy_file CMakeLists.txt
+          copy_file RELEASE-MANIFEST.json
+          copy_file src/main/build/flight_commander.h
+          copy_file src/main/build/version.h
+          copy_file src/main/config/parameter_group.h
+          copy_file src/main/config/parameter_group_ids.h
+          copy_file src/main/config/config_eeprom.c
+          copy_file src/main/config/config_eeprom.h
+          copy_file src/main/drivers/compass/compass_ist8310.c
+          copy_file src/main/drivers/compass/compass_ist8310.h
+          copy_file src/main/fc/fc_msp.c
+          copy_file src/main/fc/fc_tasks.c
+          copy_file src/main/fc/config.c
+          copy_file src/main/flight/imu.c
+          copy_file src/main/io/serial_msp.c
+          copy_file src/main/msp/msp_protocol.h
+          copy_file src/main/msp/msp_serial.c
+          copy_file src/main/sensors/acceleration.c
+          copy_file src/main/sensors/acceleration.h
+          copy_file src/main/sensors/boardalignment.c
+          copy_file src/main/sensors/boardalignment.h
+          copy_file src/main/sensors/compass.c
+          copy_file src/main/sensors/compass.h
+          copy_file src/main/sensors/gyro.c
+          copy_file src/main/sensors/gyro.h
+          copy_file src/main/target/MICOAIR743/config.c
+          copy_file src/main/target/MICOAIR743/target.c
+          copy_file src/main/target/MICOAIR743/target.h
+          copy_tree src/main/flight_commander
+          copy_tree flight-commander
+
+          {
+            echo '=== parameter group declarations ==='
+            grep -R -n -E 'PG_REGISTER|PG_DECLARE|PG_RESET|parameter_group' "$root/src/main" --include='*.c' --include='*.h' | head -n 1200 || true
+            echo '=== custom MSP extension points ==='
+            grep -R -n -E '2F2|FLIGHT_COMMANDER_HEADING|MSP2_FLIGHT_COMMANDER|headingConfig|headingStatus' "$root/src/main" --include='*.c' --include='*.h' | head -n 1200 || true
+            echo '=== accelerometer and raw IMU access ==='
+            grep -R -n -E 'accGet|acceleration|accADC|gyroADC|magADC|compassGet|alignSensorViaRotation|applySensorAlignment' "$root/src/main" --include='*.c' --include='*.h' | head -n 1600 || true
+            echo '=== calibration implementation ==='
+            grep -R -n -E 'compassStartCalibration|CALIBRATING_MAG|magZero|magGain|accSetCalibration|CALIBRATING_ACC' "$root/src/main" --include='*.c' --include='*.h' | head -n 1600 || true
+          } > "$out/search-anchors.txt"
+
+      - name: Commit inspection snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add inspection/firmware-4.0.5
+          if git diff --cached --quiet; then
+            echo 'Inspection snapshot already committed.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'chore: retain 4.0.5 firmware source anchors for 4.0.6'
+          git push origin HEAD:agent/flight-commander-4.0.6
