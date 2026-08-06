@@ -1,5 +1,5 @@
 name: Repair Flight Commander 4.0.5 source epoch
-run-name: Repair and verify Flight Commander 4.0.5 firmware-source epoch
+run-name: Repair and verify Flight Commander 4.0.5 firmware/source epoch
 
 "on":
   pull_request:
@@ -18,7 +18,7 @@ concurrency:
 jobs:
   repair:
     if: github.actor != 'github-actions[bot]'
-    name: Normalize source epoch, rebuild firmware, and commit corrected archive
+    name: Rebuild firmware at a valid epoch and commit coordinated assets
     runs-on: ubuntu-latest
     timeout-minutes: 90
 
@@ -34,18 +34,56 @@ jobs:
         with:
           node-version: 22
 
-      - name: Repair the deterministic firmware-source archive and metadata
+      - name: Install native build prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build curl xz-utils unzip zip python3
+
+      - name: Restore Arm GNU Toolchain 13.2.1
+        id: arm-cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/arm-gnu-toolchain-13.2.Rel1-x86_64-arm-none-eabi
+          key: arm-gnu-toolchain-13.2.Rel1-x86_64-arm-none-eabi
+
+      - name: Install Arm GNU Toolchain 13.2.1
+        if: steps.arm-cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          release=arm-gnu-toolchain-13.2.Rel1-x86_64-arm-none-eabi
+          archive=arm-gnu-toolchain-13.2.rel1-x86_64-arm-none-eabi.tar.xz
+          expected=6cd1bbc1d9ae57312bcd169ae283153a9572bd6a8e4eeae2fedfbc33b115fdbb
+          url="https://developer.arm.com/-/media/Files/downloads/gnu/13.2.rel1/binrel/$archive"
+          curl --fail --location --retry 3 --output "$RUNNER_TEMP/$archive" "$url"
+          printf '%s  %s\n' "$expected" "$RUNNER_TEMP/$archive" | sha256sum --check --strict
+          tar -xJf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP"
+          test -x "$RUNNER_TEMP/$release/bin/arm-none-eabi-gcc"
+
+      - name: Add the verified compiler to PATH
+        shell: bash
+        run: |
+          set -euo pipefail
+          toolchain="$RUNNER_TEMP/arm-gnu-toolchain-13.2.Rel1-x86_64-arm-none-eabi/bin"
+          test -x "$toolchain/arm-none-eabi-gcc"
+          echo "$toolchain" >> "$GITHUB_PATH"
+
+      - name: Normalize the epoch and rebuild coordinated firmware/source assets
         id: repair
         shell: bash
         run: |
           set -euo pipefail
           archive="release/firmware/Flight-Commander-Firmware-Source-v4.0.5.zip"
+          firmware="release/firmware/Flight-Commander-Firmware-4.0.5-MICOAIR743.hex"
           work="$RUNNER_TEMP/flight-commander-4.0.5-source-epoch"
           root="$work/Flight-Commander-Firmware-Source-v4.0.5"
+          build="$RUNNER_TEMP/flight-commander-4.0.5-epoch-build"
           repaired="$RUNNER_TEMP/Flight-Commander-Firmware-Source-v4.0.5.zip"
           epoch=1786010400
 
-          rm -rf "$work" "$repaired"
+          rm -rf "$work" "$build" "$repaired"
           mkdir -p "$work"
           unzip -q "$archive" -d "$work"
           test -d "$root"
@@ -60,6 +98,33 @@ jobs:
           manifest = json.loads(path.read_text(encoding="utf-8"))
           assert manifest["version"] == "4.0.5"
           manifest["source_date_epoch"] = epoch
+          path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+          PY
+
+          # Normalize every extracted input timestamp before the authoritative build.
+          find "$root" -exec touch --date="@$epoch" {} +
+          bash "$root/flight-commander/build-micoair743.sh" "$build"
+          rebuilt="$build/Flight-Commander-Firmware-4.0.5-MICOAIR743.hex"
+          test -s "$rebuilt"
+          firmware_sha="$(sha256sum "$rebuilt" | cut -d' ' -f1)"
+          firmware_bytes="$(stat -c '%s' "$rebuilt")"
+
+          python3 - "$root/RELEASE-MANIFEST.json" "$epoch" "$firmware_sha" "$firmware_bytes" <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          path = Path(sys.argv[1])
+          epoch = int(sys.argv[2])
+          firmware_sha = sys.argv[3]
+          firmware_bytes = int(sys.argv[4])
+          manifest = json.loads(path.read_text(encoding="utf-8"))
+          manifest["source_date_epoch"] = epoch
+          manifest["artifact"] = {
+              "filename": "Flight-Commander-Firmware-4.0.5-MICOAIR743.hex",
+              "sha256": firmware_sha,
+              "bytes": firmware_bytes,
+          }
           path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
           PY
 
@@ -95,17 +160,20 @@ jobs:
           PY
 
           unzip -tq "$repaired"
+          mv "$rebuilt" "$firmware"
           mv "$repaired" "$archive"
           source_sha="$(sha256sum "$archive" | cut -d' ' -f1)"
 
-          python3 - package.json "$source_sha" <<'PY'
+          python3 - package.json "$firmware_sha" "$source_sha" <<'PY'
           import json
           import sys
           from pathlib import Path
 
           path = Path(sys.argv[1])
-          source_sha = sys.argv[2]
+          firmware_sha = sys.argv[2]
+          source_sha = sys.argv[3]
           package = json.loads(path.read_text(encoding="utf-8"))
+          package["flightCommander"]["firmwareReleaseSha256"] = firmware_sha
           package["flightCommander"]["firmwareSourceSha256"] = source_sha
           path.write_text(json.dumps(package, indent=2) + "\n", encoding="utf-8")
           PY
@@ -129,10 +197,17 @@ jobs:
           path.write_text(text, encoding="utf-8")
           PY
 
+          python3 "$root/flight-commander/verify-release.py" \
+            --source-root "$root" \
+            --hex "$firmware" \
+            --manifest "$root/RELEASE-MANIFEST.json"
+
+          echo "firmware_sha256=$firmware_sha" >> "$GITHUB_OUTPUT"
           echo "source_sha256=$source_sha" >> "$GITHUB_OUTPUT"
+          echo "Rebuilt firmware SHA-256: $firmware_sha"
           echo "Repaired source SHA-256: $source_sha"
 
-      - name: Rebuild and compare the published firmware byte-for-byte
+      - name: Independently rebuild and compare the firmware byte-for-byte
         shell: bash
         run: |
           set -euo pipefail
@@ -151,9 +226,10 @@ jobs:
             tests/flight-commander/packaging/version-contract.test.mjs
           node scripts/check-flight-commander-version.mjs
 
-      - name: Commit the verified source-epoch repair
+      - name: Commit the verified coordinated epoch repair
         shell: bash
         env:
+          FIRMWARE_SHA256: ${{ steps.repair.outputs.firmware_sha256 }}
           SOURCE_SHA256: ${{ steps.repair.outputs.source_sha256 }}
           TARGET_BRANCH: agent/complete-4.0.5-known-good-catalog
         run: |
@@ -163,13 +239,15 @@ jobs:
           git add \
             CHANGELOG.md \
             package.json \
+            release/firmware/Flight-Commander-Firmware-4.0.5-MICOAIR743.hex \
             release/firmware/Flight-Commander-Firmware-Source-v4.0.5.zip
           git diff --cached --check
           if git diff --cached --quiet; then
-            echo "Expected source-epoch repair changes, but the staged tree is empty." >&2
+            echo "Expected coordinated epoch repair changes, but the staged tree is empty." >&2
             exit 1
           fi
           git commit \
-            -m "Flight Commander 4.0.5: normalize firmware source epoch" \
+            -m "Flight Commander 4.0.5: normalize coordinated build epoch" \
+            -m "Firmware SHA-256: $FIRMWARE_SHA256" \
             -m "Firmware source SHA-256: $SOURCE_SHA256"
           git push origin "HEAD:$TARGET_BRANCH"
