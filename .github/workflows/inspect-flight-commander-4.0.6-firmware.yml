@@ -62,6 +62,8 @@ jobs:
           root="$work/Flight-Commander-Firmware-Source-v4.0.6"
           mv "$old" "$root"
           (cd "$root" && git apply "$patch")
+          python3 "$GITHUB_WORKSPACE/scripts/postpatch-flight-commander-firmware-4.0.6.py" "$root"
+          python3 "$root/flight-commander/test-compass-orientation-handedness.py"
           python3 - "$root" <<'PY'
           import hashlib, json, pathlib, sys
           root = pathlib.Path(sys.argv[1])
