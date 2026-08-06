@@ -1,0 +1,124 @@
+ty}%`
++                    : unavailable.reason === 'field-rejected'
++                        ? `${unavailable.ageMs} ms old · magnetic field rejected · quality 0%`
++                        : `${unavailable.ageMs} ms old · quality ${unavailable.quality}%`,
+         );
+ 
+         let calibration = '—';
+diff --git a/tests/flight-commander/firmware/heading-fusion.test.mjs b/tests/flight-commander/firmware/heading-fusion.test.mjs
+index ac3a740..a9313a7 100644
+--- a/tests/flight-commander/firmware/heading-fusion.test.mjs
++++ b/tests/flight-commander/firmware/heading-fusion.test.mjs
+@@ -11,6 +11,7 @@ import {
+   createDefaultHeadingConfig,
+   decodeHeadingConfig,
+   decodeHeadingStatus,
++  diagnoseHeadingSourceAvailability,
+   encodeHeadingConfig,
+   previewWeightedHeading,
+ } from '../../../js/flightCommander/headingFusion.js';
+@@ -208,3 +209,32 @@ test('heading status decodes live masks, baseline geometry, quality, and age', (
+   assert.equal(status.sources[2].ageMs, 0xffff);
+   assert.equal(status.sources[3].quality, 87);
+ });
++
++
++test('heading diagnostics distinguish missing, stale, and fresh rejected magnetic samples', () => {
++  assert.deepEqual(
++    diagnoseHeadingSourceAvailability({ ageMs: 0xffff, quality: 0 }, { timeoutMs: 750 }),
++    {
++      reason: 'no-sample',
++      label: 'No source sample',
++      stateClass: 'is-stale',
++      ageMs: null,
++      quality: 0,
++    },
++  );
++  assert.equal(
++    diagnoseHeadingSourceAvailability({ ageMs: 751, quality: 82 }, { timeoutMs: 750 }).label,
++    'Stale sample · 751 ms',
++  );
++  assert.equal(
++    diagnoseHeadingSourceAvailability({ ageMs: 25, quality: 0 }, { timeoutMs: 750 }).label,
++    'Magnetic field rejected · Q0% · 25 ms',
++  );
++  assert.equal(
++    diagnoseHeadingSourceAvailability(
++      { ageMs: 30, quality: 12 },
++      { timeoutMs: 750, magnetic: false },
++    ).label,
++    'Fresh sample rejected · Q12% · 30 ms',
++  );
++});
+diff --git a/tests/flight-commander/firmware/heading-source-liveness.test.mjs b/tests/flight-commander/firmware/heading-source-liveness.test.mjs
+new file mode 100644
+index 0000000..2db7614
+--- /dev/null
++++ b/tests/flight-commander/firmware/heading-source-liveness.test.mjs
+@@ -0,0 +1,66 @@
++import assert from 'node:assert/strict';
++import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
++import { tmpdir } from 'node:os';
++import { dirname, join, resolve } from 'node:path';
++import { spawnSync } from 'node:child_process';
++import { after, test } from 'node:test';
++import { fileURLToPath } from 'node:url';
++
++const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
++const packageManifest = JSON.parse(readFileSync(join(projectRoot, 'package.json'), 'utf8'));
++const firmwareVersion = packageManifest.flightCommander.firmwareSourceVersion;
++const firmwareSourceArchive = packageManifest.flightCommander.firmwareSourceArchive;
++const output = mkdtempSync(join(tmpdir(), `flight-commander-${firmwareVersion}-heading-liveness-`));
++const python = process.env.PYTHON || (process.platform === 'win32' ? 'python' : 'python3');
++const archive = join(projectRoot, ...firmwareSourceArchive.split('/'));
++const result = spawnSync(
++  python,
++  ['-c', 'import sys,zipfile; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])', archive, output],
++  { encoding: 'utf8' },
++);
++assert.equal(result.status, 0, `${firmwareVersion} source extraction failed:\n${result.stdout}\n${result.stderr}`);
++
++const sourceRoot = join(output, `Flight-Commander-Firmware-Source-v${firmwareVersion}`);
++const source = (relative) => readFileSync(join(sourceRoot, ...relative.split('/')), 'utf8');
++const taskSource = source('src/main/fc/fc_tasks.c');
++const driver = source('src/main/drivers/compass/compass_ist8310.c');
++const compass = source('src/main/sensors/compass.c');
++const fusion = source('src/main/flight_commander/heading_fusion.c');
++const imu = source('src/main/flight/imu.c');
++
++after(() => rmSync(output, { recursive: true, force: true }));
++
++test('heading fusion runs the compass task at 40 Hz and driver recovery is time based', () => {
++  assert.match(taskSource, /rescheduleTask\(TASK_COMPASS, TASK_PERIOD_HZ\(40\)\)/);
++  assert.match(driver, /#define IST8310_CONVERSION_TIMEOUT_MS 75U/);
++  assert.match(driver, /#define IST8310_FULL_RESET_AFTER_TIMEOUTS 2U/);
++  assert.doesNotMatch(driver, /IST8310_DATA_READY_RETRY_LIMIT/);
++});
++
++test('IST8310 reads DRDY and XYZ atomically and resets persistent stalls without blocking runtime', () => {
++  assert.match(driver, /busReadBuf\(mag->busDev, IST8310_REG_STATUS1, frame, sizeof\(frame\)\)/);
++  assert.match(driver, /ist8310BeginRuntimeReset/);
++  assert.match(driver, /ist8310ServiceRuntimeReset/);
++  const runtimeReset = driver.match(/static void ist8310ServiceRuntimeReset[\s\S]*?\n}\n/);
++  assert.ok(runtimeReset, 'runtime reset service is missing');
++  assert.doesNotMatch(runtimeReset[0], /\bdelay\s*\(/);
++});
++
++test('fusion reports real sample age and soft-weights fresh magnetic data', () => {
++  assert.match(compass, /uint16_t compassGetSampleAgeMs\(void\)/);
++  assert.match(fusion, /sample->hasMeasurement \? now - sample->updatedAtMs : UINT32_MAX/);
++  assert.match(fusion, /const uint16_t onboardAgeMs = compassGetSampleAgeMs\(\)/);
++  assert.match(fusion, /#define FLIGHT_COMMANDER_MAG_MIN_FIELD_QUALITY 1U/);
++  assert.match(fusion, /#define FLIGHT_COMMANDER_MAG_STARTUP_MIN_FIELD_QUALITY 10U/);
++  assert.doesNotMatch(fusion, /FLIGHT_COMMANDER_MAG_MIN_FIELD_QUALITY 25U/);
++});
++
++test('the first trustworthy fused heading seeds yaw once while disarmed', () => {
++  assert.match(imu, /flightCommanderHeadingGetFusedHeading\(&fusedHeadingCentidegrees\)/);
++  assert.match(imu, /imuComputeQuaternionFromRPY\([\s\S]*fusedHeadingDecidegrees/);
++  assert.match(imu, /resetHeadingHoldTarget\(CENTIDEGREES_TO_DEGREES\(fusedHeadingCentidegrees\)\)/);
++  assert.doesNotMatch(
++    imu,
++    /if \(flightCommanderHeadingHasActiveReference\(\)\) \{\s*gpsHeadingInitialized = true;\s*\}/,
++  );
++});
