@@ -1,0 +1,207 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index a6b5b4d..9d47e9c 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -90,7 +90,7 @@ set(FIRMWARE_VERSION ${PROJECT_VERSION})
+ 
+ # Flight Commander release identity is independent from the inherited INAV
+ # protocol compatibility version declared by project().
+-set(FLIGHT_COMMANDER_FIRMWARE_VERSION 4.0.3)
++set(FLIGHT_COMMANDER_FIRMWARE_VERSION 4.0.4)
+ 
+ option(WARNINGS_AS_ERRORS "Make all warnings into errors")
+ message("-- toolchain: ${TOOLCHAIN}, WARNINGS_AS_ERRORS: ${WARNINGS_AS_ERRORS}")
+diff --git a/flight-commander/build-micoair743.sh b/flight-commander/build-micoair743.sh
+index 7bd84ae..79def73 100755
+--- a/flight-commander/build-micoair743.sh
++++ b/flight-commander/build-micoair743.sh
+@@ -65,7 +65,7 @@ cmake -S "${source_root}" -B "${build_dir}" -G Ninja \
+     -DFLIGHT_COMMANDER_SOURCE_REVISION="${source_revision}"
+ cmake --build "${build_dir}" --target MICOAIR743
+ 
+-hex="${build_dir}/Flight-Commander-Firmware-4.0.3-MICOAIR743.hex"
++hex="${build_dir}/Flight-Commander-Firmware-4.0.4-MICOAIR743.hex"
+ python3 "${source_root}/flight-commander/verify-compass-release.py" "${hex}"
+ 
+ echo "Built and verified: ${hex}"
+diff --git a/flight-commander/verify-compass-release.py b/flight-commander/verify-compass-release.py
+index 382e1f8..67b8188 100755
+--- a/flight-commander/verify-compass-release.py
++++ b/flight-commander/verify-compass-release.py
+@@ -1,5 +1,5 @@
+ #!/usr/bin/env python3
+-"""Structural verification for the Flight Commander 4.0.3 compass release build."""
++"""Structural verification for the Flight Commander 4.0.4 compass release build."""
+ 
+ from __future__ import annotations
+ 
+@@ -7,7 +7,7 @@ import hashlib
+ from pathlib import Path
+ import sys
+ 
+-EXPECTED_IDENTITY = b"FCFW" + bytes((1, 4, 0, 3, 9, 1, 0, 0xFF, 0x3F, 0, 0))
++EXPECTED_IDENTITY = b"FCFW" + bytes((1, 4, 0, 4, 9, 1, 0, 0xFF, 0x3F, 0, 0))
+ EXPECTED_TARGET = b"MICOAIR743"
+ 
+ 
+@@ -66,7 +66,7 @@ def main() -> int:
+     path = Path(sys.argv[1]).resolve()
+     memory = parse_intel_hex(path)
+     if not contains(memory, EXPECTED_IDENTITY):
+-        fail("HEX does not contain the Flight Commander 4.0.3 identity")
++        fail("HEX does not contain the Flight Commander 4.0.4 identity")
+     if not contains(memory, EXPECTED_TARGET):
+         fail("HEX does not contain the MICOAIR743 target identity")
+     digest = hashlib.sha256(path.read_bytes()).hexdigest()
+diff --git a/flight-commander/verify-release.py b/flight-commander/verify-release.py
+index 8fef1fc..979ad22 100755
+--- a/flight-commander/verify-release.py
++++ b/flight-commander/verify-release.py
+@@ -1,6 +1,6 @@
+ #!/usr/bin/env python3
+ 
+-"""Verify the Flight Commander 4.0.3 MICOAIR743 source and HEX contract."""
++"""Verify the Flight Commander 4.0.4 MICOAIR743 source and HEX contract."""
+ 
+ from __future__ import annotations
+ 
+@@ -13,11 +13,11 @@ import re
+ import sys
+ 
+ 
+-VERSION = "4.0.3"
++VERSION = "4.0.4"
+ TARGET = "MICOAIR743"
+ UPSTREAM_RELEASE = "9.1.0"
+ UPSTREAM_COMMIT = "e519b69b02e27c8bdc03b4a0889f1baaae211a54"
+-EXPECTED_IDENTITY = b"FCFW" + bytes((1, 4, 0, 3, 9, 1, 0, 0xFF, 0x3F, 0, 0))
++EXPECTED_IDENTITY = b"FCFW" + bytes((1, 4, 0, 4, 9, 1, 0, 0xFF, 0x3F, 0, 0))
+ 
+ 
+ def fail(message: str) -> None:
+@@ -214,14 +214,14 @@ def verify_source(root: Path) -> None:
+     verify_upstream_baseline(root)
+     require_text(
+         root / "CMakeLists.txt",
+-        [r"set\(FLIGHT_COMMANDER_FIRMWARE_VERSION 4\.0\.3\)", r"FLIGHT_COMMANDER_SOURCE_REVISION"],
++        [r"set\(FLIGHT_COMMANDER_FIRMWARE_VERSION 4\.0\.4\)", r"FLIGHT_COMMANDER_SOURCE_REVISION"],
+     )
+     require_text(
+         root / "src/main/build/flight_commander.h",
+         [
+             r"FLIGHT_COMMANDER_VERSION_MAJOR 4",
+             r"FLIGHT_COMMANDER_VERSION_MINOR 0",
+-            r"FLIGHT_COMMANDER_VERSION_PATCH 3",
++            r"FLIGHT_COMMANDER_VERSION_PATCH 4",
+             r"FLIGHT_COMMANDER_CAPABILITIES \(\(uint32_t\)0x3FFFU\)",
+         ],
+     )
+@@ -250,6 +250,9 @@ def verify_source(root: Path) -> None:
+             r"flightCommanderHeadingGetOnboardMagWeight",
+             r"Source quality already contains INAV's field-magnitude nearness",
+             r"flightCommanderHeadingGetAbsoluteReference",
++            r"flightCommanderHeadingGetFusedHeading",
++            r"imuComputeQuaternionFromRPY",
++            r"resetHeadingHoldTarget\(CENTIDEGREES_TO_DEGREES\(fusedHeadingCentidegrees\)\)",
+         ],
+     )
+     reject_text(
+@@ -276,7 +279,11 @@ def verify_source(root: Path) -> None:
+             r"config->sources\[2\] = \(flightCommanderHeadingSourceConfig_t\)\{ false, 3, 50, 0 \}",
+             r"config->sources\[3\] = \(flightCommanderHeadingSourceConfig_t\)\{ false, 4, 25, 0 \}",
+             r"magneticFieldQuality",
+-            r"FLIGHT_COMMANDER_MAG_MIN_FIELD_QUALITY 25U",
++            r"FLIGHT_COMMANDER_MAG_MIN_FIELD_QUALITY 1U",
++            r"FLIGHT_COMMANDER_MAG_STARTUP_MIN_FIELD_QUALITY 10U",
++            r"sample->hasMeasurement \? now - sample->updatedAtMs : UINT32_MAX",
++            r"const uint16_t onboardAgeMs = compassGetSampleAgeMs\(\)",
++            r"flightCommanderHeadingGetFusedHeading",
+             r"magneticFieldToTrueHeading",
+             r"fieldEarth\.x \* correctedMagneticNorthEarth\.y",
+             r"DECIDEGREES_TO_CENTIDEGREES\(attitude\.values\.yaw\)",
+@@ -311,11 +318,29 @@ def verify_source(root: Path) -> None:
+         root / "src/main/common/maths.c",
+         [r"if \(!isfinite\(result\[i\]\)\)"],
+     )
++    require_text(
++        root / "src/main/fc/fc_tasks.c",
++        [r"rescheduleTask\(TASK_COMPASS, TASK_PERIOD_HZ\(40\)\)"],
++    )
++    reject_text(
++        root / "src/main/flight_commander/heading_fusion.c",
++        [r"FLIGHT_COMMANDER_MAG_MIN_FIELD_QUALITY 25U"],
++    )
++    reject_text(
++        root / "src/main/drivers/compass/compass_ist8310.c",
++        [r"IST8310_DATA_READY_RETRY_LIMIT"],
++    )
+     require_text(
+         root / "src/main/drivers/compass/compass_ist8310.c",
+         [
+             r"IST8310_STATUS1_DRDY",
+             r"IST8310_ODR_SINGLE",
++            r"IST8310_CONVERSION_TIMEOUT_MS 75U",
++            r"IST8310_FULL_RESET_AFTER_TIMEOUTS 2U",
++            r"busReadBuf\(mag->busDev, IST8310_REG_STATUS1, frame",
++            r"ist8310BeginRuntimeReset",
++            r"ist8310ServiceRuntimeReset",
++            r"The reset is serviced across later task calls",
+             r"mag->magADCRaw\[X\] = -nativeY \* IST8310_LSB_TO_MILLIGAUSS",
+             r"mag->magADCRaw\[Y\] = -nativeX \* IST8310_LSB_TO_MILLIGAUSS",
+             r"mag->magADCRaw\[Z\] =  nativeZ \* IST8310_LSB_TO_MILLIGAUSS",
+@@ -331,6 +356,7 @@ def verify_source(root: Path) -> None:
+             r"magCalibrationRevision",
+             r"magCalibrationSignature",
+             r"compassCalibrationSignature",
++            r"compassGetSampleAgeMs",
+             r"\.mag_align = COMPASS_RESET_ALIGN",
+         ],
+     )
+@@ -364,7 +390,7 @@ def main() -> int:
+     digest = sha256(hex_path)
+     memory, record_count = parse_intel_hex(hex_path)
+     if not contains_contiguous(memory, EXPECTED_IDENTITY):
+-        fail("HEX does not contain the exact FCFW 4.0.3 / INAV 9.1.0 / 0x1FFF identity payload")
++        fail("HEX does not contain the exact FCFW 4.0.4 / INAV 9.1.0 / 0x1FFF identity payload")
+     if not contains_contiguous(memory, TARGET.encode("ascii")):
+         fail(f"HEX does not contain the {TARGET} target identity")
+ 
+diff --git a/src/main/build/flight_commander.h b/src/main/build/flight_commander.h
+index 20cb8f4..91573a2 100644
+--- a/src/main/build/flight_commander.h
++++ b/src/main/build/flight_commander.h
+@@ -13,7 +13,7 @@
+ 
+ #define FLIGHT_COMMANDER_VERSION_MAJOR 4
+ #define FLIGHT_COMMANDER_VERSION_MINOR 0
+-#define FLIGHT_COMMANDER_VERSION_PATCH 3
++#define FLIGHT_COMMANDER_VERSION_PATCH 4
+ 
+ #define FLIGHT_COMMANDER_STR_HELPER(value) #value
+ #define FLIGHT_COMMANDER_STR(value) FLIGHT_COMMANDER_STR_HELPER(value)
+diff --git a/src/main/drivers/compass/compass_ist8310.c b/src/main/drivers/compass/compass_ist8310.c
+index ce6776a..9e637f3 100644
+--- a/src/main/drivers/compass/compass_ist8310.c
++++ b/src/main/drivers/compass/compass_ist8310.c
+@@ -33,7 +33,6 @@
+ 
+ #define IST8310_REG_WHOAMI 0x00
+ #define IST8310_REG_STATUS1 0x02
+-#define IST8310_REG_DATA 0x03
+ #define IST8310_REG_CNTRL1 0x0A
+ #define IST8310_REG_CNTRL2 0x0B
+ #define IST8310_REG_AVERAGE 0x41
+@@ -49,44 +48,144 @@
+ #define IST8310_LSB_TO_MILLIGAUSS 3
+ #define IST8310_MAX_RAW_XY 5334
+ #define IST8310_MAX_RAW_Z 8334
+-#define IST8310_DATA_READY_RETRY_LIMIT 20U
++
++// Heading fusion reschedules the compass task to 40 Hz. A 16x-averaged single
++// conversion needs only 6 ms, so three consecutive 25 ms polls without DRDY
++// indicate a stalled conversion. Recover well before the 500 ms compass-health
++// timeout instead of beginning recovery at its boundary.
++#define IST8310_CONVERSION_TIMEOUT_MS 75U
++#define IST8310_FULL_RESET_AFTER_TIMEOUTS 2U
++#define IST8310_RESET_INITIAL_WAIT_MS 50U
++#defin
