@@ -1,0 +1,200 @@
+The old path only marked yaw initialized. If the first valid
++            // compass sample arrived after fast AHRS gains expired, startup
++            // yaw remained zero and took minutes to converge. Seed the
++            // quaternion once from the validated fused heading while disarmed.
++            const int16_t fusedHeadingDecidegrees =
++                lrintf(CENTIDEGREES_TO_DECIDEGREES(fusedHeadingCentidegrees));
++            imuComputeQuaternionFromRPY(
++                attitude.values.roll, attitude.values.pitch, fusedHeadingDecidegrees);
++            attitude.values.yaw = fusedHeadingDecidegrees;
++            resetHeadingHoldTarget(CENTIDEGREES_TO_DEGREES(fusedHeadingCentidegrees));
++        }
+         gpsHeadingInitialized = true;
+     }
+ #endif
+diff --git a/src/main/flight_commander/heading_fusion.c b/src/main/flight_commander/heading_fusion.c
+index 95c4b30..1bbe862 100644
+--- a/src/main/flight_commander/heading_fusion.c
++++ b/src/main/flight_commander/heading_fusion.c
+@@ -53,6 +53,7 @@ typedef struct headingSample_s {
+     uint8_t quality;
+     uint8_t nodeID;
+     timeMs_t updatedAtMs;
++    bool hasMeasurement;
+     bool valid;
+     bool fixed;
+ } headingSample_t;
+@@ -70,7 +71,11 @@ static bool externalSampleProcessed;
+ #define FLIGHT_COMMANDER_MAG_CALIBRATION_MAX_GAIN_RATIO 2.5F
+ #define FLIGHT_COMMANDER_MAG_CALIBRATION_MAX_ZERO_RATIO 4.0F
+ #define FLIGHT_COMMANDER_MAG_FIELD_NEARNESS 0.25F
+-#define FLIGHT_COMMANDER_MAG_MIN_FIELD_QUALITY 25U
++// Match INAV's original soft magnetic-field weighting. A fresh, nonzero
++// compass sample remains a usable heading source while its quality smoothly
++// reduces its authority; only a rounded-zero quality is rejected outright.
++#define FLIGHT_COMMANDER_MAG_MIN_FIELD_QUALITY 1U
++#define FLIGHT_COMMANDER_MAG_STARTUP_MIN_FIELD_QUALITY 10U
+ 
+ typedef struct customMagCalibration_s {
+     fpVector3_t previous;
+@@ -184,7 +189,7 @@ static void updateLiveSourceStatus(unsigned index, timeMs_t now)
+ {
+     flightCommanderHeadingSourceStatus_t *status = &headingStatus.sources[index];
+     const headingSample_t *sample = &samples[index];
+-    const uint32_t age = sample->valid ? now - sample->updatedAtMs : UINT32_MAX;
++    const uint32_t age = sample->hasMeasurement ? now - sample->updatedAtMs : UINT32_MAX;
+     status->headingCentidegrees = sample->headingCentidegrees;
+     status->ageMs = age > UINT16_MAX ? UINT16_MAX : (uint16_t)age;
+     status->quality = sample->quality;
+@@ -544,10 +549,8 @@ static void updateExternalCompassSample(void)
+     sample->accuracyCentidegrees = 0;
+     sample->nodeID = DRONECAN_NODE_ID_DISABLED;
+     sample->updatedAtMs = updatedAtMs;
++    sample->hasMeasurement = true;
+     sample->valid = magneticFieldValid[FLIGHT_COMMANDER_HEADING_EXTERNAL_I2C_MAG];
+-    if (!sample->valid) {
+-        sample->quality = 0;
+-    }
+ }
+ 
+ void flightCommanderHeadingUpdate(void)
+@@ -559,23 +562,21 @@ void flightCommanderHeadingUpdate(void)
+     headingStatus.rejectedMask = 0;
+     headingStatus.anchorSource = FLIGHT_COMMANDER_HEADING_SOURCE_NONE;
+ 
++    headingSample_t *onboard = &samples[FLIGHT_COMMANDER_HEADING_ONBOARD_MAG];
+     magneticFieldBody[FLIGHT_COMMANDER_HEADING_ONBOARD_MAG] = (fpVector3_t){
+         .v = { mag.magADC[X], mag.magADC[Y], mag.magADC[Z] }
+     };
+-    samples[FLIGHT_COMMANDER_HEADING_ONBOARD_MAG].quality =
+-        magneticFieldQuality(&magneticFieldBody[FLIGHT_COMMANDER_HEADING_ONBOARD_MAG]);
++    const uint16_t onboardAgeMs = compassGetSampleAgeMs();
++    onboard->hasMeasurement = onboardAgeMs != UINT16_MAX;
++    onboard->updatedAtMs = now - (onboard->hasMeasurement ? onboardAgeMs : 0U);
++    onboard->quality = magneticFieldQuality(
++        &magneticFieldBody[FLIGHT_COMMANDER_HEADING_ONBOARD_MAG]);
+     magneticFieldValid[FLIGHT_COMMANDER_HEADING_ONBOARD_MAG] = compassIsHealthy() &&
+-        samples[FLIGHT_COMMANDER_HEADING_ONBOARD_MAG].quality >=
+-            FLIGHT_COMMANDER_MAG_MIN_FIELD_QUALITY &&
++        onboard->quality >= FLIGHT_COMMANDER_MAG_MIN_FIELD_QUALITY &&
+         magneticFieldToTrueHeading(
+             &magneticFieldBody[FLIGHT_COMMANDER_HEADING_ONBOARD_MAG],
+-            &samples[FLIGHT_COMMANDER_HEADING_ONBOARD_MAG].headingCentidegrees);
+-    samples[FLIGHT_COMMANDER_HEADING_ONBOARD_MAG].valid =
+-        magneticFieldValid[FLIGHT_COMMANDER_HEADING_ONBOARD_MAG];
+-    if (!samples[FLIGHT_COMMANDER_HEADING_ONBOARD_MAG].valid) {
+-        samples[FLIGHT_COMMANDER_HEADING_ONBOARD_MAG].quality = 0;
+-    }
+-    samples[FLIGHT_COMMANDER_HEADING_ONBOARD_MAG].updatedAtMs = now;
++            &onboard->headingCentidegrees);
++    onboard->valid = magneticFieldValid[FLIGHT_COMMANDER_HEADING_ONBOARD_MAG];
+ 
+     updateExternalCompassSample();
+ 
+@@ -839,6 +840,27 @@ bool flightCommanderHeadingGetAbsoluteReference(fpVector3_t *headingEarth, float
+     return true;
+ }
+ 
++bool flightCommanderHeadingGetFusedHeading(uint16_t *headingCentidegrees)
++{
++    if (!headingCentidegrees || headingStatus.activeMask == 0 ||
++        headingStatus.anchorSource >= FLIGHT_COMMANDER_HEADING_SOURCE_COUNT) {
++        return false;
++    }
++
++    // A direct startup quaternion seed is intentionally stricter than normal
++    // soft AHRS weighting. Moving-baseline data already passed its accuracy and
++    // fixed-solution gates; magnetic sources need modest field plausibility so
++    // a severely disturbed sample cannot instantly redefine north.
++    if (headingStatus.anchorSource < FLIGHT_COMMANDER_HEADING_MOVING_BASELINE &&
++        headingStatus.sources[headingStatus.anchorSource].quality <
++            FLIGHT_COMMANDER_MAG_STARTUP_MIN_FIELD_QUALITY) {
++        return false;
++    }
++
++    *headingCentidegrees = headingStatus.fusedHeadingCentidegrees;
++    return true;
++}
++
+ bool flightCommanderHeadingHasActiveReference(void)
+ {
+     return headingStatus.activeMask != 0;
+@@ -905,10 +927,8 @@ void flightCommanderHeadingReceiveDronecanMag(
+     sample->accuracyCentidegrees = 0;
+     sample->nodeID = sourceNodeID;
+     sample->updatedAtMs = millis();
++    sample->hasMeasurement = true;
+     sample->valid = magneticFieldValid[FLIGHT_COMMANDER_HEADING_DRONECAN_MAG];
+-    if (!sample->valid) {
+-        sample->quality = 0;
+-    }
+ }
+ 
+ static bool baselineProviderEnabled(uint8_t provider)
+@@ -934,6 +954,7 @@ static void receiveBaseline(uint8_t provider, uint8_t sourceNodeID, float headin
+     candidate.quality = accuracyValid ? accuracyToQuality(candidate.accuracyCentidegrees) : 0;
+     candidate.nodeID = sourceNodeID;
+     candidate.updatedAtMs = millis();
++    candidate.hasMeasurement = true;
+     candidate.fixed = fixedStatusKnown
+         ? fixedSolution
+         : accuracyValid && candidate.accuracyCentidegrees <= config->maxHeadingAccuracyCentidegrees;
+diff --git a/src/main/flight_commander/heading_fusion.h b/src/main/flight_commander/heading_fusion.h
+index 4a73384..635018d 100644
+--- a/src/main/flight_commander/heading_fusion.h
++++ b/src/main/flight_commander/heading_fusion.h
+@@ -99,6 +99,7 @@ bool flightCommanderHeadingGetMagSource(
+     fpVector3_t *magneticFieldBody,
+     float *weight);
+ bool flightCommanderHeadingGetAbsoluteReference(fpVector3_t *headingEarth, float *weight);
++bool flightCommanderHeadingGetFusedHeading(uint16_t *headingCentidegrees);
+ bool flightCommanderHeadingHasActiveReference(void);
+ 
+ void flightCommanderHeadingReceiveDronecanMag(
+diff --git a/src/main/sensors/compass.c b/src/main/sensors/compass.c
+index 7cf83f9..d5517a3 100644
+--- a/src/main/sensors/compass.c
++++ b/src/main/sensors/compass.c
+@@ -463,14 +463,25 @@ bool compassInit(void)
+     return ret;
+ }
+ 
+-bool compassIsHealthy(void)
++uint16_t compassGetSampleAgeMs(void)
+ {
+-    if (!magUpdatedAtLeastOnce ||
+-        cmpTimeUs(micros(), magLastUpdatedAtUs) > COMPASS_SAMPLE_TIMEOUT_US) {
+-        return false;
++    if (!magUpdatedAtLeastOnce) {
++        return UINT16_MAX;
++    }
++
++    const timeDelta_t ageUs = cmpTimeUs(micros(), magLastUpdatedAtUs);
++    if (ageUs <= 0) {
++        return 0;
+     }
+ 
+-    return (mag.magADC[X] != 0) || (mag.magADC[Y] != 0) || (mag.magADC[Z] != 0);
++    const uint32_t ageMs = (uint32_t)ageUs / 1000U;
++    return ageMs > UINT16_MAX ? UINT16_MAX : (uint16_t)ageMs;
++}
++
++bool compassIsHealthy(void)
++{
++    return compassGetSampleAgeMs() <= COMPASS_SAMPLE_TIMEOUT_US / 1000U &&
++        ((mag.magADC[X] != 0) || (mag.magADC[Y] != 0) || (mag.magADC[Z] != 0));
+ }
+ 
+ bool compassIsReady(void)
+diff --git a/src/main/sensors/compass.h b/src/main/sensors/compass.h
+index 104afc4..fbc2420 100644
+--- a/src/main/sensors/compass.h
++++ b/src/main/sensors/compass.h
+@@ -82,6 +82,7 @@ bool compassInit(void);
+ void compassUpdate(timeUs_t currentTimeUs);
+ bool compassIsReady(void);
+ bool compassIsHealthy(void);
++uint16_t compassGetSampleAgeMs(void);
+ bool compassIsCalibrationComplete(void);
+ 
+ #endif
