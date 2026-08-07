@@ -120,7 +120,8 @@
       "agent/verify-release-3.0.7",
       "agent/4.0.6-compass-orientation",
       "develop/4.0.0-holybro-moving-baseline",
-      "release/flight-commander-4.0.3-beta-trigger"
+      "release/flight-commander-4.0.3-beta-trigger",
+      "agent/run-4.0.8-official-finalizer"
     ],
     "actions_artifacts": [
       "9003202082",
@@ -471,5 +472,9 @@
       ".github/workflows/export-flight-commander-4.0.7-calibration-source.yml",
       ".github/workflows/build-flight-commander-4.0.8-test-deliverables.yml"
     ]
+  },
+  "post_release_verification_cleanup": {
+    "closed_unmerged_pull_request": 29,
+    "temporary_branch_removed": "agent/run-4.0.8-official-finalizer"
   }
 }
