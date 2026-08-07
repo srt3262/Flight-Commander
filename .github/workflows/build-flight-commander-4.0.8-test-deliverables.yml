@@ -1,0 +1,321 @@
+name: Build Flight Commander 4.0.8 test deliverables
+
+"on":
+  push:
+    branches:
+      - agent/fix-4.0.6-imu-handedness
+    paths:
+      - .github/workflows/build-flight-commander-4.0.8-test-deliverables.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  firmware-and-source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - name: Check out the exact beta source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Apply the independent onboard and external compass selectors
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -q 'id="external-compass-source"' tabs/configuration.html; then
+            echo 'Compass selector patch already applied.'
+          else
+            git apply --check release/configurator-patches/4.0.8-compass-source-selection.patch
+            git apply release/configurator-patches/4.0.8-compass-source-selection.patch
+          fi
+
+      - name: Correct retained 4.0.7 build-helper identity during 4.0.8 assembly
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('scripts/assemble-flight-commander-4.0.8-beta.py')
+          text = path.read_text(encoding='utf-8')
+
+          old_cleanup = '    shutil.rmtree(source_root / ".git")\n'
+          new_cleanup = '    shutil.rmtree(source_root / ".git", ignore_errors=True)\n'
+          if old_cleanup in text:
+              text = text.replace(old_cleanup, new_cleanup, 1)
+          elif new_cleanup not in text:
+              raise SystemExit('4.0.8 source cleanup marker was not found')
+
+          helper_patch = '''\n    build_helper = source_root / "flight-commander/build-micoair743.sh"\n    helper_text = build_helper.read_text(encoding="utf-8")\n    old_helper_name = f"Flight-Commander-Firmware-{BASE_VERSION}-{TARGET}.hex"\n    new_helper_name = f"Flight-Commander-Firmware-{VERSION}-{TARGET}.hex"\n    replacement_count = helper_text.count(old_helper_name)\n    if replacement_count < 1:\n        raise RuntimeError("retained firmware build helper did not contain the expected base release filename")\n    build_helper.write_text(helper_text.replace(old_helper_name, new_helper_name), encoding="utf-8")\n'''
+          anchor = '''    replace_once(\n        cmake,\n        "set(FLIGHT_COMMANDER_FIRMWARE_VERSION 4.0.7)",\n        "set(FLIGHT_COMMANDER_FIRMWARE_VERSION 4.0.8)",\n        "firmware CMake identity",\n    )\n'''
+          if 'old_helper_name = f"Flight-Commander-Firmware-{BASE_VERSION}-{TARGET}.hex"' not in text:
+              if anchor not in text:
+                  raise SystemExit('4.0.8 firmware identity anchor was not found')
+              text = text.replace(anchor, anchor + helper_patch, 1)
+
+          path.write_text(text, encoding='utf-8')
+          PY
+          python3 -m py_compile scripts/assemble-flight-commander-4.0.8-beta.py
+
+      - name: Install Arm GNU Toolchain 13.2.1
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive=arm-gnu-toolchain-13.2.rel1-x86_64-arm-none-eabi.tar.xz
+          url="https://developer.arm.com/-/media/Files/downloads/gnu/13.2.rel1/binrel/$archive"
+          curl --fail --location --retry 3 --output "$RUNNER_TEMP/$archive" "$url"
+          printf '%s  %s\n' \
+            '6cd1bbc1d9ae57312bcd169ae283153a9572bd6a8e4eeae2fedfbc33b115fdbb' \
+            "$RUNNER_TEMP/$archive" | sha256sum --check --strict
+          tar -xJf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/arm-gnu-toolchain-13.2.Rel1-x86_64-arm-none-eabi/bin" >> "$GITHUB_PATH"
+
+      - name: Assemble and verify the 4.0.8 firmware deliverables
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(arm-none-eabi-gcc -dumpfullversion -dumpversion)" = '13.2.1'
+          python3 scripts/assemble-flight-commander-4.0.8-beta.py "$RUNNER_TEMP/flight-commander-4.0.8"
+          test -s release/firmware/Flight-Commander-Firmware-4.0.8-MICOAIR743.hex
+          test -s release/firmware/Flight-Commander-Firmware-Source-v4.0.8.zip
+          unzip -tq release/firmware/Flight-Commander-Firmware-Source-v4.0.8.zip
+
+      - name: Collect the exact assembled source overlay
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf assembled-overlay
+          mkdir -p assembled-overlay
+          python3 - <<'PY'
+          from pathlib import Path
+          import shutil
+          import subprocess
+
+          changed = subprocess.check_output(
+              ['git', 'diff', '--name-only', '-z'],
+          ).decode().split('\0')
+          paths = {Path(value) for value in changed if value}
+          paths.update({
+              Path('release/firmware/Flight-Commander-Firmware-4.0.8-MICOAIR743.hex'),
+              Path('release/firmware/Flight-Commander-Firmware-Source-v4.0.8.zip'),
+              Path('release/firmware/build-metadata-4.0.8.json'),
+              Path('release/firmware-patches/4.0.8.patch'),
+              Path('release/notes/v4.0.8-beta.md'),
+              Path('scripts/build-flight-commander-4.0.8-firmware.py'),
+          })
+          destination_root = Path('assembled-overlay')
+          for source in sorted(paths):
+              if not source.is_file():
+                  raise SystemExit(f'Expected assembled file is missing: {source}')
+              destination = destination_root / source
+              destination.parent.mkdir(parents=True, exist_ok=True)
+              shutil.copy2(source, destination)
+          print(f'Collected {len(paths)} assembled files')
+          PY
+
+      - name: Upload the verified firmware and assembled source overlay
+        uses: actions/upload-artifact@v4
+        with:
+          name: flight-commander-4.0.8-assembled-overlay
+          retention-days: 3
+          if-no-files-found: error
+          path: assembled-overlay
+
+  windows-and-bundle:
+    needs: firmware-and-source
+    runs-on: windows-latest
+    timeout-minutes: 50
+    steps:
+      - name: Check out the exact beta source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Download the verified assembled overlay
+        uses: actions/download-artifact@v4
+        with:
+          name: flight-commander-4.0.8-assembled-overlay
+          path: assembled-overlay
+
+      - name: Apply the assembled overlay
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Get-ChildItem -LiteralPath (Join-Path $PWD 'assembled-overlay') -Recurse -File | ForEach-Object {
+            $relative = [IO.Path]::GetRelativePath((Join-Path $PWD 'assembled-overlay'), $_.FullName)
+            $destination = Join-Path $PWD $relative
+            $parent = Split-Path -Parent $destination
+            New-Item -ItemType Directory -Force -Path $parent | Out-Null
+            Copy-Item -LiteralPath $_.FullName -Destination $destination -Force
+          }
+          Remove-Item -LiteralPath (Join-Path $PWD 'assembled-overlay') -Recurse -Force
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: yarn
+          cache-dependency-path: yarn.lock
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install, test, package and verify the Windows application
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          corepack enable
+          corepack prepare yarn@1.22.22 --activate
+          yarn install --frozen-lockfile --non-interactive
+          yarn test
+          yarn package:windows
+          yarn verify:windows
+
+      - name: Assemble the four canonical test components
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          @'
+          from __future__ import annotations
+
+          import hashlib
+          import json
+          import shutil
+          import stat
+          import time
+          import zipfile
+          from pathlib import Path
+
+          VERSION = '4.0.8'
+          SOURCE_DATE_EPOCH = 1786104000
+          root = Path.cwd()
+          output = root / 'test-deliverables'
+          components = output / f'Flight-Commander-v{VERSION}'
+          shutil.rmtree(output, ignore_errors=True)
+          components.mkdir(parents=True)
+
+          def sha256(path: Path) -> str:
+              return hashlib.sha256(path.read_bytes()).hexdigest()
+
+          def zip_tree(source: Path, destination: Path, archive_root: str | None = None) -> None:
+              stamp = time.gmtime(SOURCE_DATE_EPOCH)[:6]
+              with zipfile.ZipFile(destination, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
+                  for path in sorted(source.rglob('*')):
+                      if not path.is_file():
+                          continue
+                      relative = path.relative_to(source)
+                      archived = (Path(archive_root) / relative) if archive_root else relative
+                      info = zipfile.ZipInfo(archived.as_posix(), stamp)
+                      info.create_system = 3
+                      mode = 0o755 if path.suffix in {'.exe', '.cmd', '.bat', '.sh', '.py'} else 0o644
+                      info.external_attr = (stat.S_IFREG | mode) << 16
+                      info.compress_type = zipfile.ZIP_DEFLATED
+                      archive.writestr(info, path.read_bytes(), zipfile.ZIP_DEFLATED, compresslevel=9)
+
+          package_dirs = [
+              path for path in (root / 'out').glob('*win32-x64')
+              if (path / 'flight-commander.exe').is_file()
+          ]
+          if len(package_dirs) != 1:
+              raise SystemExit(f'Expected one verified Windows package directory, found {package_dirs}')
+
+          windows_zip = components / f'FC-Windows-v{VERSION}.zip'
+          zip_tree(package_dirs[0], windows_zip)
+
+          source_stage = output / f'FC-Configurator-Source-v{VERSION}'
+          excluded_roots = {
+              '.git', '.flight-commander', 'node_modules', 'out',
+              'test-deliverables', 'release-candidate'
+          }
+          for path in sorted(root.rglob('*')):
+              if not path.is_file():
+                  continue
+              relative = path.relative_to(root)
+              if relative.parts[0] in excluded_roots:
+                  continue
+              destination = source_stage / relative
+              destination.parent.mkdir(parents=True, exist_ok=True)
+              shutil.copy2(path, destination)
+          config_zip = components / f'FC-Configurator-Source-v{VERSION}.zip'
+          zip_tree(source_stage, config_zip, source_stage.name)
+          shutil.rmtree(source_stage)
+
+          firmware_hex = root / 'release/firmware/Flight-Commander-Firmware-4.0.8-MICOAIR743.hex'
+          firmware_source = root / 'release/firmware/Flight-Commander-Firmware-Source-v4.0.8.zip'
+          firmware_component = components / f'FC-Firmware-v{VERSION}-MICOAIR743.hex'
+          source_component = components / f'FC-Firmware-Source-v{VERSION}.zip'
+          shutil.copy2(firmware_hex, firmware_component)
+          shutil.copy2(firmware_source, source_component)
+
+          expected = sorted([
+              f'FC-Windows-v{VERSION}.zip',
+              f'FC-Configurator-Source-v{VERSION}.zip',
+              f'FC-Firmware-v{VERSION}-MICOAIR743.hex',
+              f'FC-Firmware-Source-v{VERSION}.zip',
+          ])
+          actual = sorted(path.name for path in components.iterdir() if path.is_file())
+          if actual != expected:
+              raise SystemExit(f'Four-component bundle contract failed: {actual}')
+
+          bundle = output / f'Flight-Commander-v{VERSION}.zip'
+          stamp = time.gmtime(SOURCE_DATE_EPOCH)[:6]
+          with zipfile.ZipFile(bundle, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
+              for path in sorted(components.iterdir(), key=lambda item: item.name):
+                  info = zipfile.ZipInfo(path.name, stamp)
+                  info.create_system = 3
+                  info.external_attr = (stat.S_IFREG | 0o644) << 16
+                  info.compress_type = zipfile.ZIP_DEFLATED
+                  archive.writestr(info, path.read_bytes(), zipfile.ZIP_DEFLATED, compresslevel=9)
+
+          with zipfile.ZipFile(bundle) as archive:
+              if archive.testzip() is not None or sorted(archive.namelist()) != expected:
+                  raise SystemExit('Complete test bundle failed ZIP integrity or component validation')
+
+          manifest = {
+              'version': VERSION,
+              'bundle': {
+                  'name': bundle.name,
+                  'sha256': sha256(bundle),
+                  'bytes': bundle.stat().st_size,
+              },
+              'components': [
+                  {
+                      'name': path.name,
+                      'sha256': sha256(path),
+                      'bytes': path.stat().st_size,
+                  }
+                  for path in sorted(components.iterdir(), key=lambda item: item.name)
+              ],
+              'testing': 'Propellers removed; calibrate and verify each enabled compass independently before any armed test.',
+          }
+          (output / 'SHA256SUMS.txt').write_text(
+              '\n'.join(
+                  f"{entry['sha256']}  {entry['name']}"
+                  for entry in [*manifest['components'], manifest['bundle']]
+              ) + '\n',
+              encoding='utf-8',
+          )
+          (output / 'TEST-BUNDLE-MANIFEST.json').write_text(
+              json.dumps(manifest, indent=2) + '\n',
+              encoding='utf-8',
+          )
+          print(json.dumps(manifest, indent=2))
+          '@ | python -
+
+      - name: Upload the complete 4.0.8 test bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: Flight-Commander-v4.0.8-test-deliverables
+          retention-days: 3
+          if-no-files-found: error
+          path: |
+            test-deliverables/Flight-Commander-v4.0.8.zip
+            test-deliverables/SHA256SUMS.txt
+            test-deliverables/TEST-BUNDLE-MANIFEST.json
