@@ -10,7 +10,6 @@ name: Apply Flight Commander UI regression fixes
       - reopened
     paths:
       - .github/workflows/apply-ui-regression-fixes-pr.yml
-      - scripts/apply-ui-regression-fixes.py
 
 permissions:
   contents: write
@@ -48,13 +47,11 @@ jobs:
           yarn install --frozen-lockfile --non-interactive
           yarn test
 
-      - name: Commit the verified repairs and remove one-time helpers
+      - name: Commit the verified repairs and remove the one-time patch helper
         shell: bash
         run: |
           set -euo pipefail
-          git rm \
-            .github/workflows/apply-ui-regression-fixes-pr.yml \
-            scripts/apply-ui-regression-fixes.py
+          git rm scripts/apply-ui-regression-fixes.py
           git add \
             tabs/configuration.js \
             src/css/styles.css \
