@@ -44,10 +44,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          printf '%s  %s\n' \
-            "69a2432cf9fd9059b053137de12bb27a67f8eb069eb680fc55825ac332210f68" \
-            release/configurator-patches/4.0.7.patch \
-            | sha256sum --check --strict
+          test "$(git hash-object release/configurator-patches/4.0.7.patch)" = \
+            "2bf3759a63cc3d5e41da01cb2cb27bc768fde3df"
           git -c core.whitespace=cr-at-eol apply --whitespace=error-all \
             release/configurator-patches/4.0.7.patch
 
