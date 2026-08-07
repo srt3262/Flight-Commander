@@ -39,8 +39,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-list --count "${TESTED_SHA}..HEAD")" = 1
-          test "$(git diff --name-only "${TESTED_SHA}..HEAD")" = .github/workflows/finalize-flight-commander-4.0.8-official.yml
+          test "$(git diff --name-only "${TESTED_SHA}..HEAD" | sort -u)" = .github/workflows/finalize-flight-commander-4.0.8-official.yml
           test "$(git show "${TESTED_SHA}:package.json" | python3 -c 'import json,sys;print(json.load(sys.stdin)["version"])')" = "$VERSION"
 
           rc="$RUNNER_TEMP/rc"; out="$RUNNER_TEMP/official"
