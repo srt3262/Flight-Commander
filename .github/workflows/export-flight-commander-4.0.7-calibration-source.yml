@@ -1,0 +1,59 @@
+name: Export Flight Commander 4.0.7 calibration source
+
+"on":
+  push:
+    branches:
+      - agent/fix-4.0.6-imu-handedness
+    paths:
+      - .github/workflows/export-flight-commander-4.0.7-calibration-source.yml
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Extract calibration implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf export-source extracted
+          mkdir -p export-source extracted
+          python3 - <<'PY'
+          import zipfile
+          from pathlib import Path
+
+          archive = Path('release/firmware/Flight-Commander-Firmware-Source-v4.0.7.zip')
+          with zipfile.ZipFile(archive) as source:
+              source.extractall('extracted')
+          root = Path('extracted/Flight-Commander-Firmware-Source-v4.0.7')
+          requested = [
+              'src/main/flight_commander/heading_fusion.c',
+              'src/main/flight_commander/heading_fusion.h',
+              'src/main/flight_commander/external_compass.c',
+              'src/main/flight_commander/external_compass.h',
+              'src/main/fc/fc_msp.c',
+              'src/main/msp/msp_protocol_v2_flight_commander.h',
+              'src/main/sensors/compass.c',
+              'src/main/sensors/compass.h',
+          ]
+          output = Path('export-source')
+          for relative in requested:
+              source_path = root / relative
+              if not source_path.is_file():
+                  raise FileNotFoundError(source_path)
+              destination = output / relative
+              destination.parent.mkdir(parents=True, exist_ok=True)
+              destination.write_bytes(source_path.read_bytes())
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: flight-commander-4.0.7-calibration-source
+          retention-days: 1
+          if-no-files-found: error
+          path: export-source
