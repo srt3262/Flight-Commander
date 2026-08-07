@@ -1,5 +1,14 @@
 # Flight Commander 4.0.0
 
+## 4.0.7
+
+- Restore the verified 4.0.5 accelerometer and gyro high-rate attitude paths after the 4.0.6 mirrored-roll regression.
+- Remove the additional 4.0.6 board-frame buffers and all writes to them from the live IMU update loops.
+- Derive compass-orientation accelerometer and gyro vectors on demand from the latest calibrated raw samples before user board alignment.
+- Preserve the MICOAIR743 BMI088 `CW270_DEG` target alignment and avoid any HUD-only roll sign workaround.
+- Retain learned IST8310 orientation, manual CW0 compass alignment, field calibration, stationary heading fusion and moving-baseline RTK support.
+- Retire 4.0.6 from the managed online flasher while preserving the verified 3.0.7 recovery baseline.
+
 ## 4.0.6
 
 - Replace the MICOAIR743 onboard IST8310 fixed transform with a persistent learned sensor-to-board signed-axis transform.

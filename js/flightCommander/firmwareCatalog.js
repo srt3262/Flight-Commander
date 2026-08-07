@@ -3,7 +3,7 @@
 export const FLIGHT_COMMANDER_FIRMWARE_RELEASES_URL =
   "https://api.github.com/repos/srt3262/Flight-Commander/releases?per_page=20";
 
-export const FLIGHT_COMMANDER_MINIMUM_SUPPORTED_FIRMWARE_VERSION = "4.0.6";
+export const FLIGHT_COMMANDER_MINIMUM_SUPPORTED_FIRMWARE_VERSION = "4.0.7";
 export const FLIGHT_COMMANDER_KNOWN_GOOD_FIRMWARE_VERSIONS = Object.freeze([
   "3.0.7",
 ]);

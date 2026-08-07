@@ -34,31 +34,30 @@
       </div>
       <div class="column half text2">
         <div class="wrap">
-          <h2>Flight Commander 4.0.6</h2>
+          <h2>Flight Commander 4.0.7</h2>
           <p>
-            Flight Commander 4.0.6 Beta introduces a learned onboard-compass
-            orientation workflow for the MICOAIR743. The firmware no longer
-            assumes a fixed signed-axis transform for the IST8310.
+            Flight Commander 4.0.7 Beta restores the MICOAIR743 IMU attitude
+            path after the 4.0.6 roll-handedness regression. Raising the physical
+            right side now remains a right-side-up roll throughout firmware and
+            HUD telemetry instead of being mirrored.
           </p>
           <p>
-            Complete the six-position accelerometer calibration first, then use
-            the guided six-face compass-orientation procedure. Rotate the entire
-            controller around the requested upward face until each position is
-            complete. Firmware compares synchronized accelerometer, gyro and
-            canonical magnetometer vectors across all 24 physically valid
-            right-handed axis mappings, rejects ambiguous data, and permanently
-            stores the winning transform with its confidence and residual.
+            The accelerometer and gyro once again use the verified 4.0.5
+            high-rate processing sequence. Compass-orientation learning derives
+            its synchronized board-frame samples only when the 40 Hz compass task
+            requests them, so learning no longer adds a second vector write inside
+            either attitude update loop.
           </p>
           <p>
-            The learned sensor transform is independent from manual compass
-            alignment and board alignment. Changing the learned transform clears
-            the previous magnetic offsets and gains, after which the normal
-            compass field calibration must be completed. Heading fusion excludes
-            the onboard compass until both stages are valid.
+            The persistent learned IST8310 transform, independent manual CW0
+            alignment, stationary heading availability and moving-baseline RTK
+            features from 4.0.6 are retained. Recalibrate the accelerometer, then
+            complete compass orientation and conventional compass calibration
+            after flashing.
           </p>
           <p>
             The managed flasher offers the verified 3.0.7 recovery baseline plus
-            4.0.6 and later. Failed 3.0.6-and-earlier, 3.0.8 and 4.0.0-through-4.0.5
+            4.0.7 and later. Failed 3.0.6-and-earlier, 3.0.8 and 4.0.0-through-4.0.6
             firmware remain excluded from the managed list.
           </p>
           <h2 style="margin-top: 1em">Open-source foundations</h2>

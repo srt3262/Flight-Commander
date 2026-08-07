@@ -42,7 +42,7 @@ function buildRequest(config, requestPath) {
     `GET ${requestPath} HTTP/1.1\r\n` +
     `Host: ${hostHeader}:${config.port}\r\n` +
     'Ntrip-Version: Ntrip/2.0\r\n' +
-    'User-Agent: NTRIP FlightCommander/4.0.6\r\n' +
+    'User-Agent: NTRIP FlightCommander/4.0.7\r\n' +
     'Accept: */*\r\n' +
     'Cache-Control: no-cache\r\n' +
     authorizationHeader(config) +
