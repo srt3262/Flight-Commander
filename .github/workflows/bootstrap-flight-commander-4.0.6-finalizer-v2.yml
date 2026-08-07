@@ -2,7 +2,7 @@ name: One-time Flight Commander 4.0.6 finalizer bootstrap
 
 "on":
   schedule:
-    - cron: '*/5 * * * *'
+    - cron: '33 * * * *'
   workflow_dispatch:
 
 permissions:
