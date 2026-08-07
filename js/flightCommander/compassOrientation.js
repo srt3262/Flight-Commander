@@ -35,8 +35,8 @@ export const COMPASS_ORIENTATION_FLAG = Object.freeze({
 export const COMPASS_ORIENTATION_FACES = Object.freeze([
     Object.freeze({ index: 0, label: 'Nose up', axis: '+X' }),
     Object.freeze({ index: 1, label: 'Tail up', axis: '-X' }),
-    Object.freeze({ index: 2, label: 'Right side up', axis: '+Y' }),
-    Object.freeze({ index: 3, label: 'Left side up', axis: '-Y' }),
+    Object.freeze({ index: 2, label: 'Left side up', axis: '+Y' }),
+    Object.freeze({ index: 3, label: 'Right side up', axis: '-Y' }),
     Object.freeze({ index: 4, label: 'Top up', axis: '+Z' }),
     Object.freeze({ index: 5, label: 'Bottom up', axis: '-Z' }),
 ]);
