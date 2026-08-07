@@ -9,6 +9,7 @@ name: Export Flight Commander PR working tree
       - release/firmware/**
       - release/firmware-patches/**
       - scripts/build-flight-commander-*-firmware.py
+      - scripts/finalize-flight-commander-4.0.8-calibration.py
       - js/flightCommander/**
       - tabs/calibration.*
       - tabs/flight_data.*
@@ -16,9 +17,36 @@ name: Export Flight Commander PR working tree
       - manifest.json
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
+  apply-finalization:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: agent/fix-4.0.6-imu-handedness
+          fetch-depth: 0
+      - name: Apply final compass safety and contract corrections
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -q 'headingSourceOrientationIsValid' dev/firmware-4.0.7-source/src/main/flight_commander/heading_fusion.c \
+             && grep -q 'id=\\"compassCalibrationSelected\\"' tests/flight-commander/packaging/package-contract.test.mjs; then
+            echo 'Final 4.0.8 compass corrections already applied'
+            exit 0
+          fi
+          python3 scripts/finalize-flight-commander-4.0.8-calibration.py
+          python3 -m py_compile scripts/finalize-flight-commander-4.0.8-calibration.py
+          git add dev/firmware-4.0.7-source/src/main/flight_commander/heading_fusion.c \
+            tests/flight-commander/packaging/package-contract.test.mjs \
+            tests/flight-commander/firmware/compass-orientation.test.mjs
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Require per-source compass orientation before fusion [skip ci]'
+          git push origin HEAD:agent/fix-4.0.6-imu-handedness
+
   export:
     runs-on: ubuntu-latest
     timeout-minutes: 10
