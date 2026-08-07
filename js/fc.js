@@ -95,6 +95,7 @@ var FC = {
     DUAL_GPS_STATUS: null,
     HEADING_CONFIG: null,
     HEADING_STATUS: null,
+    COMPASS_ORIENTATION_STATUS: null,
 
     restartRequired: false,
     MAX_SERVO_RATE: 125,
@@ -360,6 +361,7 @@ var FC = {
         };
 
         this.HEADING_CONFIG = null;
+        this.COMPASS_ORIENTATION_STATUS = null;
         this.HEADING_STATUS = {
             healthyMask: 0,
             activeMask: 0,

@@ -27,6 +27,7 @@ export const FLIGHT_COMMANDER_CAPABILITIES = Object.freeze({
   HEADING_FUSION: 1 << 11,
   MOVING_BASELINE_YAW: 1 << 12,
   DRONECAN_MOVING_BASELINE_MANAGER: 1 << 13,
+  COMPASS_ORIENTATION_LEARNING: 1 << 14,
 });
 
 export const FLIGHT_COMMANDER_FEATURES = Object.freeze({
@@ -99,6 +100,11 @@ export const FLIGHT_COMMANDER_FEATURES = Object.freeze({
     capability: FLIGHT_COMMANDER_CAPABILITIES.DRONECAN_MOVING_BASELINE_MANAGER,
     capabilityName: "DRONECAN_MOVING_BASELINE_MANAGER",
     label: "Two-node DroneCAN moving-baseline setup manager",
+  }),
+  compassOrientationLearning: Object.freeze({
+    capability: FLIGHT_COMMANDER_CAPABILITIES.COMPASS_ORIENTATION_LEARNING,
+    capabilityName: "COMPASS_ORIENTATION_LEARNING",
+    label: "Persistent learned compass-to-board orientation",
   }),
 });
 

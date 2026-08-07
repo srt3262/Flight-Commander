@@ -1,5 +1,17 @@
 # Flight Commander 4.0.0
 
+## 4.0.6
+
+- Replace the MICOAIR743 onboard IST8310 fixed transform with a persistent learned sensor-to-board signed-axis transform.
+- Require the existing six-position accelerometer calibration before compass-orientation learning can begin.
+- Add a guided six-face workflow that validates the upward face with calibrated acceleration, measures rotation direction with gyro data and scores all 24 proper signed-axis mappings against synchronized magnetic vectors.
+- Reject incomplete, magnetically distorted, ambiguous or excessive-residual data instead of guessing an orientation.
+- Store the learned mapping, confidence, residual, sensor fingerprint and calibration generation in a dedicated versioned firmware parameter group.
+- Keep the learned transform independent from manual compass alignment and board alignment.
+- Invalidate prior compass offset/gain calibration whenever the learned transform changes, then require the conventional compass field calibration as the second stage.
+- Add MSP status and command endpoints plus Configurator progress, diagnostics, clear and relearn controls.
+- Keep the verified 3.0.7 recovery baseline selectable while requiring 4.0.6 or later for the current managed firmware path.
+
 ## 4.0.5
 
 - Keep fresh finite magnetic headings available at displayed quality 0 with a

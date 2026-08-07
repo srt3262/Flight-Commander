@@ -36,6 +36,10 @@ import {
     decodeHeadingStatus,
     encodeHeadingConfig,
 } from './../flightCommander/headingFusion';
+import {
+    decodeCompassOrientationStatus,
+    encodeCompassOrientationCommand,
+} from './../flightCommander/compassOrientation';
 
 var mspHelper = (function () {
     var self = {};
@@ -854,6 +858,14 @@ var mspHelper = (function () {
 
             case MSPCodes.MSP2_FLIGHT_COMMANDER_HEADING_STATUS:
                 Object.assign(FC.HEADING_STATUS, decodeHeadingStatus(data));
+                break;
+
+            case MSPCodes.MSP2_FLIGHT_COMMANDER_COMPASS_ORIENTATION_STATUS:
+                FC.COMPASS_ORIENTATION_STATUS = decodeCompassOrientationStatus(data);
+                break;
+
+            case MSPCodes.MSP2_FLIGHT_COMMANDER_COMPASS_ORIENTATION_COMMAND:
+                console.log('Flight Commander compass-orientation command accepted');
                 break;
 
             case MSPCodes.MSP2_FLIGHT_COMMANDER_SET_HEADING_CONFIG:
@@ -3812,6 +3824,24 @@ var mspHelper = (function () {
 
     self.loadFlightCommanderHeadingStatus = function (callback) {
         MSP.send_message(MSPCodes.MSP2_FLIGHT_COMMANDER_HEADING_STATUS, false, false, callback);
+    };
+
+    self.loadCompassOrientationStatus = function (callback) {
+        MSP.send_message(
+            MSPCodes.MSP2_FLIGHT_COMMANDER_COMPASS_ORIENTATION_STATUS,
+            false,
+            false,
+            callback,
+        );
+    };
+
+    self.sendCompassOrientationCommand = function (command, callback) {
+        MSP.send_message(
+            MSPCodes.MSP2_FLIGHT_COMMANDER_COMPASS_ORIENTATION_COMMAND,
+            [...encodeCompassOrientationCommand(command)],
+            false,
+            callback,
+        );
     };
 
     self.saveFlightCommanderHeadingConfig = function (callback) {

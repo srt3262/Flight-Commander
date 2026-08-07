@@ -33,7 +33,7 @@ describe("Flight Commander firmware catalog", () => {
       FLIGHT_COMMANDER_FIRMWARE_RELEASES_URL,
       "https://api.github.com/repos/srt3262/Flight-Commander/releases?per_page=20",
     );
-    assert.equal(FLIGHT_COMMANDER_MINIMUM_SUPPORTED_FIRMWARE_VERSION, "4.0.5");
+    assert.equal(FLIGHT_COMMANDER_MINIMUM_SUPPORTED_FIRMWARE_VERSION, "4.0.6");
     assert.deepEqual(FLIGHT_COMMANDER_KNOWN_GOOD_FIRMWARE_VERSIONS, ["3.0.7"]);
     assert.equal(isSupportedFlightCommanderFirmwareVersion("3.0.6"), false);
     assert.equal(isSupportedFlightCommanderFirmwareVersion("3.0.7"), true);
@@ -41,7 +41,8 @@ describe("Flight Commander firmware catalog", () => {
     assert.equal(isSupportedFlightCommanderFirmwareVersion("3.0.8"), false);
     assert.equal(isSupportedFlightCommanderFirmwareVersion("4.0.0"), false);
     assert.equal(isSupportedFlightCommanderFirmwareVersion("4.0.4"), false);
-    assert.equal(isSupportedFlightCommanderFirmwareVersion("4.0.5"), true);
+    assert.equal(isSupportedFlightCommanderFirmwareVersion("4.0.5"), false);
+    assert.equal(isSupportedFlightCommanderFirmwareVersion("4.0.6"), true);
     assert.equal(isSupportedFlightCommanderFirmwareVersion("4.1.0"), true);
     assert.equal(normalizeFirmwareTarget("MICOAIR743"), "MICOAIR743");
     assert.equal(normalizeFirmwareTarget("MICROAIR743"), "MICOAIR743");
@@ -91,19 +92,19 @@ describe("Flight Commander firmware catalog", () => {
       {
         draft: false,
         prerelease: true,
-        tag_name: "v4.0.5",
-        name: "Firmware 4.0.5 beta",
+        tag_name: "v4.0.6",
+        name: "Firmware 4.0.6 beta",
         html_url: "https://example.invalid/release",
         published_at: "2026-08-02T12:00:00Z",
         body: "Prop-off bench baseline.",
         assets: [
           {
-            name: "Flight-Commander-Firmware-4.0.5-MICOAIR743-BENCH-ONLY.hex",
+            name: "Flight-Commander-Firmware-4.0.6-MICOAIR743-BENCH-ONLY.hex",
             browser_download_url: "https://example.invalid/firmware.hex",
             digest: `sha256:${"a".repeat(64)}`,
             size: 1234,
           },
-          { name: "Flight-Commander-Firmware-4.0.5-source.zip" },
+          { name: "Flight-Commander-Firmware-4.0.6-source.zip" },
         ],
       },
     ];
@@ -117,12 +118,12 @@ describe("Flight Commander firmware catalog", () => {
   });
 
   test("uses standalone GitHub HEX assets for the current release and verified recovery baseline", () => {
-    const filename = "Flight-Commander-Firmware-4.0.5-MICOAIR743.hex";
+    const filename = "Flight-Commander-Firmware-4.0.6-MICOAIR743.hex";
     const online = flightCommanderReleaseDescriptors([
       {
         draft: false,
         prerelease: false,
-        tag_name: "v4.0.5",
+        tag_name: "v4.0.6",
         assets: [
           {
             name: "Flight-Commander-Firmware-3.0.7-MICOAIR743.hex",
@@ -141,7 +142,7 @@ describe("Flight Commander firmware catalog", () => {
     ]);
 
     assert.equal(online.length, 2);
-    assert.deepEqual(online.map(({ version }) => version), ["4.0.5", "3.0.7"]);
+    assert.deepEqual(online.map(({ version }) => version), ["4.0.6", "3.0.7"]);
     assert.equal(online[0].url, "https://example.invalid/firmware.hex");
     assert.equal(online[0].bytes, 1234);
     assert.equal(online[1].url, "https://example.invalid/recovery.hex");
@@ -230,7 +231,7 @@ describe("Flight Commander firmware catalog", () => {
 });
 
 
-test("keeps 3.0.7 and 4.0.5 while removing every verified-bad intervening release", () => {
+test("keeps 3.0.7 and 4.0.6 while removing every verified-bad intervening release", () => {
   const releaseFor = (version, marker) => ({
     draft: false,
     prerelease: true,
@@ -253,6 +254,7 @@ test("keeps 3.0.7 and 4.0.5 while removing every verified-bad intervening releas
     releaseFor("4.0.3", "3"),
     releaseFor("4.0.4", "4"),
     releaseFor("4.0.5", "5"),
+    releaseFor("4.0.6", "a"),
   ]);
-  assert.deepEqual(descriptors.map(({ version }) => version), ["4.0.5", "3.0.7"]);
+  assert.deepEqual(descriptors.map(({ version }) => version), ["4.0.6", "3.0.7"]);
 });

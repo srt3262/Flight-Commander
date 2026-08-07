@@ -1,0 +1,18 @@
+{
+  "version": "4.0.6",
+  "tag": "v4.0.6-beta",
+  "status": "source-integrated",
+  "workflow_run_id": 31137346723,
+  "workflow_run_attempt": 1,
+  "verified_firmware_run_id": 31131510835,
+  "verified_release_run_id": 31133260246,
+  "verified_release_artifact": "fc406-release-31133260246",
+  "source_zip_sha256": "ba6f5295abbfaf609a5818ec2f4918683ee019fb153e3f6437ad1e14b4b31496",
+  "bundle_sha256": "57498121111860b305ec07fc5dc5df76911755efe38796dd537dbe953d766cff",
+  "component_sha256": {
+    "FC-Windows-v4.0.6.zip": "a235226b9fb415ba1aba56e07ae591ef96aa290bd684d451fc61c9821b589212",
+    "FC-Configurator-Source-v4.0.6.zip": "ba6f5295abbfaf609a5818ec2f4918683ee019fb153e3f6437ad1e14b4b31496",
+    "FC-Firmware-v4.0.6-MICOAIR743.hex": "b5215b8a2216c4d597511483ba377bec1725e3fb33e4785edbf28d252d7d6893",
+    "FC-Firmware-Source-v4.0.6.zip": "fc305751a9bddb7879c7cc2e1cdd13aaf88d1ccc8684b43aca3ae9f49283f813"
+  }
+}

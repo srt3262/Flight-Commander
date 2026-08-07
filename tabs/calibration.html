@@ -50,6 +50,35 @@
             </section>
 
             <aside class="calibration-secondary">
+                <section id="compassOrientationPanel" class="gui_box grey compass-orientation-panel is-hidden">
+                    <div class="gui_box_titlebar"><div class="spacer_box_title">Compass Orientation Learning</div></div>
+                    <div class="spacer_box">
+                        <p class="compass-orientation-intro">
+                            After accelerometer calibration, place the flight controller in each of the six shown positions and slowly rotate it around the upward-facing axis. Firmware matches the raw compass vectors to the calibrated IMU axes and permanently stores the solved transform.
+                        </p>
+                        <div id="compassOrientationSummary" class="compass-calibration-summary" aria-live="polite">Loading learned orientation…</div>
+                        <div class="compass-orientation-prerequisites">
+                            <span id="compassOrientationAccelState" class="compass-orientation-requirement">Accelerometer</span>
+                            <span id="compassOrientationSensorState" class="compass-orientation-requirement">Onboard compass</span>
+                            <span id="compassOrientationStoredState" class="compass-orientation-requirement">Persistent transform</span>
+                        </div>
+                        <div id="compassOrientationFaces" class="compass-orientation-faces"></div>
+                        <div class="compass-orientation-result">
+                            <strong>Learned mapping</strong>
+                            <span id="compassOrientationMapping">Not learned</span>
+                            <small id="compassOrientationQuality">Confidence — · residual — · separation —</small>
+                        </div>
+                        <div class="compass-orientation-actions">
+                            <button id="compassOrientationStart" type="button">Start six-position learning</button>
+                            <button id="compassOrientationCancel" type="button" class="is-hidden">Cancel learning</button>
+                            <button id="compassOrientationClear" type="button" class="is-hidden">Clear and relearn</button>
+                        </div>
+                        <p class="compass-orientation-note">
+                            This learned sensor transform is separate from the manual Alignment-tab setting. Manual alignment remains editable and defaults to 0° without rewriting the learned transform.
+                        </p>
+                    </div>
+                </section>
+
                 <section class="gui_box grey compass-calibration-panel">
                     <div class="gui_box_titlebar"><div class="spacer_box_title">Compass Calibration</div></div>
                     <div class="spacer_box">

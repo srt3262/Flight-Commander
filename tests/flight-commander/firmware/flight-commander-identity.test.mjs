@@ -37,7 +37,8 @@ describe("Flight Commander firmware identity", () => {
   test("parses the exact firmware 0.1.0 schema and little-endian capabilities", () => {
     const capabilities =
       FLIGHT_COMMANDER_CAPABILITIES.MULTIROTOR_AUTOTUNE |
-      FLIGHT_COMMANDER_CAPABILITIES.MISSION_STREAMING;
+      FLIGHT_COMMANDER_CAPABILITIES.MISSION_STREAMING |
+      FLIGHT_COMMANDER_CAPABILITIES.COMPASS_ORIENTATION_LEARNING;
     const identity = inspectFlightCommanderInfo(
       identityPayload({ capabilities }),
       "9.1.0",
@@ -54,6 +55,7 @@ describe("Flight Commander firmware identity", () => {
     assert.deepEqual(identity.capabilityNames, [
       "MULTIROTOR_AUTOTUNE",
       "MISSION_STREAMING",
+      "COMPASS_ORIENTATION_LEARNING",
     ]);
   });
 

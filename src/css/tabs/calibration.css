@@ -403,3 +403,170 @@
         grid-column: 1 / -1;
     }
 }
+
+.compass-orientation-intro,
+.compass-orientation-note {
+    margin: 0 0 9px;
+    line-height: 1.45;
+}
+
+.compass-orientation-note {
+    margin-top: 9px;
+    padding: 8px 10px;
+    border-left: 3px solid #37a8db;
+    background: rgba(55, 168, 219, 0.1);
+}
+
+.compass-orientation-prerequisites {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0 0 10px;
+}
+
+.compass-orientation-requirement {
+    padding: 5px 8px;
+    border: 1px solid rgba(153, 178, 190, 0.28);
+    border-radius: 999px;
+    background: rgba(153, 178, 190, 0.12);
+    color: #9eb4bf;
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.compass-orientation-requirement.is-ready {
+    border-color: rgba(69, 187, 119, 0.45);
+    background: rgba(69, 187, 119, 0.15);
+    color: #70daa0;
+}
+
+.compass-orientation-requirement.is-blocked {
+    border-color: rgba(220, 162, 42, 0.42);
+    background: rgba(220, 162, 42, 0.12);
+    color: #f0c45e;
+}
+
+.compass-orientation-faces {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px;
+}
+
+.compass-orientation-face {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 3px 8px;
+    align-items: center;
+    padding: 8px;
+    border: 1px solid rgba(153, 178, 190, 0.28);
+    border-radius: 5px;
+    background: rgba(24, 46, 58, 0.18);
+}
+
+.compass-orientation-face strong {
+    min-width: 0;
+    font-size: 11px;
+}
+
+.compass-orientation-face small {
+    grid-column: 1 / -1;
+    color: #91a8b4;
+    font-size: 9px;
+}
+
+.compass-orientation-face em {
+    grid-column: 2;
+    grid-row: 1;
+    color: #9eb4bf;
+    font-size: 9px;
+    font-style: normal;
+    font-weight: 700;
+}
+
+.compass-orientation-face.is-current {
+    border-color: rgba(55, 168, 219, 0.75);
+    box-shadow: 0 0 0 1px rgba(55, 168, 219, 0.16);
+}
+
+.compass-orientation-face.is-complete {
+    border-color: rgba(69, 187, 119, 0.55);
+    background: rgba(69, 187, 119, 0.09);
+}
+
+.compass-orientation-face.is-complete em {
+    color: #70daa0;
+}
+
+.compass-orientation-progress {
+    grid-column: 1 / -1;
+    height: 5px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(153, 178, 190, 0.16);
+}
+
+.compass-orientation-progress > span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: #37a8db;
+}
+
+.compass-orientation-face.is-complete .compass-orientation-progress > span {
+    background: #45bb77;
+}
+
+.compass-orientation-result {
+    display: grid;
+    gap: 4px;
+    margin-top: 9px;
+    padding: 9px 10px;
+    border: 1px solid rgba(153, 178, 190, 0.28);
+    border-radius: 5px;
+    background: rgba(24, 46, 58, 0.18);
+}
+
+.compass-orientation-result > span {
+    overflow-wrap: anywhere;
+    font-family: monospace;
+    font-size: 10px;
+}
+
+.compass-orientation-result > small {
+    color: #91a8b4;
+    font-size: 9px;
+}
+
+.compass-orientation-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    margin-top: 9px;
+}
+
+.compass-orientation-actions button {
+    min-height: 32px;
+    padding: 6px 10px;
+    border: 1px solid #2386b4;
+    border-radius: 4px;
+    background: linear-gradient(#43b0df, #278db9);
+    color: #ffffff;
+    font-weight: 700;
+}
+
+.compass-orientation-actions button:disabled {
+    cursor: default;
+    opacity: 0.45;
+}
+
+.compass-orientation-actions #compassOrientationClear {
+    border-color: rgba(226, 100, 100, 0.62);
+    background: rgba(226, 100, 100, 0.14);
+    color: #f3a1a1;
+}
+
+@media (max-width: 560px) {
+    .compass-orientation-faces {
+        grid-template-columns: 1fr;
+    }
+}

@@ -16,8 +16,15 @@ import {
     compassCalibrationState,
     enumerateCompassCalibrationTargets,
 } from './../js/flightCommander/compassCalibration';
+import {
+    COMPASS_ORIENTATION_COMMAND,
+    COMPASS_ORIENTATION_FACES,
+    COMPASS_ORIENTATION_PHASE,
+    compassOrientationStage,
+} from './../js/flightCommander/compassOrientation';
 
 const COMPASS_POLL_INTERVAL = 'compass_calibration_status';
+const COMPASS_ORIENTATION_POLL_INTERVAL = 'compass_orientation_status';
 const COMPASS_FALLBACK_DURATION_MS = 31000;
 const COMPASS_HARD_TIMEOUT_MS = 38000;
 
@@ -25,6 +32,8 @@ const calibrationTab = {
     compassSession: null,
     supportsHeadingFusion: false,
     supportsDronecanConfig: false,
+    supportsCompassOrientation: false,
+    orientationCommandPending: false,
 };
 
 calibrationTab.model = (function () {
@@ -62,8 +71,13 @@ calibrationTab.initialize = function (callback) {
         firmwareIdentity,
         'dronecanNodeConfig',
     ).enabled;
+    const supportsCompassOrientation = firmwareFeatureSupport(
+        firmwareIdentity,
+        'compassOrientationLearning',
+    ).enabled;
     this.supportsHeadingFusion = supportsHeadingFusion;
     this.supportsDronecanConfig = supportsDronecanConfig;
+    this.supportsCompassOrientation = supportsCompassOrientation;
 
     let modalStart;
     let modalStop;
@@ -82,6 +96,9 @@ calibrationTab.initialize = function (callback) {
             mspHelper.loadFlightCommanderHeadingConfig,
             mspHelper.loadFlightCommanderHeadingStatus,
         );
+    }
+    if (supportsCompassOrientation) {
+        loadChain.push(mspHelper.loadCompassOrientationStatus);
     }
     if (supportsDronecanConfig) {
         loadChain.push(mspHelper.loadDronecanConfig, mspHelper.loadDronecanNodes);
@@ -124,6 +141,123 @@ calibrationTab.initialize = function (callback) {
         }
     }
 
+    function setRequirementState(selector, ready, readyText, blockedText) {
+        $(selector)
+            .toggleClass('is-ready', Boolean(ready))
+            .toggleClass('is-blocked', !ready)
+            .text(ready ? readyText : blockedText);
+    }
+
+    function renderCompassOrientation() {
+        const $panel = $('#compassOrientationPanel');
+        if (!supportsCompassOrientation) {
+            $panel.addClass('is-hidden');
+            return;
+        }
+        $panel.removeClass('is-hidden');
+
+        const status = FC.COMPASS_ORIENTATION_STATUS;
+        const stage = compassOrientationStage(status);
+        const $summary = $('#compassOrientationSummary')
+            .removeClass('is-ready is-warning is-error is-working')
+            .addClass(`is-${stage.tone}`);
+
+        if (!status) {
+            $summary.text('Waiting for compass-orientation status from firmware.');
+            return;
+        }
+
+        setRequirementState(
+            '#compassOrientationAccelState',
+            status.accelerometerCalibrated || FC.getAccelerometerCalibrated(),
+            'Accelerometer calibrated',
+            'Accelerometer calibration required',
+        );
+        setRequirementState(
+            '#compassOrientationSensorState',
+            status.compassPresent,
+            'Onboard compass detected',
+            'Onboard compass not detected',
+        );
+        setRequirementState(
+            '#compassOrientationStoredState',
+            status.valid,
+            `Transform stored · generation ${status.calibrationGeneration}`,
+            'Persistent transform not learned',
+        );
+
+        if (status.phase === COMPASS_ORIENTATION_PHASE.FAILED) {
+            $summary.text(status.failureLabel || 'Compass-orientation learning failed.');
+        } else if (status.active) {
+            const face = COMPASS_ORIENTATION_FACES[status.currentFace];
+            $summary.text(
+                face
+                    ? `Keep ${face.label.toLowerCase()} and rotate around ${face.axis}. ${status.currentFaceRotationDegrees.toFixed(0)}° collected on this face.`
+                    : `Place the controller in the next incomplete position and rotate it around the upward-facing axis.`,
+            );
+        } else if (status.valid) {
+            $summary.text(
+                status.fieldCalibrated
+                    ? 'The learned compass transform and conventional magnetic calibration are both stored.'
+                    : 'The learned transform is permanently stored. Complete conventional compass offset/gain calibration next.',
+            );
+        } else if (!status.accelerometerCalibrated && !FC.getAccelerometerCalibrated()) {
+            $summary.text('Complete and save the accelerometer six-position calibration before learning compass orientation.');
+        } else if (!status.compassPresent) {
+            $summary.text('The onboard compass must be detected before orientation learning can begin.');
+        } else {
+            $summary.text('Ready for the six-position learned compass-orientation process.');
+        }
+
+        const $faces = $('#compassOrientationFaces').empty();
+        for (const face of COMPASS_ORIENTATION_FACES) {
+            const complete = (status.completedMask & (1 << face.index)) !== 0;
+            const current = status.currentFace === face.index || status.detectedFace === face.index;
+            const progress = status.faceProgress?.[face.index] ?? 0;
+            const samples = status.faceSamples?.[face.index] ?? 0;
+            const $face = $('<article>')
+                .addClass('compass-orientation-face')
+                .toggleClass('is-complete', complete)
+                .toggleClass('is-current', current);
+            $('<strong>').text(face.label).appendTo($face);
+            $('<small>').text(`${face.axis} · ${samples} samples`).appendTo($face);
+            $('<div>')
+                .addClass('compass-orientation-progress')
+                .append($('<span>').css('width', `${Math.max(0, Math.min(100, progress))}%`))
+                .appendTo($face);
+            $('<em>').text(complete ? 'Complete' : `${progress}%`).appendTo($face);
+            $face.appendTo($faces);
+        }
+
+        const mapping = status.valid ? status.storedMapping : status.candidateMapping;
+        $('#compassOrientationMapping').text(mapping || 'Not learned');
+        $('#compassOrientationQuality').text(
+            `Confidence ${status.confidencePercent}% · residual ${status.residualDegrees.toFixed(2)}° · separation ${status.separationDegrees.toFixed(2)}°`,
+        );
+
+        const prerequisitesReady = Boolean(
+            (status.accelerometerCalibrated || FC.getAccelerometerCalibrated())
+            && status.compassPresent
+            && !status.armed,
+        );
+        $('#compassOrientationStart')
+            .toggleClass('is-hidden', status.active)
+            .prop('disabled', !prerequisitesReady || calibrationTab.orientationCommandPending)
+            .text(status.valid ? 'Relearn compass orientation' : 'Start six-position learning');
+        $('#compassOrientationCancel')
+            .toggleClass('is-hidden', !status.active)
+            .prop('disabled', calibrationTab.orientationCommandPending);
+        $('#compassOrientationClear')
+            .toggleClass('is-hidden', !status.valid || status.active)
+            .prop('disabled', calibrationTab.orientationCommandPending);
+    }
+
+    function orientationBlocksFieldCalibration() {
+        if (!supportsCompassOrientation) return false;
+        const status = FC.COMPASS_ORIENTATION_STATUS;
+        return !status?.valid || status.active;
+    }
+
     function compassTargets() {
         return enumerateCompassCalibrationTargets({
             supportsHeadingFusion,
@@ -153,6 +287,7 @@ calibrationTab.initialize = function (callback) {
     function renderCompassTargets() {
         const targets = compassTargets();
         const session = calibrationTab.compassSession;
+        const orientationLocked = orientationBlocksFieldCalibration();
         const $list = $('#compassCalibrationList').empty();
 
         for (const target of targets) {
@@ -191,13 +326,15 @@ calibrationTab.initialize = function (callback) {
                     'data-compass-calibrate': target.index,
                 })
                 .addClass('compass-calibrate-button')
-                .prop('disabled', Boolean(session))
+                .prop('disabled', Boolean(session) || orientationLocked)
                 .text(
-                    session
-                        ? 'Calibration in progress…'
-                        : target.invalidCalibration
-                            ? 'Replace invalid calibration'
-                            : 'Calibrate this compass',
+                    orientationLocked
+                        ? 'Learn compass orientation first'
+                        : session
+                            ? 'Calibration in progress…'
+                            : target.invalidCalibration
+                                ? 'Replace invalid calibration'
+                                : 'Calibrate this compass',
                 )
                 .appendTo($card);
             $card.appendTo($list);
@@ -205,7 +342,11 @@ calibrationTab.initialize = function (callback) {
 
         const $summary = $('#compassCalibrationSummary')
             .removeClass('is-ready is-warning is-error is-working');
-        if (session) {
+        if (orientationLocked) {
+            $summary.addClass('is-warning').text(
+                'Learn and store the onboard compass orientation before conventional offset/gain calibration.',
+            );
+        } else if (session) {
             $summary.addClass('is-working').text(
                 'Calibration is running for every enabled compass. Keep rotating the entire aircraft through all axes.',
             );
@@ -263,19 +404,25 @@ calibrationTab.initialize = function (callback) {
         });
         $('[name=OpflowScale]').val(FC.CALIBRATION_DATA.opflow.Scale);
         updateCalibrationSteps();
+        renderCompassOrientation();
         renderCompassTargets();
     }
 
     function reloadCompassData(done) {
-        mspHelper.loadCalibrationData(function () {
-            if (!supportsHeadingFusion) {
+        const finish = function () {
+            if (!supportsCompassOrientation) {
                 done?.();
                 return;
             }
+            mspHelper.loadCompassOrientationStatus(done);
+        };
+        mspHelper.loadCalibrationData(function () {
+            if (!supportsHeadingFusion) {
+                finish();
+                return;
+            }
             mspHelper.loadFlightCommanderHeadingConfig(function () {
-                mspHelper.loadFlightCommanderHeadingStatus(function () {
-                    done?.();
-                });
+                mspHelper.loadFlightCommanderHeadingStatus(finish);
             });
         });
     }
@@ -329,7 +476,11 @@ calibrationTab.initialize = function (callback) {
 
     function startCompassCalibration(event) {
         event.preventDefault();
-        if (calibrationTab.compassSession) return;
+        if (calibrationTab.compassSession || orientationBlocksFieldCalibration()) {
+            renderCompassOrientation();
+            renderCompassTargets();
+            return;
+        }
         const sourceIndex = Number(event.currentTarget.dataset.compassCalibrate);
         const target = compassTargets().find((candidate) => candidate.index === sourceIndex);
         if (!target) {
@@ -360,6 +511,46 @@ calibrationTab.initialize = function (callback) {
         interval.add(COMPASS_POLL_INTERVAL, pollCompassCalibration, 500, true);
     }
 
+    function stopCompassOrientationPolling() {
+        interval.remove(COMPASS_ORIENTATION_POLL_INTERVAL);
+    }
+
+    function pollCompassOrientation() {
+        if (!supportsCompassOrientation || calibrationTab.orientationCommandPending) return;
+        mspHelper.loadCompassOrientationStatus(function () {
+            renderCompassOrientation();
+            renderCompassTargets();
+            const status = FC.COMPASS_ORIENTATION_STATUS;
+            if (!status?.active) {
+                stopCompassOrientationPolling();
+                if (status?.valid) {
+                    reloadCompassData(updateSensorData);
+                    GUI.log('Learned onboard compass orientation stored permanently. Conventional compass calibration is now available.');
+                } else if (status?.phase === COMPASS_ORIENTATION_PHASE.FAILED) {
+                    GUI.log(`<span class="error">${status.failureLabel || 'Compass-orientation learning failed.'}</span>`);
+                }
+            }
+        });
+    }
+
+    function sendCompassOrientationCommand(command) {
+        if (!supportsCompassOrientation || calibrationTab.orientationCommandPending) return;
+        calibrationTab.orientationCommandPending = true;
+        renderCompassOrientation();
+        mspHelper.sendCompassOrientationCommand(command, function () {
+            calibrationTab.orientationCommandPending = false;
+            mspHelper.loadCompassOrientationStatus(function () {
+                updateSensorData();
+                if (command === COMPASS_ORIENTATION_COMMAND.START) {
+                    interval.add(COMPASS_ORIENTATION_POLL_INTERVAL, pollCompassOrientation, 350, true);
+                    GUI.log('Compass-orientation learning started. Complete all six positions and rotate around each upward-facing axis.');
+                } else {
+                    stopCompassOrientationPolling();
+                }
+            });
+        });
+    }
+
     function checkFinishAccCalibrate() {
         if (calibrationTab.model.next() === null) {
             modalStop = new jBox('Modal', {
@@ -371,7 +562,11 @@ calibrationTab.initialize = function (callback) {
                 content: $('#modal-acc-calibration-stop'),
             }).open();
         }
-        updateSensorData();
+        if (supportsCompassOrientation) {
+            mspHelper.loadCompassOrientationStatus(updateSensorData);
+        } else {
+            updateSensorData();
+        }
     }
 
     function calibrateNew(buttonElement) {
@@ -454,6 +649,19 @@ calibrationTab.initialize = function (callback) {
             $('#opflow_btn, #opflow-calibrated-data').css('pointer-events', 'none').css('opacity', '0.4');
         }
 
+        if (supportsCompassOrientation) {
+            $('#compassOrientationPanel').removeClass('is-hidden');
+            $('#compassOrientationStart').on('click.calibrationTab', function () {
+                sendCompassOrientationCommand(COMPASS_ORIENTATION_COMMAND.START);
+            });
+            $('#compassOrientationCancel').on('click.calibrationTab', function () {
+                sendCompassOrientationCommand(COMPASS_ORIENTATION_COMMAND.CANCEL);
+            });
+            $('#compassOrientationClear').on('click.calibrationTab', function () {
+                sendCompassOrientationCommand(COMPASS_ORIENTATION_COMMAND.CLEAR);
+            });
+        }
+
         $('#compassCalibrationList').on(
             'click.calibrationTab',
             '.compass-calibrate-button',
@@ -505,10 +713,12 @@ calibrationTab.initialize = function (callback) {
 
 calibrationTab.cleanup = function (callback) {
     interval.remove(COMPASS_POLL_INTERVAL);
+    interval.remove(COMPASS_ORIENTATION_POLL_INTERVAL);
     interval.remove('opflow_calibration_interval');
     this.compassSession?.modal?.close();
     this.compassSession = null;
-    $('#compassCalibrationList, #opflow_btn, #modal-start-button, #modal-stop-button, #calibrate-start-button, #calibrateButtonSave')
+    this.orientationCommandPending = false;
+    $('#compassOrientationPanel, #compassCalibrationList, #opflow_btn, #modal-start-button, #modal-stop-button, #calibrate-start-button, #calibrateButtonSave')
         .off('.calibrationTab');
     if (callback) callback();
 };

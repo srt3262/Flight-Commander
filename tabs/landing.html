@@ -34,47 +34,33 @@
       </div>
       <div class="column half text2">
         <div class="wrap">
-          <h2>Flight Commander 4.0.5</h2>
-          <div>
-            Flight Commander 4.0.5 Beta ships coordinated Configurator and firmware
-            builds with matching downloadable source. Its MICOAIR743 firmware
-            is built from the official INAV 9.1.0 target while retaining
-            reviewed Flight Commander extensions for fresh IST8310 sampling,
-            validated compass calibration, and the MICOAIR743 board transform.
-            Physical testing established the canonical onboard mapping as
-            X=-nativeY, Y=-nativeX, Z=nativeZ with user alignment CW 0 degrees.
-            Firmware 4.0.5 keeps the accepted MICOAIR743 IST8310
-            transform and the 4.0.4 time-based sensor recovery, then separates
-            sample freshness, heading availability, displayed field quality and
-            fusion authority. A fresh stationary magnetic heading remains usable
-            at displayed quality 0 with only a one-percent authority floor, and
-            four stable samples initialize yaw through a dedicated startup state
-            that is not blocked by the legacy GPS-heading flag. Disabled heading
-            sources now reset, migrate and save with weight 0. The online flasher
-            offers the verified 3.0.7 recovery baseline plus 4.0.5 and later,
-            while removing every failed intervening firmware revision from its
-            selectable list. Local-file loading remains content- and
-            target-validated.
-            Flight Commander adds weighted heading fusion and UART/DroneCAN
-            moving-baseline RTK yaw. The GPS and Alignment workflows retain
-            per-source diagnostics and editable installation offsets; the fixed
-            onboard chip-to-board transform remains target-owned and cannot be
-            accidentally applied to external compass modules.
-            The CLI, page help, settings help, OSD, tuning, and SITL surfaces
-            now use Flight Commander's comprehensive first-party GitHub manual;
-            all 246 graphical setting links are indexed there. SITL no longer
-            presents inherited INAV product wording. Firmware Flasher keeps
-            local firmware selection, online firmware download, and flashing
-            as the three explicit actions. Firmware is never bundled inside
-            the Configurator.
-            Connected Flight Commander Firmware is identified through the
-            versioned <code>FCFW</code> extension; fork-only features remain
-            disabled unless the firmware explicitly advertises their
-            capability. Official INAV retains compatible configuration and
-            navigation-only mission tools; Ground Control commands and all
-            Flight Commander-only features remain disabled. ArduPilot support
-            has been removed.
-          </div>
+          <h2>Flight Commander 4.0.6</h2>
+          <p>
+            Flight Commander 4.0.6 Beta introduces a learned onboard-compass
+            orientation workflow for the MICOAIR743. The firmware no longer
+            assumes a fixed signed-axis transform for the IST8310.
+          </p>
+          <p>
+            Complete the six-position accelerometer calibration first, then use
+            the guided six-face compass-orientation procedure. Rotate the entire
+            controller around the requested upward face until each position is
+            complete. Firmware compares synchronized accelerometer, gyro and
+            canonical magnetometer vectors across all 24 physically valid
+            right-handed axis mappings, rejects ambiguous data, and permanently
+            stores the winning transform with its confidence and residual.
+          </p>
+          <p>
+            The learned sensor transform is independent from manual compass
+            alignment and board alignment. Changing the learned transform clears
+            the previous magnetic offsets and gains, after which the normal
+            compass field calibration must be completed. Heading fusion excludes
+            the onboard compass until both stages are valid.
+          </p>
+          <p>
+            The managed flasher offers the verified 3.0.7 recovery baseline plus
+            4.0.6 and later. Failed 3.0.6-and-earlier, 3.0.8 and 4.0.0-through-4.0.5
+            firmware remain excluded from the managed list.
+          </p>
           <h2 style="margin-top: 1em">Open-source foundations</h2>
           <div>
             Flight Commander is licensed under GPL-3.0 and includes work from
