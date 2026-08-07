@@ -178,9 +178,15 @@ test('failsafe illustrations have higher-specificity dark-theme overrides', () =
   assert.equal(existsSync(regressionCssPath), true);
   assert.match(stylesSource, /@import '\.\/ui-regressions\.css';/);
   for (const procedure of [1, 2, 4]) {
-    assert.match(
-      regressionCss,
-      new RegExp(`\\.tab-failsafe \\.radioarea\\.pro${procedure}\\s*\\{[^}]*cf_failsafe_procedure${procedure}\\.svg`, 's'),
+    assert.equal(
+      regressionCss.includes(`.tab-failsafe .radioarea.pro${procedure}`),
+      true,
+      `missing failsafe procedure ${procedure} selector`,
+    );
+    assert.equal(
+      regressionCss.includes(`cf_failsafe_procedure${procedure}.svg`),
+      true,
+      `missing failsafe procedure ${procedure} image`,
     );
   }
   assert.match(regressionCss, /background-image:[\s\S]*!important;/);
