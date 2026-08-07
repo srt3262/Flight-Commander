@@ -1,0 +1,41 @@
+name: Export Flight Commander PR working tree
+
+"on":
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/export-flight-commander-pr-working-tree.yml
+      - release/firmware/**
+      - release/firmware-patches/**
+      - scripts/build-flight-commander-*-firmware.py
+      - js/flightCommander/**
+      - tabs/calibration.*
+      - tabs/flight_data.*
+      - package.json
+      - manifest.json
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Archive exact checked-out working tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          git archive --format=zip --output=flight-commander-pr-working-tree.zip HEAD
+          test -s flight-commander-pr-working-tree.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: flight-commander-pr-working-tree
+          retention-days: 1
+          if-no-files-found: error
+          path: flight-commander-pr-working-tree.zip
