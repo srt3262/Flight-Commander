@@ -20,12 +20,19 @@
 #define FLIGHT_COMMANDER_HEADING_SOURCE_COUNT 4U
 #define FLIGHT_COMMANDER_HEADING_SOURCE_NONE 255U
 
+#define FLIGHT_COMMANDER_COMPASS_CALIBRATION_COMMAND_SCHEMA 1U
+#define FLIGHT_COMMANDER_COMPASS_CALIBRATION_COMMAND_PAYLOAD_SIZE 4U
+
 typedef enum {
     FLIGHT_COMMANDER_HEADING_ONBOARD_MAG = 0,
     FLIGHT_COMMANDER_HEADING_EXTERNAL_I2C_MAG = 1,
     FLIGHT_COMMANDER_HEADING_DRONECAN_MAG = 2,
     FLIGHT_COMMANDER_HEADING_MOVING_BASELINE = 3,
 } flightCommanderHeadingSource_e;
+
+typedef enum {
+    FLIGHT_COMMANDER_COMPASS_CALIBRATION_COMMAND_START = 1,
+} flightCommanderCompassCalibrationCommand_e;
 
 typedef enum {
     FLIGHT_COMMANDER_BASELINE_AUTO = 0,
@@ -101,6 +108,15 @@ bool flightCommanderHeadingGetMagSource(
 bool flightCommanderHeadingGetAbsoluteReference(fpVector3_t *headingEarth, float *weight);
 bool flightCommanderHeadingGetFusedHeading(uint16_t *headingCentidegrees);
 bool flightCommanderHeadingHasActiveReference(void);
+
+bool flightCommanderHeadingCompassSourcePresent(uint8_t source);
+uint8_t flightCommanderHeadingCompassNodeID(uint8_t source);
+bool flightCommanderHeadingCompassFieldCalibrated(uint8_t source);
+void flightCommanderHeadingInvalidateCompassFieldCalibration(uint8_t source);
+bool flightCommanderHeadingStartCompassFieldCalibration(uint8_t source);
+bool flightCommanderHeadingReadCompassCalibrationCommand(sbuf_t *src);
+void flightCommanderHeadingOnboardCalibrationStarted(void);
+void flightCommanderHeadingOnboardCalibrationFinished(bool success);
 
 void flightCommanderHeadingReceiveDronecanMag(
     uint8_t sourceNodeID,
