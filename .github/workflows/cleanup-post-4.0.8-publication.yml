@@ -1,0 +1,71 @@
+name: Remove post-publication verification branch
+
+"on":
+  push:
+    branches: [main]
+    paths: [.github/workflows/cleanup-post-4.0.8-publication.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Delete the temporary verification branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api -X DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/agent/run-4.0.8-official-finalizer" >/dev/null 2>&1 || true
+
+      - name: Record cleanup and remove this one-time workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path('release/published/official-v4.0.8.json')
+          data = json.loads(path.read_text(encoding='utf-8'))
+          branches = data.setdefault('cleanup', {}).setdefault('branches', [])
+          branch = 'agent/run-4.0.8-official-finalizer'
+          if branch not in branches:
+              branches.append(branch)
+          data['post_release_verification_cleanup'] = {
+              'closed_unmerged_pull_request': 29,
+              'temporary_branch_removed': branch,
+          }
+          path.write_text(json.dumps(data, indent=2) + '\n', encoding='utf-8')
+          PY
+          rm -f .github/workflows/cleanup-post-4.0.8-publication.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m 'Remove post-publication verification branch [skip ci]'
+          git fetch origin main
+          git rebase origin/main
+          git push origin HEAD:main
+
+      - name: Verify the final public repository surface
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(gh api "repos/$GITHUB_REPOSITORY/branches?per_page=100" --jq length)" = 1
+          test "$(gh api "repos/$GITHUB_REPOSITORY/branches?per_page=100" --jq '.[0].name')" = main
+          test "$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq length)" = 1
+          test "$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq '.[0].tag_name')" = v4.0.8
+          test "$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq '.[0].prerelease')" = false
+          test "$(gh api "repos/$GITHUB_REPOSITORY/git/matching-refs/tags/" --jq length)" = 1
+          test "$(gh api "repos/$GITHUB_REPOSITORY/git/matching-refs/tags/" --jq '.[0].ref')" = refs/tags/v4.0.8
