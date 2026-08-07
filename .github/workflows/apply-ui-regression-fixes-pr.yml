@@ -1,0 +1,66 @@
+name: Apply Flight Commander UI regression fixes
+
+"on":
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+    paths:
+      - .github/workflows/apply-ui-regression-fixes-pr.yml
+      - scripts/apply-ui-regression-fixes.py
+
+permissions:
+  contents: write
+
+jobs:
+  patch-test-and-commit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out the pull-request branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: agent/fix-4.0.8-ui-regressions
+          fetch-depth: 0
+
+      - name: Apply the targeted source repairs
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/apply-ui-regression-fixes.py
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: yarn
+          cache-dependency-path: yarn.lock
+
+      - name: Install dependencies and run the complete Configurator test suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          corepack enable
+          corepack prepare yarn@1.22.22 --activate
+          yarn install --frozen-lockfile --non-interactive
+          yarn test
+
+      - name: Commit the verified repairs and remove one-time helpers
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm \
+            .github/workflows/apply-ui-regression-fixes-pr.yml \
+            scripts/apply-ui-regression-fixes.py
+          git add \
+            tabs/configuration.js \
+            src/css/styles.css \
+            src/css/ui-regressions.css \
+            tests/flight-commander/configurator/ui-regression-fixes.test.mjs
+          git config user.name 'Flight Commander Build'
+          git config user.email 'actions@users.noreply.github.com'
+          git commit -m 'Fix compass status, failsafe illustrations, and planner labels'
+          git push origin HEAD:agent/fix-4.0.8-ui-regressions
