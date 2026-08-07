@@ -8,7 +8,7 @@ name: Export Flight Commander 4.0.7 calibration source
       - .github/workflows/export-flight-commander-4.0.7-calibration-source.yml
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   export:
@@ -17,13 +17,14 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          persist-credentials: false
-      - name: Extract calibration implementation
+          ref: agent/fix-4.0.6-imu-handedness
+          fetch-depth: 0
+      - name: Extract exact 4.0.7 calibration implementation
         shell: bash
         run: |
           set -euo pipefail
-          rm -rf export-source extracted
-          mkdir -p export-source extracted
+          rm -rf dev/firmware-4.0.7-source extracted
+          mkdir -p dev/firmware-4.0.7-source extracted
           python3 - <<'PY'
           import zipfile
           from pathlib import Path
@@ -33,6 +34,9 @@ jobs:
               source.extractall('extracted')
           root = Path('extracted/Flight-Commander-Firmware-Source-v4.0.7')
           requested = [
+              'src/main/build/flight_commander.h',
+              'src/main/flight_commander/compass_orientation.c',
+              'src/main/flight_commander/compass_orientation.h',
               'src/main/flight_commander/heading_fusion.c',
               'src/main/flight_commander/heading_fusion.h',
               'src/main/flight_commander/external_compass.c',
@@ -42,7 +46,7 @@ jobs:
               'src/main/sensors/compass.c',
               'src/main/sensors/compass.h',
           ]
-          output = Path('export-source')
+          output = Path('dev/firmware-4.0.7-source')
           for relative in requested:
               source_path = root / relative
               if not source_path.is_file():
@@ -51,9 +55,16 @@ jobs:
               destination.parent.mkdir(parents=True, exist_ok=True)
               destination.write_bytes(source_path.read_bytes())
           PY
-      - uses: actions/upload-artifact@v4
-        with:
-          name: flight-commander-4.0.7-calibration-source
-          retention-days: 1
-          if-no-files-found: error
-          path: export-source
+      - name: Commit exact extracted source to the feature branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add dev/firmware-4.0.7-source
+          if git diff --cached --quiet; then
+            echo "Exact source already exported"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Export exact 4.0.7 compass source for 4.0.8 development [skip ci]"
+          git push origin HEAD:agent/fix-4.0.6-imu-handedness
