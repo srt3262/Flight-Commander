@@ -1,4 +1,4 @@
-name: Export Flight Commander 4.0.7 calibration source
+name: Apply Flight Commander 4.0.8 firmware calibration changes
 
 "on":
   push:
@@ -11,7 +11,7 @@ permissions:
   contents: write
 
 jobs:
-  export:
+  apply:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -19,52 +19,22 @@ jobs:
         with:
           ref: agent/fix-4.0.6-imu-handedness
           fetch-depth: 0
-      - name: Extract exact 4.0.7 calibration implementation
+      - name: Apply source-selective compass calibration changes
         shell: bash
         run: |
           set -euo pipefail
-          rm -rf dev/firmware-4.0.7-source extracted
-          mkdir -p dev/firmware-4.0.7-source extracted
-          python3 - <<'PY'
-          import zipfile
-          from pathlib import Path
-
-          archive = Path('release/firmware/Flight-Commander-Firmware-Source-v4.0.7.zip')
-          with zipfile.ZipFile(archive) as source:
-              source.extractall('extracted')
-          root = Path('extracted/Flight-Commander-Firmware-Source-v4.0.7')
-          requested = [
-              'src/main/build/flight_commander.h',
-              'src/main/flight_commander/compass_orientation.c',
-              'src/main/flight_commander/compass_orientation.h',
-              'src/main/flight_commander/heading_fusion.c',
-              'src/main/flight_commander/heading_fusion.h',
-              'src/main/flight_commander/external_compass.c',
-              'src/main/flight_commander/external_compass.h',
-              'src/main/fc/fc_msp.c',
-              'src/main/msp/msp_protocol_v2_flight_commander.h',
-              'src/main/sensors/compass.c',
-              'src/main/sensors/compass.h',
-          ]
-          output = Path('dev/firmware-4.0.7-source')
-          for relative in requested:
-              source_path = root / relative
-              if not source_path.is_file():
-                  raise FileNotFoundError(source_path)
-              destination = output / relative
-              destination.parent.mkdir(parents=True, exist_ok=True)
-              destination.write_bytes(source_path.read_bytes())
-          PY
-      - name: Commit exact extracted source to the feature branch
+          python3 scripts/apply-flight-commander-4.0.8-firmware-calibration.py
+          python3 -m py_compile scripts/apply-flight-commander-4.0.8-firmware-calibration.py
+      - name: Commit transformed firmware source
         shell: bash
         run: |
           set -euo pipefail
           git add dev/firmware-4.0.7-source
           if git diff --cached --quiet; then
-            echo "Exact source already exported"
+            echo "4.0.8 firmware calibration source already applied"
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "Export exact 4.0.7 compass source for 4.0.8 development [skip ci]"
+          git commit -m "Implement source-selective compass calibration for 4.0.8 [skip ci]"
           git push origin HEAD:agent/fix-4.0.6-imu-handedness
