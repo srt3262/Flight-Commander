@@ -9,7 +9,33 @@ import {
 import { DRONECAN_NODE_ID_DISABLED } from './dualGps.js';
 
 export const COMPASS_CALIBRATION_SOURCE_COUNT = 3;
+export const COMPASS_CALIBRATION_COMMAND_SCHEMA = 1;
+export const COMPASS_CALIBRATION_COMMAND_START = 1;
+export const COMPASS_CALIBRATION_COMMAND_PAYLOAD_SIZE = 4;
 export const DRONECAN_COMPASS_CAPABILITY = 1 << 3;
+
+export function encodeCompassCalibrationCommand(
+    source,
+    command = COMPASS_CALIBRATION_COMMAND_START,
+) {
+    const normalizedSource = Number(source);
+    if (!Number.isInteger(normalizedSource)
+        || normalizedSource < 0
+        || normalizedSource >= COMPASS_CALIBRATION_SOURCE_COUNT) {
+        throw new RangeError(
+            `Compass calibration source must be from 0 through ${COMPASS_CALIBRATION_SOURCE_COUNT - 1}.`,
+        );
+    }
+    if (Number(command) !== COMPASS_CALIBRATION_COMMAND_START) {
+        throw new RangeError(`Unsupported compass calibration command ${command}.`);
+    }
+    return Uint8Array.of(
+        COMPASS_CALIBRATION_COMMAND_SCHEMA,
+        COMPASS_CALIBRATION_COMMAND_START,
+        normalizedSource,
+        0,
+    );
+}
 
 function finiteVector(values, fallback) {
     const source = Array.isArray(values) ? values : [];
@@ -103,6 +129,24 @@ function targetStatus(source, fallbackCalibrated, calibrationAssessment) {
     };
 }
 
+function baseTarget(index, key, title, description, zero, gain, zeroUnit, gainUnit, alignment, nodeId, status) {
+    return {
+        index,
+        orientationSource: index,
+        key,
+        title,
+        description,
+        zero,
+        gain,
+        zeroUnit,
+        gainUnit,
+        alignment,
+        alignmentUnit: 'degrees',
+        nodeId,
+        ...status,
+    };
+}
+
 export function enumerateCompassCalibrationTargets({
     supportsHeadingFusion = false,
     activeSensors = null,
@@ -127,45 +171,40 @@ export function enumerateCompassCalibrationTargets({
     if (!supportsHeadingFusion || !headingConfig?.sources) {
         if (!legacyMagDetected) return [];
         const assessment = assessCompassCalibration(legacyZero, legacyGain, 1024);
-        return [{
-            index: HEADING_SOURCE_ONBOARD_MAG,
-            key: 'legacy-primary',
-            title: 'Primary / onboard compass',
-            description: 'Compass reported through the standard firmware magnetometer configuration.',
-            zero: legacyZero,
-            gain: legacyGain,
-            zeroUnit: 'raw',
-            gainUnit: 'scale',
-            nodeId: null,
-            ...targetStatus(null, assessment.adjusted, assessment),
-        }];
+        return [baseTarget(
+            HEADING_SOURCE_ONBOARD_MAG,
+            'legacy-primary',
+            'Primary / onboard compass',
+            'Compass reported through the standard firmware magnetometer configuration.',
+            legacyZero,
+            legacyGain,
+            'raw',
+            'scale',
+            null,
+            null,
+            targetStatus(null, assessment.adjusted, assessment),
+        )];
     }
 
     const targets = [];
     const statusSources = Array.isArray(headingStatus.sources) ? headingStatus.sources : [];
     const onboardSource = statusSources[HEADING_SOURCE_ONBOARD_MAG];
     const onboardEnabled = Boolean(headingConfig.sources[HEADING_SOURCE_ONBOARD_MAG]?.enabled);
-    if (
-        onboardEnabled
-        && (legacyMagDetected || sourceIsLive(onboardSource))
-    ) {
+    if (onboardEnabled && (legacyMagDetected || sourceIsLive(onboardSource))) {
         const assessment = assessCompassCalibration(legacyZero, legacyGain, 1024);
-        targets.push({
-            index: HEADING_SOURCE_ONBOARD_MAG,
-            key: 'onboard',
-            title: HEADING_SOURCE_LABELS[HEADING_SOURCE_ONBOARD_MAG],
-            description: 'Magnetometer installed on or directly connected to the flight controller.',
-            zero: legacyZero,
-            gain: legacyGain,
-            zeroUnit: 'raw',
-            gainUnit: 'scale',
-            nodeId: null,
-            ...targetStatus(
-                onboardSource,
-                assessment.adjusted,
-                assessment,
-            ),
-        });
+        targets.push(baseTarget(
+            HEADING_SOURCE_ONBOARD_MAG,
+            'onboard',
+            HEADING_SOURCE_LABELS[HEADING_SOURCE_ONBOARD_MAG],
+            'Magnetometer installed on or directly connected to the flight controller.',
+            legacyZero,
+            legacyGain,
+            'raw',
+            'scale',
+            null,
+            null,
+            targetStatus(onboardSource, assessment.adjusted, assessment),
+        ));
     }
 
     const externalSource = statusSources[HEADING_SOURCE_EXTERNAL_I2C_MAG];
@@ -177,22 +216,20 @@ export function enumerateCompassCalibrationTargets({
         const zero = finiteVector(headingConfig.externalMagZero, 0);
         const gain = finiteVector(headingConfig.externalMagGain, 1024);
         const assessment = assessCompassCalibration(zero, gain, 1024);
-        targets.push({
-            index: HEADING_SOURCE_EXTERNAL_I2C_MAG,
-            key: 'external-i2c',
-            title: 'External / UART GPS-module compass',
-            description: 'External I²C compass, including the compass wired from a UART GPS module.',
+        targets.push(baseTarget(
+            HEADING_SOURCE_EXTERNAL_I2C_MAG,
+            'external-i2c',
+            'External / UART GPS-module compass',
+            'External I²C compass, including the compass wired from a UART GPS module.',
             zero,
             gain,
-            zeroUnit: 'raw',
-            gainUnit: 'scale',
-            nodeId: null,
-            ...targetStatus(
-                externalSource,
-                assessment.adjusted,
-                assessment,
-            ),
-        });
+            'raw',
+            'scale',
+            finiteVector(headingConfig.externalMagAlignmentDecidegrees, 0)
+                .map((value) => value / 10),
+            null,
+            targetStatus(externalSource, assessment.adjusted, assessment),
+        ));
     }
 
     const canSource = statusSources[HEADING_SOURCE_DRONECAN_MAG];
@@ -212,24 +249,22 @@ export function enumerateCompassCalibrationTargets({
             : configuredCanNode > 0 && configuredCanNode <= 127
                 ? configuredCanNode
                 : Number(canNodes[0]?.nodeId) || null;
-        targets.push({
-            index: HEADING_SOURCE_DRONECAN_MAG,
-            key: 'dronecan',
-            title: HEADING_SOURCE_LABELS[HEADING_SOURCE_DRONECAN_MAG],
-            description: selectedNode
+        targets.push(baseTarget(
+            HEADING_SOURCE_DRONECAN_MAG,
+            'dronecan',
+            HEADING_SOURCE_LABELS[HEADING_SOURCE_DRONECAN_MAG],
+            selectedNode
                 ? `CAN GPS-module compass on node ${selectedNode}.`
                 : 'Automatically selected CAN GPS-module compass.',
             zero,
             gain,
-            zeroUnit: 'mG',
-            gainUnit: 'mG scale',
-            nodeId: selectedNode,
-            ...targetStatus(
-                canSource,
-                assessment.adjusted,
-                assessment,
-            ),
-        });
+            'mG',
+            'mG scale',
+            finiteVector(headingConfig.dronecanMagAlignmentDecidegrees, 0)
+                .map((value) => value / 10),
+            selectedNode,
+            targetStatus(canSource, assessment.adjusted, assessment),
+        ));
     }
 
     return targets;

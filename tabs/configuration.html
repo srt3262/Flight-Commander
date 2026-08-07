@@ -19,9 +19,19 @@
                         <label for="sensor-acc"> <span data-i18n="sensorAccelerometer"></span></label>
                     </div>
 
-                    <div class="select">
+                    <div class="select compass-source-select" id="onboard-compass-source-row">
                         <select id="sensor-mag" data-setting="mag_hardware"></select>
-                        <label for="sensor-mag"> <span data-i18n="sensorMagnetometer"></span></label>
+                        <label for="sensor-mag"><span>Onboard compass</span></label>
+                    </div>
+
+                    <div class="select compass-source-select" id="external-compass-source-row">
+                        <select id="external-compass-source">
+                            <option value="disabled">Disabled / none</option>
+                        </select>
+                        <label for="external-compass-source"><span>External compass</span></label>
+                    </div>
+                    <div id="compass-source-selection-info" class="info-box">
+                        Onboard and external compass sources can be enabled or disabled independently.
                     </div>
 
                     <div class="select">

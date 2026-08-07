@@ -1,0 +1,304 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index c79284d..c9c4aa9 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -90,7 +90,7 @@ set(FIRMWARE_VERSION ${PROJECT_VERSION})
+ 
+ # Flight Commander release identity is independent from the inherited INAV
+ # protocol compatibility version declared by project().
+-set(FLIGHT_COMMANDER_FIRMWARE_VERSION 4.0.6)
++set(FLIGHT_COMMANDER_FIRMWARE_VERSION 4.0.7)
+ 
+ option(WARNINGS_AS_ERRORS "Make all warnings into errors")
+ message("-- toolchain: ${TOOLCHAIN}, WARNINGS_AS_ERRORS: ${WARNINGS_AS_ERRORS}")
+diff --git a/RELEASE-MANIFEST.json b/RELEASE-MANIFEST.json
+index d714f66..e523516 100644
+--- a/RELEASE-MANIFEST.json
++++ b/RELEASE-MANIFEST.json
+@@ -1,27 +1,28 @@
+ {
+   "schema": 1,
+   "product": "Flight Commander Firmware",
+-  "version": "4.0.6",
++  "version": "4.0.7",
+   "target": "MICOAIR743",
+   "inav_release": "9.1.0",
+   "inav_commit": "e519b69b02e27c8bdc03b4a0889f1baaae211a54",
+-  "source_revision": "0b74c2b2c47d83bb510d35df973315ba640811c7",
+-  "source_tree": "a404445480b8b20ff73912e86d05b868c21c582a",
++  "source_revision": "95ff58e69fce99db9ddc532ccf0cd77d32d3cd66",
++  "source_tree": "2dfa85a2384bf0fba90420d9ba7c8c9585e535af",
+   "source_hash_scheme": "sha1(sorted sha256sum records, excluding RELEASE-MANIFEST.json)",
+   "source_tree_hash_scheme": "sha1('flight-commander-source-tree-v1\\n' plus sorted sha256sum records, excluding RELEASE-MANIFEST.json)",
+-  "source_date_epoch": 1786032000,
++  "source_date_epoch": 1786068000,
+   "capabilities": "0x00007fff",
+   "artifact": {
+-    "name": "Flight-Commander-Firmware-4.0.6-MICOAIR743.hex",
+-    "sha256": "b5215b8a2216c4d597511483ba377bec1725e3fb33e4785edbf28d252d7d6893",
+-    "bytes": 1934052
++    "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
++    "bytes": 0,
++    "filename": "Flight-Commander-Firmware-4.0.7-MICOAIR743.hex"
+   },
+   "bench_acceptance": {
+     "workflow": "propeller-off six-position learned compass orientation followed by conventional field calibration",
+     "driver_frame": "canonical IST8310 X=nativeX, Y=-nativeY, Z=nativeZ",
+     "learned_transform": "one of 24 right-handed signed axis permutations, solved from synchronized calibrated accelerometer, gyro and raw compass vectors",
+     "user_alignment": "independent editable CW0_DEG default applied after the learned transform",
+-    "physical_acceptance": "required on target hardware before flight use"
++    "physical_acceptance": "propeller-off roll/pitch/yaw direction check and compass calibration required on target hardware before flight use",
++    "imu_handedness_regression": "The 4.0.5 accelerometer and gyro update paths are restored exactly; compass-learning board-frame samples are derived on demand outside the attitude loop."
+   },
+   "moving_baseline": {
+     "module_family": "Holybro DroneCAN H-RTK F9P / AP_Periph compatible",
+diff --git a/flight-commander/INAV-9.1.0-BASELINE.json b/flight-commander/INAV-9.1.0-BASELINE.json
+index 387627d..dd240ef 100644
+--- a/flight-commander/INAV-9.1.0-BASELINE.json
++++ b/flight-commander/INAV-9.1.0-BASELINE.json
+@@ -104,8 +104,8 @@
+     },
+     "src/main/sensors/gyro.c": {
+       "upstream_sha256": "fc28ed2ea104aabbbffaf6380b5c816b647aa7560ac09385c57628ac9b1efb80",
+-      "patched_sha256": "4900addb656bba37cf1aaadc1f719150ad0434666197804dd841d8f509a2eed3",
+-      "purpose": "Expose calibrated gyro rate in the flight-controller board frame before user board alignment for six-position compass-orientation motion validation."
++      "patched_sha256": "0a7154b153390d7bd8a9362af755f9b5183c5f3e13ad8abf1f5cf68ef499dc5e",
++      "purpose": "Expose calibrated gyro rate in the flight-controller board frame on demand for compass-orientation validation without writing any parallel vector from the high-rate attitude path."
+     }
+   }
+ }
+diff --git a/flight-commander/build-micoair743.sh b/flight-commander/build-micoair743.sh
+index dde37df..86abcb6 100755
+--- a/flight-commander/build-micoair743.sh
++++ b/flight-commander/build-micoair743.sh
+@@ -65,7 +65,7 @@ cmake -S "${source_root}" -B "${build_dir}" -G Ninja \
+     -DFLIGHT_COMMANDER_SOURCE_REVISION="${source_revision}"
+ cmake --build "${build_dir}" --target MICOAIR743
+ 
+-hex="${build_dir}/Flight-Commander-Firmware-4.0.6-MICOAIR743.hex"
++hex="${build_dir}/Flight-Commander-Firmware-4.0.7-MICOAIR743.hex"
+ python3 "${source_root}/flight-commander/verify-compass-release.py" "${hex}"
+ 
+ echo "Built and verified: ${hex}"
+diff --git a/flight-commander/verify-compass-release.py b/flight-commander/verify-compass-release.py
+index 9620c0d..b6d441b 100755
+--- a/flight-commander/verify-compass-release.py
++++ b/flight-commander/verify-compass-release.py
+@@ -1,5 +1,5 @@
+ #!/usr/bin/env python3
+-"""Structural verification for the Flight Commander 4.0.6 compass release build."""
++"""Structural verification for the Flight Commander 4.0.7 compass release build."""
+ 
+ from __future__ import annotations
+ 
+@@ -7,7 +7,7 @@ import hashlib
+ from pathlib import Path
+ import sys
+ 
+-EXPECTED_IDENTITY = b"FCFW" + bytes((1, 4, 0, 6, 9, 1, 0, 0xFF, 0x7F, 0, 0))
++EXPECTED_IDENTITY = b"FCFW" + bytes((1, 4, 0, 7, 9, 1, 0, 0xFF, 0x7F, 0, 0))
+ EXPECTED_TARGET = b"MICOAIR743"
+ 
+ 
+@@ -66,7 +66,7 @@ def main() -> int:
+     path = Path(sys.argv[1]).resolve()
+     memory = parse_intel_hex(path)
+     if not contains(memory, EXPECTED_IDENTITY):
+-        fail("HEX does not contain the Flight Commander 4.0.6 identity")
++        fail("HEX does not contain the Flight Commander 4.0.7 identity")
+     if not contains(memory, EXPECTED_TARGET):
+         fail("HEX does not contain the MICOAIR743 target identity")
+     digest = hashlib.sha256(path.read_bytes()).hexdigest()
+diff --git a/flight-commander/verify-release.py b/flight-commander/verify-release.py
+index 0ee1bfc..acf255d 100755
+--- a/flight-commander/verify-release.py
++++ b/flight-commander/verify-release.py
+@@ -1,6 +1,6 @@
+ #!/usr/bin/env python3
+ 
+-"""Verify the Flight Commander 4.0.6 MICOAIR743 source and HEX contract."""
++"""Verify the Flight Commander 4.0.7 MICOAIR743 source and HEX contract."""
+ 
+ from __future__ import annotations
+ 
+@@ -13,11 +13,11 @@ import re
+ import sys
+ 
+ 
+-VERSION = "4.0.6"
++VERSION = "4.0.7"
+ TARGET = "MICOAIR743"
+ UPSTREAM_RELEASE = "9.1.0"
+ UPSTREAM_COMMIT = "e519b69b02e27c8bdc03b4a0889f1baaae211a54"
+-EXPECTED_IDENTITY = b"FCFW" + bytes((1, 4, 0, 6, 9, 1, 0, 0xFF, 0x7F, 0, 0))
++EXPECTED_IDENTITY = b"FCFW" + bytes((1, 4, 0, 7, 9, 1, 0, 0xFF, 0x7F, 0, 0))
+ 
+ 
+ def fail(message: str) -> None:
+@@ -215,14 +215,14 @@ def verify_source(root: Path) -> None:
+     verify_upstream_baseline(root)
+     require_text(
+         root / "CMakeLists.txt",
+-        [r"set\(FLIGHT_COMMANDER_FIRMWARE_VERSION 4\.0\.6\)", r"FLIGHT_COMMANDER_SOURCE_REVISION"],
++        [r"set\(FLIGHT_COMMANDER_FIRMWARE_VERSION 4\.0\.7\)", r"FLIGHT_COMMANDER_SOURCE_REVISION"],
+     )
+     require_text(
+         root / "src/main/build/flight_commander.h",
+         [
+             r"FLIGHT_COMMANDER_VERSION_MAJOR 4",
+             r"FLIGHT_COMMANDER_VERSION_MINOR 0",
+-            r"FLIGHT_COMMANDER_VERSION_PATCH 6",
++            r"FLIGHT_COMMANDER_VERSION_PATCH 7",
+             r"FLIGHT_COMMANDER_CAPABILITIES \(\(uint32_t\)0x7FFFU\)",
+         ],
+     )
+@@ -407,11 +407,27 @@ r"config->sources\[2\] = \(flightCommanderHeadingSourceConfig_t\)\{ false, 3, 0,
+     )
+     require_text(
+         root / "src/main/sensors/acceleration.c",
+-        [r"accGetBoardFrame", r"accBoardFrameG"],
++        [
++            r"accGetBoardFrame",
++            r"arm_sub_f32\(acc\.dev\.ADCRaw, fAccZero",
++            r"applySensorAlignment\(calibrated, calibrated, acc\.dev\.accAlign\)",
++        ],
++    )
++    reject_text(
++        root / "src/main/sensors/acceleration.c",
++        [r"accBoardFrameG", r"applySensorAlignment\(accADC[\s\S]{0,220}accGetBoardFrame"],
+     )
+     require_text(
+         root / "src/main/sensors/gyro.c",
+-        [r"gyroGetBoardFrame", r"gyroBoardFrameDps"],
++        [
++            r"gyroGetBoardFrame",
++            r"arm_sub_f32\(gyroDev\[0\]\.gyroADCRaw, gyroDev\[0\]\.gyroZero",
++            r"applySensorAlignment\(calibrated, calibrated, gyroDev\[0\]\.gyroAlign\)",
++        ],
++    )
++    reject_text(
++        root / "src/main/sensors/gyro.c",
++        [r"gyroBoardFrameDps", r"applySensorAlignment\(gyroADCtmp[\s\S]{0,220}gyroGetBoardFrame"],
+     )
+     require_text(
+         root / "src/main/fc/config.c",
+@@ -435,7 +451,7 @@ def main() -> int:
+     digest = sha256(hex_path)
+     memory, record_count = parse_intel_hex(hex_path)
+     if not contains_contiguous(memory, EXPECTED_IDENTITY):
+-        fail("HEX does not contain the exact FCFW 4.0.6 / INAV 9.1.0 / 0x7FFF identity payload")
++        fail("HEX does not contain the exact FCFW 4.0.7 / INAV 9.1.0 / 0x7FFF identity payload")
+     if not contains_contiguous(memory, TARGET.encode("ascii")):
+         fail(f"HEX does not contain the {TARGET} target identity")
+ 
+diff --git a/src/main/build/flight_commander.h b/src/main/build/flight_commander.h
+index 904461b..624fd35 100644
+--- a/src/main/build/flight_commander.h
++++ b/src/main/build/flight_commander.h
+@@ -13,7 +13,7 @@
+ 
+ #define FLIGHT_COMMANDER_VERSION_MAJOR 4
+ #define FLIGHT_COMMANDER_VERSION_MINOR 0
+-#define FLIGHT_COMMANDER_VERSION_PATCH 6
++#define FLIGHT_COMMANDER_VERSION_PATCH 7
+ 
+ #define FLIGHT_COMMANDER_STR_HELPER(value) #value
+ #define FLIGHT_COMMANDER_STR(value) FLIGHT_COMMANDER_STR_HELPER(value)
+diff --git a/src/main/sensors/acceleration.c b/src/main/sensors/acceleration.c
+index 1380bd0..b9dce7e 100644
+--- a/src/main/sensors/acceleration.c
++++ b/src/main/sensors/acceleration.c
+@@ -68,7 +68,6 @@
+ 
+ 
+ FASTRAM acc_t acc;                       // acc access functions
+-static float accBoardFrameG[XYZ_AXIS_COUNT];
+ 
+ STATIC_FASTRAM zeroCalibrationVector_t zeroCalibration;
+ 
+@@ -555,9 +554,15 @@ void resetGForceStats(void) {
+ 
+ void accGetBoardFrame(float result[XYZ_AXIS_COUNT])
+ {
+-    for (unsigned axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
+-        result[axis] = accBoardFrameG[axis];
+-    }
++    // Keep the high-rate attitude path byte-for-byte equivalent to 4.0.5.
++    // The compass learner runs at 40 Hz, so derive its pre-board-alignment
++    // sample on demand from the latest calibrated raw accelerometer values.
++    float calibrated[XYZ_AXIS_COUNT];
++    float zeroed[XYZ_AXIS_COUNT];
++    arm_sub_f32(acc.dev.ADCRaw, fAccZero, zeroed, XYZ_AXIS_COUNT);
++    arm_mult_f32(zeroed, fAccGain, calibrated, XYZ_AXIS_COUNT);
++    applySensorAlignment(calibrated, calibrated, acc.dev.accAlign);
++    arm_scale_f32(calibrated, 1.0F / acc.dev.acc_1G, result, XYZ_AXIS_COUNT);
+ }
+ 
+ void accUpdate(void)
+@@ -583,9 +588,6 @@ void accUpdate(void)
+     }
+ 
+     applySensorAlignment(accADC, accADC, acc.dev.accAlign);
+-    for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
+-        accBoardFrameG[axis] = (float)accADC[axis] / acc.dev.acc_1G;
+-    }
+     applyBoardAlignment(accADC);
+ 
+     // Calculate acceleration readings in G's
+diff --git a/src/main/sensors/gyro.c b/src/main/sensors/gyro.c
+index 6efaeab..e2d4048 100644
+--- a/src/main/sensors/gyro.c
++++ b/src/main/sensors/gyro.c
+@@ -76,7 +76,6 @@
+ #endif
+ 
+ FASTRAM gyro_t gyro; // gyro sensor object
+-static float gyroBoardFrameDps[XYZ_AXIS_COUNT];
+ 
+ #define MAX_GYRO_COUNT 1
+ 
+@@ -445,10 +444,8 @@ static bool FAST_CODE NOINLINE gyroUpdateAndCalibrate(gyroDev_t * gyroDev, zeroC
+             //Apply zero calibration with CMSIS DSP
+             arm_sub_f32(gyroDev->gyroADCRaw, gyroDev->gyroZero, gyroADCtmp, 3);
+ 
+-            // Apply sensor alignment and retain the flight-controller board
+-            // frame separately from user-configured board alignment.
++            // Apply sensor alignment
+             applySensorAlignment(gyroADCtmp, gyroADCtmp, gyroDev->gyroAlign);
+-            arm_scale_f32(gyroADCtmp, gyroDev->scale, gyroBoardFrameDps, 3);
+             applyBoardAlignment(gyroADCtmp);
+ 
+             // Convert to deg/s and store in unified data
+@@ -462,9 +459,6 @@ static bool FAST_CODE NOINLINE gyroUpdateAndCalibrate(gyroDev_t * gyroDev, zeroC
+             gyroADCf[X] = 0.0f;
+             gyroADCf[Y] = 0.0f;
+             gyroADCf[Z] = 0.0f;
+-            gyroBoardFrameDps[X] = 0.0f;
+-            gyroBoardFrameDps[Y] = 0.0f;
+-            gyroBoardFrameDps[Z] = 0.0f;
+ 
+             return false;
+         }
+@@ -586,9 +580,20 @@ void FAST_CODE NOINLINE gyroUpdate(void)
+ 
+ void gyroGetBoardFrame(float result[XYZ_AXIS_COUNT])
+ {
+-    for (unsigned axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
+-        result[axis] = gyroBoardFrameDps[axis];
++    // Do not write a second vector from the high-rate gyro update loop. The
++    // compass learner derives the same calibrated, sensor-aligned board frame
++    // on demand from the latest raw sample, leaving attitude handedness alone.
++    if (!gyroIsCalibrationComplete()) {
++        result[X] = 0.0F;
++        result[Y] = 0.0F;
++        result[Z] = 0.0F;
++        return;
+     }
++
++    float calibrated[XYZ_AXIS_COUNT];
++    arm_sub_f32(gyroDev[0].gyroADCRaw, gyroDev[0].gyroZero, calibrated, XYZ_AXIS_COUNT);
++    applySensorAlignment(calibrated, calibrated, gyroDev[0].gyroAlign);
++    arm_scale_f32(calibrated, gyroDev[0].scale, result, XYZ_AXIS_COUNT);
+ }
+ 
+ bool gyroReadTemperature(void)

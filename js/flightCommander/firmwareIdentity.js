@@ -28,6 +28,7 @@ export const FLIGHT_COMMANDER_CAPABILITIES = Object.freeze({
   MOVING_BASELINE_YAW: 1 << 12,
   DRONECAN_MOVING_BASELINE_MANAGER: 1 << 13,
   COMPASS_ORIENTATION_LEARNING: 1 << 14,
+  INDIVIDUAL_COMPASS_CALIBRATION: 1 << 15,
 });
 
 export const FLIGHT_COMMANDER_FEATURES = Object.freeze({
@@ -105,6 +106,11 @@ export const FLIGHT_COMMANDER_FEATURES = Object.freeze({
     capability: FLIGHT_COMMANDER_CAPABILITIES.COMPASS_ORIENTATION_LEARNING,
     capabilityName: "COMPASS_ORIENTATION_LEARNING",
     label: "Persistent learned compass-to-board orientation",
+  }),
+  individualCompassCalibration: Object.freeze({
+    capability: FLIGHT_COMMANDER_CAPABILITIES.INDIVIDUAL_COMPASS_CALIBRATION,
+    capabilityName: "INDIVIDUAL_COMPASS_CALIBRATION",
+    label: "Per-source compass orientation and field calibration",
   }),
 });
 
@@ -289,8 +295,6 @@ export function applyFirmwareIdentity(FC, identity) {
     identity.family === FIRMWARE_FAMILY_FLIGHT_COMMANDER ? identity : null;
   if (identity.family === FIRMWARE_FAMILY_FLIGHT_COMMANDER) {
     FC.CONFIG.reportedFirmwareVersion = FC.CONFIG.flightControllerVersion;
-    // The inherited configurator surfaces use this value for INAV protocol and
-    // settings-schema routing. Product/version UI must use firmwareVersion.
     FC.CONFIG.flightControllerVersion = identity.compatibleInavVersion;
   } else {
     FC.CONFIG.reportedFirmwareVersion = FC.CONFIG.flightControllerVersion;

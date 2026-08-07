@@ -1,5 +1,25 @@
 # Flight Commander 4.0.0
 
+## 4.0.8
+
+- Add one compass-source dropdown populated only by enabled, detected onboard, external I2C/UART GPS-module and DroneCAN magnetic sources.
+- Generalize persistent six-side axis/sign learning so every magnetic source owns an independent transform and calibration generation.
+- Start, clear and repeat orientation learning for only the selected compass without changing another source.
+- Calibrate offsets and gains for only the selected compass through a new source-selective MSPv2 command and explicit firmware capability.
+- Keep per-source manual roll, pitch and yaw alignment independent and apply it after the learned transform and field correction.
+- Block a magnetic source from heading fusion until both its own transform and field calibration are valid.
+- Remove the separate airspeed overlay from Ground Control so the HUD uses ground speed only.
+- Publish as a coordinated Configurator and MICOAIR743 firmware beta for propeller-off acceptance before official 4.0.8 promotion.
+
+## 4.0.7
+
+- Restore the verified 4.0.5 accelerometer and gyro high-rate attitude paths after the 4.0.6 mirrored-roll regression.
+- Remove the additional 4.0.6 board-frame buffers and all writes to them from the live IMU update loops.
+- Derive compass-orientation accelerometer and gyro vectors on demand from the latest calibrated raw samples before user board alignment.
+- Preserve the MICOAIR743 BMI088 `CW270_DEG` target alignment and avoid any HUD-only roll sign workaround.
+- Retain learned IST8310 orientation, manual CW0 compass alignment, field calibration, stationary heading fusion and moving-baseline RTK support.
+- Retire 4.0.6 from the managed online flasher while preserving the verified 3.0.7 recovery baseline.
+
 ## 4.0.6
 
 - Replace the MICOAIR743 onboard IST8310 fixed transform with a persistent learned sensor-to-board signed-axis transform.

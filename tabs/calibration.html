@@ -50,16 +50,30 @@
             </section>
 
             <aside class="calibration-secondary">
+                <section class="gui_box grey compass-source-panel">
+                    <div class="gui_box_titlebar"><div class="spacer_box_title">Compass Source</div></div>
+                    <div class="spacer_box">
+                        <p class="compass-calibration-intro">
+                            Select one enabled and detected compass. Six-side orientation/alignment learning and magnetic offset/gain calibration below affect only this source.
+                        </p>
+                        <label class="compass-source-selector" for="compassCalibrationSource">
+                            <span>Compass to calibrate</span>
+                            <select id="compassCalibrationSource" aria-describedby="compassSourceSummary"></select>
+                        </label>
+                        <div id="compassSourceSummary" class="compass-calibration-summary" aria-live="polite">Loading enabled compasses…</div>
+                    </div>
+                </section>
+
                 <section id="compassOrientationPanel" class="gui_box grey compass-orientation-panel is-hidden">
-                    <div class="gui_box_titlebar"><div class="spacer_box_title">Compass Orientation Learning</div></div>
+                    <div class="gui_box_titlebar"><div class="spacer_box_title">Six-Side Compass Orientation / Alignment</div></div>
                     <div class="spacer_box">
                         <p class="compass-orientation-intro">
-                            After accelerometer calibration, place the flight controller in each of the six shown positions and slowly rotate it around the upward-facing axis. Firmware matches the raw compass vectors to the calibrated IMU axes and permanently stores the solved transform.
+                            After accelerometer calibration, place the complete aircraft in each of the six shown positions and slowly rotate it around the upward-facing axis. Firmware learns the selected compass axes and signs relative to the calibrated flight-controller frame and stores that transform independently.
                         </p>
-                        <div id="compassOrientationSummary" class="compass-calibration-summary" aria-live="polite">Loading learned orientation…</div>
+                        <div id="compassOrientationSummary" class="compass-calibration-summary" aria-live="polite">Loading selected compass orientation…</div>
                         <div class="compass-orientation-prerequisites">
                             <span id="compassOrientationAccelState" class="compass-orientation-requirement">Accelerometer</span>
-                            <span id="compassOrientationSensorState" class="compass-orientation-requirement">Onboard compass</span>
+                            <span id="compassOrientationSensorState" class="compass-orientation-requirement">Selected compass</span>
                             <span id="compassOrientationStoredState" class="compass-orientation-requirement">Persistent transform</span>
                         </div>
                         <div id="compassOrientationFaces" class="compass-orientation-faces"></div>
@@ -69,27 +83,25 @@
                             <small id="compassOrientationQuality">Confidence — · residual — · separation —</small>
                         </div>
                         <div class="compass-orientation-actions">
-                            <button id="compassOrientationStart" type="button">Start six-position learning</button>
+                            <button id="compassOrientationStart" type="button">Start six-side learning</button>
                             <button id="compassOrientationCancel" type="button" class="is-hidden">Cancel learning</button>
                             <button id="compassOrientationClear" type="button" class="is-hidden">Clear and relearn</button>
                         </div>
                         <p class="compass-orientation-note">
-                            This learned sensor transform is separate from the manual Alignment-tab setting. Manual alignment remains editable and defaults to 0° without rewriting the learned transform.
+                            Every magnetic source has its own learned transform. Changing one source never overwrites another source’s orientation or gains. Manual Alignment-tab adjustments remain separate and are applied after the learned transform.
                         </p>
                     </div>
                 </section>
 
                 <section class="gui_box grey compass-calibration-panel">
-                    <div class="gui_box_titlebar"><div class="spacer_box_title">Compass Calibration</div></div>
+                    <div class="gui_box_titlebar"><div class="spacer_box_title">Selected Compass Offset / Gain Calibration</div></div>
                     <div class="spacer_box">
                         <p class="compass-calibration-intro">
-                            Flight Commander automatically lists every enabled compass it can currently detect. Start from any compass card, then rotate the complete aircraft slowly through every orientation for about 30 seconds.
+                            After the six-side transform is stored, rotate the complete aircraft slowly through every orientation for about 30 seconds. Only the selected compass collects samples and receives new offsets and gains.
                         </p>
-                        <p class="compass-calibration-note">
-                            The flight controller calibrates all enabled physical compasses during the same rotation session. Each card refreshes from its own onboard, external, or CAN calibration storage when the session ends.
-                        </p>
-                        <div id="compassCalibrationSummary" class="compass-calibration-summary" aria-live="polite">Loading connected compasses…</div>
-                        <div id="compassCalibrationList" class="compass-calibration-list"></div>
+                        <div id="compassCalibrationSummary" class="compass-calibration-summary" aria-live="polite">Loading selected compass calibration…</div>
+                        <div id="compassCalibrationSelected" class="compass-calibration-list"></div>
+                        <button id="compassFieldCalibrationStart" type="button" class="compass-calibrate-button">Calibrate this compass</button>
                     </div>
                 </section>
 
@@ -125,8 +137,8 @@
 <div id="modal-acc-processing" class="is-hidden"><div class="modal__content"><h1 class="modal__title modal__title--center" data-i18n="accCalibrationProcessing"></h1></div></div>
 <div id="modal-compass-processing" class="is-hidden">
     <div class="modal__content">
-        <h1 class="modal__title modal__title--center">Compass calibration in progress</h1>
-        <p class="modal__text">Rotate the complete aircraft through every axis. All enabled compasses are being calibrated together.</p>
+        <h1 class="modal__title modal__title--center">Selected compass calibration in progress</h1>
+        <p class="modal__text">Rotate the complete aircraft through every axis. <strong class="modal-compass-source">The selected compass</strong> is the only source being calibrated.</p>
         <div class="modal-compass-countdown modal__text"></div>
     </div>
 </div>

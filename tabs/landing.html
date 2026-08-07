@@ -34,32 +34,26 @@
       </div>
       <div class="column half text2">
         <div class="wrap">
-          <h2>Flight Commander 4.0.6</h2>
+          <h2>Flight Commander 4.0.8</h2>
           <p>
-            Flight Commander 4.0.6 Beta introduces a learned onboard-compass
-            orientation workflow for the MICOAIR743. The firmware no longer
-            assumes a fixed signed-axis transform for the IST8310.
+            Flight Commander 4.0.8 Beta lets you select each enabled and detected
+            compass individually, learn its six-side orientation and alignment,
+            then calibrate only that source's offsets and gains.
           </p>
           <p>
-            Complete the six-position accelerometer calibration first, then use
-            the guided six-face compass-orientation procedure. Rotate the entire
-            controller around the requested upward face until each position is
-            complete. Firmware compares synchronized accelerometer, gyro and
-            canonical magnetometer vectors across all 24 physically valid
-            right-handed axis mappings, rejects ambiguous data, and permanently
-            stores the winning transform with its confidence and residual.
+            Onboard, external I2C/UART GPS-module and DroneCAN compasses retain
+            independent persistent transforms, manual alignment and field
+            calibration. A source cannot enter heading fusion until its own two
+            calibration stages are valid.
           </p>
           <p>
-            The learned sensor transform is independent from manual compass
-            alignment and board alignment. Changing the learned transform clears
-            the previous magnetic offsets and gains, after which the normal
-            compass field calibration must be completed. Heading fusion excludes
-            the onboard compass until both stages are valid.
+            Ground Control now uses ground speed as the only HUD speed indication.
+            The verified 4.0.7 IMU handedness and compass baseline remain intact.
           </p>
           <p>
-            The managed flasher offers the verified 3.0.7 recovery baseline plus
-            4.0.6 and later. Failed 3.0.6-and-earlier, 3.0.8 and 4.0.0-through-4.0.5
-            firmware remain excluded from the managed list.
+            This build is a beta for propeller-off hardware acceptance. Successful
+            testing will promote the same validated 4.0.8 artifacts to the official
+            release without rebuilding different binaries.
           </p>
           <h2 style="margin-top: 1em">Open-source foundations</h2>
           <div>

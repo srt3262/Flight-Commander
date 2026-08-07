@@ -33,6 +33,8 @@ const parameterGroups = source('src/main/config/parameter_group_ids.h');
 const acceleration = source('src/main/sensors/acceleration.c');
 const gyro = source('src/main/sensors/gyro.c');
 
+const onboardSource = 'FLIGHT_COMMANDER_COMPASS_ORIENTATION_SOURCE_ONBOARD';
+
 after(() => rmSync(output, { recursive: true, force: true }));
 
 test(`${firmwareVersion} exposes canonical IST8310 axes without a target-specific fixed transform`, () => {
@@ -49,7 +51,7 @@ test('firmware owns a versioned persistent learned-transform parameter group', (
   assert.match(orientationHeader, /uint32_t calibrationGeneration/);
   assert.match(orientationHeader, /uint32_t sensorFingerprint/);
   assert.match(orientation, /saveConfigAndNotify\(\)/);
-  assert.match(orientation, /ORIENTATION_SENSOR_FINGERPRINT 0x0E8310C1U/);
+  assert.match(orientation, /ORIENTATION_ONBOARD_SENSOR_FINGERPRINT 0x0E8310C1U/);
 });
 
 test('solver evaluates all proper signed-axis mappings and rejects weak solutions', () => {
@@ -72,24 +74,34 @@ test('learning uses calibrated board-frame acceleration and gyro motion before u
 });
 
 test('learned transform precedes field calibration and remains independent from CW0 manual alignment', () => {
-  const observe = compass.indexOf('flightCommanderCompassOrientationObserve(currentTimeUs, mag.magADC);');
-  const apply = compass.indexOf('flightCommanderCompassOrientationApply(mag.magADC);');
+  const observe = compass.search(new RegExp(
+    `flightCommanderCompassOrientationObserve\\(\\s*currentTimeUs,\\s*${onboardSource},\\s*mag\\.magADC\\);`,
+  ));
+  const apply = compass.search(new RegExp(
+    `flightCommanderCompassOrientationApply\\(\\s*${onboardSource},\\s*mag\\.magADC\\);`,
+  ));
   const userAlignment = compass.indexOf('applySensorAlignment(mag.magADC, mag.magADC, mag.dev.magAlign.onBoard);');
-  assert.ok(observe >= 0, 'canonical sample observation is missing');
+  assert.ok(observe >= 0, 'canonical source-specific sample observation is missing');
   assert.ok(apply > observe, 'learned transform must follow canonical observation');
   assert.ok(userAlignment > apply, 'manual installation alignment must follow the learned transform');
   assert.match(targetHeader, /FLIGHT_COMMANDER_MAG_DEFAULT_ALIGN CW0_DEG/);
   assert.match(targetHeader, /FLIGHT_COMMANDER_MAG_CALIBRATION_REVISION 3U/);
-  assert.match(compass, /flightCommanderCompassOrientationGeneration\(\)/);
-  assert.match(compass, /STATE\(CALIBRATE_MAG\) && !flightCommanderCompassOrientationIsValid\(\)/);
+  assert.match(compass, new RegExp(
+    `flightCommanderCompassOrientationGeneration\\(\\s*${onboardSource}\\s*\\)`,
+  ));
+  assert.match(compass, new RegExp(
+    `STATE\\(CALIBRATE_MAG\\) && !flightCommanderCompassOrientationIsValid\\(\\s*${onboardSource}\\s*\\)`,
+  ));
 });
 
-test('changing orientation invalidates old field offsets and gains', () => {
+test('changing one source orientation invalidates only that source field calibration', () => {
   assert.match(orientation, /compass->magZero\.raw\[axis\] = 0/);
   assert.match(orientation, /compass->magGain\[axis\] = 1024/);
   assert.match(orientation, /compass->magCalibrationSignature = 0/);
   assert.match(orientation, /DISABLE_STATE\(COMPASS_CALIBRATED\)/);
-  assert.match(compass, /return flightCommanderCompassOrientationIsValid\(\) && STATE\(COMPASS_CALIBRATED\)/);
+  assert.match(compass, new RegExp(
+    `return flightCommanderCompassOrientationIsValid\\(\\s*${onboardSource}\\s*\\) && STATE\\(COMPASS_CALIBRATED\\)`,
+  ));
 });
 
 test('MSPv2 exposes independent status and command endpoints', () => {

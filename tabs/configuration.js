@@ -11,10 +11,29 @@ import VTX from './../js/vtx';
 import i18n from './../js/localization';
 import Settings from './../js/settings';
 import features from './../js/feature_framework';
+import { firmwareFeatureSupport } from './../js/flightCommander/firmwareIdentity';
+import {
+    EXTERNAL_COMPASS_SELECTION_DISABLED,
+    EXTERNAL_COMPASS_SELECTION_DRONECAN,
+    EXTERNAL_MAG_HARDWARE,
+    applyCompassSourceSelections,
+    externalI2cCompassSelection,
+    selectedExternalCompass,
+} from './../js/flightCommander/headingFusion';
+import { DRONECAN_NODE_ID_DISABLED } from './../js/flightCommander/dualGps';
 
 const configurationTab = {};
 
 configurationTab.initialize = function (callback, scrollPosition) {
+    const firmwareIdentity = FC.CONFIG.firmwareIdentity;
+    const supportsHeadingFusion = firmwareFeatureSupport(
+        firmwareIdentity,
+        'headingFusion',
+    ).enabled;
+    const supportsDronecanConfig = firmwareFeatureSupport(
+        firmwareIdentity,
+        'dronecanNodeConfig',
+    ).enabled;
 
     if (GUI.active_tab !== this) {
         GUI.active_tab = this;
@@ -32,6 +51,12 @@ configurationTab.initialize = function (callback, scrollPosition) {
         mspHelper.loadCurrentMeterConfig,
         mspHelper.loadMiscV2
     ];
+    if (supportsHeadingFusion) {
+        loadChain.push(mspHelper.loadFlightCommanderHeadingConfig);
+    }
+    if (supportsDronecanConfig) {
+        loadChain.push(mspHelper.loadDronecanConfig);
+    }
 
     loadChainer.setChain(loadChain);
     loadChainer.setExitPoint(load_html);
@@ -46,8 +71,11 @@ configurationTab.initialize = function (callback, scrollPosition) {
         mspHelper.saveCurrentMeterConfig,
         mspHelper.saveMiscV2,
         saveSettings,
-        mspHelper.saveToEeprom
     ];
+    if (supportsHeadingFusion) {
+        saveChain.push(mspHelper.saveFlightCommanderHeadingConfig);
+    }
+    saveChain.push(mspHelper.saveToEeprom);
 
     function saveSettings(onComplete) {
         Settings.saveInputs(onComplete);
@@ -120,7 +148,74 @@ configurationTab.initialize = function (callback, scrollPosition) {
         features.updateUI($('.tab-configuration'), FC.FEATURES);
 
         // translate to user-selected language
-       i18n.localize();;
+        i18n.localize();
+
+        function dronecanCompassConfigured() {
+            const node = Number(FC.DRONECAN_CONFIG?.magNodeId ?? DRONECAN_NODE_ID_DISABLED);
+            return node !== DRONECAN_NODE_ID_DISABLED;
+        }
+
+        function renderCompassSourceSelectionInfo() {
+            const $info = $('#compass-source-selection-info')
+                .removeClass('ok-box warning-box')
+                .addClass('info-box');
+            if (!supportsHeadingFusion) {
+                $info.text('External compass selection requires Flight Commander firmware.');
+                return;
+            }
+            const onboardEnabled = Number($('#sensor-mag').val()) !== 0;
+            const externalSelection = $('#external-compass-source').val();
+            if (!onboardEnabled && externalSelection === EXTERNAL_COMPASS_SELECTION_DISABLED) {
+                $info.removeClass('info-box').addClass('warning-box').text(
+                    'Both compass sources are disabled. The aircraft can operate without magnetic heading, but compass-dependent navigation will be unavailable.',
+                );
+            } else if (externalSelection === EXTERNAL_COMPASS_SELECTION_DRONECAN
+                && !dronecanCompassConfigured()) {
+                $info.removeClass('info-box').addClass('warning-box').text(
+                    'Assign a DroneCAN compass node in Ports before selecting the DroneCAN external compass.',
+                );
+            } else {
+                $info.removeClass('info-box').addClass('ok-box').text(
+                    'Onboard and external compass sources are configured independently. Each enabled source is calibrated separately on the Calibration tab.',
+                );
+            }
+        }
+
+        function populateExternalCompassSelector() {
+            const $row = $('#external-compass-source-row');
+            const $selector = $('#external-compass-source').empty();
+            if (!supportsHeadingFusion || !FC.HEADING_CONFIG) {
+                $('<option>').val(EXTERNAL_COMPASS_SELECTION_DISABLED).text('Disabled / none').appendTo($selector);
+                $row.hide();
+                renderCompassSourceSelectionInfo();
+                return;
+            }
+            $row.show();
+            $('<option>').val(EXTERNAL_COMPASS_SELECTION_DISABLED).text('Disabled / none').appendTo($selector);
+            for (const hardware of EXTERNAL_MAG_HARDWARE) {
+                if (hardware.value === 0) continue;
+                $('<option>')
+                    .val(externalI2cCompassSelection(hardware.value))
+                    .text(`External I²C — ${hardware.label}`)
+                    .appendTo($selector);
+            }
+            if (supportsDronecanConfig) {
+                const current = selectedExternalCompass(FC.HEADING_CONFIG);
+                $('<option>')
+                    .val(EXTERNAL_COMPASS_SELECTION_DRONECAN)
+                    .text(dronecanCompassConfigured()
+                        ? `DroneCAN compass · node ${FC.DRONECAN_CONFIG.magNodeId}`
+                        : 'DroneCAN compass · configure node in Ports first')
+                    .prop('disabled', !dronecanCompassConfigured()
+                        && current !== EXTERNAL_COMPASS_SELECTION_DRONECAN)
+                    .appendTo($selector);
+            }
+            $selector.val(selectedExternalCompass(FC.HEADING_CONFIG));
+            renderCompassSourceSelectionInfo();
+        }
+
+        populateExternalCompassSelector();
+        $('#sensor-mag, #external-compass-source').on('change.configurationCompass', renderCompassSourceSelectionInfo);
 
         // VTX
         var config_vtx = $('.config-vtx');
@@ -269,6 +364,12 @@ configurationTab.initialize = function (callback, scrollPosition) {
         });
 
         $('a.save').on('click', function () {
+            if (supportsHeadingFusion && FC.HEADING_CONFIG) {
+                applyCompassSourceSelections(FC.HEADING_CONFIG, {
+                    onboardHardware: Number($('#sensor-mag').val()),
+                    externalSelection: $('#external-compass-source').val(),
+                });
+            }
             //UPDATE: moved to GPS tab and hidden
             //FC.MISC.mag_declination = parseFloat($('#mag_declination').val());
 
@@ -303,6 +404,7 @@ configurationTab.initialize = function (callback, scrollPosition) {
 };
 
 configurationTab.cleanup = function (callback) {
+    $('#sensor-mag, #external-compass-source').off('.configurationCompass');
     if (callback) callback();
 };
 

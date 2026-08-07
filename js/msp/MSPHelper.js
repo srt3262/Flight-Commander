@@ -40,6 +40,7 @@ import {
     decodeCompassOrientationStatus,
     encodeCompassOrientationCommand,
 } from './../flightCommander/compassOrientation';
+import { encodeCompassCalibrationCommand } from './../flightCommander/compassCalibration';
 
 var mspHelper = (function () {
     var self = {};
@@ -866,6 +867,10 @@ var mspHelper = (function () {
 
             case MSPCodes.MSP2_FLIGHT_COMMANDER_COMPASS_ORIENTATION_COMMAND:
                 console.log('Flight Commander compass-orientation command accepted');
+                break;
+
+            case MSPCodes.MSP2_FLIGHT_COMMANDER_COMPASS_CALIBRATION_COMMAND:
+                console.log('Flight Commander source-selective compass calibration command accepted');
                 break;
 
             case MSPCodes.MSP2_FLIGHT_COMMANDER_SET_HEADING_CONFIG:
@@ -3835,10 +3840,23 @@ var mspHelper = (function () {
         );
     };
 
-    self.sendCompassOrientationCommand = function (command, callback) {
+    self.sendCompassOrientationCommand = function (command, source, callback) {
+        if (typeof source === 'function') {
+            callback = source;
+            source = 0;
+        }
         MSP.send_message(
             MSPCodes.MSP2_FLIGHT_COMMANDER_COMPASS_ORIENTATION_COMMAND,
-            [...encodeCompassOrientationCommand(command)],
+            [...encodeCompassOrientationCommand(command, source)],
+            false,
+            callback,
+        );
+    };
+
+    self.sendCompassCalibrationCommand = function (source, callback) {
+        MSP.send_message(
+            MSPCodes.MSP2_FLIGHT_COMMANDER_COMPASS_CALIBRATION_COMMAND,
+            [...encodeCompassCalibrationCommand(source)],
             false,
             callback,
         );

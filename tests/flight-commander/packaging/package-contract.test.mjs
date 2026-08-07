@@ -475,15 +475,22 @@ test("weighted heading fusion and moving-baseline setup are release surfaces", (
   assert.match(gpsHtml, /Moving-baseline GNSS yaw/);
   assert.doesNotMatch(gpsHtml, /id="headingCalibrateMag"/);
   assert.match(gpsHtml, /Calibration tab after reboot/);
-  assert.match(calibrationHtml, /id="compassCalibrationList"/);
+  assert.match(calibrationHtml, /id="compassCalibrationSource"/);
+  assert.match(calibrationHtml, /id="compassCalibrationSelected"/);
+  assert.match(calibrationHtml, /id="compassFieldCalibrationStart"/);
+  assert.match(calibrationHtml, /Six-Side Compass Orientation \/ Alignment/);
+  assert.doesNotMatch(calibrationHtml, /all enabled compasses.*together/i);
   assert.match(calibrationSource, /MSP_MAG_CALIBRATION/);
+  assert.match(calibrationSource, /COMPASS_ORIENTATION_COMMAND\.SELECT/);
+  assert.match(calibrationSource, /sendCompassCalibrationCommand\(target\.index/);
+  assert.match(calibrationSource, /individualCompassCalibration/);
   assert.match(calibrationSource, /loadFlightCommanderHeadingConfig/);
   assert.match(calibrationSource, /loadFlightCommanderHeadingStatus/);
   assert.match(compassCalibrationSource, /HEADING_SOURCE_DRONECAN_MAG/);
   assert.match(compassCalibrationSource, /External \/ UART GPS-module compass/);
   assert.match(compassCalibrationSource, /assessCompassCalibration/);
   assert.match(compassCalibrationSource, /implausibly unbalanced/);
-  assert.match(calibrationSource, /Replace invalid calibration/);
+  assert.match(calibrationSource, /Replace \$\{target\.title\} calibration/);
   assert.match(headingFusionSource, /calibrationFailedMask/);
   assert.match(headingFusionSource, /HEADING_CONFIG_SCHEMA = 2/);
   assert.match(headingFusionSource, /dronecanMagCalibrationNodeId/);
@@ -581,13 +588,13 @@ test("application remains dark-only", () => {
 });
 
 test("firmware is release-only and the flasher exposes local, online, then flash", () => {
-  assert.equal(packageManifest.flightCommander.firmwareReleaseVersion, "4.0.6");
+  assert.equal(packageManifest.flightCommander.firmwareReleaseVersion, "4.0.8");
   assert.equal(packageManifest.flightCommander.firmwareChangedInRelease, true);
   assert.equal(packageManifest.flightCommander.firmwareSourceAvailable, true);
-  assert.equal(packageManifest.flightCommander.firmwareSourceVersion, "4.0.6");
+  assert.equal(packageManifest.flightCommander.firmwareSourceVersion, "4.0.8");
   assert.equal(
     packageManifest.flightCommander.firmwareSourceArchive,
-    "release/firmware/Flight-Commander-Firmware-Source-v4.0.6.zip",
+    "release/firmware/Flight-Commander-Firmware-Source-v4.0.8.zip",
   );
   const releaseFirmwareIsPresent = existsSync(firmwareReleasePath);
   const releaseSourceIsPresent = existsSync(firmwareSourcePath);
@@ -649,7 +656,7 @@ test("firmware is release-only and the flasher exposes local, online, then flash
   assert.match(firmwareIdentitySource, /retryCounter: 0/);
   assert.match(firmwareCatalogSource, /MICOAIR743/);
   assert.match(firmwareCatalogSource, /MICROAIR743/);
-  assert.match(firmwareCatalogSource, /FLIGHT_COMMANDER_MINIMUM_SUPPORTED_FIRMWARE_VERSION = "4\.0\.6"/);
+  assert.match(firmwareCatalogSource, /FLIGHT_COMMANDER_MINIMUM_SUPPORTED_FIRMWARE_VERSION = "4\.0\.7"/);
   assert.match(firmwareCatalogSource, /isSupportedFlightCommanderFirmwareVersion/);
   assert.match(packageVerifier, /firmware must not be packaged/i);
   assert.match(packageVerifier, /firmwareBundled: false/);
@@ -690,7 +697,7 @@ test("all requested large-prop INAV presets are wired into the release source", 
 });
 
 test("landing page reports the current Flight Commander release", () => {
-  assert.equal(packageManifest.version, "4.0.6");
+  assert.equal(packageManifest.version, "4.0.8");
   assert.equal(manifest.version, packageManifest.version);
   assert.match(
     landingHtml,

@@ -84,7 +84,9 @@ const imageNames = [
 
 		// Private methods
 		function _setRoll(roll){
-			roll *= -1;
+			// MSP attitude roll already uses the aircraft-frame handedness expected
+			// by Flight Commander. The moving horizon therefore uses the value
+			// directly instead of mirroring the bank indication a second time.
 			placeholder.each(function(){
 				$(this).find('div.instrument.attitude div.roll').css('transform', 'rotate('+roll+'deg)');
 			});

@@ -26,7 +26,6 @@ var MSPCodes = {
     MSP_FW_CONFIG:              23,
     MSP_SET_FW_CONFIG:          24,
 
-    // MSP commands for Cleanflight original features
     MSP_MODE_RANGES:            34,
     MSP_SET_MODE_RANGE:         35,
     MSP_FEATURE:                36,
@@ -69,8 +68,7 @@ var MSPCodes = {
     MSP_SENSOR_CONFIG:          96,
     MSP_SET_SENSOR_CONFIG:      97,
 
-    // Multiwii MSP commands
-    MSP_IDENT:              100, //deprecated, do not use
+    MSP_IDENT:              100,
     MSP_STATUS:             101,
     MSP_RAW_IMU:            102,
     MSP_SERVO:              103,
@@ -92,7 +90,7 @@ var MSPCodes = {
     MSP_RC_DEADBAND:        125,
     MSP_SENSOR_ALIGNMENT:   126,
     MSP_LED_STRIP_MODECOLOR:127,
-    MSP_STATUS_EX:          150,    // Deprecated, do not use.
+    MSP_STATUS_EX:          150,
     MSP_SENSOR_STATUS:      151,
 
     MSP_SET_RAW_RC:         200,
@@ -113,41 +111,30 @@ var MSPCodes = {
     MSP_SET_SENSOR_ALIGNMENT: 220,
     MSP_SET_LED_STRIP_MODECOLOR:221,
 
-    // MSP_BIND:               240,
-
     MSP_RTC:                246,
     MSP_SET_RTC:            247,
-
     MSP_EEPROM_WRITE:       250,
-
     MSP_DEBUGMSG:           253,
     MSP_DEBUG:              254,
 
-    // Additional baseflight commands that are not compatible with MultiWii
-    MSP_UID:                160, // Unique device ID
-    MSP_ACC_TRIM:           240, // get acc angle trim values
-    MSP_SET_ACC_TRIM:       239, // set acc angle trim values
-    MSP_GPS_SV_INFO:        164, // get Signal Strength
-    MSP_GPSSTATISTICS:      166, // GPS statistics
+    MSP_UID:                160,
+    MSP_ACC_TRIM:           240,
+    MSP_SET_ACC_TRIM:       239,
+    MSP_GPS_SV_INFO:        164,
+    MSP_GPSSTATISTICS:      166,
+    MSP_RX_MAP:             64,
+    MSP_SET_RX_MAP:         65,
+    MSP_BF_CONFIG:          66,
+    MSP_SET_BF_CONFIG:      67,
+    MSP_SET_REBOOT:         68,
+    MSP_BF_BUILD_INFO:      69,
 
-    // Additional private MSP for baseflight configurator (yes thats us \o/)
-    MSP_RX_MAP:              64, // get channel map (also returns number of channels total)
-    MSP_SET_RX_MAP:          65, // set rc map, numchannels to set comes from MSP_RX_MAP
-    MSP_BF_CONFIG:             66, // Depreciated
-    MSP_SET_BF_CONFIG:         67, // Depreciated
-    MSP_SET_REBOOT:         68, // reboot settings
-    MSP_BF_BUILD_INFO:          69,  // Depreciated
-
-    // INAV specific codes
     MSPV2_SETTING:                      0x1003,
     MSPV2_SET_SETTING:                  0x1004,
-
     MSP2_COMMON_MOTOR_MIXER:            0x1005,
     MSP2_COMMON_SET_MOTOR_MIXER:        0x1006,
-
     MSP2_COMMON_SETTING_INFO:           0x1007,
     MSP2_COMMON_PG_LIST:                0x1008,
-
     MSP2_CF_SERIAL_CONFIG:              0x1009,
     MSP2_SET_CF_SERIAL_CONFIG:          0x100A,
 
@@ -168,28 +155,21 @@ var MSPCodes = {
     MSPV2_INAV_OUTPUT_MAPPING_EXT2:     0x210D,
     MSP2_INAV_TIMER_OUTPUT_MODE:        0x200E,
     MSP2_INAV_SET_TIMER_OUTPUT_MODE:    0x200F,
-
     MSP2_INAV_MIXER:                    0x2010,
     MSP2_INAV_SET_MIXER:                0x2011,
-
     MSP2_INAV_OSD_LAYOUTS:              0x2012,
     MSP2_INAV_OSD_SET_LAYOUT_ITEM:      0x2013,
     MSP2_INAV_OSD_ALARMS:               0x2014,
     MSP2_INAV_OSD_SET_ALARMS:           0x2015,
     MSP2_INAV_OSD_PREFERENCES:          0x2016,
     MSP2_INAV_OSD_SET_PREFERENCES:      0x2017,
-
     MSP2_INAV_SELECT_BATTERY_PROFILE:   0x2018,
-
     MSP2_INAV_DEBUG:                    0x2019,
-
     MSP2_BLACKBOX_CONFIG:               0x201A,
     MSP2_SET_BLACKBOX_CONFIG:           0x201B,
-
     MSP2_INAV_TEMP_SENSOR_CONFIG:       0x201C,
     MSP2_INAV_SET_TEMP_SENSOR_CONFIG:   0x201D,
     MSP2_INAV_TEMPERATURES:             0x201E,
-
     MSP2_INAV_SERVO_MIXER:              0x2020,
     MSP2_INAV_SET_SERVO_MIXER:          0x2021,
     MSP2_INAV_LOGIC_CONDITIONS:         0x2022,
@@ -201,57 +181,39 @@ var MSPCodes = {
     MSP2_INAV_PROGRAMMING_PID:          0x2028,
     MSP2_INAV_SET_PROGRAMMING_PID:      0x2029,
     MSP2_INAV_PROGRAMMING_PID_STATUS:   0x202A,
-
-
     MSP2_PID:                           0x2030,
     MSP2_SET_PID:                       0x2031,
-
     MSP2_INAV_OPFLOW_CALIBRATION:       0x2032,
-    
     MSP2_INAV_FWUPDT_PREPARE:           0x2033,
     MSP2_INAV_FWUPDT_STORE:             0x2034,
     MSP2_INAV_FWUPDT_EXEC:              0x2035,
     MSP2_INAV_FWUPDT_ROLLBACK_PREPARE:  0x2036,
     MSP2_INAV_FWUPDT_ROLLBACK_EXEC:     0x2037,
-    
     MSP2_INAV_SAFEHOME:                 0x2038,
     MSP2_INAV_SET_SAFEHOME:             0x2039,
-    
     MSP2_INAV_LOGIC_CONDITIONS_SINGLE:      0x203B,
     MSP2_INAV_LOGIC_CONDITIONS_CONFIGURED:  0x203C,
-
     MSP2_INAV_LED_STRIP_CONFIG_EX:      0x2048,
     MSP2_INAV_SET_LED_STRIP_CONFIG_EX:  0x2049,
-
     MSP2_INAV_FW_APPROACH:              0x204A,
     MSP2_INAV_SET_FW_APPROACH:          0x204B,
-
     MSP2_INAV_GPS_UBLOX_COMMAND:        0x2050,
-
     MSP2_INAV_RATE_DYNAMICS:            0x2060,
     MSP2_INAV_SET_RATE_DYNAMICS:        0x2061,
-
     MSP2_INAV_EZ_TUNE:                  0x2070,
     MSP2_INAV_EZ_TUNE_SET:              0x2071,
-
     MSP2_INAV_SELECT_MIXER_PROFILE:     0x2080,
-    
     MSP2_ADSB_VEHICLE_LIST:             0x2090,
-
     MSP2_INAV_CUSTOM_OSD_ELEMENTS:      0x2100,
     MSP2_INAV_CUSTOM_OSD_ELEMENT:       0x2101,
     MSP2_INAV_SET_CUSTOM_OSD_ELEMENTS:  0x2102,
-
     MSP2_INAV_SERVO_CONFIG:             0x2200,
     MSP2_INAV_SET_SERVO_CONFIG:         0x2201,
-
     MSP2_INAV_GEOZONE:                  0x2210,
     MSP2_INAV_SET_GEOZONE:              0x2211,
     MSP2_INAV_GEOZONE_VERTEX:           0x2212,
     MSP2_INAV_SET_GEOZONE_VERTICE:      0x2213,
 
-    // Optional Flight Commander Firmware extension. Stock INAV returns an
-    // unsupported response and continues through the normal compatibility path.
     MSP2_FLIGHT_COMMANDER_INFO:          0x2F00,
     MSP2_FLIGHT_COMMANDER_RTK_STATUS:    0x2F01,
     MSP2_FLIGHT_COMMANDER_DUAL_GPS_STATUS: 0x2F02,
@@ -265,8 +227,8 @@ var MSPCodes = {
     MSP2_FLIGHT_COMMANDER_SET_HEADING_CONFIG: 0x2F21,
     MSP2_FLIGHT_COMMANDER_HEADING_STATUS: 0x2F22,
     MSP2_FLIGHT_COMMANDER_COMPASS_ORIENTATION_STATUS: 0x2F23,
-    MSP2_FLIGHT_COMMANDER_COMPASS_ORIENTATION_COMMAND: 0x2F24
-
+    MSP2_FLIGHT_COMMANDER_COMPASS_ORIENTATION_COMMAND: 0x2F24,
+    MSP2_FLIGHT_COMMANDER_COMPASS_CALIBRATION_COMMAND: 0x2F25,
 };
 
 export default MSPCodes;
