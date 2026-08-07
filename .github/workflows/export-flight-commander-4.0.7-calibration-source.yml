@@ -1,4 +1,4 @@
-name: Apply Flight Commander 4.0.8 firmware calibration changes
+name: Apply Flight Commander 4.0.8 Configurator compass changes
 
 "on":
   push:
@@ -19,22 +19,22 @@ jobs:
         with:
           ref: agent/fix-4.0.6-imu-handedness
           fetch-depth: 0
-      - name: Apply source-selective compass calibration changes
+      - name: Apply source-selective Configurator transport and styling
         shell: bash
         run: |
           set -euo pipefail
-          python3 scripts/apply-flight-commander-4.0.8-firmware-calibration.py
-          python3 -m py_compile scripts/apply-flight-commander-4.0.8-firmware-calibration.py
-      - name: Commit transformed firmware source
+          python3 scripts/apply-flight-commander-4.0.8-configurator-calibration.py
+          python3 -m py_compile scripts/apply-flight-commander-4.0.8-configurator-calibration.py
+      - name: Commit transformed Configurator source
         shell: bash
         run: |
           set -euo pipefail
-          git add dev/firmware-4.0.7-source
+          git add js/msp/MSPHelper.js src/css/tabs/calibration.css
           if git diff --cached --quiet; then
-            echo "4.0.8 firmware calibration source already applied"
+            echo "4.0.8 Configurator compass transport already applied"
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "Implement source-selective compass calibration for 4.0.8 [skip ci]"
+          git commit -m "Wire source-selective compass calibration UI for 4.0.8 [skip ci]"
           git push origin HEAD:agent/fix-4.0.6-imu-handedness
