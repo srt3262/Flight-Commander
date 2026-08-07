@@ -47,7 +47,107 @@ jobs:
           test "$(git hash-object release/configurator-patches/4.0.7.patch)" = \
             "2bf3759a63cc3d5e41da01cb2cb27bc768fde3df"
           git -c core.whitespace=cr-at-eol apply --whitespace=error-all \
+            --exclude=tests/flight-commander/firmware/flight-commander-catalog.test.mjs \
+            --exclude=tests/flight-commander/packaging/package-contract.test.mjs \
             release/configurator-patches/4.0.7.patch
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace(path_name, old, new, expected=1):
+              path = Path(path_name)
+              text = path.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != expected:
+                  raise SystemExit(
+                      f'{path}: expected {expected} occurrences of {old!r}; found {count}'
+                  )
+              path.write_text(text.replace(old, new), encoding='utf-8')
+
+          catalog = 'tests/flight-commander/firmware/flight-commander-catalog.test.mjs'
+          replace(
+              catalog,
+              'assert.equal(FLIGHT_COMMANDER_MINIMUM_SUPPORTED_FIRMWARE_VERSION, "4.0.6");',
+              'assert.equal(FLIGHT_COMMANDER_MINIMUM_SUPPORTED_FIRMWARE_VERSION, "4.0.7");',
+          )
+          replace(
+              catalog,
+              '    assert.equal(isSupportedFlightCommanderFirmwareVersion("4.0.6"), true);\n'
+              '    assert.equal(isSupportedFlightCommanderFirmwareVersion("4.1.0"), true);',
+              '    assert.equal(isSupportedFlightCommanderFirmwareVersion("4.0.6"), false);\n'
+              '    assert.equal(isSupportedFlightCommanderFirmwareVersion("4.0.7"), true);\n'
+              '    assert.equal(isSupportedFlightCommanderFirmwareVersion("4.1.0"), true);',
+          )
+          replace(
+              catalog,
+              '        tag_name: "v4.0.6",\n        name: "Firmware 4.0.6 beta",',
+              '        tag_name: "v4.0.7",\n        name: "Firmware 4.0.7 beta",',
+          )
+          replace(
+              catalog,
+              'Flight-Commander-Firmware-4.0.6-MICOAIR743-BENCH-ONLY.hex',
+              'Flight-Commander-Firmware-4.0.7-MICOAIR743-BENCH-ONLY.hex',
+          )
+          replace(
+              catalog,
+              'Flight-Commander-Firmware-4.0.6-source.zip',
+              'Flight-Commander-Firmware-4.0.7-source.zip',
+          )
+          replace(
+              catalog,
+              'const filename = "Flight-Commander-Firmware-4.0.6-MICOAIR743.hex";',
+              'const filename = "Flight-Commander-Firmware-4.0.7-MICOAIR743.hex";',
+          )
+          replace(
+              catalog,
+              '        tag_name: "v4.0.6",\n        assets:',
+              '        tag_name: "v4.0.7",\n        assets:',
+          )
+          replace(
+              catalog,
+              '["4.0.6", "3.0.7"]',
+              '["4.0.7", "3.0.7"]',
+              expected=2,
+          )
+          replace(
+              catalog,
+              'test("keeps 3.0.7 and 4.0.6 while removing every verified-bad intervening release",',
+              'test("keeps 3.0.7 and 4.0.7 while removing every verified-bad intervening release",',
+          )
+          replace(
+              catalog,
+              '    releaseFor("4.0.6", "a"),\n  ]);',
+              '    releaseFor("4.0.6", "a"),\n'
+              '    releaseFor("4.0.7", "b"),\n'
+              '  ]);',
+          )
+
+          contract = 'tests/flight-commander/packaging/package-contract.test.mjs'
+          replace(
+              contract,
+              'assert.equal(packageManifest.flightCommander.firmwareReleaseVersion, "4.0.6");',
+              'assert.equal(packageManifest.flightCommander.firmwareReleaseVersion, "4.0.7");',
+          )
+          replace(
+              contract,
+              'assert.equal(packageManifest.flightCommander.firmwareSourceVersion, "4.0.6");',
+              'assert.equal(packageManifest.flightCommander.firmwareSourceVersion, "4.0.7");',
+          )
+          replace(
+              contract,
+              '"release/firmware/Flight-Commander-Firmware-Source-v4.0.6.zip",',
+              '"release/firmware/Flight-Commander-Firmware-Source-v4.0.7.zip",',
+          )
+          replace(
+              contract,
+              'FLIGHT_COMMANDER_MINIMUM_SUPPORTED_FIRMWARE_VERSION = "4\\.0\\.6"',
+              'FLIGHT_COMMANDER_MINIMUM_SUPPORTED_FIRMWARE_VERSION = "4\\.0\\.7"',
+          )
+          replace(
+              contract,
+              'assert.equal(packageManifest.version, "4.0.6");',
+              'assert.equal(packageManifest.version, "4.0.7");',
+          )
+          PY
 
       - name: Install firmware build prerequisites
         shell: bash
