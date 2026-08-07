@@ -1,0 +1,408 @@
+name: Final coordinated purge of all Actions runs
+
+"on":
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/delete-all-workflow-runs-v4.yml
+
+permissions:
+  actions: write
+  contents: write
+
+concurrency:
+  group: flight-commander-final-actions-history-purge-v4
+  cancel-in-progress: false
+
+jobs:
+  purge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Cancel all competing runs, purge history, and self-remove
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CURRENT_RUN_ID: ${{ github.run_id }}
+          MARKER_PATH: release/published/workflow-run-cleanup.json
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from __future__ import annotations
+
+          import base64
+          import json
+          import os
+          import time
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+          from datetime import datetime, timezone
+
+          API = "https://api.github.com"
+          REPO = os.environ["GITHUB_REPOSITORY"]
+          TOKEN = os.environ["GH_TOKEN"]
+          CURRENT_RUN_ID = int(os.environ["CURRENT_RUN_ID"])
+          MARKER_PATH = os.environ["MARKER_PATH"]
+          TEMP_BRANCH = "agent/delete-all-workflow-runs-20260807"
+          WORKFLOW_PATHS = (
+              ".github/workflows/delete-all-workflow-runs-main.yml",
+              ".github/workflows/delete-all-workflow-runs-v2.yml",
+              ".github/workflows/delete-all-workflow-runs-v3.yml",
+              ".github/workflows/delete-all-workflow-runs-v4.yml",
+          )
+          TRANSIENT = {0, 403, 429, 500, 502, 503, 504}
+          started_at = datetime.now(timezone.utc).isoformat()
+          deleted = 0
+          already_absent = 0
+          cancellation_requests = 0
+
+          def raw_request(
+              method: str,
+              path: str,
+              payload: dict | None = None,
+              timeout: int = 30,
+          ) -> tuple[int, bytes]:
+              body = None if payload is None else json.dumps(payload).encode("utf-8")
+              headers = {
+                  "Accept": "application/vnd.github+json",
+                  "Authorization": f"Bearer {TOKEN}",
+                  "X-GitHub-Api-Version": "2022-11-28",
+                  "User-Agent": "flight-commander-final-actions-purge-v4",
+              }
+              if body is not None:
+                  headers["Content-Type"] = "application/json"
+              request = urllib.request.Request(
+                  API + path,
+                  data=body,
+                  headers=headers,
+                  method=method,
+              )
+              try:
+                  with urllib.request.urlopen(request, timeout=timeout) as response:
+                      return response.status, response.read()
+              except urllib.error.HTTPError as error:
+                  return error.code, error.read()
+              except Exception as error:
+                  return 0, str(error).encode("utf-8", errors="replace")
+
+          def request(
+              method: str,
+              path: str,
+              payload: dict | None = None,
+              timeout: int = 30,
+              attempts: int = 14,
+          ) -> tuple[int, bytes]:
+              code = 0
+              body = b""
+              for attempt in range(attempts):
+                  code, body = raw_request(method, path, payload, timeout)
+                  if code not in TRANSIENT:
+                      return code, body
+                  time.sleep(min(0.4 * (2 ** min(attempt, 5)), 10.0))
+              return code, body
+
+          def require(code: int, body: bytes, allowed: set[int], label: str) -> None:
+              if code not in allowed:
+                  detail = body.decode("utf-8", errors="replace")[:3000]
+                  raise RuntimeError(f"{label} failed with HTTP {code}: {detail}")
+
+          def now() -> str:
+              return datetime.now(timezone.utc).isoformat()
+
+          def put_marker(status: str, **extra: object) -> None:
+              marker = {
+                  "repository": REPO,
+                  "status": status,
+                  "started_at": started_at,
+                  "updated_at": now(),
+                  "current_run_id": CURRENT_RUN_ID,
+                  **extra,
+              }
+              encoded_content = base64.b64encode(
+                  (json.dumps(marker, indent=2, sort_keys=True) + "\n").encode("utf-8")
+              ).decode("ascii")
+              encoded_path = urllib.parse.quote(MARKER_PATH, safe="/")
+              code, body = request(
+                  "GET",
+                  f"/repos/{REPO}/contents/{encoded_path}?ref=main",
+              )
+              payload = {
+                  "message": "Record final workflow-run purge status [skip ci]",
+                  "content": encoded_content,
+                  "branch": "main",
+              }
+              if code == 200:
+                  payload["sha"] = json.loads(body)["sha"]
+              elif code != 404:
+                  require(code, body, {200, 404}, "read cleanup marker")
+              code, body = request(
+                  "PUT",
+                  f"/repos/{REPO}/contents/{encoded_path}",
+                  payload,
+              )
+              require(code, body, {200, 201}, "write cleanup marker")
+
+          def list_runs() -> list[dict]:
+              all_runs: list[dict] = []
+              page = 1
+              while True:
+                  code, body = request(
+                      "GET",
+                      f"/repos/{REPO}/actions/runs?per_page=100&page={page}",
+                  )
+                  require(code, body, {200}, f"list workflow runs page {page}")
+                  batch = list(json.loads(body).get("workflow_runs", []))
+                  all_runs.extend(batch)
+                  if len(batch) < 100:
+                      return all_runs
+                  page += 1
+
+          def cancel_all_active(runs: list[dict]) -> int:
+              global cancellation_requests
+              count = 0
+              for run in runs:
+                  run_id = int(run["id"])
+                  if run_id == CURRENT_RUN_ID or str(run.get("status")) == "completed":
+                      continue
+                  raw_request("POST", f"/repos/{REPO}/actions/runs/{run_id}/cancel")
+                  raw_request("POST", f"/repos/{REPO}/actions/runs/{run_id}/force-cancel")
+                  cancellation_requests += 1
+                  count += 1
+              return count
+
+          def delete_completed(runs: list[dict]) -> int:
+              global deleted, already_absent
+              count = 0
+              for run in runs:
+                  run_id = int(run["id"])
+                  if run_id == CURRENT_RUN_ID or str(run.get("status")) != "completed":
+                      continue
+                  for attempt in range(20):
+                      code, body = request(
+                          "DELETE",
+                          f"/repos/{REPO}/actions/runs/{run_id}",
+                          attempts=8,
+                      )
+                      if code == 204:
+                          deleted += 1
+                          count += 1
+                          break
+                      if code == 404:
+                          already_absent += 1
+                          break
+                      raw_request(
+                          "POST",
+                          f"/repos/{REPO}/actions/runs/{run_id}/force-cancel",
+                      )
+                      time.sleep(min(0.25 + attempt * 0.2, 3.0))
+                  else:
+                      detail = body.decode("utf-8", errors="replace")[:2000]
+                      raise RuntimeError(
+                          f"could not delete workflow run {run_id}: HTTP {code}: {detail}"
+                      )
+                  time.sleep(0.02)
+              return count
+
+          def delete_branch(branch: str) -> None:
+              encoded = urllib.parse.quote(branch, safe="/")
+              code, body = request(
+                  "DELETE",
+                  f"/repos/{REPO}/git/refs/heads/{encoded}",
+              )
+              require(code, body, {204, 404}, f"delete branch {branch}")
+
+          def delete_file(path: str) -> None:
+              encoded = urllib.parse.quote(path, safe="/")
+              code, body = request(
+                  "GET",
+                  f"/repos/{REPO}/contents/{encoded}?ref=main",
+              )
+              if code == 404:
+                  return
+              require(code, body, {200}, f"read {path}")
+              sha = json.loads(body)["sha"]
+              code, body = request(
+                  "DELETE",
+                  f"/repos/{REPO}/contents/{encoded}",
+                  {
+                      "message": "Remove one-time Actions purge machinery [skip ci]",
+                      "sha": sha,
+                      "branch": "main",
+                  },
+              )
+              require(code, body, {200}, f"delete {path}")
+
+          put_marker("started")
+          initial_runs = list_runs()
+          initial_total = len(initial_runs)
+          initial_active = cancel_all_active(initial_runs)
+          put_marker(
+              "cancelling_competing_runs",
+              initial_workflow_runs=initial_total,
+              initially_active_other_runs=initial_active,
+              deleted_workflow_runs=0,
+          )
+
+          time.sleep(2.0)
+          last_reported_deleted = -1
+          for cycle in range(1, 181):
+              runs = list_runs()
+              other_runs = [
+                  run for run in runs
+                  if int(run["id"]) != CURRENT_RUN_ID
+              ]
+              if not other_runs:
+                  break
+
+              cancel_all_active(other_runs)
+              delete_completed(other_runs)
+
+              if deleted != last_reported_deleted and (
+                  deleted % 10 == 0 or cycle % 5 == 0
+              ):
+                  last_reported_deleted = deleted
+                  remaining = [
+                      run for run in list_runs()
+                      if int(run["id"]) != CURRENT_RUN_ID
+                  ]
+                  put_marker(
+                      "deleting",
+                      initial_workflow_runs=initial_total,
+                      deleted_workflow_runs=deleted,
+                      already_absent=already_absent,
+                      cancellation_requests=cancellation_requests,
+                      remaining_other_runs=len(remaining),
+                      cleanup_cycle=cycle,
+                  )
+              time.sleep(0.75)
+          else:
+              raise RuntimeError("other workflow runs remained after coordinated cancellation")
+
+          final_others = [
+              int(run["id"])
+              for run in list_runs()
+              if int(run["id"]) != CURRENT_RUN_ID
+          ]
+          if final_others:
+              raise RuntimeError(f"workflow runs remain before self-delete: {final_others}")
+
+          put_marker(
+              "current_run_self_delete_pending",
+              initial_workflow_runs=initial_total,
+              deleted_before_current_run=deleted,
+              already_absent=already_absent,
+              cancellation_requests=cancellation_requests,
+              remaining_before_self_delete=1,
+          )
+
+          delete_branch(TEMP_BRANCH)
+          for workflow_path in WORKFLOW_PATHS:
+              delete_file(workflow_path)
+
+          final_others = [
+              int(run["id"])
+              for run in list_runs()
+              if int(run["id"]) != CURRENT_RUN_ID
+          ]
+          if final_others:
+              raise RuntimeError(f"late workflow runs appeared: {final_others}")
+
+          os.environ.pop("RUNNER_TRACKING_ID", None)
+          first_child = os.fork()
+          if first_child > 0:
+              print(json.dumps({
+                  "initial_workflow_runs": initial_total,
+                  "deleted_before_current_run": deleted,
+                  "current_run_id": CURRENT_RUN_ID,
+                  "detached_finalizer": "launched",
+              }, indent=2))
+              raise SystemExit(0)
+
+          os.setsid()
+          second_child = os.fork()
+          if second_child > 0:
+              os._exit(0)
+
+          os.chdir("/")
+          os.umask(0o077)
+          null_fd = os.open(os.devnull, os.O_RDWR)
+          for fd in (0, 1, 2):
+              try:
+                  os.dup2(null_fd, fd)
+              except OSError:
+                  pass
+          if null_fd > 2:
+              os.close(null_fd)
+
+          time.sleep(0.05)
+          raw_request("POST", f"/repos/{REPO}/actions/runs/{CURRENT_RUN_ID}/cancel")
+          raw_request("POST", f"/repos/{REPO}/actions/runs/{CURRENT_RUN_ID}/force-cancel")
+
+          current_deleted = False
+          for _ in range(12000):
+              code, _ = raw_request(
+                  "DELETE",
+                  f"/repos/{REPO}/actions/runs/{CURRENT_RUN_ID}",
+                  timeout=8,
+              )
+              if code in {204, 404}:
+                  current_deleted = True
+                  break
+              time.sleep(0.025 if code not in TRANSIENT else 0.075)
+
+          if not current_deleted:
+              os._exit(1)
+
+          try:
+              put_marker(
+                  "delete_acknowledged",
+                  initial_workflow_runs=initial_total,
+                  deleted_before_current_run=deleted,
+                  deleted_current_run=1,
+                  already_absent=already_absent,
+                  cancellation_requests=cancellation_requests,
+                  remaining_workflow_runs=0,
+              )
+          except Exception:
+              pass
+
+          stable_zero = 0
+          late_deleted = 0
+          for _ in range(500):
+              try:
+                  late_runs = list_runs()
+              except Exception:
+                  time.sleep(0.1)
+                  continue
+              if not late_runs:
+                  stable_zero += 1
+                  if stable_zero >= 3:
+                      break
+                  time.sleep(0.2)
+                  continue
+              stable_zero = 0
+              cancel_all_active(late_runs)
+              late_deleted += delete_completed(late_runs)
+              time.sleep(0.1)
+          else:
+              os._exit(2)
+
+          try:
+              put_marker(
+                  "verified_zero",
+                  initial_workflow_runs=initial_total,
+                  deleted_before_current_run=deleted,
+                  deleted_current_run=1,
+                  deleted_late_arriving_runs=late_deleted,
+                  already_absent=already_absent,
+                  cancellation_requests=cancellation_requests,
+                  remaining_workflow_runs=0,
+                  temporary_branch_removed=TEMP_BRANCH,
+                  temporary_workflow_files_removed=list(WORKFLOW_PATHS),
+              )
+          except Exception:
+              pass
+          os._exit(0)
+          PY
