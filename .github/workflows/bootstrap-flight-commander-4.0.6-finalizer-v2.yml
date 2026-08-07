@@ -1,6 +1,11 @@
 name: One-time Flight Commander 4.0.6 finalizer bootstrap
 
 "on":
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/bootstrap-flight-commander-4.0.6-finalizer-v2.yml
   schedule:
     - cron: '33 * * * *'
   workflow_dispatch:
