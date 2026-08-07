@@ -329,7 +329,7 @@ test("converts every HUD speed, altitude, and spoken unit in imperial mode", () 
     .map(([, value]) => String(value));
   assert.ok(labels.includes("GS mph"));
   assert.ok(labels.includes("REL ALT ft"));
-  assert.ok(labels.some((value) => value.startsWith("AS 26.8 mph")));
+  assert.equal(labels.some((value) => value.startsWith("AS ")), false);
   assert.ok(labels.some((value) => value.startsWith("VS 6.6 ft/s")));
 
   const announcement = buildHudAnnouncement({

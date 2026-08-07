@@ -1,5 +1,16 @@
 # Flight Commander 4.0.0
 
+## 4.0.8
+
+- Add one compass-source dropdown populated only by enabled, detected onboard, external I2C/UART GPS-module and DroneCAN magnetic sources.
+- Generalize persistent six-side axis/sign learning so every magnetic source owns an independent transform and calibration generation.
+- Start, clear and repeat orientation learning for only the selected compass without changing another source.
+- Calibrate offsets and gains for only the selected compass through a new source-selective MSPv2 command and explicit firmware capability.
+- Keep per-source manual roll, pitch and yaw alignment independent and apply it after the learned transform and field correction.
+- Block a magnetic source from heading fusion until both its own transform and field calibration are valid.
+- Remove the separate airspeed overlay from Ground Control so the HUD uses ground speed only.
+- Publish as a coordinated Configurator and MICOAIR743 firmware beta for propeller-off acceptance before official 4.0.8 promotion.
+
 ## 4.0.7
 
 - Restore the verified 4.0.5 accelerometer and gyro high-rate attitude paths after the 4.0.6 mirrored-roll regression.

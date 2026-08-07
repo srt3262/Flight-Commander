@@ -34,31 +34,26 @@
       </div>
       <div class="column half text2">
         <div class="wrap">
-          <h2>Flight Commander 4.0.7</h2>
+          <h2>Flight Commander 4.0.8</h2>
           <p>
-            Flight Commander 4.0.7 Beta restores the MICOAIR743 IMU attitude
-            path after the 4.0.6 roll-handedness regression. Raising the physical
-            right side now remains a right-side-up roll throughout firmware and
-            HUD telemetry instead of being mirrored.
+            Flight Commander 4.0.8 Beta lets you select each enabled and detected
+            compass individually, learn its six-side orientation and alignment,
+            then calibrate only that source's offsets and gains.
           </p>
           <p>
-            The accelerometer and gyro once again use the verified 4.0.5
-            high-rate processing sequence. Compass-orientation learning derives
-            its synchronized board-frame samples only when the 40 Hz compass task
-            requests them, so learning no longer adds a second vector write inside
-            either attitude update loop.
+            Onboard, external I2C/UART GPS-module and DroneCAN compasses retain
+            independent persistent transforms, manual alignment and field
+            calibration. A source cannot enter heading fusion until its own two
+            calibration stages are valid.
           </p>
           <p>
-            The persistent learned IST8310 transform, independent manual CW0
-            alignment, stationary heading availability and moving-baseline RTK
-            features from 4.0.6 are retained. Recalibrate the accelerometer, then
-            complete compass orientation and conventional compass calibration
-            after flashing.
+            Ground Control now uses ground speed as the only HUD speed indication.
+            The verified 4.0.7 IMU handedness and compass baseline remain intact.
           </p>
           <p>
-            The managed flasher offers the verified 3.0.7 recovery baseline plus
-            4.0.7 and later. Failed 3.0.6-and-earlier, 3.0.8 and 4.0.0-through-4.0.6
-            firmware remain excluded from the managed list.
+            This build is a beta for propeller-off hardware acceptance. Successful
+            testing will promote the same validated 4.0.8 artifacts to the official
+            release without rebuilding different binaries.
           </p>
           <h2 style="margin-top: 1em">Open-source foundations</h2>
           <div>

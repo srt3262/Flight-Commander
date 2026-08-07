@@ -17,7 +17,7 @@ archive = Path(sys.argv[1])
 out = Path(sys.argv[2])
 with zipfile.ZipFile(archive) as z:
     z.extractall(out)
-root = out / 'Flight-Commander-Firmware-Source-v4.0.7'
+root = out / 'Flight-Commander-Firmware-Source-v4.0.8'
 
 def section(relative, first, last):
     lines = (root / relative).read_text(encoding='utf-8').splitlines()
@@ -57,7 +57,7 @@ for path in sorted((root / 'src/main').rglob('*')):
 `;
     const result = spawnSync(
         process.env.PYTHON || (process.platform === 'win32' ? 'python' : 'python3'),
-        ['-c', script, join(projectRoot, 'release/firmware/Flight-Commander-Firmware-Source-v4.0.7.zip'), output],
+        ['-c', script, join(projectRoot, 'release/firmware/Flight-Commander-Firmware-Source-v4.0.8.zip'), output],
         { encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 },
     );
     console.log(result.stdout);

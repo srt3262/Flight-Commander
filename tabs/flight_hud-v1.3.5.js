@@ -503,19 +503,6 @@ export function drawGroundControlHud(
         compact,
     });
 
-    if (!compact && Number.isFinite(state.airSpeed)) {
-        context.fillStyle = 'rgba(2, 12, 18, 0.7)';
-        context.fillRect(tapeWidth + 4, tapeTop + 2, compact ? 61 : 74, compact ? 17 : 20);
-        context.fillStyle = '#ffffff';
-        context.textAlign = 'left';
-        context.textBaseline = 'middle';
-        context.font = `${compact ? 8 : 10}px "Segoe UI", sans-serif`;
-        context.fillText(
-            `AS ${format(state.airSpeed, 1)} ${unitProfile.horizontalSpeed.symbol}`,
-            tapeWidth + 8,
-            tapeTop + (compact ? 10 : 12),
-        );
-    }
 
     drawStatus(context, width, height, state, compact, unitProfile);
 

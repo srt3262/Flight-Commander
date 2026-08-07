@@ -427,7 +427,7 @@ def assemble(workspace: Path, work: Path) -> dict[str, object]:
     revision, tree = preliminary_manifest(source_root)
     patch_path = workspace / f"release/firmware-patches/{VERSION}.patch"
     patch_sha = generate_patch(source_root, patch_path)
-    shutil.rmtree(source_root / ".git")
+    shutil.rmtree(source_root / ".git", ignore_errors=True)
 
     build_dir = work / "build"
     run("bash", source_root / "flight-commander/build-micoair743.sh", build_dir)

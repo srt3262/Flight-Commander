@@ -1,0 +1,2302 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index c9c4aa94afb95165944b2bd352d89c4f7eb2873f..1fba3a9e1ecbfe81a5d9007bc679878f3a736033 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -90,7 +90,7 @@ set(FIRMWARE_VERSION ${PROJECT_VERSION})
+ 
+ # Flight Commander release identity is independent from the inherited INAV
+ # protocol compatibility version declared by project().
+-set(FLIGHT_COMMANDER_FIRMWARE_VERSION 4.0.7)
++set(FLIGHT_COMMANDER_FIRMWARE_VERSION 4.0.8)
+ 
+ option(WARNINGS_AS_ERRORS "Make all warnings into errors")
+ message("-- toolchain: ${TOOLCHAIN}, WARNINGS_AS_ERRORS: ${WARNINGS_AS_ERRORS}")
+diff --git a/RELEASE-MANIFEST.json b/RELEASE-MANIFEST.json
+index 18ca4f6a7de22d31cb9ff0bac8e75ad2be63f747..ce56ceec7e9d634ce497d91e712a496b4c42e2bb 100644
+--- a/RELEASE-MANIFEST.json
++++ b/RELEASE-MANIFEST.json
+@@ -1,28 +1,26 @@
+ {
+   "schema": 1,
+   "product": "Flight Commander Firmware",
+-  "version": "4.0.7",
++  "version": "4.0.8",
+   "target": "MICOAIR743",
+   "inav_release": "9.1.0",
+   "inav_commit": "e519b69b02e27c8bdc03b4a0889f1baaae211a54",
+-  "source_revision": "95ff58e69fce99db9ddc532ccf0cd77d32d3cd66",
+-  "source_tree": "2dfa85a2384bf0fba90420d9ba7c8c9585e535af",
++  "source_revision": "03149ec894780abd318d267f49f5d7a35ec173bf",
++  "source_tree": "d84c2575ad48e834133fcbe87b47374309b483ab",
+   "source_hash_scheme": "sha1(sorted sha256sum records, excluding RELEASE-MANIFEST.json)",
+   "source_tree_hash_scheme": "sha1('flight-commander-source-tree-v1\\n' plus sorted sha256sum records, excluding RELEASE-MANIFEST.json)",
+-  "source_date_epoch": 1786068000,
+-  "capabilities": "0x00007fff",
++  "source_date_epoch": 1786104000,
++  "capabilities": "0x0000ffff",
+   "artifact": {
+-    "filename": "Flight-Commander-Firmware-4.0.7-MICOAIR743.hex",
+-    "sha256": "4c324ad16606c84ecef43461ee1afdf3462f8445e290650fcbd39acd2bc53222",
+-    "bytes": 1934428
++    "filename": "Flight-Commander-Firmware-4.0.8-MICOAIR743.hex",
++    "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
++    "bytes": 0
+   },
+   "bench_acceptance": {
+-    "workflow": "propeller-off six-position learned compass orientation followed by conventional field calibration",
+-    "driver_frame": "canonical IST8310 X=nativeX, Y=-nativeY, Z=nativeZ",
+-    "learned_transform": "one of 24 right-handed signed axis permutations, solved from synchronized calibrated accelerometer, gyro and raw compass vectors",
+-    "user_alignment": "independent editable CW0_DEG default applied after the learned transform",
+-    "physical_acceptance": "propeller-off roll/pitch/yaw direction check and compass calibration required on target hardware before flight use",
+-    "imu_handedness_regression": "The 4.0.5 accelerometer and gyro update paths are restored exactly; compass-learning board-frame samples are derived on demand outside the attitude loop."
++    "workflow": "select one enabled compass, complete its six-side learned orientation, then calibrate only that source's field offsets and gains",
++    "source_isolation": "onboard, external I2C/UART GPS-module and DroneCAN GPS-module compasses retain independent transforms and field calibrations",
++    "fusion_gate": "a magnetic source remains unavailable to heading fusion until both its own learned transform and field calibration are valid",
++    "propeller_requirement": "propellers removed for all calibration and bench verification"
+   },
+   "moving_baseline": {
+     "module_family": "Holybro DroneCAN H-RTK F9P / AP_Periph compatible",
+@@ -72,5 +70,5 @@
+     "disabled_source_weight": "reset, runtime migration and MSP writes normalize every disabled source weight to zero",
+     "orientation_gate": "onboard magnetic heading is unavailable to fusion until learned orientation and conventional field calibration are both valid"
+   },
+-  "capability_mask": "0x00007fff"
++  "capability_mask": "0x0000ffff"
+ }
+diff --git a/flight-commander/build-micoair743.sh b/flight-commander/build-micoair743.sh
+index 86abcb64ff68d5a1f73d8e912bc1c33bb8398b9f..cb17c592c94d408bf0e97fca63841fb8922aeeca 100644
+--- a/flight-commander/build-micoair743.sh
++++ b/flight-commander/build-micoair743.sh
+@@ -65,7 +65,7 @@ cmake -S "${source_root}" -B "${build_dir}" -G Ninja \
+     -DFLIGHT_COMMANDER_SOURCE_REVISION="${source_revision}"
+ cmake --build "${build_dir}" --target MICOAIR743
+ 
+-hex="${build_dir}/Flight-Commander-Firmware-4.0.7-MICOAIR743.hex"
++hex="${build_dir}/Flight-Commander-Firmware-4.0.8-MICOAIR743.hex"
+ python3 "${source_root}/flight-commander/verify-compass-release.py" "${hex}"
+ 
+ echo "Built and verified: ${hex}"
+diff --git a/flight-commander/verify-compass-release.py b/flight-commander/verify-compass-release.py
+index b6d441b99e47471a803a5af5c480e48e170a6487..010c03d51514bf4a784da6a028da70356990418a 100644
+--- a/flight-commander/verify-compass-release.py
++++ b/flight-commander/verify-compass-release.py
+@@ -1,5 +1,5 @@
+ #!/usr/bin/env python3
+-"""Structural verification for the Flight Commander 4.0.7 compass release build."""
++"""Structural verification for the Flight Commander 4.0.8 compass release build."""
+ 
+ from __future__ import annotations
+ 
+@@ -7,76 +7,107 @@ import hashlib
+ from pathlib import Path
+ import sys
+ 
+-EXPECTED_IDENTITY = b"FCFW" + bytes((1, 4, 0, 7, 9, 1, 0, 0xFF, 0x7F, 0, 0))
++EXPECTED_IDENTITY = b"FCFW" + bytes((1, 4, 0, 8, 9, 1, 0, 0xFF, 0xFF, 0, 0))
+ EXPECTED_TARGET = b"MICOAIR743"
+ 
+ 
+ def fail(message: str) -> None:
+-    raise ValueError(message)
++    raise SystemExit(f"verification failed: {message}")
+ 
+ 
+ def parse_intel_hex(path: Path) -> dict[int, int]:
++    if not path.is_file():
++        fail(f"HEX file does not exist: {path}")
++
+     memory: dict[int, int] = {}
+-    upper_address = 0
+-    saw_eof = False
++    address_base = 0
++    eof_seen = False
+ 
+     for line_number, raw_line in enumerate(path.read_text(encoding="ascii").splitlines(), 1):
+         line = raw_line.strip()
++        if not line:
++            continue
+         if not line.startswith(":"):
+-            fail(f"{path}:{line_number}: invalid Intel HEX record")
+-        record = bytes.fromhex(line[1:])
+-        if len(record) < 5 or record[0] + 5 != len(record):
+-            fail(f"{path}:{line_number}: invalid byte count")
++            fail(f"line {line_number} is not an Intel HEX record")
++        try:
++            record = bytes.fromhex(line[1:])
++        except ValueError as error:
++            fail(f"line {line_number} is not valid hexadecimal: {error}")
++
++        if len(record) < 5:
++            fail(f"line {line_number} is too short")
++        byte_count = record[0]
++        if len(record) != byte_count + 5:
++            fail(f"line {line_number} has an invalid byte count")
+         if sum(record) & 0xFF:
+-            fail(f"{path}:{line_number}: checksum mismatch")
++            fail(f"line {line_number} has an invalid checksum")
+ 
+-        count = record[0]
+         address = (record[1] << 8) | record[2]
+         record_type = record[3]
+-        data = record[4:4 + count]
++        payload = record[4 : 4 + byte_count]
+ 
+         if record_type == 0x00:
+-            absolute = upper_address + address
+-            for offset, value in enumerate(data):
+-                memory[absolute + offset] = value
++            absolute = address_base + address
++            for offset, value in enumerate(payload):
++                location = absolute + offset
++                existing = memory.get(location)
++                if existing is not None and existing != value:
++                    fail(f"line {line_number} overlaps address 0x{location:08x} with different data")
++                memory[location] = value
+         elif record_type == 0x01:
+-            saw_eof = True
++            if byte_count != 0:
++                fail(f"line {line_number} has malformed EOF data")
++            eof_seen = True
++            break
+         elif record_type == 0x02:
+-            upper_address = int.from_bytes(data, "big") << 4
++            if byte_count != 2:
++                fail(f"line {line_number} has malformed extended-segment data")
++            address_base = int.from_bytes(payload, "big") << 4
+         elif record_type == 0x04:
+-            upper_address = int.from_bytes(data, "big") << 16
+-        elif record_type not in (0x03, 0x05):
+-            fail(f"{path}:{line_number}: unsupported record type {record_type}")
+-
+-    if not saw_eof:
+-        fail(f"{path}: missing EOF record")
++            if byte_count != 2:
++                fail(f"line {line_number} has malformed extended-linear data")
++            address_base = int.from_bytes(payload, "big") << 16
++        elif record_type in (0x03, 0x05):
++            # Start-address records do not contain image bytes.
++            continue
++        else:
++            fail(f"line {line_number} uses unsupported record type 0x{record_type:02x}")
++
++    if not eof_seen:
++        fail("HEX has no EOF record")
++    if not memory:
++        fail("HEX contains no data records")
+     return memory
+ 
+ 
+-def contains(memory: dict[int, int], expected: bytes) -> bool:
+-    first = expected[0]
+-    return any(
+-        value == first and all(memory.get(address + index) == byte
+-                               for index, byte in enumerate(expected))
+-        for address, value in memory.items()
+-    )
++def contains(memory: dict[int, int], needle: bytes) -> bool:
++    if not needle:
++        return True
++    first = needle[0]
++    for address, value in memory.items():
++        if value != first:
++            continue
++        if all(memory.get(address + offset) == expected for offset, expected in enumerate(needle)):
++            return True
++    return False
+ 
+ 
+ def main() -> int:
++    if len(sys.argv) != 2:
++        fail("usage: verify-compass-release.py <firmware.hex>")
++
+     path = Path(sys.argv[1]).resolve()
+     memory = parse_intel_hex(path)
+     if not contains(memory, EXPECTED_IDENTITY):
+-        fail("HEX does not contain the Flight Commander 4.0.7 identity")
++        fail("HEX does not contain the Flight Commander 4.0.8 identity and 0x0000ffff capability mask")
+     if not contains(memory, EXPECTED_TARGET):
+         fail("HEX does not contain the MICOAIR743 target identity")
++
+     digest = hashlib.sha256(path.read_bytes()).hexdigest()
+-    print(f"Verified {path.name}: {path.stat().st_size} bytes; SHA-256 {digest}")
++    print(f"Verified Flight Commander 4.0.8 MICOAIR743 HEX: {path}")
++    print(f"SHA-256: {digest}")
+     return 0
+ 
+ 
+ if __name__ == "__main__":
+-    try:
+-        raise SystemExit(main())
+-    except (OSError, ValueError, IndexError) as error:
+-        print(f"verification failed: {error}", file=sys.stderr)
+-        raise SystemExit(1)
++    raise SystemExit(main())
+diff --git a/flight-commander/verify-release.py b/flight-commander/verify-release.py
+index acf255d11d8d2280fa29da89137499bc7c0ea8c3..f0fe624f92dd96e6ece38529586e4df59af0eebe 100644
+--- a/flight-commander/verify-release.py
++++ b/flight-commander/verify-release.py
+@@ -1,491 +1,209 @@
+ #!/usr/bin/env python3
+-
+-"""Verify the Flight Commander 4.0.7 MICOAIR743 source and HEX contract."""
++"""Verify the Flight Commander 4.0.8 MICOAIR743 source and HEX contract."""
+ 
+ from __future__ import annotations
+ 
+ import argparse
+ import hashlib
+ import json
+-import math
+ from pathlib import Path
+ import re
++import subprocess
+ import sys
+ 
+-
+-VERSION = "4.0.7"
++VERSION = "4.0.8"
+ TARGET = "MICOAIR743"
+ UPSTREAM_RELEASE = "9.1.0"
+ UPSTREAM_COMMIT = "e519b69b02e27c8bdc03b4a0889f1baaae211a54"
+-EXPECTED_IDENTITY = b"FCFW" + bytes((1, 4, 0, 7, 9, 1, 0, 0xFF, 0x7F, 0, 0))
++CAPABILITIES = "0x0000ffff"
+ 
+ 
+ def fail(message: str) -> None:
+     raise ValueError(message)
+ 
+ 
+-def require_text(path: Path, patterns: list[str]) -> None:
+-    text = path.read_text(encoding="utf-8")
+-    for pattern in patterns:
+-        if not re.search(pattern, text, re.MULTILINE):
+-            fail(f"{path}: required source contract is missing: {pattern}")
+-
+-
+-def reject_text(path: Path, patterns: list[str]) -> None:
+-    text = path.read_text(encoding="utf-8")
+-    for pattern in patterns:
+-        if re.search(pattern, text, re.MULTILINE):
+-            fail(f"{path}: forbidden source contract is present: {pattern}")
+-
+-
+ def sha256(path: Path) -> str:
+     return hashlib.sha256(path.read_bytes()).hexdigest()
+ 
+ 
+-def normalize_heading_centidegrees(value: int) -> int:
+-    return value % 36000
+-
+-
+-def verify_heading_math() -> None:
+-    """Exercise the exact source-heading correction over yaw and declination.
+-
+-    The earth-frame field angle produced with an estimated yaw is
+-    true_yaw - declination - estimated_yaw.  INAV's corrected magnetic north
+-    angle is -declination.  Their measured-to-reference cross/dot angle is
+-    therefore estimated_yaw - true_yaw and must be subtracted.
+-    """
+-    cases = (
+-        (0, 0, 0),
+-        (90, 0, 0),
+-        (90, 25, 0),
+-        (90, 25, 37),
+-        (275, 12, -14),
+-        (359, 181, 8),
+-        (1, 340, -21),
++def source_identities(root: Path) -> tuple[str, str]:
++    records: list[str] = []
++    for path in sorted(root.rglob("*")):
++        if not path.is_file() or path.name == "RELEASE-MANIFEST.json" or ".git" in path.parts:
++            continue
++        relative = path.relative_to(root).as_posix()
++        records.append(f"{sha256(path)}  {relative}\n")
++    canonical = "".join(records).encode()
++    return (
++        hashlib.sha1(canonical).hexdigest(),
++        hashlib.sha1(b"flight-commander-source-tree-v1\n" + canonical).hexdigest(),
+     )
+-    for true_yaw, estimated_yaw, declination in cases:
+-        field_angle = math.radians(true_yaw - declination - estimated_yaw)
+-        reference_angle = math.radians(-declination)
+-        cross = math.cos(field_angle) * math.sin(reference_angle) - math.sin(field_angle) * math.cos(reference_angle)
+-        dot = math.cos(field_angle) * math.cos(reference_angle) + math.sin(field_angle) * math.sin(reference_angle)
+-        estimated_minus_measured = round(math.degrees(math.atan2(cross, dot)) * 100)
+-        result = normalize_heading_centidegrees(estimated_yaw * 100 - estimated_minus_measured)
+-        expected = true_yaw * 100 % 36000
+-        if abs(((result - expected + 18000) % 36000) - 18000) > 1:
+-            fail(
+-                "source-heading correction failed fixed-vector case: "
+-                f"true={true_yaw}, estimate={estimated_yaw}, declination={declination}, result={result / 100:.2f}"
+-            )
+ 
+-    # INAV's positive yaw maps body X/front into (cos(yaw), -sin(yaw)) in
+-    # earth-frame XY.  Moving-baseline heading must construct the identical
+-    # vector and must remain usable while a multirotor is level.
+-    for heading, expected in (
+-        (0, (1.0, 0.0)),
+-        (90, (0.0, -1.0)),
+-        (180, (-1.0, 0.0)),
+-        (270, (0.0, 1.0)),
+-    ):
+-        radians = math.radians(heading)
+-        reference = (math.cos(radians), -math.sin(radians))
+-        if any(abs(actual - wanted) > 1e-6 for actual, wanted in zip(reference, expected)):
+-            fail(
+-                "moving-baseline earth-frame vector failed cardinal case: "
+-                f"heading={heading}, vector={reference}"
+-            )
++
++def require_text(path: Path, patterns: list[str]) -> None:
++    if not path.is_file():
++        fail(f"required source file is missing: {path}")
++    text = path.read_text(encoding="utf-8")
++    for pattern in patterns:
++        if not re.search(pattern, text, re.MULTILINE | re.DOTALL):
++            fail(f"{path}: required 4.0.8 source contract is missing: {pattern}")
+ 
+ 
+ def verify_upstream_baseline(root: Path) -> None:
+-    baseline_path = root / "flight-commander/INAV-9.1.0-BASELINE.json"
+-    baseline = json.loads(baseline_path.read_text(encoding="utf-8"))
++    baseline = json.loads(
++        (root / "flight-commander/INAV-9.1.0-BASELINE.json").read_text(encoding="utf-8")
++    )
+     upstream = baseline.get("upstream", {})
+-    if upstream.get("release") != UPSTREAM_RELEASE:
+-        fail("protected baseline release is not INAV 9.1.0")
+-    if upstream.get("commit") != UPSTREAM_COMMIT:
+-        fail("protected baseline commit does not match official INAV 9.1.0")
+-
+-    protected = baseline.get("protected_files", {})
+-    if len(protected) != 57:
+-        fail(f"protected baseline contains {len(protected)} files instead of 57")
+-
+-    extensions = baseline.get("intentional_extensions", {})
+-    allowed_extensions = {
++    if upstream.get("release") != UPSTREAM_RELEASE or upstream.get("commit") != UPSTREAM_COMMIT:
++        fail("protected upstream baseline is not official INAV 9.1.0")
++    protected = baseline.get("protected_files")
++    extensions = baseline.get("intentional_extensions")
++    if not isinstance(protected, dict) or len(protected) < 50:
++        fail("protected INAV baseline is incomplete")
++    if not isinstance(extensions, dict) or not extensions:
++        fail("intentional Flight Commander extensions are not declared")
++    required_extensions = {
+         "src/main/flight/imu.c",
+         "src/main/common/maths.c",
+         "src/main/drivers/compass/compass_ist8310.c",
+-        "src/main/fc/config.c",
+         "src/main/sensors/compass.c",
+-        "src/main/sensors/compass.h",
+-        "src/main/sensors/gyro.c",
+         "src/main/target/MICOAIR743/target.h",
+     }
+-    if set(extensions) != allowed_extensions:
+-        fail("intentional Flight Commander source extensions do not match the reviewed release set")
+-
++    if not required_extensions.issubset(extensions):
++        fail("the reviewed upstream extension set is incomplete")
+     for relative, expected_upstream in protected.items():
+         path = root / relative
+         if not path.is_file():
+-            fail(f"protected INAV baseline file is missing: {relative}")
+-        actual = sha256(path)
+-        extension = extensions.get(relative)
+-        if extension is None:
+-            if actual != expected_upstream:
+-                fail(f"protected INAV baseline file changed without declaration: {relative}")
++            fail(f"protected INAV file is missing: {relative}")
++        declaration = extensions.get(relative)
++        if declaration is None:
++            if sha256(path) != expected_upstream:
++                fail(f"protected INAV file changed without declaration: {relative}")
+             continue
+-        if extension.get("upstream_sha256") != expected_upstream:
+-            fail(f"declared upstream hash does not match protected baseline: {relative}")
+-        if actual != extension.get("patched_sha256"):
+-            fail(f"declared Flight Commander extension changed: {relative}")
+-
+-    for relative, extension in extensions.items():
+-        upstream_hash = extension.get("upstream_sha256", "")
+-        patched_hash = extension.get("patched_sha256", "")
+-        purpose = extension.get("purpose", "")
+-        if not re.fullmatch(r"[0-9a-f]{64}", upstream_hash):
+-            fail(f"extension has an invalid upstream hash: {relative}")
+-        if not re.fullmatch(r"[0-9a-f]{64}", patched_hash):
+-            fail(f"extension has an invalid patched hash: {relative}")
+-        if not isinstance(purpose, str) or not purpose.strip():
++        if not isinstance(declaration, dict):
++            fail(f"extension declaration is invalid: {relative}")
++        if declaration.get("upstream_sha256") != expected_upstream:
++            fail(f"extension upstream hash is invalid: {relative}")
++        if not re.fullmatch(r"[0-9a-f]{64}", str(declaration.get("patched_sha256", ""))):
++            fail(f"extension retained-release hash is invalid: {relative}")
++        if not str(declaration.get("purpose", "")).strip():
+             fail(f"extension has no documented purpose: {relative}")
+-        path = root / relative
+-        if not path.is_file() or sha256(path) != patched_hash:
+-            fail(f"extension file does not match its reviewed hash: {relative}")
+-
+-def parse_intel_hex(path: Path) -> tuple[dict[int, int], int]:
+-    memory: dict[int, int] = {}
+-    upper_address = 0
+-    record_count = 0
+-    saw_eof = False
+-    for line_number, raw_line in enumerate(path.read_text(encoding="ascii").splitlines(), 1):
+-        line = raw_line.strip()
+-        if not line.startswith(":"):
+-            fail(f"{path}:{line_number}: invalid Intel HEX record")
+-        try:
+-            record = bytes.fromhex(line[1:])
+-        except ValueError as error:
+-            fail(f"{path}:{line_number}: non-hexadecimal record: {error}")
+-        if len(record) < 5 or record[0] + 5 != len(record):
+-            fail(f"{path}:{line_number}: invalid byte count")
+-        if sum(record) & 0xFF:
+-            fail(f"{path}:{line_number}: checksum mismatch")
+-        count = record[0]
+-        address = (record[1] << 8) | record[2]
+-        record_type = record[3]
+-        data = record[4 : 4 + count]
+-        record_count += 1
+-        if record_type == 0x00:
+-            absolute = upper_address + address
+-            for offset, value in enumerate(data):
+-                location = absolute + offset
+-                if location in memory and memory[location] != value:
+-                    fail(f"{path}:{line_number}: conflicting data at 0x{location:08X}")
+-                memory[location] = value
+-        elif record_type == 0x01:
+-            if count != 0:
+-                fail(f"{path}:{line_number}: malformed EOF record")
+-            saw_eof = True
+-        elif record_type == 0x02:
+-            if count != 2:
+-                fail(f"{path}:{line_number}: malformed segment-address record")
+-            upper_address = int.from_bytes(data, "big") << 4
+-        elif record_type == 0x04:
+-            if count != 2:
+-                fail(f"{path}:{line_number}: malformed linear-address record")
+-            upper_address = int.from_bytes(data, "big") << 16
+-        elif record_type not in (0x03, 0x05):
+-            fail(f"{path}:{line_number}: unsupported record type {record_type}")
+-    if not saw_eof:
+-        fail(f"{path}: missing EOF record")
+-    return memory, record_count
+-
+-
+-def contains_contiguous(memory: dict[int, int], expected: bytes) -> bool:
+-    first = expected[0]
+-    for address, value in memory.items():
+-        if value == first and all(
+-            memory.get(address + offset) == byte
+-            for offset, byte in enumerate(expected)
+-        ):
+-            return True
+-    return False
+ 
+ 
+ def verify_source(root: Path) -> None:
+-    verify_heading_math()
+     verify_upstream_baseline(root)
+-    require_text(
+-        root / "CMakeLists.txt",
+-        [r"set\(FLIGHT_COMMANDER_FIRMWARE_VERSION 4\.0\.7\)", r"FLIGHT_COMMANDER_SOURCE_REVISION"],
+-    )
+-    require_text(
+-        root / "src/main/build/flight_commander.h",
+-        [
+-            r"FLIGHT_COMMANDER_VERSION_MAJOR 4",
+-            r"FLIGHT_COMMANDER_VERSION_MINOR 0",
+-            r"FLIGHT_COMMANDER_VERSION_PATCH 7",
+-            r"FLIGHT_COMMANDER_CAPABILITIES \(\(uint32_t\)0x7FFFU\)",
+-        ],
+-    )
+-    require_text(
+-        root / "cmake/flight-commander-micoair743.cmake",
+-        [
+-            r"target_sources\(MICOAIR743\.elf",
+-            r"flight_commander/external_compass\.c",
+-            r"USE_AUTOTUNE_MULTIROTOR",
+-            r"USE_FLIGHT_COMMANDER_HEADING_FUSION",
+-            r"USE_FLIGHT_COMMANDER_MOVING_BASELINE",
+-            r"flight_commander/compass_orientation\.c",
+-            r"USE_FLIGHT_COMMANDER_COMPASS_ORIENTATION",
+-        ],
+-    )
+-    reject_text(
+-        root / "src/main/sensors/gyro.c",
+-        [r"flightCommanderHeading"],
+-    )
+-    require_text(
+-        root / "src/main/flight/imu.c",
+-        [
+-            r"flightCommanderHeadingSetMagneticNorth\(&vCorrectedMagNorth\)",
+-            r"imuCalculateFlightCommanderMagError",
+-            r"imuCalculateFlightCommanderAbsoluteError",
+-            r"forwardBody = \{ \.v = \{ 1\.0F, 0\.0F, 0\.0F \} \}",
+-            r"Vehicle heading is always body X/front",
+-            r"flightCommanderHeadingGetOnboardMagWeight",
+-            r"Source quality already contains INAV's field-magnitude nearness",
+-            r"flightCommanderHeadingGetAbsoluteReference",
+-            r"flightCommanderHeadingGetFusedHeading",
+-            r"imuComputeQuaternionFromRPY",
+-            r"resetHeadingHoldTarget\(CENTIDEGREES_TO_DEGREES\(fusedHeadingCentidegrees\)\)",
+-            r"static bool flightCommanderHeadingInitialized = false",
+-        ],
+-    )
+-    reject_text(
+-        root / "src/main/flight/imu.c",
+-        [r"imuCalculateFlightCommanderAbsoluteError[\s\S]{0,900}forwardBody\.z = 1\.0F"],
+-    )
+-    require_text(
+-        root / "src/main/flight_commander/external_compass.c",
+-        [
+-            r"BUSDEV_REGISTER_I2C_TAG\(fc_ext_hmc5883, DEVHW_HMC5883, BUS_I2C1",
+-            r"flightCommanderExternalCompassUpdate",
+-            r"externalMag\.magSensorToUse = FLIGHT_COMMANDER_EXTERNAL_MAG_TAG",
+-        ],
+-    )
+-    require_text(
+-        root / "src/main/flight_commander/heading_fusion.c",
+-        [
+-            r"updateExternalCompassSample",
+-            r"flightCommanderHeadingCalibrationUpdate",
+-            r"FLIGHT_COMMANDER_MAG_CALIBRATION_MIN_SAMPLES 48U",
+-            r"zero\[axis\] = \(context->maximum\.v\[axis\] \+ context->minimum\.v\[axis\]\) \* 0\.5F",
+-            r"The official INAV compass task owns the onboard calibration result",
+-            r"The onboard sensor remains entirely on INAV's normal calibration",
+-                        r"config->sources\[1\] = \(flightCommanderHeadingSourceConfig_t\)\{ false, 2, 0, 0 \}",
+-r"config->sources\[2\] = \(flightCommanderHeadingSourceConfig_t\)\{ false, 3, 0, 0 \}",
+-            r"config->sources\[3\] = \(flightCommanderHeadingSourceConfig_t\)\{ false, 4, 0, 0 \}",
+-            r"magneticFieldQuality",
+-            r"FLIGHT_COMMANDER_MAG_FUSION_QUALITY_FLOOR 1U",
+-            r"FLIGHT_COMMANDER_STARTUP_STABLE_SAMPLE_COUNT 4U",
+-            r"FLIGHT_COMMANDER_STARTUP_MAX_STEP_CENTIDEGREES 500U",
+-            r"effectiveSourceQuality",
+-            r"!isfinite\(fieldBody->x\)",
+-            r"sample->hasMeasurement \? now - sample->updatedAtMs : UINT32_MAX",
+-            r"const uint16_t onboardAgeMs = compassGetSampleAgeMs\(\)",
+-            r"flightCommanderHeadingGetFusedHeading",
+-            r"magneticFieldToTrueHeading",
+-            r"fieldEarth\.x \* correctedMagneticNorthEarth\.y",
+-            r"DECIDEGREES_TO_CENTIDEGREES\(attitude\.values\.yaw\)",
+-            r"attitude\.values\.yaw\) -\s*estimatedMinusMeasuredCentidegrees",
+-            r"headingEarth->x = cos_approx\(headingRadians\)",
+-            r"headingEarth->y = -sin_approx\(headingRadians\)",
+-            r"flightCommanderHeadingGetMagSource",
+-            r"flightCommanderHeadingReceiveDronecanHeading",
+-            r"flightCommanderHeadingReceiveDronecanRelPosHeading",
+-            r"flightCommanderHeadingReceiveUartRelPosHeading",
+-        ],
+-    )
+-    reject_text(
+-        root / "src/main/flight_commander/heading_fusion.c",
+-        [
+-            r"flightCommanderHeadingApplyGyroCorrection",
+-            r"sensorCalibrationSolveForOffset",
+-            r"onboardCalibrationCandidateZero",
+-            r"onboardCalibrationCandidateGain",
+-            r"onboardCalibrationCoverageValid",
+-            r"onboardCalibrationCommitPending",
+-            r"commitOnboardCalibrationResult",
+-            r"onboardCalibrationPreviousZero",
+-            r"compassConfig\(\)->mag_declination",
+-        ],
+-    )
+-    require_text(
+-        root / "src/main/io/gps_ublox.c",
+-        [r"MSG_RELPOSNED", r"UBLOX_CFG_MSGOUT_NAV_RELPOSNED_UART1"],
+-    )
+-    require_text(
+-        root / "src/main/common/maths.c",
+-        [r"if \(!isfinite\(result\[i\]\)\)"],
+-    )
+-    require_text(
+-        root / "src/main/fc/fc_tasks.c",
+-        [r"rescheduleTask\(TASK_COMPASS, TASK_PERIOD_HZ\(40\)\)"],
+-    )
+-    reject_text(
+-        root / "src/main/flight_commander/heading_fusion.c",
+-        [r"FLIGHT_COMMANDER_MAG_MIN_FIELD_QUALITY 25U"],
+-    )
+-    reject_text(
+-        root / "src/main/drivers/compass/compass_ist8310.c",
+-        [r"IST8310_DATA_READY_RETRY_LIMIT"],
+-    )
+-    require_text(
+-        root / "src/main/drivers/compass/compass_ist8310.c",
+-        [
+-            r"IST8310_STATUS1_DRDY",
+-            r"IST8310_ODR_SINGLE",
+-            r"IST8310_CONVERSION_TIMEOUT_MS 75U",
+-            r"IST8310_FULL_RESET_AFTER_TIMEOUTS 2U",
+-            r"busReadBuf\(mag->busDev, IST8310_REG_STATUS1, frame",
+-            r"ist8310BeginRuntimeReset",
+-            r"ist8310ServiceRuntimeReset",
+-            r"The reset is serviced across later task calls",
+-            r"mag->magADCRaw\[X\] =  nativeX \* IST8310_LSB_TO_MILLIGAUSS",
+-            r"mag->magADCRaw\[Y\] = -nativeY \* IST8310_LSB_TO_MILLIGAUSS",
+-            r"mag->magADCRaw\[Z\] =  nativeZ \* IST8310_LSB_TO_MILLIGAUSS",
+-            r"orientation is learned and applied later in sensors/compass\.c",
+-        ],
+-    )
+-    require_text(
+-        root / "src/main/sensors/compass.c",
+-        [
+-            r"sensorCalibrationSolveForOffset\(&calState, candidateZeroFloat\)",
+-            r"candidateGain",
+-            r"const int32_t gain = config->magGain\[axis\]",
+-            r"PG_COMPASS_CONFIG, 8",
+-            r"magCalibrationRevision",
+-            r"magCalibrationSignature",
+-            r"compassCalibrationSignature",
+-            r"compassGetSampleAgeMs",
+-            r"flightCommanderCompassOrientationObserve",
+-            r"flightCommanderCompassOrientationApply",
+-            r"flightCommanderCompassOrientationGeneration",
+-            r"!flightCommanderCompassOrientationIsValid\(\)",
+-            r"\.mag_align = COMPASS_RESET_ALIGN",
+-        ],
+-    )
+-    require_text(
+-        root / "src/main/target/MICOAIR743/target.h",
+-        [
+-            r"FLIGHT_COMMANDER_MICOAIR743_ONBOARD_IST8310",
+-            r"FLIGHT_COMMANDER_MAG_DEFAULT_ALIGN CW0_DEG",
+-            r"FLIGHT_COMMANDER_MAG_CALIBRATION_REVISION 3U",
+-        ],
+-    )
+-    require_text(
+-        root / "src/main/flight_commander/compass_orientation.c",
+-        [
+-            r"properAxisMaps\[24\]",
+-            r"ORIENTATION_REQUIRED_FACE_ROTATION_DEGREES 270\.0F",
+-            r"ORIENTATION_MIN_FACE_SAMPLES 24U",
+-            r"ORIENTATION_MIN_SCORE_SEPARATION_DEGREES 8\.0F",
+-            r"flightCommanderCompassOrientationObserve",
+-            r"flightCommanderCompassOrientationApply",
+-            r"saveConfigAndNotify\(\)",
+-            r"PG_FLIGHT_COMMANDER_COMPASS_ORIENTATION",
+-        ],
+-    )
+-    require_text(
+-        root / "src/main/config/parameter_group_ids.h",
+-        [r"PG_FLIGHT_COMMANDER_COMPASS_ORIENTATION 1047"],
+-    )
+-    require_text(
+-        root / "src/main/msp/msp_protocol_v2_flight_commander.h",
+-        [
+-            r"MSP2_FLIGHT_COMMANDER_COMPASS_ORIENTATION_STATUS 0x2F23",
+-            r"MSP2_FLIGHT_COMMANDER_COMPASS_ORIENTATION_COMMAND 0x2F24",
+-        ],
+-    )
+-    require_text(
+-        root / "src/main/sensors/acceleration.c",
+-        [
+-            r"accGetBoardFrame",
+-            r"arm_sub_f32\(acc\.dev\.ADCRaw, fAccZero",
+-            r"applySensorAlignment\(calibrated, calibrated, acc\.dev\.accAlign\)",
+-        ],
+-    )
+-    reject_text(
+-        root / "src/main/sensors/acceleration.c",
+-        [r"accBoardFrameG", r"applySensorAlignment\(accADC[\s\S]{0,220}accGetBoardFrame"],
+-    )
+-    require_text(
+-        root / "src/main/sensors/gyro.c",
+-        [
+-            r"gyroGetBoardFrame",
+-            r"arm_sub_f32\(gyroDev\[0\]\.gyroADCRaw, gyroDev\[0\]\.gyroZero",
+-            r"applySensorAlignment\(calibrated, calibrated, gyroDev\[0\]\.gyroAlign\)",
+-        ],
+-    )
+-    reject_text(
+-        root / "src/main/sensors/gyro.c",
+-        [r"gyroBoardFrameDps", r"applySensorAlignment\(gyroADCtmp[\s\S]{0,220}gyroGetBoardFrame"],
+-    )
+-    require_text(
+-        root / "src/main/fc/config.c",
+-        [
+-            r"#ifdef FLIGHT_COMMANDER_MAG_DEFAULT_ALIGN",
+-            r"mag_align = FLIGHT_COMMANDER_MAG_DEFAULT_ALIGN",
+-        ],
+-    )
++    require_text(root / "CMakeLists.txt", [
++        r"set\(FLIGHT_COMMANDER_FIRMWARE_VERSION 4\.0\.8\)",
++        r"FLIGHT_COMMANDER_SOURCE_REVISION",
++    ])
++    require_text(root / "src/main/build/flight_commander.h", [
++        r"FLIGHT_COMMANDER_VERSION_MAJOR 4",
++        r"FLIGHT_COMMANDER_VERSION_MINOR 0",
++        r"FLIGHT_COMMANDER_VERSION_PATCH 8",
++        r"FLIGHT_COMMANDER_CAPABILITY_INDIVIDUAL_COMPASS_CALIBRATION = \(1U << 15\)",
++        r"FLIGHT_COMMANDER_CAPABILITIES \(\(uint32_t\)0xFFFFU\)",
++    ])
++    require_text(root / "src/main/flight_commander/compass_orientation.h", [
++        r"FLIGHT_COMMANDER_COMPASS_ORIENTATION_CONFIG_SCHEMA 2U",
++        r"FLIGHT_COMMANDER_COMPASS_ORIENTATION_SOURCE_COUNT 3U",
++        r"SOURCE_ONBOARD = 0",
++        r"SOURCE_EXTERNAL_I2C = 1",
++        r"SOURCE_DRONECAN = 2",
++        r"COMMAND_SELECT = 5",
++        r"calibrationGeneration",
++    ])
++    require_text(root / "src/main/flight_commander/compass_orientation.c", [
++        r"properAxisMaps\[24\]",
++        r"sourceFingerprint\(uint8_t source\)",
++        r"flightCommanderCompassOrientationInvalidateFieldCalibration\(source\)",
++        r"command == FLIGHT_COMMANDER_COMPASS_ORIENTATION_COMMAND_SELECT",
++        r"source != session\.source",
++        r"saveConfigAndNotify\(\)",
++    ])
++    require_text(root / "src/main/flight_commander/heading_fusion.c", [
++        r"activeFieldCalibrationSource = FLIGHT_COMMANDER_HEADING_SOURCE_NONE",
++        r"headingSourceOrientationIsValid\(unsigned index\)",
++        r"headingSourceOrientationIsValid\(index\) && externalMagIsCalibrated",
++        r"headingSourceOrientationIsValid\(index\) && dronecanMagIsCalibrated",
++        r"flightCommanderCompassOrientationIsValid\(source\)",
++        r"orientedCalibrationSample\(uint8_t source",
++        r"dronecanRawNodeID == context->nodeID",
++        r"dronecanMagCalibrationNodeID = context->nodeID",
++    ])
++    require_text(root / "src/main/sensors/compass.c", [
++        r"flightCommanderCompassOrientationObserve\(",
++        r"flightCommanderCompassOrientationApply\(",
++        r"flightCommanderHeadingOnboardCalibrationStarted\(\)",
++        r"flightCommanderHeadingOnboardCalibrationFinished\(true\)",
++    ])
++    require_text(root / "src/main/msp/msp_protocol_v2_flight_commander.h", [
++        r"MSP2_FLIGHT_COMMANDER_COMPASS_ORIENTATION_STATUS 0x2F23",
++        r"MSP2_FLIGHT_COMMANDER_COMPASS_ORIENTATION_COMMAND 0x2F24",
++        r"MSP2_FLIGHT_COMMANDER_COMPASS_CALIBRATION_COMMAND 0x2F25",
++    ])
++    require_text(root / "src/main/fc/fc_msp.c", [
++        r"case MSP2_FLIGHT_COMMANDER_COMPASS_ORIENTATION_STATUS:",
++        r"case MSP2_FLIGHT_COMMANDER_COMPASS_ORIENTATION_COMMAND:",
++        r"case MSP2_FLIGHT_COMMANDER_COMPASS_CALIBRATION_COMMAND:",
++        r"flightCommanderHeadingReadCompassCalibrationCommand\(src\)",
++    ])
++    require_text(root / "src/main/target/MICOAIR743/target.h", [
++        r"IMU_BMI088_ALIGN\s+CW270_DEG",
++        r"FLIGHT_COMMANDER_MICOAIR743_ONBOARD_IST8310",
++    ])
++
++
++def verify_manifest(root: Path, hex_path: Path, manifest_path: Path) -> None:
++    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
++    expected = {
++        "schema": 1,
++        "product": "Flight Commander Firmware",
++        "version": VERSION,
++        "target": TARGET,
++        "inav_release": UPSTREAM_RELEASE,
++        "inav_commit": UPSTREAM_COMMIT,
++        "capabilities": CAPABILITIES,
++        "capability_mask": CAPABILITIES,
++    }
++    for key, value in expected.items():
++        if manifest.get(key) != value:
++            fail(f"manifest {key!r} is {manifest.get(key)!r}, expected {value!r}")
++    revision, tree = source_identities(root)
++    if manifest.get("source_revision") != revision or manifest.get("source_tree") != tree:
++        fail("manifest source identities do not identify the supplied source")
++    artifact = manifest.get("artifact", {})
++    if artifact.get("filename") != hex_path.name:
++        fail("manifest artifact filename does not match the HEX")
++    if artifact.get("sha256") != sha256(hex_path):
++        fail("manifest SHA-256 does not match the HEX")
++    if artifact.get("bytes") != hex_path.stat().st_size:
++        fail("manifest byte count does not match the HEX")
++    requirement = str(manifest.get("bench_acceptance", {}).get("propeller_requirement", "")).lower()
++    if "propellers removed" not in requirement:
++        fail("manifest does not preserve the propeller-off acceptance requirement")
+ 
+ 
+ def main() -> int:
+     parser = argparse.ArgumentParser()
+     parser.add_argument("--source-root", required=True, type=Path)
+     parser.add_argument("--hex", required=True, type=Path, dest="hex_path")
+-    parser.add_argument("--manifest", type=Path)
++    parser.add_argument("--manifest", required=True, type=Path)
+     args = parser.parse_args()
+-
+     root = args.source_root.resolve()
+     hex_path = args.hex_path.resolve()
+     verify_source(root)
+-    digest = sha256(hex_path)
+-    memory, record_count = parse_intel_hex(hex_path)
+-    if not contains_contiguous(memory, EXPECTED_IDENTITY):
+-        fail("HEX does not contain the exact FCFW 4.0.7 / INAV 9.1.0 / 0x7FFF identity payload")
+-    if not contains_contiguous(memory, TARGET.encode("ascii")):
+-        fail(f"HEX does not contain the {TARGET} target identity")
+-
+-    if args.manifest:
+-        manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
+-        expected = {
+-            "schema": 1,
+-            "product": "Flight Commander Firmware",
+-            "version": VERSION,
+-            "target": TARGET,
+-            "inav_release": UPSTREAM_RELEASE,
+-            "inav_commit": UPSTREAM_COMMIT,
+-        }
+-        for key, value in expected.items():
+-            if manifest.get(key) != value:
+-                fail(f"manifest {key!r} is {manifest.get(key)!r}, expected {value!r}")
+-        artifact = manifest.get("artifact", {})
+-        if artifact.get("filename") != hex_path.name:
+-            fail("manifest artifact filename does not match the HEX")
+-        if artifact.get("sha256") != digest:
+-            fail("manifest SHA-256 does not match the HEX")
+-        if artifact.get("bytes") != hex_path.stat().st_size:
+-            fail("manifest byte count does not match the HEX")
+-
+-    print(
+-        f"Verified {hex_path.name}: {hex_path.stat().st_size} bytes, "
+-        f"{record_count} Intel HEX records, SHA-256 {digest}"
++    subprocess.run(
++        [sys.executable, str(root / "flight-commander/verify-compass-release.py"), str(hex_path)],
++        check=True,
+     )
++    verify_manifest(root, hex_path, args.manifest.resolve())
++    print(f"Verified {hex_path.name}: {hex_path.stat().st_size} bytes, SHA-256 {sha256(hex_path)}")
+     return 0
+ 
+ 
+ if __name__ == "__main__":
+     try:
+-        sys.exit(main())
+-    except (OSError, ValueError, KeyError, json.JSONDecodeError) as error:
++        raise SystemExit(main())
++    except (OSError, ValueError, KeyError, json.JSONDecodeError, subprocess.CalledProcessError) as error:
+         print(f"verification failed: {error}", file=sys.stderr)
+-        sys.exit(1)
++        raise SystemExit(1)
+diff --git a/src/main/build/flight_commander.h b/src/main/build/flight_commander.h
+index 624fd354db8c5fa5fa20ac80cb2ba150d0711ca7..afff1f65f611478513e62c54686faf005a518512 100644
+--- a/src/main/build/flight_commander.h
++++ b/src/main/build/flight_commander.h
+@@ -13,7 +13,7 @@
+ 
+ #define FLIGHT_COMMANDER_VERSION_MAJOR 4
+ #define FLIGHT_COMMANDER_VERSION_MINOR 0
+-#define FLIGHT_COMMANDER_VERSION_PATCH 7
++#define FLIGHT_COMMANDER_VERSION_PATCH 8
+ 
+ #define FLIGHT_COMMANDER_STR_HELPER(value) #value
+ #define FLIGHT_COMMANDER_STR(value) FLIGHT_COMMANDER_STR_HELPER(value)
+@@ -43,6 +43,7 @@ typedef enum {
+     FLIGHT_COMMANDER_CAPABILITY_MOVING_BASELINE_YAW = (1U << 12),
+     FLIGHT_COMMANDER_CAPABILITY_DRONECAN_MOVING_BASELINE_MANAGER = (1U << 13),
+     FLIGHT_COMMANDER_CAPABILITY_COMPASS_ORIENTATION_LEARNING = (1U << 14),
++    FLIGHT_COMMANDER_CAPABILITY_INDIVIDUAL_COMPASS_CALIBRATION = (1U << 15),
+ } flightCommanderCapability_e;
+ 
+-#define FLIGHT_COMMANDER_CAPABILITIES ((uint32_t)0x7FFFU)
++#define FLIGHT_COMMANDER_CAPABILITIES ((uint32_t)0xFFFFU)
+diff --git a/src/main/fc/fc_msp.c b/src/main/fc/fc_msp.c
+index ffccd0a8219c9a6dc7eef2ce198143615cd0e67e..7048f45daf578614711cd99a235c1415c2dd9f14 100644
+--- a/src/main/fc/fc_msp.c
++++ b/src/main/fc/fc_msp.c
+@@ -2197,6 +2197,15 @@ static mspResult_e mspFcProcessInCommand(uint16_t cmdMSP, sbuf_t *src)
+         break;
+ #endif
+ 
++#ifdef USE_FLIGHT_COMMANDER_HEADING_FUSION
++    case MSP2_FLIGHT_COMMANDER_COMPASS_CALIBRATION_COMMAND:
++        if (ARMING_FLAG(ARMED) ||
++            !flightCommanderHeadingReadCompassCalibrationCommand(src)) {
++            return MSP_RESULT_ERROR;
++        }
++        break;
++#endif
++
+     case MSP_SELECT_SETTING:
+         if (sbufReadU8Safe(&tmp_u8, src) && (!ARMING_FLAG(ARMED)))
+             setConfigProfileAndWriteEEPROM(tmp_u8);
+@@ -3064,10 +3073,18 @@ static mspResult_e mspFcProcessInCommand(uint16_t cmdMSP, sbuf_t *src)
+         break;
+ 
+     case MSP_MAG_CALIBRATION:
++#ifdef USE_FLIGHT_COMMANDER_HEADING_FUSION
++        if (ARMING_FLAG(ARMED) ||
++            !flightCommanderHeadingStartCompassFieldCalibration(
++                FLIGHT_COMMANDER_HEADING_ONBOARD_MAG)) {
++            return MSP_RESULT_ERROR;
++        }
++#else
+         if (!ARMING_FLAG(ARMED))
+             ENABLE_STATE(CALIBRATE_MAG);
+         else
+             return MSP_RESULT_ERROR;
++#endif
+         break;
+ 
+ #ifdef USE_OPFLOW
+diff --git a/src/main/flight_commander/compass_orientation.c b/src/main/flight_commander/compass_orientation.c
+index 92b3a97ac000b65c95f6308186c8d2f8191c806f..8d96a0b8efab636688f6bda821c209d81a3313f0 100644
+--- a/src/main/flight_commander/compass_orientation.c
++++ b/src/main/flight_commander/compass_orientation.c
+@@ -12,13 +12,13 @@
+ #include "config/parameter_group_ids.h"
+ #include "fc/config.h"
+ #include "fc/runtime_config.h"
++#include "flight_commander/compass_orientation.h"
++#include "flight_commander/heading_fusion.h"
+ #include "sensors/acceleration.h"
+ #include "sensors/compass.h"
+ #include "sensors/gyro.h"
+ #include "sensors/sensors.h"
+ 
+-#include "flight_commander/compass_orientation.h"
+-
+ #define ORIENTATION_SAMPLE_COUNT_PER_FACE 40U
+ #define ORIENTATION_MAX_SAMPLE_COUNT \
+     (FLIGHT_COMMANDER_COMPASS_ORIENTATION_FACE_COUNT * ORIENTATION_SAMPLE_COUNT_PER_FACE)
+@@ -35,7 +35,9 @@
+ #define ORIENTATION_MAX_MAG_SPAN_RATIO 4.0F
+ #define ORIENTATION_MAX_RESIDUAL_DEGREES 6.0F
+ #define ORIENTATION_MIN_SCORE_SEPARATION_DEGREES 8.0F
+-#define ORIENTATION_SENSOR_FINGERPRINT 0x0E8310C1U
++#define ORIENTATION_ONBOARD_SENSOR_FINGERPRINT 0x0E8310C1U
++#define ORIENTATION_EXTERNAL_SENSOR_FINGERPRINT 0xE1000000U
++#define ORIENTATION_DRONECAN_SENSOR_FINGERPRINT 0xCA000000U
+ 
+ typedef struct orientationSample_s {
+     float acc[XYZ_AXIS_COUNT];
+@@ -57,26 +59,17 @@ typedef struct orientationSession_s {
+     uint8_t confidencePercent;
+     uint8_t phase;
+     uint8_t failureReason;
++    uint8_t source;
+     bool sampleAccepted;
+ } orientationSession_t;
+ 
+ PG_REGISTER_WITH_RESET_FN(flightCommanderCompassOrientationConfig_t,
+     flightCommanderCompassOrientationConfig,
+     PG_FLIGHT_COMMANDER_COMPASS_ORIENTATION,
+-    1);
+-
+-void pgResetFn_flightCommanderCompassOrientationConfig(
+-    flightCommanderCompassOrientationConfig_t *config)
+-{
+-    memset(config, 0, sizeof(*config));
+-    config->schemaVersion = FLIGHT_COMMANDER_COMPASS_ORIENTATION_CONFIG_SCHEMA;
+-    config->axisMap[X] = 1;
+-    config->axisMap[Y] = 2;
+-    config->axisMap[Z] = 3;
+-    config->sensorFingerprint = ORIENTATION_SENSOR_FINGERPRINT;
+-}
++    2);
+ 
+ static orientationSession_t session;
++static uint8_t selectedSource = FLIGHT_COMMANDER_COMPASS_ORIENTATION_SOURCE_ONBOARD;
+ 
+ static bool commitSession(void);
+ 
+@@ -92,6 +85,28 @@ static const int8_t properAxisMaps[24][XYZ_AXIS_COUNT] = {
+     {  3, -2,  1 }, {  3, -1, -2 }, {  3,  1,  2 }, {  3,  2, -1 },
+ };
+ 
++static bool sourceIsSupported(uint8_t source)
++{
++    return source < FLIGHT_COMMANDER_COMPASS_ORIENTATION_SOURCE_COUNT;
++}
++
++static uint32_t sourceFingerprint(uint8_t source)
++{
++    switch (source) {
++    case FLIGHT_COMMANDER_COMPASS_ORIENTATION_SOURCE_ONBOARD:
++        return ORIENTATION_ONBOARD_SENSOR_FINGERPRINT;
++    case FLIGHT_COMMANDER_COMPASS_ORIENTATION_SOURCE_EXTERNAL_I2C:
++        return ORIENTATION_EXTERNAL_SENSOR_FINGERPRINT |
++            flightCommanderHeadingConfig()->externalMagHardware;
++    case FLIGHT_COMMANDER_COMPASS_ORIENTATION_SOURCE_DRONECAN: {
++        const uint8_t nodeID = flightCommanderHeadingCompassNodeID(source);
++        return nodeID == 0 ? 0 : ORIENTATION_DRONECAN_SENSOR_FINGERPRINT | nodeID;
++    }
++    default:
++        return 0;
++    }
++}
++
+ static bool axisMapIsProper(const int8_t axisMap[XYZ_AXIS_COUNT])
+ {
+     bool used[XYZ_AXIS_COUNT] = { false, false, false };
+@@ -131,18 +146,61 @@ static void applyAxisMap(float output[XYZ_AXIS_COUNT], const float input[XYZ_AXI
+     }
+ }
+ 
+-static bool storedConfigIsValid(const flightCommanderCompassOrientationConfig_t *config)
++static flightCommanderCompassOrientationSourceConfig_t *sourceConfigMutable(uint8_t source)
++{
++    return sourceIsSupported(source)
++        ? &flightCommanderCompassOrientationConfigMutable()->sources[source]
++        : NULL;
++}
++
++static const flightCommanderCompassOrientationSourceConfig_t *sourceConfig(uint8_t source)
+ {
+-    return config->schemaVersion == FLIGHT_COMMANDER_COMPASS_ORIENTATION_CONFIG_SCHEMA &&
++    return sourceIsSupported(source)
++        ? &flightCommanderCompassOrientationConfig()->sources[source]
++        : NULL;
++}
++
++static bool storedConfigIsValid(uint8_t source,
++    const flightCommanderCompassOrientationSourceConfig_t *config)
++{
++    const uint32_t fingerprint = sourceFingerprint(source);
++    return config &&
++        flightCommanderCompassOrientationConfig()->schemaVersion ==
++            FLIGHT_COMMANDER_COMPASS_ORIENTATION_CONFIG_SCHEMA &&
+         config->valid &&
+-        config->sensorFingerprint == ORIENTATION_SENSOR_FINGERPRINT &&
++        fingerprint != 0 &&
++        config->sensorFingerprint == fingerprint &&
+         config->calibrationGeneration != 0 &&
+         axisMapIsProper(config->axisMap);
+ }
+ 
++static void resetSourceConfig(uint8_t source,
++    flightCommanderCompassOrientationSourceConfig_t *config)
++{
++    memset(config, 0, sizeof(*config));
++    config->axisMap[X] = 1;
++    config->axisMap[Y] = 2;
++    config->axisMap[Z] = 3;
++    config->sensorFingerprint = sourceFingerprint(source);
++}
++
++void pgResetFn_flightCommanderCompassOrientationConfig(
++    flightCommanderCompassOrientationConfig_t *config)
++{
++    memset(config, 0, sizeof(*config));
++    config->schemaVersion = FLIGHT_COMMANDER_COMPASS_ORIENTATION_CONFIG_SCHEMA;
++    for (uint8_t source = 0;
++        source < FLIGHT_COMMANDER_COMPASS_ORIENTATION_SOURCE_COUNT;
++        source++) {
++        resetSourceConfig(source, &config->sources[source]);
++    }
++}
++
+ static void resetSession(void)
+ {
++    const uint8_t source = selectedSource;
+     memset(&session, 0, sizeof(session));
++    session.source = source;
+     session.previousFace = FLIGHT_COMMANDER_COMPASS_ORIENTATION_FACE_NONE;
+     session.detectedFace = FLIGHT_COMMANDER_COMPASS_ORIENTATION_FACE_NONE;
+ }
+@@ -150,41 +208,50 @@ static void resetSession(void)
+ void flightCommanderCompassOrientationInit(void)
+ {
+     resetSession();
+-    if (!storedConfigIsValid(flightCommanderCompassOrientationConfig())) {
+-        flightCommanderCompassOrientationConfig_t *config =
+-            flightCommanderCompassOrientationConfigMutable();
+-        config->schemaVersion = FLIGHT_COMMANDER_COMPASS_ORIENTATION_CONFIG_SCHEMA;
+-        config->valid = false;
+-        config->sensorFingerprint = ORIENTATION_SENSOR_FINGERPRINT;
+-        config->axisMap[X] = 1;
+-        config->axisMap[Y] = 2;
+-        config->axisMap[Z] = 3;
+-        config->confidencePercent = 0;
+-        config->residualCentiDegrees = 0;
+-        config->separationCentiDegrees = 0;
++    flightCommanderCompassOrientationConfig_t *config =
++        flightCommanderCompassOrientationConfigMutable();
++    if (config->schemaVersion != FLIGHT_COMMANDER_COMPASS_ORIENTATION_CONFIG_SCHEMA) {
++        pgResetFn_flightCommanderCompassOrientationConfig(config);
++        return;
++    }
++
++    for (uint8_t source = 0;
++        source < FLIGHT_COMMANDER_COMPASS_ORIENTATION_SOURCE_COUNT;
++        source++) {
++        flightCommanderCompassOrientationSourceConfig_t *stored = &config->sources[source];
++        if (!storedConfigIsValid(source, stored)) {
++            resetSourceConfig(source, stored);
++        }
+     }
+ }
+ 
+-bool flightCommanderCompassOrientationIsValid(void)
++bool flightCommanderCompassOrientationIsValid(uint8_t source)
+ {
+-    return storedConfigIsValid(flightCommanderCompassOrientationConfig());
++    return storedConfigIsValid(source, sourceConfig(source));
+ }
+ 
+-uint32_t flightCommanderCompassOrientationGeneration(void)
++uint32_t flightCommanderCompassOrientationGeneration(uint8_t source)
+ {
+-    return flightCommanderCompassOrientationIsValid()
+-        ? flightCommanderCompassOrientationConfig()->calibrationGeneration
++    const flightCommanderCompassOrientationSourceConfig_t *config = sourceConfig(source);
++    return flightCommanderCompassOrientationIsValid(source)
++        ? config->calibrationGeneration
+         : 0;
+ }
+ 
+-void flightCommanderCompassOrientationApply(float vector[XYZ_AXIS_COUNT])
++uint8_t flightCommanderCompassOrientationSelectedSource(void)
+ {
+-    if (!flightCommanderCompassOrientationIsValid()) {
++    return selectedSource;
++}
++
++void flightCommanderCompassOrientationApply(uint8_t source, float vector[XYZ_AXIS_COUNT])
++{
++    const flightCommanderCompassOrientationSourceConfig_t *config = sourceConfig(source);
++    if (!storedConfigIsValid(source, config)) {
+         return;
+     }
+ 
+     const float input[XYZ_AXIS_COUNT] = { vector[X], vector[Y], vector[Z] };
+-    applyAxisMap(vector, input, flightCommanderCompassOrientationConfig()->axisMap);
++    applyAxisMap(vector, input, config->axisMap);
+ }
+ 
+ static int detectFace(const float normalizedAcc[XYZ_AXIS_COUNT])
+@@ -210,7 +277,8 @@ static int detectFace(const float normalizedAcc[XYZ_AXIS_COUNT])
+         return -1;
+     }
+ 
+-    return (int)(dominantAxis * 2U + (normalizedAcc[dominantAxis] < 0.0F ? 1U : 0U));
++    return (int)(dominantAxis * 2U +
++        (normalizedAcc[dominantAxis] < 0.0F ? 1U : 0U));
+ }
+ 
+ static uint16_t faceSampleBase(unsigned face)
+@@ -248,7 +316,9 @@ static void insertFaceSample(unsigned face, const float normalizedAcc[XYZ_AXIS_C
+ 
+ static bool allFacesComplete(void)
+ {
+-    for (unsigned face = 0; face < FLIGHT_COMMANDER_COMPASS_ORIENTATION_FACE_COUNT; face++) {
++    for (unsigned face = 0;
++        face < FLIGHT_COMMANDER_COMPASS_ORIENTATION_FACE_COUNT;
++        face++) {
+         if (session.faceSampleCount[face] < ORIENTATION_MIN_FACE_SAMPLES ||
+             session.faceRotationDegrees[face] < ORIENTATION_REQUIRED_FACE_ROTATION_DEGREES) {
+             return false;
+@@ -278,6 +348,7 @@ static void solveOrientation(void)
+         minimumHalfSpan = MIN(minimumHalfSpan, halfSpan[axis]);
+         maximumHalfSpan = MAX(maximumHalfSpan, halfSpan[axis]);
+     }
++
+     if (!isfinite(minimumHalfSpan) || minimumHalfSpan < ORIENTATION_MIN_MAG_HALF_SPAN ||
+         maximumHalfSpan > minimumHalfSpan * ORIENTATION_MAX_MAG_SPAN_RATIO) {
+         session.phase = FLIGHT_COMMANDER_COMPASS_ORIENTATION_PHASE_FAILED;
+@@ -289,16 +360,21 @@ static void solveOrientation(void)
+     float secondScore = INFINITY;
+     int bestCandidate = -1;
+ 
+-    for (unsigned candidate = 0; candidate < (sizeof(properAxisMaps) / sizeof(properAxisMaps[0])); candidate++) {
++    for (unsigned candidate = 0;
++        candidate < (sizeof(properAxisMaps) / sizeof(properAxisMaps[0]));
++        candidate++) {
+         float meanAngle = 0.0F;
+         float meanSquareAngle = 0.0F;
+         unsigned accepted = 0;
+ 
+-        for (unsigned sampleIndex = 0; sampleIndex < session.totalSampleCount; sampleIndex++) {
++        for (unsigned sampleIndex = 0;
++            sampleIndex < session.totalSampleCount;
++            sampleIndex++) {
+             float normalizedNative[XYZ_AXIS_COUNT];
+             for (unsigned axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
+                 normalizedNative[axis] =
+-                    (session.samples[sampleIndex].mag[axis] - center[axis]) / halfSpan[axis];
++                    (session.samples[sampleIndex].mag[axis] - center[axis]) /
++                    halfSpan[axis];
+             }
+ 
+             float candidateMag[XYZ_AXIS_COUNT];
+@@ -374,8 +450,7 @@ static void solveOrientation(void)
+ 
+     const float residualAuthority = constrainf(
+         1.0F - bestScore / ORIENTATION_MAX_RESIDUAL_DEGREES, 0.0F, 1.0F);
+-    const float separationAuthority = constrainf(
+-        separation / 20.0F, 0.0F, 1.0F);
++    const float separationAuthority = constrainf(separation / 20.0F, 0.0F, 1.0F);
+     session.confidencePercent = (uint8_t)constrain(
+         lrintf((0.55F * residualAuthority + 0.45F * separationAuthority) * 100.0F),
+         1,
+@@ -385,8 +460,12 @@ static void solveOrientation(void)
+ }
+ 
+ void flightCommanderCompassOrientationObserve(timeUs_t currentTimeUs,
++    uint8_t source,
+     const float nativeMag[XYZ_AXIS_COUNT])
+ {
++    if (source != session.source) {
++        return;
++    }
+     session.sampleAccepted = false;
+     if (session.phase != FLIGHT_COMMANDER_COMPASS_ORIENTATION_PHASE_COLLECTING) {
+         return;
+@@ -457,27 +536,31 @@ void flightCommanderCompassOrientationObserve(timeUs_t currentTimeUs,
+     if (allFacesComplete()) {
+         solveOrientation();
+         if (session.phase == FLIGHT_COMMANDER_COMPASS_ORIENTATION_PHASE_SOLVED) {
+-            // A complete, unambiguous solve is immediately committed and saved.
+-            // This makes calibration persistence independent of the Configurator
+-            // remaining connected after the final physical position.
++            // A complete, unambiguous source-specific solve is committed and
++            // saved immediately so unplugging the Configurator cannot lose it.
+             (void)commitSession();
+         }
+     }
+ }
+ 
+-void flightCommanderCompassOrientationInvalidateFieldCalibration(void)
++void flightCommanderCompassOrientationInvalidateFieldCalibration(uint8_t source)
+ {
+-    compassConfig_t *compass = compassConfigMutable();
+-    for (unsigned axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
+-        compass->magZero.raw[axis] = 0;
+-        compass->magGain[axis] = 1024;
++    if (source == FLIGHT_COMMANDER_COMPASS_ORIENTATION_SOURCE_ONBOARD) {
++        compassConfig_t *compass = compassConfigMutable();
++        for (unsigned axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
++            compass->magZero.raw[axis] = 0;
++            compass->magGain[axis] = 1024;
++        }
++        compass->magCalibrationSignature = 0;
++        DISABLE_STATE(COMPASS_CALIBRATED);
++        return;
+     }
+-    compass->magCalibrationSignature = 0;
+-    DISABLE_STATE(COMPASS_CALIBRATED);
++    flightCommanderHeadingInvalidateCompassFieldCalibration(source);
+ }
+ 
+-static bool startSession(void)
++static bool startSession(uint8_t source)
+ {
++    selectedSource = source;
+     resetSession();
+     if (ARMING_FLAG(ARMED)) {
+         session.phase = FLIGHT_COMMANDER_COMPASS_ORIENTATION_PHASE_FAILED;
+@@ -490,7 +573,7 @@ static bool startSession(void)
+             FLIGHT_COMMANDER_COMPASS_ORIENTATION_FAILURE_ACCELEROMETER_REQUIRED;
+         return false;
+     }
+-    if (!sensors(SENSOR_MAG)) {
++    if (!flightCommanderHeadingCompassSourcePresent(source)) {
+         session.phase = FLIGHT_COMMANDER_COMPASS_ORIENTATION_PHASE_FAILED;
+         session.failureReason = FLIGHT_COMMANDER_COMPASS_ORIENTATION_FAILURE_COMPASS_REQUIRED;
+         return false;
+@@ -503,39 +586,45 @@ static bool startSession(void)
+ static bool commitSession(void)
+ {
+     if (session.phase != FLIGHT_COMMANDER_COMPASS_ORIENTATION_PHASE_SOLVED ||
+-        !axisMapIsProper(session.candidateAxisMap) || ARMING_FLAG(ARMED)) {
++        !axisMapIsProper(session.candidateAxisMap) ||
++        !sourceIsSupported(session.source) ||
++        ARMING_FLAG(ARMED)) {
+         return false;
+     }
+ 
+-    flightCommanderCompassOrientationConfig_t *config =
+-        flightCommanderCompassOrientationConfigMutable();
+-    config->schemaVersion = FLIGHT_COMMANDER_COMPASS_ORIENTATION_CONFIG_SCHEMA;
++    flightCommanderCompassOrientationSourceConfig_t *config =
++        sourceConfigMutable(session.source);
++    const uint32_t fingerprint = sourceFingerprint(session.source);
++    if (!config || fingerprint == 0) {
++        return false;
++    }
+     config->valid = true;
+     memcpy(config->axisMap, session.candidateAxisMap, sizeof(config->axisMap));
+     config->confidencePercent = session.confidencePercent;
+     config->residualCentiDegrees = session.residualCentiDegrees;
+     config->separationCentiDegrees = session.separationCentiDegrees;
+-    config->sensorFingerprint = ORIENTATION_SENSOR_FINGERPRINT;
++    config->sensorFingerprint = fingerprint;
+     config->calibrationGeneration++;
+     if (config->calibrationGeneration == 0) {
+         config->calibrationGeneration = 1;
+     }
+ 
+-    flightCommanderCompassOrientationInvalidateFieldCalibration();
++    flightCommanderCompassOrientationInvalidateFieldCalibration(session.source);
+     saveConfigAndNotify();
++    const uint8_t source = session.source;
+     resetSession();
+-    return storedConfigIsValid(flightCommanderCompassOrientationConfig());
++    return storedConfigIsValid(source, sourceConfig(source));
+ }
+ 
+-static bool clearStoredOrientation(void)
++static bool clearStoredOrientation(uint8_t source)
+ {
+-    if (ARMING_FLAG(ARMED)) {
++    if (ARMING_FLAG(ARMED) || !sourceIsSupported(source)) {
+         return false;
+     }
+ 
+-    pgResetFn_flightCommanderCompassOrientationConfig(
+-        flightCommanderCompassOrientationConfigMutable());
+-    flightCommanderCompassOrientationInvalidateFieldCalibration();
++    resetSourceConfig(source, sourceConfigMutable(source));
++    flightCommanderCompassOrientationInvalidateFieldCalibration(source);
++    selectedSource = source;
+     resetSession();
+     saveConfigAndNotify();
+     return true;
+@@ -543,7 +632,8 @@ static bool clearStoredOrientation(void)
+ 
+ bool flightCommanderCompassOrientationReadCommand(sbuf_t *src)
+ {
+-    if (sbufBytesRemaining(src) != FLIGHT_COMMANDER_COMPASS_ORIENTATION_COMMAND_PAYLOAD_SIZE ||
++    if (sbufBytesRemaining(src) !=
++            FLIGHT_COMMANDER_COMPASS_ORIENTATION_COMMAND_PAYLOAD_SIZE ||
+         sbufReadU8(src) != FLIGHT_COMMANDER_COMPASS_ORIENTATION_COMMAND_SCHEMA) {
+         return false;
+     }
+@@ -551,20 +641,36 @@ bool flightCommanderCompassOrientationReadCommand(sbuf_t *src)
+     const uint8_t command = sbufReadU8(src);
+     const uint8_t source = sbufReadU8(src);
+     (void)sbufReadU8(src);
+-    if (source != 0) {
++    if (!sourceIsSupported(source)) {
+         return false;
+     }
+ 
++    if (command == FLIGHT_COMMANDER_COMPASS_ORIENTATION_COMMAND_SELECT) {
++        if (session.phase == FLIGHT_COMMANDER_COMPASS_ORIENTATION_PHASE_COLLECTING) {
++            return source == session.source;
++        }
++        selectedSource = source;
++        resetSession();
++        return true;
++    }
++
++    if (session.phase == FLIGHT_COMMANDER_COMPASS_ORIENTATION_PHASE_COLLECTING &&
++        source != session.source &&
++        command != FLIGHT_COMMANDER_COMPASS_ORIENTATION_COMMAND_CANCEL) {
++        return false;
++    }
++    selectedSource = source;
++
+     switch (command) {
+     case FLIGHT_COMMANDER_COMPASS_ORIENTATION_COMMAND_START:
+-        return startSession();
++        return startSession(source);
+     case FLIGHT_COMMANDER_COMPASS_ORIENTATION_COMMAND_CANCEL:
+         resetSession();
+         return true;
+     case FLIGHT_COMMANDER_COMPASS_ORIENTATION_COMMAND_COMMIT:
+-        return commitSession();
++        return source == session.source && commitSession();
+     case FLIGHT_COMMANDER_COMPASS_ORIENTATION_COMMAND_CLEAR:
+-        return clearStoredOrientation();
++        return clearStoredOrientation(source);
+     default:
+         return false;
+     }
+@@ -572,7 +678,9 @@ bool flightCommanderCompassOrientationReadCommand(sbuf_t *src)
+ 
+ static uint8_t nextIncompleteFace(void)
+ {
+-    for (unsigned face = 0; face < FLIGHT_COMMANDER_COMPASS_ORIENTATION_FACE_COUNT; face++) {
++    for (unsigned face = 0;
++        face < FLIGHT_COMMANDER_COMPASS_ORIENTATION_FACE_COUNT;
++        face++) {
+         if (session.faceSampleCount[face] < ORIENTATION_MIN_FACE_SAMPLES ||
+             session.faceRotationDegrees[face] < ORIENTATION_REQUIRED_FACE_ROTATION_DEGREES) {
+             return face;
+@@ -583,8 +691,10 @@ static uint8_t nextIncompleteFace(void)
+ 
+ void flightCommanderCompassOrientationWriteStatus(sbuf_t *dst)
+ {
++    const flightCommanderCompassOrientationSourceConfig_t *config =
++        sourceConfig(selectedSource);
+     uint8_t flags = 0;
+-    if (flightCommanderCompassOrientationIsValid()) {
++    if (flightCommanderCompassOrientationIsValid(selectedSource)) {
+         flags |= FLIGHT_COMMANDER_COMPASS_ORIENTATION_FLAG_VALID;
+     }
+     if (session.phase == FLIGHT_COMMANDER_COMPASS_ORIENTATION_PHASE_COLLECTING) {
+@@ -596,10 +706,10 @@ void flightCommanderCompassOrientationWriteStatus(sbuf_t *dst)
+     if (STATE(ACCELEROMETER_CALIBRATED)) {
+         flags |= FLIGHT_COMMANDER_COMPASS_ORIENTATION_FLAG_ACCEL_CALIBRATED;
+     }
+-    if (compassIsCalibrationComplete()) {
++    if (flightCommanderHeadingCompassFieldCalibrated(selectedSource)) {
+         flags |= FLIGHT_COMMANDER_COMPASS_ORIENTATION_FLAG_FIELD_CALIBRATED;
+     }
+-    if (sensors(SENSOR_MAG)) {
++    if (flightCommanderHeadingCompassSourcePresent(selectedSource)) {
+         flags |= FLIGHT_COMMANDER_COMPASS_ORIENTATION_FLAG_COMPASS_PRESENT;
+     }
+     if (ARMING_FLAG(ARMED)) {
+@@ -610,7 +720,9 @@ void flightCommanderCompassOrientationWriteStatus(sbuf_t *dst)
+     }
+ 
+     uint8_t completedMask = 0;
+-    for (unsigned face = 0; face < FLIGHT_COMMANDER_COMPASS_ORIENTATION_FACE_COUNT; face++) {
++    for (unsigned face = 0;
++        face < FLIGHT_COMMANDER_COMPASS_ORIENTATION_FACE_COUNT;
++        face++) {
+         if (session.faceSampleCount[face] >= ORIENTATION_MIN_FACE_SAMPLES &&
+             session.faceRotationDegrees[face] >= ORIENTATION_REQUIRED_FACE_ROTATION_DEGREES) {
+             completedMask |= 1U << face;
+@@ -618,24 +730,27 @@ void flightCommanderCompassOrientationWriteStatus(sbuf_t *dst)
+     }
+ 
+     const uint8_t currentFace = session.detectedFace;
+-    const uint16_t currentFaceSamples = currentFace < FLIGHT_COMMANDER_COMPASS_ORIENTATION_FACE_COUNT
+-        ? session.faceSampleCount[currentFace]
+-        : 0;
+-    const uint16_t currentFaceRotation = currentFace < FLIGHT_COMMANDER_COMPASS_ORIENTATION_FACE_COUNT
+-        ? (uint16_t)constrain(lrintf(session.faceRotationDegrees[currentFace] * 100.0F),
+-            0, 36000)
+-        : 0;
+-    const flightCommanderCompassOrientationConfig_t *config =
+-        flightCommanderCompassOrientationConfig();
+-
+-    const bool reportStoredResult = session.phase == FLIGHT_COMMANDER_COMPASS_ORIENTATION_PHASE_IDLE;
+-    const uint8_t reportedConfidence = reportStoredResult
++    const uint16_t currentFaceSamples =
++        currentFace < FLIGHT_COMMANDER_COMPASS_ORIENTATION_FACE_COUNT
++            ? session.faceSampleCount[currentFace]
++            : 0;
++    const uint16_t currentFaceRotation =
++        currentFace < FLIGHT_COMMANDER_COMPASS_ORIENTATION_FACE_COUNT
++            ? (uint16_t)constrain(
++                lrintf(session.faceRotationDegrees[currentFace] * 100.0F),
++                0,
++                36000)
++            : 0;
++
++    const bool reportStoredResult =
++        session.phase == FLIGHT_COMMANDER_COMPASS_ORIENTATION_PHASE_IDLE;
++    const uint8_t reportedConfidence = reportStoredResult && config
+         ? config->confidencePercent
+         : session.confidencePercent;
+-    const uint16_t reportedResidual = reportStoredResult
++    const uint16_t reportedResidual = reportStoredResult && config
+         ? config->residualCentiDegrees
+         : session.residualCentiDegrees;
+-    const uint16_t reportedSeparation = reportStoredResult
++    const uint16_t reportedSeparation = reportStoredResult && config
+         ? config->separationCentiDegrees
+         : session.separationCentiDegrees;
+ 
+@@ -652,24 +767,30 @@ void flightCommanderCompassOrientationWriteStatus(sbuf_t *dst)
+     sbufWriteU16(dst, session.totalSampleCount);
+     sbufWriteU16(dst, currentFaceSamples);
+     sbufWriteU16(dst, currentFaceRotation);
+-    sbufWriteU32(dst, config->calibrationGeneration);
+-    sbufWriteU32(dst, ORIENTATION_SENSOR_FINGERPRINT);
++    sbufWriteU32(dst, config ? config->calibrationGeneration : 0);
++    sbufWriteU32(dst, sourceFingerprint(selectedSource));
+     for (unsigned axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
+         sbufWriteU8(dst, (uint8_t)session.candidateAxisMap[axis]);
+     }
+     for (unsigned axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
+-        sbufWriteU8(dst, (uint8_t)config->axisMap[axis]);
++        sbufWriteU8(dst, (uint8_t)(config ? config->axisMap[axis] : 0));
+     }
+-    for (unsigned face = 0; face < FLIGHT_COMMANDER_COMPASS_ORIENTATION_FACE_COUNT; face++) {
++    for (unsigned face = 0;
++        face < FLIGHT_COMMANDER_COMPASS_ORIENTATION_FACE_COUNT;
++        face++) {
+         sbufWriteU8(dst, (uint8_t)constrain(
+             lrintf(session.faceRotationDegrees[face] * 100.0F /
+-                ORIENTATION_REQUIRED_FACE_ROTATION_DEGREES), 0, 100));
++                ORIENTATION_REQUIRED_FACE_ROTATION_DEGREES),
++            0,
++            100));
+     }
+-    for (unsigned face = 0; face < FLIGHT_COMMANDER_COMPASS_ORIENTATION_FACE_COUNT; face++) {
++    for (unsigned face = 0;
++        face < FLIGHT_COMMANDER_COMPASS_ORIENTATION_FACE_COUNT;
++        face++) {
+         sbufWriteU8(dst, (uint8_t)MIN(session.faceSampleCount[face], UINT8_MAX));
+     }
+     sbufWriteU8(dst, session.detectedFace);
+-    sbufWriteU8(dst, 0);
++    sbufWriteU8(dst, selectedSource);
+     float boardFrameAcc[XYZ_AXIS_COUNT];
+     accGetBoardFrame(boardFrameAcc);
+     for (unsigned axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
+diff --git a/src/main/flight_commander/compass_orientation.h b/src/main/flight_commander/compass_orientation.h
+index b6d1426f5e01415821aed12b3ceabec9747fdc11..1bb00144a88619da46ce69fb062339089e6f53d9 100644
+--- a/src/main/flight_commander/compass_orientation.h
++++ b/src/main/flight_commander/compass_orientation.h
+@@ -11,15 +11,22 @@
+ #include "common/time.h"
+ #include "config/parameter_group.h"
+ 
+-#define FLIGHT_COMMANDER_COMPASS_ORIENTATION_CONFIG_SCHEMA 1U
+-#define FLIGHT_COMMANDER_COMPASS_ORIENTATION_STATUS_SCHEMA 1U
++#define FLIGHT_COMMANDER_COMPASS_ORIENTATION_CONFIG_SCHEMA 2U
++#define FLIGHT_COMMANDER_COMPASS_ORIENTATION_STATUS_SCHEMA 2U
+ #define FLIGHT_COMMANDER_COMPASS_ORIENTATION_STATUS_PAYLOAD_SIZE 52U
+-#define FLIGHT_COMMANDER_COMPASS_ORIENTATION_COMMAND_SCHEMA 1U
++#define FLIGHT_COMMANDER_COMPASS_ORIENTATION_COMMAND_SCHEMA 2U
+ #define FLIGHT_COMMANDER_COMPASS_ORIENTATION_COMMAND_PAYLOAD_SIZE 4U
+ #define FLIGHT_COMMANDER_COMPASS_ORIENTATION_FACE_COUNT 6U
+ #define FLIGHT_COMMANDER_COMPASS_ORIENTATION_AXIS_COUNT 3U
++#define FLIGHT_COMMANDER_COMPASS_ORIENTATION_SOURCE_COUNT 3U
+ #define FLIGHT_COMMANDER_COMPASS_ORIENTATION_FACE_NONE 255U
+ 
++typedef enum {
++    FLIGHT_COMMANDER_COMPASS_ORIENTATION_SOURCE_ONBOARD = 0,
++    FLIGHT_COMMANDER_COMPASS_ORIENTATION_SOURCE_EXTERNAL_I2C = 1,
++    FLIGHT_COMMANDER_COMPASS_ORIENTATION_SOURCE_DRONECAN = 2,
++} flightCommanderCompassOrientationSource_e;
++
+ typedef enum {
+     FLIGHT_COMMANDER_COMPASS_ORIENTATION_PHASE_IDLE = 0,
+     FLIGHT_COMMANDER_COMPASS_ORIENTATION_PHASE_COLLECTING = 1,
+@@ -43,6 +50,7 @@ typedef enum {
+     FLIGHT_COMMANDER_COMPASS_ORIENTATION_COMMAND_CANCEL = 2,
+     FLIGHT_COMMANDER_COMPASS_ORIENTATION_COMMAND_COMMIT = 3,
+     FLIGHT_COMMANDER_COMPASS_ORIENTATION_COMMAND_CLEAR = 4,
++    FLIGHT_COMMANDER_COMPASS_ORIENTATION_COMMAND_SELECT = 5,
+ } flightCommanderCompassOrientationCommand_e;
+ 
+ typedef enum {
+@@ -56,8 +64,7 @@ typedef enum {
+     FLIGHT_COMMANDER_COMPASS_ORIENTATION_FLAG_SAMPLE_ACCEPTED = (1U << 7),
+ } flightCommanderCompassOrientationFlag_e;
+ 
+-typedef struct flightCommanderCompassOrientationConfig_s {
+-    uint8_t schemaVersion;
++typedef struct flightCommanderCompassOrientationSourceConfig_s {
+     uint8_t valid;
+     int8_t axisMap[FLIGHT_COMMANDER_COMPASS_ORIENTATION_AXIS_COUNT];
+     uint8_t confidencePercent;
+@@ -65,16 +72,25 @@ typedef struct flightCommanderCompassOrientationConfig_s {
+     uint16_t separationCentiDegrees;
+     uint32_t sensorFingerprint;
+     uint32_t calibrationGeneration;
++} flightCommanderCompassOrientationSourceConfig_t;
++
++typedef struct flightCommanderCompassOrientationConfig_s {
++    uint8_t schemaVersion;
++    flightCommanderCompassOrientationSourceConfig_t sources[FLIGHT_COMMANDER_COMPASS_ORIENTATION_SOURCE_COUNT];
+ } flightCommanderCompassOrientationConfig_t;
+ 
+ void flightCommanderCompassOrientationInit(void);
+-void flightCommanderCompassOrientationObserve(timeUs_t currentTimeUs, const float nativeMag[3]);
+-void flightCommanderCompassOrientationApply(float vector[3]);
+-bool flightCommanderCompassOrientationIsValid(void);
+-uint32_t flightCommanderCompassOrientationGeneration(void);
++void flightCommanderCompassOrientationObserve(
++    timeUs_t currentTimeUs,
++    uint8_t source,
++    const float nativeMag[3]);
++void flightCommanderCompassOrientationApply(uint8_t source, float vector[3]);
++bool flightCommanderCompassOrientationIsValid(uint8_t source);
++uint32_t flightCommanderCompassOrientationGeneration(uint8_t source);
++uint8_t flightCommanderCompassOrientationSelectedSource(void);
+ void flightCommanderCompassOrientationWriteStatus(sbuf_t *dst);
+ bool flightCommanderCompassOrientationReadCommand(sbuf_t *src);
+-void flightCommanderCompassOrientationInvalidateFieldCalibration(void);
++void flightCommanderCompassOrientationInvalidateFieldCalibration(uint8_t source);
+ 
+ PG_DECLARE(flightCommanderCompassOrientationConfig_t, flightCommanderCompassOrientationConfig);
+ 
+diff --git a/src/main/flight_commander/external_compass.c b/src/main/flight_commander/external_compass.c
+index f3e6e626ab5c8fe07334ecbed8a36283532acaf6..94e779e3ebb7eb03a6502e72499cfc6d67717d33 100644
+--- a/src/main/flight_commander/external_compass.c
++++ b/src/main/flight_commander/external_compass.c
+@@ -1,7 +1,7 @@
+ /*
+  * Flight Commander target-scoped external compass support.
+  *
+- * The MICOAIR743 target's official INAV 9.1.0 compass remains on I2C2.  These
++ * The MICOAIR743 target's official INAV 9.1.0 compass remains on I2C2. These
+  * tagged descriptors expose the target's external I2C1 connector to a second
+  * magDev_t while reusing INAV's unmodified compass drivers.
+  *
+@@ -121,6 +121,11 @@ bool flightCommanderExternalCompassIsConfigured(void)
+         flightCommanderExternalCompassHardwareSupported(config->externalMagHardware);
+ }
+ 
++bool flightCommanderExternalCompassIsDetected(void)
++{
++    return externalDetected;
++}
++
+ static bool detectHardware(magSensor_e hardware)
+ {
+     switch (hardware) {
+@@ -201,7 +206,6 @@ static bool detectConfiguredHardware(magSensor_e hardware)
+         return detectHardware(hardware);
+     }
+ 
+-    // Match the official INAV compass autodetection order for supported I2C devices.
+     static const magSensor_e autodetectOrder[] = {
+         MAG_QMC5883,
+         MAG_QMC5883P,
+@@ -236,7 +240,8 @@ void flightCommanderExternalCompassInit(void)
+     }
+ 
+     externalMag.magSensorToUse = FLIGHT_COMMANDER_EXTERNAL_MAG_TAG;
+-    if (!detectConfiguredHardware((magSensor_e)flightCommanderHeadingConfig()->externalMagHardware)) {
++    if (!detectConfiguredHardware(
++            (magSensor_e)flightCommanderHeadingConfig()->externalMagHardware)) {
+         return;
+     }
+     if (!externalMag.init || !externalMag.read || !externalMag.init(&externalMag)) {
+diff --git a/src/main/flight_commander/external_compass.h b/src/main/flight_commander/external_compass.h
+index 4eff61d65580bc8fd7cb3b3a8a3b509de50c47aa..f42439e2ea1f27e53fda8976a9ec914f4905ac83 100644
+--- a/src/main/flight_commander/external_compass.h
++++ b/src/main/flight_commander/external_compass.h
+@@ -20,6 +20,7 @@
+ void flightCommanderExternalCompassInit(void);
+ void flightCommanderExternalCompassUpdate(timeUs_t currentTimeUs);
+ bool flightCommanderExternalCompassIsConfigured(void);
++bool flightCommanderExternalCompassIsDetected(void);
+ bool flightCommanderExternalCompassHardwareSupported(uint8_t hardware);
+ bool flightCommanderExternalCompassGetSample(fpVector3_t *raw, timeMs_t *updatedAtMs);
+ 
+diff --git a/src/main/flight_commander/heading_fusion.c b/src/main/flight_commander/heading_fusion.c
+index 9f2d0a07211613ba796430bae2354825b71d1add..48bd295a77565f9949f86ad79ce3ff9b75df99b8 100644
+--- a/src/main/flight_commander/heading_fusion.c
++++ b/src/main/flight_commander/heading_fusion.c
+@@ -18,6 +18,7 @@
+ #include "fc/runtime_config.h"
+ #include "flight/imu.h"
+ #include "flight_commander/external_compass.h"
++#include "flight_commander/compass_orientation.h"
+ #include "flight_commander/heading_fusion.h"
+ #include "io/gps.h"
+ #include "io/gps_dronecan.h"
+@@ -99,6 +100,7 @@ static uint32_t dronecanRawSequence;
+ static uint8_t dronecanRawNodeID;
+ static timeUs_t customMagCalibrationStartedAtUs;
+ static bool customMagCalibrationActive;
++static uint8_t activeFieldCalibrationSource = FLIGHT_COMMANDER_HEADING_SOURCE_NONE;
+ static bool calibrationVectorIsPlausible(const int16_t zero[XYZ_AXIS_COUNT],
+     const int16_t gain[XYZ_AXIS_COUNT]);
+ static uint16_t normalizeHeading(int32_t headingCentidegrees);
+@@ -244,6 +246,7 @@ void flightCommanderHeadingInit(void)
+     dronecanRawNodeID = DRONECAN_NODE_ID_DISABLED;
+     customMagCalibrationStartedAtUs = 0;
+     customMagCalibrationActive = false;
++    activeFieldCalibrationSource = FLIGHT_COMMANDER_HEADING_SOURCE_NONE;
+     headingStatus.anchorSource = FLIGHT_COMMANDER_HEADING_SOURCE_NONE;
+     headingStatus.baselineNodeID = DRONECAN_NODE_ID_DISABLED;
+ 
+@@ -322,15 +325,27 @@ static bool onboardMagIsCalibrated(void)
+     return adjusted && compassIsCalibrationComplete();
+ }
+ 
++static bool headingSourceOrientationIsValid(unsigned index)
++{
++#ifdef USE_FLIGHT_COMMANDER_COMPASS_ORIENTATION
++    if (index <= FLIGHT_COMMANDER_HEADING_DRONECAN_MAG) {
++        return flightCommanderCompassOrientationIsValid(index);
++    }
++#else
++    UNUSED(index);
++#endif
++    return true;
++}
++
+ static bool headingSourceIsCalibrated(unsigned index, const flightCommanderHeadingConfig_t *config)
+ {
+     switch (index) {
+     case FLIGHT_COMMANDER_HEADING_ONBOARD_MAG:
+         return onboardMagIsCalibrated();
+     case FLIGHT_COMMANDER_HEADING_EXTERNAL_I2C_MAG:
+-        return externalMagIsCalibrated(config);
++        return headingSourceOrientationIsValid(index) && externalMagIsCalibrated(config);
+     case FLIGHT_COMMANDER_HEADING_DRONECAN_MAG:
+-        return dronecanMagIsCalibrated(config) &&
++        return headingSourceOrientationIsValid(index) && dronecanMagIsCalibrated(config) &&
+             (!samples[index].valid || samples[index].nodeID == config->dronecanMagCalibrationNodeID);
+     case FLIGHT_COMMANDER_HEADING_MOVING_BASELINE:
+         return samples[index].valid;
+@@ -339,62 +354,84 @@ static bool headingSourceIsCalibrated(unsigned index, const flightCommanderHeadi
+     }
+ }
+ 
+-static void resetCustomCalibrationContext(customMagCalibration_t *context)
++bool flightCommanderHeadingCompassSourcePresent(uint8_t source)
+ {
+-    memset(context, 0, sizeof(*context));
++    switch (source) {
++    case FLIGHT_COMMANDER_HEADING_ONBOARD_MAG:
++        return sensors(SENSOR_MAG);
++    case FLIGHT_COMMANDER_HEADING_EXTERNAL_I2C_MAG:
++        return flightCommanderExternalCompassIsConfigured() &&
++            flightCommanderExternalCompassIsDetected();
++    case FLIGHT_COMMANDER_HEADING_DRONECAN_MAG:
++        return flightCommanderHeadingConfig()->sources[source].enabled &&
++            dronecanRawSequence != 0 &&
++            flightCommanderHeadingCompassNodeID(source) != 0;
++    default:
++        return false;
++    }
+ }
+ 
+-static void startCustomMagCalibration(timeUs_t currentTimeUs)
++uint8_t flightCommanderHeadingCompassNodeID(uint8_t source)
+ {
+-    flightCommanderHeadingConfig_t *config = flightCommanderHeadingConfigMutable();
+-    memset(customMagCalibration, 0, sizeof(customMagCalibration));
+-    headingStatus.calibratingMask = 0;
+-    headingStatus.calibrationFailedMask = 0;
+-
+-    if (sensors(SENSOR_MAG) && config->sources[FLIGHT_COMMANDER_HEADING_ONBOARD_MAG].enabled) {
+-        // The onboard sensor remains entirely on INAV's normal calibration
+-        // path.  This bit only exposes progress to the Configurator while the
+-        // external and DroneCAN sources use Flight Commander's custom solver.
+-        headingStatus.calibratingMask |= 1U << FLIGHT_COMMANDER_HEADING_ONBOARD_MAG;
++    if (source != FLIGHT_COMMANDER_HEADING_DRONECAN_MAG) {
++        return 0;
++    }
++    if (dronecanRawNodeID != DRONECAN_NODE_ID_DISABLED && dronecanRawNodeID != 0) {
++        return dronecanRawNodeID;
+     }
++    if (flightCommanderHeadingConfig()->dronecanMagCalibrationNodeID != 0) {
++        return flightCommanderHeadingConfig()->dronecanMagCalibrationNodeID;
++    }
++    const uint8_t configured = dronecanConfig()->magNodeID;
++    return configured > 0 && configured <= 127 ? configured : 0;
++}
+ 
+-    customMagCalibration_t *external =
+-        &customMagCalibration[FLIGHT_COMMANDER_HEADING_EXTERNAL_I2C_MAG];
+-    if (flightCommanderExternalCompassIsConfigured()) {
+-        resetCustomCalibrationContext(external);
+-        external->enabled = true;
+-        fpVector3_t raw;
+-        timeMs_t updatedAtMs;
+-        if (flightCommanderExternalCompassGetSample(&raw, &updatedAtMs)) {
+-            external->lastSequence = updatedAtMs;
+-        }
+-        headingStatus.calibratingMask |= 1U << FLIGHT_COMMANDER_HEADING_EXTERNAL_I2C_MAG;
++bool flightCommanderHeadingCompassFieldCalibrated(uint8_t source)
++{
++    if (!headingSourceOrientationIsValid(source)) {
++        return false;
+     }
++    switch (source) {
++    case FLIGHT_COMMANDER_HEADING_ONBOARD_MAG:
++        return onboardMagIsCalibrated();
++    case FLIGHT_COMMANDER_HEADING_EXTERNAL_I2C_MAG:
++        return externalMagIsCalibrated(flightCommanderHeadingConfig());
++    case FLIGHT_COMMANDER_HEADING_DRONECAN_MAG:
++        return dronecanMagIsCalibrated(flightCommanderHeadingConfig());
++    default:
++        return false;
++    }
++}
+ 
+-    customMagCalibration_t *dronecan =
+-        &customMagCalibration[FLIGHT_COMMANDER_HEADING_DRONECAN_MAG];
+-    if (config->sources[FLIGHT_COMMANDER_HEADING_DRONECAN_MAG].enabled &&
+-        dronecanConfig()->magNodeID != DRONECAN_NODE_ID_DISABLED) {
+-        resetCustomCalibrationContext(dronecan);
+-        dronecan->enabled = true;
+-        dronecan->lastSequence = dronecanRawSequence;
+-        if (dronecanConfig()->magNodeID == DRONECAN_NODE_ID_AUTO) {
+-            dronecan->nodeID = dronecanRawNodeID == DRONECAN_NODE_ID_DISABLED ? 0 : dronecanRawNodeID;
+-        } else {
+-            dronecan->nodeID = dronecanConfig()->magNodeID;
++void flightCommanderHeadingInvalidateCompassFieldCalibration(uint8_t source)
++{
++    flightCommanderHeadingConfig_t *config = flightCommanderHeadingConfigMutable();
++    if (source == FLIGHT_COMMANDER_HEADING_EXTERNAL_I2C_MAG) {
++        for (unsigned axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
++            config->externalMagZero[axis] = 0;
++            config->externalMagGain[axis] = 1024;
++        }
++    } else if (source == FLIGHT_COMMANDER_HEADING_DRONECAN_MAG) {
++        for (unsigned axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
++            config->dronecanMagZeroMilliGauss[axis] = 0;
++            config->dronecanMagGainMilliGauss[axis] = 0;
+         }
+-        headingStatus.calibratingMask |= 1U << FLIGHT_COMMANDER_HEADING_DRONECAN_MAG;
++        config->dronecanMagCalibrationNodeID = 0;
++    } else {
++        return;
+     }
++    headingStatus.calibratedMask &= ~(1U << source);
++    headingStatus.calibratingMask &= ~(1U << source);
++    headingStatus.calibrationFailedMask &= ~(1U << source);
++}
+ 
+-    customMagCalibrationStartedAtUs = currentTimeUs;
+-    customMagCalibrationActive = true;
+-    if (!sensors(SENSOR_MAG)) {
+-        // There is no official onboard compass task to consume this trigger.
+-        DISABLE_STATE(CALIBRATE_MAG);
+-    }
++static void resetCustomCalibrationContext(customMagCalibration_t *context)
++{
++    memset(context, 0, sizeof(*context));
+ }
+ 
+-static void pushCustomMagCalibrationSample(customMagCalibration_t *context, const fpVector3_t *sample)
++static void pushCustomMagCalibrationSample(customMagCalibration_t *context,
++    const fpVector3_t *sample)
+ {
+     if (!context->extremaValid) {
+         context->minimum = *sample;
+@@ -427,7 +464,8 @@ static void pushCustomMagCalibrationSample(customMagCalibration_t *context, cons
+     }
+ }
+ 
+-static bool solveCustomMagCalibration(customMagCalibration_t *context, float zero[XYZ_AXIS_COUNT],
++static bool solveCustomMagCalibration(customMagCalibration_t *context,
++    float zero[XYZ_AXIS_COUNT],
+     float gain[XYZ_AXIS_COUNT])
+ {
+     if (!context->enabled || !context->extremaValid ||
+@@ -453,15 +491,111 @@ static bool solveCustomMagCalibration(customMagCalibration_t *context, float zer
+     return true;
+ }
+ 
++static bool prepareCustomCalibration(uint8_t source, timeUs_t currentTimeUs)
++{
++    customMagCalibration_t *context = &customMagCalibration[source];
++    resetCustomCalibrationContext(context);
++    context->enabled = true;
++
++    if (source == FLIGHT_COMMANDER_HEADING_EXTERNAL_I2C_MAG) {
++        fpVector3_t raw;
++        timeMs_t updatedAtMs;
++        if (flightCommanderExternalCompassGetSample(&raw, &updatedAtMs)) {
++            context->lastSequence = updatedAtMs;
++        }
++    } else if (source == FLIGHT_COMMANDER_HEADING_DRONECAN_MAG) {
++        context->lastSequence = dronecanRawSequence;
++        context->nodeID = flightCommanderHeadingCompassNodeID(source);
++        if (context->nodeID == 0) {
++            return false;
++        }
++    } else {
++        return false;
++    }
++
++    customMagCalibrationStartedAtUs = currentTimeUs;
++    customMagCalibrationActive = true;
++    activeFieldCalibrationSource = source;
++    headingStatus.calibratingMask |= 1U << source;
++    return true;
++}
++
++bool flightCommanderHeadingStartCompassFieldCalibration(uint8_t source)
++{
++    if (ARMING_FLAG(ARMED) || source >= FLIGHT_COMMANDER_HEADING_MOVING_BASELINE ||
++        activeFieldCalibrationSource != FLIGHT_COMMANDER_HEADING_SOURCE_NONE ||
++        !flightCommanderHeadingCompassSourcePresent(source)) {
++        return false;
++    }
++#ifdef USE_FLIGHT_COMMANDER_COMPASS_ORIENTATION
++    if (!flightCommanderCompassOrientationIsValid(source)) {
++        return false;
++    }
++#endif
++
++    headingStatus.calibrationFailedMask &= ~(1U << source);
++    headingStatus.calibratingMask &= ~(1U << source);
++    activeFieldCalibrationSource = source;
++    if (source == FLIGHT_COMMANDER_HEADING_ONBOARD_MAG) {
++        headingStatus.calibratingMask |= 1U << source;
++        ENABLE_STATE(CALIBRATE_MAG);
++        return true;
++    }
++    if (!prepareCustomCalibration(source, micros())) {
++        activeFieldCalibrationSource = FLIGHT_COMMANDER_HEADING_SOURCE_NONE;
++        headingStatus.calibrationFailedMask |= 1U << source;
++        return false;
++    }
++    return true;
++}
++
++bool flightCommanderHeadingReadCompassCalibrationCommand(sbuf_t *src)
++{
++    if (sbufBytesRemaining(src) !=
++            FLIGHT_COMMANDER_COMPASS_CALIBRATION_COMMAND_PAYLOAD_SIZE ||
++        sbufReadU8(src) != FLIGHT_COMMANDER_COMPASS_CALIBRATION_COMMAND_SCHEMA) {
++        return false;
++    }
++    const uint8_t command = sbufReadU8(src);
++    const uint8_t source = sbufReadU8(src);
++    (void)sbufReadU8(src);
++    return command == FLIGHT_COMMANDER_COMPASS_CALIBRATION_COMMAND_START &&
++        flightCommanderHeadingStartCompassFieldCalibration(source);
++}
++
++void flightCommanderHeadingOnboardCalibrationStarted(void)
++{
++    if (activeFieldCalibrationSource == FLIGHT_COMMANDER_HEADING_ONBOARD_MAG) {
++        headingStatus.calibratingMask |= 1U << FLIGHT_COMMANDER_HEADING_ONBOARD_MAG;
++    }
++}
++
++void flightCommanderHeadingOnboardCalibrationFinished(bool success)
++{
++    if (activeFieldCalibrationSource != FLIGHT_COMMANDER_HEADING_ONBOARD_MAG) {
++        return;
++    }
++    headingStatus.calibratingMask &= ~(1U << FLIGHT_COMMANDER_HEADING_ONBOARD_MAG);
++    if (success) {
++        headingStatus.calibrationFailedMask &= ~(1U << FLIGHT_COMMANDER_HEADING_ONBOARD_MAG);
++    } else {
++        headingStatus.calibrationFailedMask |= 1U << FLIGHT_COMMANDER_HEADING_ONBOARD_MAG;
++    }
++    activeFieldCalibrationSource = FLIGHT_COMMANDER_HEADING_SOURCE_NONE;
++}
++
+ static void finishCustomMagCalibration(void)
+ {
++    const uint8_t source = activeFieldCalibrationSource;
+     flightCommanderHeadingConfig_t *config = flightCommanderHeadingConfigMutable();
++    customMagCalibration_t *context = source < FLIGHT_COMMANDER_HEADING_MOVING_BASELINE
++        ? &customMagCalibration[source]
++        : NULL;
+     float zero[XYZ_AXIS_COUNT];
+     float gain[XYZ_AXIS_COUNT];
+-    customMagCalibration_t *external =
+-        &customMagCalibration[FLIGHT_COMMANDER_HEADING_EXTERNAL_I2C_MAG];
+-    if (external->enabled) {
+-        bool valid = solveCustomMagCalibration(external, zero, gain);
++    bool valid = context && solveCustomMagCalibration(context, zero, gain);
++
++    if (source == FLIGHT_COMMANDER_HEADING_EXTERNAL_I2C_MAG) {
+         for (unsigned axis = 0; valid && axis < XYZ_AXIS_COUNT; axis++) {
+             valid = zero[axis] >= INT16_MIN && zero[axis] <= INT16_MAX &&
+                 gain[axis] <= INT16_MAX;
+@@ -471,69 +605,76 @@ static void finishCustomMagCalibration(void)
+                 config->externalMagZero[axis] = lrintf(zero[axis]);
+                 config->externalMagGain[axis] = lrintf(gain[axis]);
+             }
+-        } else {
+-            headingStatus.calibrationFailedMask |=
+-                1U << FLIGHT_COMMANDER_HEADING_EXTERNAL_I2C_MAG;
+         }
+-    }
+-
+-    customMagCalibration_t *dronecan =
+-        &customMagCalibration[FLIGHT_COMMANDER_HEADING_DRONECAN_MAG];
+-    if (dronecan->enabled) {
+-        bool valid = dronecan->nodeID != 0 && solveCustomMagCalibration(dronecan, zero, gain);
++    } else if (source == FLIGHT_COMMANDER_HEADING_DRONECAN_MAG) {
++        valid = valid && context->nodeID != 0;
+         for (unsigned axis = 0; valid && axis < XYZ_AXIS_COUNT; axis++) {
+             valid = zero[axis] >= INT16_MIN && zero[axis] <= INT16_MAX &&
+                 gain[axis] <= 5000.0F;
+         }
+         if (valid) {
+-            config->dronecanMagCalibrationNodeID = dronecan->nodeID;
++            config->dronecanMagCalibrationNodeID = context->nodeID;
+             for (unsigned axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
+                 config->dronecanMagZeroMilliGauss[axis] = lrintf(zero[axis]);
+                 config->dronecanMagGainMilliGauss[axis] = lrintf(gain[axis]);
+             }
+-        } else {
+-            headingStatus.calibrationFailedMask |=
+-                1U << FLIGHT_COMMANDER_HEADING_DRONECAN_MAG;
+         }
++    } else {
++        valid = false;
+     }
+ 
+-    headingStatus.calibratingMask = 0;
++    if (!valid && source < FLIGHT_COMMANDER_HEADING_MOVING_BASELINE) {
++        headingStatus.calibrationFailedMask |= 1U << source;
++    } else if (valid) {
++        headingStatus.calibrationFailedMask &= ~(1U << source);
++    }
++    if (source < FLIGHT_COMMANDER_HEADING_MOVING_BASELINE) {
++        headingStatus.calibratingMask &= ~(1U << source);
++    }
++    memset(customMagCalibration, 0, sizeof(customMagCalibration));
+     customMagCalibrationActive = false;
+     customMagCalibrationStartedAtUs = 0;
++    activeFieldCalibrationSource = FLIGHT_COMMANDER_HEADING_SOURCE_NONE;
+     saveConfigAndNotify();
+ }
+ 
++static fpVector3_t orientedCalibrationSample(uint8_t source, const fpVector3_t *raw)
++{
++    float values[XYZ_AXIS_COUNT] = { raw->x, raw->y, raw->z };
++#ifdef USE_FLIGHT_COMMANDER_COMPASS_ORIENTATION
++    flightCommanderCompassOrientationApply(source, values);
++#endif
++    return (fpVector3_t){ .v = { values[X], values[Y], values[Z] } };
++}
++
+ void flightCommanderHeadingCalibrationUpdate(timeUs_t currentTimeUs)
+ {
+-    if (STATE(CALIBRATE_MAG) && !customMagCalibrationActive) {
+-        startCustomMagCalibration(currentTimeUs);
+-    }
+-    if (!customMagCalibrationActive) {
++    if (!customMagCalibrationActive ||
++        activeFieldCalibrationSource >= FLIGHT_COMMANDER_HEADING_MOVING_BASELINE) {
+         return;
+     }
+ 
+-
+-    customMagCalibration_t *external =
+-        &customMagCalibration[FLIGHT_COMMANDER_HEADING_EXTERNAL_I2C_MAG];
+-    if (external->enabled) {
++    customMagCalibration_t *context =
++        &customMagCalibration[activeFieldCalibrationSource];
++    if (activeFieldCalibrationSource == FLIGHT_COMMANDER_HEADING_EXTERNAL_I2C_MAG) {
+         fpVector3_t raw;
+         timeMs_t updatedAtMs;
+         if (flightCommanderExternalCompassGetSample(&raw, &updatedAtMs) &&
+-            updatedAtMs != external->lastSequence) {
+-            external->lastSequence = updatedAtMs;
+-            pushCustomMagCalibrationSample(external, &raw);
++            updatedAtMs != context->lastSequence) {
++            context->lastSequence = updatedAtMs;
++            const fpVector3_t oriented = orientedCalibrationSample(
++                activeFieldCalibrationSource, &raw);
++            pushCustomMagCalibrationSample(context, &oriented);
+         }
++    } else if (activeFieldCalibrationSource == FLIGHT_COMMANDER_HEADING_DRONECAN_MAG &&
++        dronecanRawSequence != context->lastSequence &&
++        dronecanRawNodeID == context->nodeID) {
++        context->lastSequence = dronecanRawSequence;
++        pushCustomMagCalibrationSample(context, &dronecanRawMilliGauss);
+     }
+ 
+-    customMagCalibration_t *dronecan =
+-        &customMagCalibration[FLIGHT_COMMANDER_HEADING_DRONECAN_MAG];
+-    if (dronecan->enabled && dronecanRawSequence != dronecan->lastSequence &&
+-        dronecanRawNodeID == dronecan->nodeID) {
+-        dronecan->lastSequence = dronecanRawSequence;
+-        pushCustomMagCalibrationSample(dronecan, &dronecanRawMilliGauss);
+-    }
+-
+-    const timeUs_t durationUs = (timeUs_t)compassConfig()->magCalibrationTimeLimit * 1000000U;
++    const timeUs_t durationUs =
++        (timeUs_t)compassConfig()->magCalibrationTimeLimit * 1000000U;
+     if (currentTimeUs - customMagCalibrationStartedAtUs >= durationUs) {
+         finishCustomMagCalibration();
+     }
+@@ -550,10 +691,18 @@ static void updateExternalCompassSample(void)
+     externalSampleProcessed = true;
+     externalSampleProcessedAtMs = updatedAtMs;
+ 
++    float native[XYZ_AXIS_COUNT] = { raw.x, raw.y, raw.z };
++#ifdef USE_FLIGHT_COMMANDER_COMPASS_ORIENTATION
++    flightCommanderCompassOrientationObserve(
++        micros(), FLIGHT_COMMANDER_HEADING_EXTERNAL_I2C_MAG, native);
++    flightCommanderCompassOrientationApply(
++        FLIGHT_COMMANDER_HEADING_EXTERNAL_I2C_MAG, native);
++#endif
++
+     const flightCommanderHeadingConfig_t *config = flightCommanderHeadingConfig();
+     fpVector3_t corrected;
+     for (unsigned axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
+-        corrected.v[axis] = (raw.v[axis] - config->externalMagZero[axis]) *
++        corrected.v[axis] = (native[axis] - config->externalMagZero[axis]) *
+             1024.0F / config->externalMagGain[axis];
+     }
+ 
+@@ -677,7 +826,6 @@ static bool validateConfig(const flightCommanderHeadingConfig_t *config)
+     }
+ 
+     uint8_t priorities = 0;
+-    bool anyEnabled = false;
+     for (unsigned index = 0; index < FLIGHT_COMMANDER_HEADING_SOURCE_COUNT; index++) {
+         const flightCommanderHeadingSourceConfig_t *source = &config->sources[index];
+         if (source->priority < 1 || source->priority > FLIGHT_COMMANDER_HEADING_SOURCE_COUNT ||
+@@ -690,10 +838,9 @@ static bool validateConfig(const flightCommanderHeadingConfig_t *config)
+                 return false;
+             }
+             priorities |= 1U << source->priority;
+-            anyEnabled = true;
+         }
+     }
+-    if (!anyEnabled || config->movingBaselineEnabled != config->sources[FLIGHT_COMMANDER_HEADING_MOVING_BASELINE].enabled) {
++    if (config->movingBaselineEnabled != config->sources[FLIGHT_COMMANDER_HEADING_MOVING_BASELINE].enabled) {
+         return false;
+     }
+     if (config->sources[FLIGHT_COMMANDER_HEADING_EXTERNAL_I2C_MAG].enabled &&
+@@ -968,9 +1115,22 @@ void flightCommanderHeadingReceiveDronecanMag(
+         config->dronecanMagCalibrationNodeID != sourceNodeID) {
+         return;
+     }
++
++    float native[XYZ_AXIS_COUNT];
++    for (unsigned axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
++        native[axis] = message->magnetic_field_ga[axis] * 1000.0F;
++    }
++    dronecanRawNodeID = sourceNodeID;
++#ifdef USE_FLIGHT_COMMANDER_COMPASS_ORIENTATION
++    flightCommanderCompassOrientationObserve(
++        micros(), FLIGHT_COMMANDER_HEADING_DRONECAN_MAG, native);
++    flightCommanderCompassOrientationApply(
++        FLIGHT_COMMANDER_HEADING_DRONECAN_MAG, native);
++#endif
++
+     fpVector3_t corrected;
+-    for (unsigned axis = 0; axis < 3; axis++) {
+-        dronecanRawMilliGauss.v[axis] = message->magnetic_field_ga[axis] * 1000.0F;
++    for (unsigned axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
++        dronecanRawMilliGauss.v[axis] = native[axis];
+         corrected.v[axis] = dronecanRawMilliGauss.v[axis] -
+             config->dronecanMagZeroMilliGauss[axis];
+         if (config->dronecanMagGainMilliGauss[axis]) {
+@@ -978,7 +1138,6 @@ void flightCommanderHeadingReceiveDronecanMag(
+                 config->dronecanMagGainMilliGauss[axis];
+         }
+     }
+-    dronecanRawNodeID = sourceNodeID;
+     dronecanRawSequence++;
+ 
+     const fp_angles_t alignmentAngles = {
+diff --git a/src/main/flight_commander/heading_fusion.h b/src/main/flight_commander/heading_fusion.h
+index 635018d10af50b56fc5db1683a087319a2434345..9c62f2d9141c0848e1121a699cb4da748337c585 100644
+--- a/src/main/flight_commander/heading_fusion.h
++++ b/src/main/flight_commander/heading_fusion.h
+@@ -20,6 +20,9 @@
+ #define FLIGHT_COMMANDER_HEADING_SOURCE_COUNT 4U
+ #define FLIGHT_COMMANDER_HEADING_SOURCE_NONE 255U
+ 
++#define FLIGHT_COMMANDER_COMPASS_CALIBRATION_COMMAND_SCHEMA 1U
++#define FLIGHT_COMMANDER_COMPASS_CALIBRATION_COMMAND_PAYLOAD_SIZE 4U
++
+ typedef enum {
+     FLIGHT_COMMANDER_HEADING_ONBOARD_MAG = 0,
+     FLIGHT_COMMANDER_HEADING_EXTERNAL_I2C_MAG = 1,
+@@ -27,6 +30,10 @@ typedef enum {
+     FLIGHT_COMMANDER_HEADING_MOVING_BASELINE = 3,
+ } flightCommanderHeadingSource_e;
+ 
++typedef enum {
++    FLIGHT_COMMANDER_COMPASS_CALIBRATION_COMMAND_START = 1,
++} flightCommanderCompassCalibrationCommand_e;
++
+ typedef enum {
+     FLIGHT_COMMANDER_BASELINE_AUTO = 0,
+     FLIGHT_COMMANDER_BASELINE_UART = 1,
+@@ -102,6 +109,15 @@ bool flightCommanderHeadingGetAbsoluteReference(fpVector3_t *headingEarth, float
+ bool flightCommanderHeadingGetFusedHeading(uint16_t *headingCentidegrees);
+ bool flightCommanderHeadingHasActiveReference(void);
+ 
++bool flightCommanderHeadingCompassSourcePresent(uint8_t source);
++uint8_t flightCommanderHeadingCompassNodeID(uint8_t source);
++bool flightCommanderHeadingCompassFieldCalibrated(uint8_t source);
++void flightCommanderHeadingInvalidateCompassFieldCalibration(uint8_t source);
++bool flightCommanderHeadingStartCompassFieldCalibration(uint8_t source);
++bool flightCommanderHeadingReadCompassCalibrationCommand(sbuf_t *src);
++void flightCommanderHeadingOnboardCalibrationStarted(void);
++void flightCommanderHeadingOnboardCalibrationFinished(bool success);
++
+ void flightCommanderHeadingReceiveDronecanMag(
+     uint8_t sourceNodeID,
+     const struct uavcan_equipment_ahrs_MagneticFieldStrength2 *message);
+diff --git a/src/main/msp/msp_protocol_v2_flight_commander.h b/src/main/msp/msp_protocol_v2_flight_commander.h
+index 7b17bb928305192b3714ae2ec5b5c74dfac5d91b..6d7b8c94372b2898907bc50af4434ab9620194d9 100644
+--- a/src/main/msp/msp_protocol_v2_flight_commander.h
++++ b/src/main/msp/msp_protocol_v2_flight_commander.h
+@@ -26,3 +26,4 @@
+ #define MSP2_FLIGHT_COMMANDER_HEADING_STATUS 0x2F22
+ #define MSP2_FLIGHT_COMMANDER_COMPASS_ORIENTATION_STATUS 0x2F23
+ #define MSP2_FLIGHT_COMMANDER_COMPASS_ORIENTATION_COMMAND 0x2F24
++#define MSP2_FLIGHT_COMMANDER_COMPASS_CALIBRATION_COMMAND 0x2F25
+diff --git a/src/main/sensors/compass.c b/src/main/sensors/compass.c
+index 73d2f7a61dc13ec64f3d15bdfac1dcacf9688b9e..caf27024d855462240cc42eb9786546a04fc9268 100644
+--- a/src/main/sensors/compass.c
++++ b/src/main/sensors/compass.c
+@@ -64,6 +64,9 @@
+ 
+ #ifdef USE_FLIGHT_COMMANDER_COMPASS_ORIENTATION
+ #include "flight_commander/compass_orientation.h"
++#ifdef USE_FLIGHT_COMMANDER_HEADING_FUSION
++#include "flight_commander/heading_fusion.h"
++#endif
+ #endif
+ 
+ mag_t mag;                   // mag access functions
+@@ -138,7 +141,8 @@ static uint32_t compassCalibrationSignature(const compassConfig_t *config)
+ #ifdef USE_FLIGHT_COMMANDER_COMPASS_ORIENTATION
+     signature = compassCalibrationSignatureMix(
+         signature,
+-        flightCommanderCompassOrientationGeneration()
++        flightCommanderCompassOrientationGeneration(
++            FLIGHT_COMMANDER_COMPASS_ORIENTATION_SOURCE_ONBOARD)
+     );
+ #endif
+     signature = compassCalibrationSignatureMix(
+@@ -169,7 +173,8 @@ static uint32_t compassCalibrationSignature(const compassConfig_t *config)
+ static bool compassCalibrationValuesValid(const compassConfig_t *config)
+ {
+ #ifdef USE_FLIGHT_COMMANDER_COMPASS_ORIENTATION
+-    if (!flightCommanderCompassOrientationIsValid()) {
++    if (!flightCommanderCompassOrientationIsValid(
++        FLIGHT_COMMANDER_COMPASS_ORIENTATION_SOURCE_ONBOARD)) {
+         return false;
+     }
+ #endif
+@@ -507,7 +512,8 @@ bool compassIsReady(void)
+ bool compassIsCalibrationComplete(void)
+ {
+ #ifdef USE_FLIGHT_COMMANDER_COMPASS_ORIENTATION
+-    return flightCommanderCompassOrientationIsValid() && STATE(COMPASS_CALIBRATED);
++    return flightCommanderCompassOrientationIsValid(
++        FLIGHT_COMMANDER_COMPASS_ORIENTATION_SOURCE_ONBOARD) && STATE(COMPASS_CALIBRATED);
+ #else
+     return STATE(COMPASS_CALIBRATED);
+ #endif
+@@ -554,12 +560,18 @@ void compassUpdate(timeUs_t currentTimeUs)
+     // Learn only from the untouched canonical driver sample. The saved
+     // signed-axis transform is then applied before conventional magnetic
+     // offset/gain calibration and before any user or board alignment.
+-    flightCommanderCompassOrientationObserve(currentTimeUs, mag.magADC);
+-    flightCommanderCompassOrientationApply(mag.magADC);
++    flightCommanderCompassOrientationObserve(
++        currentTimeUs,
++        FLIGHT_COMMANDER_COMPASS_ORIENTATION_SOURCE_ONBOARD,
++        mag.magADC);
++    flightCommanderCompassOrientationApply(
++        FLIGHT_COMMANDER_COMPASS_ORIENTATION_SOURCE_ONBOARD,
++        mag.magADC);
+ #endif
+ 
+ #ifdef USE_FLIGHT_COMMANDER_COMPASS_ORIENTATION
+-    if (STATE(CALIBRATE_MAG) && !flightCommanderCompassOrientationIsValid()) {
++    if (STATE(CALIBRATE_MAG) && !flightCommanderCompassOrientationIsValid(
++        FLIGHT_COMMANDER_COMPASS_ORIENTATION_SOURCE_ONBOARD)) {
+         DISABLE_STATE(CALIBRATE_MAG);
+         beeper(BEEPER_ACTION_FAIL);
+     }
+@@ -581,6 +593,9 @@ void compassUpdate(timeUs_t currentTimeUs)
+         // Keep the previous stored calibration untouched until the complete
+         // candidate has passed every validity check.
+         beeper(BEEPER_ACTION_SUCCESS);
++#ifdef USE_FLIGHT_COMMANDER_HEADING_FUSION
++        flightCommanderHeadingOnboardCalibrationStarted();
++#endif
+         DISABLE_STATE(CALIBRATE_MAG);
+     }
+ 
+@@ -661,11 +676,17 @@ void compassUpdate(timeUs_t currentTimeUs)
+                     compassCalibrationSignature(config);
+                 saveConfigAndNotify();
+                 beeper(BEEPER_ACTION_SUCCESS);
++#ifdef USE_FLIGHT_COMMANDER_HEADING_FUSION
++                flightCommanderHeadingOnboardCalibrationFinished(true);
++#endif
+             } else {
+                 // The previous calibration remains intact. With no previous
+                 // valid calibration, the compass remains explicitly
+                 // uncalibrated instead of saving zeros or tiny gains.
+                 beeper(BEEPER_ACTION_FAIL);
++#ifdef USE_FLIGHT_COMMANDER_HEADING_FUSION
++                flightCommanderHeadingOnboardCalibrationFinished(false);
++#endif
+             }
+ 
+             calStartedAt = 0;

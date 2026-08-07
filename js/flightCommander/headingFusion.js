@@ -100,6 +100,81 @@ const EXTERNAL_MAG_HARDWARE_VALUES = new Set(
     EXTERNAL_MAG_HARDWARE.map(({ value }) => value),
 );
 
+export const EXTERNAL_COMPASS_SELECTION_DISABLED = 'disabled';
+export const EXTERNAL_COMPASS_SELECTION_DRONECAN = 'dronecan';
+const EXTERNAL_COMPASS_SELECTION_I2C_PREFIX = 'i2c:';
+
+export function externalI2cCompassSelection(hardware) {
+    const normalized = Number(hardware);
+    if (!Number.isInteger(normalized)
+        || normalized <= 0
+        || !EXTERNAL_MAG_HARDWARE_VALUES.has(normalized)) {
+        throw new RangeError('External I²C compass selection requires a supported non-zero hardware value.');
+    }
+    return `${EXTERNAL_COMPASS_SELECTION_I2C_PREFIX}${normalized}`;
+}
+
+export function selectedExternalCompass(config) {
+    if (config?.sources?.[HEADING_SOURCE_DRONECAN_MAG]?.enabled) {
+        return EXTERNAL_COMPASS_SELECTION_DRONECAN;
+    }
+    if (config?.sources?.[HEADING_SOURCE_EXTERNAL_I2C_MAG]?.enabled
+        && Number(config.externalMagHardware) > 0) {
+        return externalI2cCompassSelection(config.externalMagHardware);
+    }
+    return EXTERNAL_COMPASS_SELECTION_DISABLED;
+}
+
+function setHeadingSourceEnabled(config, sourceIndex, enabled) {
+    const source = config.sources[sourceIndex];
+    source.enabled = Boolean(enabled);
+    if (source.enabled) {
+        if (!Number.isFinite(Number(source.weight)) || Number(source.weight) <= 0) {
+            source.weight = defaultHeadingSourceWeight(sourceIndex);
+        }
+    } else {
+        source.weight = 0;
+    }
+}
+
+export function applyCompassSourceSelections(config, {
+    onboardHardware,
+    externalSelection,
+} = {}) {
+    if (!Array.isArray(config?.sources) || config.sources.length !== HEADING_SOURCE_COUNT) {
+        throw new RangeError(`Heading configuration requires exactly ${HEADING_SOURCE_COUNT} sources.`);
+    }
+
+    const onboard = Number(onboardHardware);
+    if (!Number.isInteger(onboard) || onboard < 0) {
+        throw new RangeError('Onboard compass hardware selection must be a non-negative integer.');
+    }
+    setHeadingSourceEnabled(config, HEADING_SOURCE_ONBOARD_MAG, onboard !== 0);
+
+    const selection = String(externalSelection ?? EXTERNAL_COMPASS_SELECTION_DISABLED);
+    if (selection === EXTERNAL_COMPASS_SELECTION_DISABLED) {
+        setHeadingSourceEnabled(config, HEADING_SOURCE_EXTERNAL_I2C_MAG, false);
+        setHeadingSourceEnabled(config, HEADING_SOURCE_DRONECAN_MAG, false);
+        config.externalMagHardware = 0;
+        return config;
+    }
+    if (selection === EXTERNAL_COMPASS_SELECTION_DRONECAN) {
+        setHeadingSourceEnabled(config, HEADING_SOURCE_EXTERNAL_I2C_MAG, false);
+        setHeadingSourceEnabled(config, HEADING_SOURCE_DRONECAN_MAG, true);
+        config.externalMagHardware = 0;
+        return config;
+    }
+    if (!selection.startsWith(EXTERNAL_COMPASS_SELECTION_I2C_PREFIX)) {
+        throw new RangeError(`Unsupported external compass selection ${selection}.`);
+    }
+    const hardware = Number(selection.slice(EXTERNAL_COMPASS_SELECTION_I2C_PREFIX.length));
+    externalI2cCompassSelection(hardware);
+    setHeadingSourceEnabled(config, HEADING_SOURCE_EXTERNAL_I2C_MAG, true);
+    setHeadingSourceEnabled(config, HEADING_SOURCE_DRONECAN_MAG, false);
+    config.externalMagHardware = hardware;
+    return config;
+}
+
 function viewOf(payload) {
     if (payload instanceof DataView) return payload;
     if (payload instanceof ArrayBuffer) return new DataView(payload);
@@ -329,9 +404,6 @@ export function validateHeadingConfig(config, dronecanConfig = {}) {
     }
     if (normalized.baselineToleranceCm >= normalized.expectedBaselineCm) {
         throw new RangeError('Antenna baseline tolerance must be smaller than the expected baseline.');
-    }
-    if (!normalized.sources.some((source) => source.enabled && source.weight > 0)) {
-        throw new RangeError('Enable at least one heading source with a non-zero weight.');
     }
     const activePriorities = normalized.sources
         .filter((source) => source.enabled && source.weight > 0)

@@ -826,7 +826,6 @@ static bool validateConfig(const flightCommanderHeadingConfig_t *config)
     }
 
     uint8_t priorities = 0;
-    bool anyEnabled = false;
     for (unsigned index = 0; index < FLIGHT_COMMANDER_HEADING_SOURCE_COUNT; index++) {
         const flightCommanderHeadingSourceConfig_t *source = &config->sources[index];
         if (source->priority < 1 || source->priority > FLIGHT_COMMANDER_HEADING_SOURCE_COUNT ||
@@ -839,10 +838,9 @@ static bool validateConfig(const flightCommanderHeadingConfig_t *config)
                 return false;
             }
             priorities |= 1U << source->priority;
-            anyEnabled = true;
         }
     }
-    if (!anyEnabled || config->movingBaselineEnabled != config->sources[FLIGHT_COMMANDER_HEADING_MOVING_BASELINE].enabled) {
+    if (config->movingBaselineEnabled != config->sources[FLIGHT_COMMANDER_HEADING_MOVING_BASELINE].enabled) {
         return false;
     }
     if (config->sources[FLIGHT_COMMANDER_HEADING_EXTERNAL_I2C_MAG].enabled &&
