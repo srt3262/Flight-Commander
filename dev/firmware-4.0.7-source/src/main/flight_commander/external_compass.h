@@ -20,6 +20,7 @@
 void flightCommanderExternalCompassInit(void);
 void flightCommanderExternalCompassUpdate(timeUs_t currentTimeUs);
 bool flightCommanderExternalCompassIsConfigured(void);
+bool flightCommanderExternalCompassIsDetected(void);
 bool flightCommanderExternalCompassHardwareSupported(uint8_t hardware);
 bool flightCommanderExternalCompassGetSample(fpVector3_t *raw, timeMs_t *updatedAtMs);
 
