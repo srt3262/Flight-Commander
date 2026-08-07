@@ -1,0 +1,108 @@
+name: One-time Flight Commander 4.0.6 finalizer bootstrap
+
+"on":
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: write
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: bootstrap-flight-commander-4.0.6-finalizer-v2
+  cancel-in-progress: true
+
+jobs:
+  dispatch:
+    name: Dispatch hardened 4.0.6 finalizer once
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out main
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Dispatch or locate the hardened finalizer
+        id: run
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          workflow='finalize-flight-commander-4.0.6-release-v2.yml'
+          active="$(gh run list \
+            --repo "$GITHUB_REPOSITORY" \
+            --workflow "$workflow" \
+            --limit 20 \
+            --json databaseId,url,status,event,createdAt,headSha \
+            --jq 'if length == 0 then "" else ([.[] | select(.status != "completed")][0] // {}) | if has("databaseId") then "\(.databaseId)\t\(.url)\t\(.status)\t\(.event)\t\(.createdAt)\t\(.headSha)" else "" end end')"
+          if [[ -n "$active" ]]; then
+            run="$active"
+          else
+            before="$(date -u +%s)"
+            gh workflow run "$workflow" --repo "$GITHUB_REPOSITORY" --ref main
+            run=''
+            for attempt in {1..24}; do
+              candidate="$(gh run list \
+                --repo "$GITHUB_REPOSITORY" \
+                --workflow "$workflow" \
+                --event workflow_dispatch \
+                --limit 5 \
+                --json databaseId,url,status,event,createdAt,headSha \
+                --jq 'if length == 0 then "" else .[0] | "\(.databaseId)\t\(.url)\t\(.status)\t\(.event)\t\(.createdAt)\t\(.headSha)" end')"
+              if [[ -n "$candidate" ]]; then
+                created="$(cut -f5 <<< "$candidate")"
+                created_epoch="$(date -u -d "$created" +%s)"
+                if (( created_epoch >= before )); then
+                  run="$candidate"
+                  break
+                fi
+              fi
+              sleep 5
+            done
+          fi
+          if [[ -z "$run" ]]; then
+            echo 'Finalizer dispatch was accepted but no run was listed within the bootstrap window.' >&2
+            exit 1
+          fi
+          IFS=$'\t' read -r run_id run_url run_status run_event created_at head_sha <<< "$run"
+          {
+            echo "run_id=$run_id"
+            echo "run_url=$run_url"
+            echo "run_status=$run_status"
+            echo "run_event=$run_event"
+            echo "created_at=$created_at"
+            echo "head_sha=$head_sha"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Report the real finalizer run
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ steps.run.outputs.run_id }}
+          RUN_URL: ${{ steps.run.outputs.run_url }}
+          RUN_STATUS: ${{ steps.run.outputs.run_status }}
+          RUN_EVENT: ${{ steps.run.outputs.run_event }}
+          CREATED_AT: ${{ steps.run.outputs.created_at }}
+          HEAD_SHA: ${{ steps.run.outputs.head_sha }}
+        run: |
+          set -euo pipefail
+          gh issue comment 21 --repo "$GITHUB_REPOSITORY" --body \
+            "Hardened Flight Commander 4.0.6 finalizer run **${RUN_ID}** is ${RUN_STATUS} (event: ${RUN_EVENT}, head: ${HEAD_SHA}): ${RUN_URL} — created ${CREATED_AT}."
+
+      - name: Remove this one-time bootstrap
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm -f .github/workflows/bootstrap-flight-commander-4.0.6-finalizer-v2.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'ci: remove one-time 4.0.6 finalizer bootstrap'
+          git push origin HEAD:main
