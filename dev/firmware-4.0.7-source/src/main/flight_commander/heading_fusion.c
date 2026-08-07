@@ -18,6 +18,7 @@
 #include "fc/runtime_config.h"
 #include "flight/imu.h"
 #include "flight_commander/external_compass.h"
+#include "flight_commander/compass_orientation.h"
 #include "flight_commander/heading_fusion.h"
 #include "io/gps.h"
 #include "io/gps_dronecan.h"
@@ -99,6 +100,7 @@ static uint32_t dronecanRawSequence;
 static uint8_t dronecanRawNodeID;
 static timeUs_t customMagCalibrationStartedAtUs;
 static bool customMagCalibrationActive;
+static uint8_t activeFieldCalibrationSource = FLIGHT_COMMANDER_HEADING_SOURCE_NONE;
 static bool calibrationVectorIsPlausible(const int16_t zero[XYZ_AXIS_COUNT],
     const int16_t gain[XYZ_AXIS_COUNT]);
 static uint16_t normalizeHeading(int32_t headingCentidegrees);
@@ -244,6 +246,7 @@ void flightCommanderHeadingInit(void)
     dronecanRawNodeID = DRONECAN_NODE_ID_DISABLED;
     customMagCalibrationStartedAtUs = 0;
     customMagCalibrationActive = false;
+    activeFieldCalibrationSource = FLIGHT_COMMANDER_HEADING_SOURCE_NONE;
     headingStatus.anchorSource = FLIGHT_COMMANDER_HEADING_SOURCE_NONE;
     headingStatus.baselineNodeID = DRONECAN_NODE_ID_DISABLED;
 
@@ -339,62 +342,81 @@ static bool headingSourceIsCalibrated(unsigned index, const flightCommanderHeadi
     }
 }
 
+bool flightCommanderHeadingCompassSourcePresent(uint8_t source)
+{
+    switch (source) {
+    case FLIGHT_COMMANDER_HEADING_ONBOARD_MAG:
+        return sensors(SENSOR_MAG);
+    case FLIGHT_COMMANDER_HEADING_EXTERNAL_I2C_MAG:
+        return flightCommanderExternalCompassIsConfigured() &&
+            flightCommanderExternalCompassIsDetected();
+    case FLIGHT_COMMANDER_HEADING_DRONECAN_MAG:
+        return flightCommanderHeadingConfig()->sources[source].enabled &&
+            dronecanRawSequence != 0 &&
+            flightCommanderHeadingCompassNodeID(source) != 0;
+    default:
+        return false;
+    }
+}
+
+uint8_t flightCommanderHeadingCompassNodeID(uint8_t source)
+{
+    if (source != FLIGHT_COMMANDER_HEADING_DRONECAN_MAG) {
+        return 0;
+    }
+    if (dronecanRawNodeID != DRONECAN_NODE_ID_DISABLED && dronecanRawNodeID != 0) {
+        return dronecanRawNodeID;
+    }
+    if (flightCommanderHeadingConfig()->dronecanMagCalibrationNodeID != 0) {
+        return flightCommanderHeadingConfig()->dronecanMagCalibrationNodeID;
+    }
+    const uint8_t configured = dronecanConfig()->magNodeID;
+    return configured > 0 && configured <= 127 ? configured : 0;
+}
+
+bool flightCommanderHeadingCompassFieldCalibrated(uint8_t source)
+{
+    switch (source) {
+    case FLIGHT_COMMANDER_HEADING_ONBOARD_MAG:
+        return onboardMagIsCalibrated();
+    case FLIGHT_COMMANDER_HEADING_EXTERNAL_I2C_MAG:
+        return externalMagIsCalibrated(flightCommanderHeadingConfig());
+    case FLIGHT_COMMANDER_HEADING_DRONECAN_MAG:
+        return dronecanMagIsCalibrated(flightCommanderHeadingConfig());
+    default:
+        return false;
+    }
+}
+
+void flightCommanderHeadingInvalidateCompassFieldCalibration(uint8_t source)
+{
+    flightCommanderHeadingConfig_t *config = flightCommanderHeadingConfigMutable();
+    if (source == FLIGHT_COMMANDER_HEADING_EXTERNAL_I2C_MAG) {
+        for (unsigned axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
+            config->externalMagZero[axis] = 0;
+            config->externalMagGain[axis] = 1024;
+        }
+    } else if (source == FLIGHT_COMMANDER_HEADING_DRONECAN_MAG) {
+        for (unsigned axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
+            config->dronecanMagZeroMilliGauss[axis] = 0;
+            config->dronecanMagGainMilliGauss[axis] = 0;
+        }
+        config->dronecanMagCalibrationNodeID = 0;
+    } else {
+        return;
+    }
+    headingStatus.calibratedMask &= ~(1U << source);
+    headingStatus.calibratingMask &= ~(1U << source);
+    headingStatus.calibrationFailedMask &= ~(1U << source);
+}
+
 static void resetCustomCalibrationContext(customMagCalibration_t *context)
 {
     memset(context, 0, sizeof(*context));
 }
 
-static void startCustomMagCalibration(timeUs_t currentTimeUs)
-{
-    flightCommanderHeadingConfig_t *config = flightCommanderHeadingConfigMutable();
-    memset(customMagCalibration, 0, sizeof(customMagCalibration));
-    headingStatus.calibratingMask = 0;
-    headingStatus.calibrationFailedMask = 0;
-
-    if (sensors(SENSOR_MAG) && config->sources[FLIGHT_COMMANDER_HEADING_ONBOARD_MAG].enabled) {
-        // The onboard sensor remains entirely on INAV's normal calibration
-        // path.  This bit only exposes progress to the Configurator while the
-        // external and DroneCAN sources use Flight Commander's custom solver.
-        headingStatus.calibratingMask |= 1U << FLIGHT_COMMANDER_HEADING_ONBOARD_MAG;
-    }
-
-    customMagCalibration_t *external =
-        &customMagCalibration[FLIGHT_COMMANDER_HEADING_EXTERNAL_I2C_MAG];
-    if (flightCommanderExternalCompassIsConfigured()) {
-        resetCustomCalibrationContext(external);
-        external->enabled = true;
-        fpVector3_t raw;
-        timeMs_t updatedAtMs;
-        if (flightCommanderExternalCompassGetSample(&raw, &updatedAtMs)) {
-            external->lastSequence = updatedAtMs;
-        }
-        headingStatus.calibratingMask |= 1U << FLIGHT_COMMANDER_HEADING_EXTERNAL_I2C_MAG;
-    }
-
-    customMagCalibration_t *dronecan =
-        &customMagCalibration[FLIGHT_COMMANDER_HEADING_DRONECAN_MAG];
-    if (config->sources[FLIGHT_COMMANDER_HEADING_DRONECAN_MAG].enabled &&
-        dronecanConfig()->magNodeID != DRONECAN_NODE_ID_DISABLED) {
-        resetCustomCalibrationContext(dronecan);
-        dronecan->enabled = true;
-        dronecan->lastSequence = dronecanRawSequence;
-        if (dronecanConfig()->magNodeID == DRONECAN_NODE_ID_AUTO) {
-            dronecan->nodeID = dronecanRawNodeID == DRONECAN_NODE_ID_DISABLED ? 0 : dronecanRawNodeID;
-        } else {
-            dronecan->nodeID = dronecanConfig()->magNodeID;
-        }
-        headingStatus.calibratingMask |= 1U << FLIGHT_COMMANDER_HEADING_DRONECAN_MAG;
-    }
-
-    customMagCalibrationStartedAtUs = currentTimeUs;
-    customMagCalibrationActive = true;
-    if (!sensors(SENSOR_MAG)) {
-        // There is no official onboard compass task to consume this trigger.
-        DISABLE_STATE(CALIBRATE_MAG);
-    }
-}
-
-static void pushCustomMagCalibrationSample(customMagCalibration_t *context, const fpVector3_t *sample)
+static void pushCustomMagCalibrationSample(customMagCalibration_t *context,
+    const fpVector3_t *sample)
 {
     if (!context->extremaValid) {
         context->minimum = *sample;
@@ -427,7 +449,8 @@ static void pushCustomMagCalibrationSample(customMagCalibration_t *context, cons
     }
 }
 
-static bool solveCustomMagCalibration(customMagCalibration_t *context, float zero[XYZ_AXIS_COUNT],
+static bool solveCustomMagCalibration(customMagCalibration_t *context,
+    float zero[XYZ_AXIS_COUNT],
     float gain[XYZ_AXIS_COUNT])
 {
     if (!context->enabled || !context->extremaValid ||
@@ -453,15 +476,111 @@ static bool solveCustomMagCalibration(customMagCalibration_t *context, float zer
     return true;
 }
 
+static bool prepareCustomCalibration(uint8_t source, timeUs_t currentTimeUs)
+{
+    customMagCalibration_t *context = &customMagCalibration[source];
+    resetCustomCalibrationContext(context);
+    context->enabled = true;
+
+    if (source == FLIGHT_COMMANDER_HEADING_EXTERNAL_I2C_MAG) {
+        fpVector3_t raw;
+        timeMs_t updatedAtMs;
+        if (flightCommanderExternalCompassGetSample(&raw, &updatedAtMs)) {
+            context->lastSequence = updatedAtMs;
+        }
+    } else if (source == FLIGHT_COMMANDER_HEADING_DRONECAN_MAG) {
+        context->lastSequence = dronecanRawSequence;
+        context->nodeID = flightCommanderHeadingCompassNodeID(source);
+        if (context->nodeID == 0) {
+            return false;
+        }
+    } else {
+        return false;
+    }
+
+    customMagCalibrationStartedAtUs = currentTimeUs;
+    customMagCalibrationActive = true;
+    activeFieldCalibrationSource = source;
+    headingStatus.calibratingMask |= 1U << source;
+    return true;
+}
+
+bool flightCommanderHeadingStartCompassFieldCalibration(uint8_t source)
+{
+    if (ARMING_FLAG(ARMED) || source >= FLIGHT_COMMANDER_HEADING_MOVING_BASELINE ||
+        activeFieldCalibrationSource != FLIGHT_COMMANDER_HEADING_SOURCE_NONE ||
+        !flightCommanderHeadingCompassSourcePresent(source)) {
+        return false;
+    }
+#ifdef USE_FLIGHT_COMMANDER_COMPASS_ORIENTATION
+    if (!flightCommanderCompassOrientationIsValid(source)) {
+        return false;
+    }
+#endif
+
+    headingStatus.calibrationFailedMask &= ~(1U << source);
+    headingStatus.calibratingMask &= ~(1U << source);
+    activeFieldCalibrationSource = source;
+    if (source == FLIGHT_COMMANDER_HEADING_ONBOARD_MAG) {
+        headingStatus.calibratingMask |= 1U << source;
+        ENABLE_STATE(CALIBRATE_MAG);
+        return true;
+    }
+    if (!prepareCustomCalibration(source, micros())) {
+        activeFieldCalibrationSource = FLIGHT_COMMANDER_HEADING_SOURCE_NONE;
+        headingStatus.calibrationFailedMask |= 1U << source;
+        return false;
+    }
+    return true;
+}
+
+bool flightCommanderHeadingReadCompassCalibrationCommand(sbuf_t *src)
+{
+    if (sbufBytesRemaining(src) !=
+            FLIGHT_COMMANDER_COMPASS_CALIBRATION_COMMAND_PAYLOAD_SIZE ||
+        sbufReadU8(src) != FLIGHT_COMMANDER_COMPASS_CALIBRATION_COMMAND_SCHEMA) {
+        return false;
+    }
+    const uint8_t command = sbufReadU8(src);
+    const uint8_t source = sbufReadU8(src);
+    (void)sbufReadU8(src);
+    return command == FLIGHT_COMMANDER_COMPASS_CALIBRATION_COMMAND_START &&
+        flightCommanderHeadingStartCompassFieldCalibration(source);
+}
+
+void flightCommanderHeadingOnboardCalibrationStarted(void)
+{
+    if (activeFieldCalibrationSource == FLIGHT_COMMANDER_HEADING_ONBOARD_MAG) {
+        headingStatus.calibratingMask |= 1U << FLIGHT_COMMANDER_HEADING_ONBOARD_MAG;
+    }
+}
+
+void flightCommanderHeadingOnboardCalibrationFinished(bool success)
+{
+    if (activeFieldCalibrationSource != FLIGHT_COMMANDER_HEADING_ONBOARD_MAG) {
+        return;
+    }
+    headingStatus.calibratingMask &= ~(1U << FLIGHT_COMMANDER_HEADING_ONBOARD_MAG);
+    if (success) {
+        headingStatus.calibrationFailedMask &= ~(1U << FLIGHT_COMMANDER_HEADING_ONBOARD_MAG);
+    } else {
+        headingStatus.calibrationFailedMask |= 1U << FLIGHT_COMMANDER_HEADING_ONBOARD_MAG;
+    }
+    activeFieldCalibrationSource = FLIGHT_COMMANDER_HEADING_SOURCE_NONE;
+}
+
 static void finishCustomMagCalibration(void)
 {
+    const uint8_t source = activeFieldCalibrationSource;
     flightCommanderHeadingConfig_t *config = flightCommanderHeadingConfigMutable();
+    customMagCalibration_t *context = source < FLIGHT_COMMANDER_HEADING_MOVING_BASELINE
+        ? &customMagCalibration[source]
+        : NULL;
     float zero[XYZ_AXIS_COUNT];
     float gain[XYZ_AXIS_COUNT];
-    customMagCalibration_t *external =
-        &customMagCalibration[FLIGHT_COMMANDER_HEADING_EXTERNAL_I2C_MAG];
-    if (external->enabled) {
-        bool valid = solveCustomMagCalibration(external, zero, gain);
+    bool valid = context && solveCustomMagCalibration(context, zero, gain);
+
+    if (source == FLIGHT_COMMANDER_HEADING_EXTERNAL_I2C_MAG) {
         for (unsigned axis = 0; valid && axis < XYZ_AXIS_COUNT; axis++) {
             valid = zero[axis] >= INT16_MIN && zero[axis] <= INT16_MAX &&
                 gain[axis] <= INT16_MAX;
@@ -471,69 +590,76 @@ static void finishCustomMagCalibration(void)
                 config->externalMagZero[axis] = lrintf(zero[axis]);
                 config->externalMagGain[axis] = lrintf(gain[axis]);
             }
-        } else {
-            headingStatus.calibrationFailedMask |=
-                1U << FLIGHT_COMMANDER_HEADING_EXTERNAL_I2C_MAG;
         }
-    }
-
-    customMagCalibration_t *dronecan =
-        &customMagCalibration[FLIGHT_COMMANDER_HEADING_DRONECAN_MAG];
-    if (dronecan->enabled) {
-        bool valid = dronecan->nodeID != 0 && solveCustomMagCalibration(dronecan, zero, gain);
+    } else if (source == FLIGHT_COMMANDER_HEADING_DRONECAN_MAG) {
+        valid = valid && context->nodeID != 0;
         for (unsigned axis = 0; valid && axis < XYZ_AXIS_COUNT; axis++) {
             valid = zero[axis] >= INT16_MIN && zero[axis] <= INT16_MAX &&
                 gain[axis] <= 5000.0F;
         }
         if (valid) {
-            config->dronecanMagCalibrationNodeID = dronecan->nodeID;
+            config->dronecanMagCalibrationNodeID = context->nodeID;
             for (unsigned axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
                 config->dronecanMagZeroMilliGauss[axis] = lrintf(zero[axis]);
                 config->dronecanMagGainMilliGauss[axis] = lrintf(gain[axis]);
             }
-        } else {
-            headingStatus.calibrationFailedMask |=
-                1U << FLIGHT_COMMANDER_HEADING_DRONECAN_MAG;
         }
+    } else {
+        valid = false;
     }
 
-    headingStatus.calibratingMask = 0;
+    if (!valid && source < FLIGHT_COMMANDER_HEADING_MOVING_BASELINE) {
+        headingStatus.calibrationFailedMask |= 1U << source;
+    } else if (valid) {
+        headingStatus.calibrationFailedMask &= ~(1U << source);
+    }
+    if (source < FLIGHT_COMMANDER_HEADING_MOVING_BASELINE) {
+        headingStatus.calibratingMask &= ~(1U << source);
+    }
+    memset(customMagCalibration, 0, sizeof(customMagCalibration));
     customMagCalibrationActive = false;
     customMagCalibrationStartedAtUs = 0;
+    activeFieldCalibrationSource = FLIGHT_COMMANDER_HEADING_SOURCE_NONE;
     saveConfigAndNotify();
+}
+
+static fpVector3_t orientedCalibrationSample(uint8_t source, const fpVector3_t *raw)
+{
+    float values[XYZ_AXIS_COUNT] = { raw->x, raw->y, raw->z };
+#ifdef USE_FLIGHT_COMMANDER_COMPASS_ORIENTATION
+    flightCommanderCompassOrientationApply(source, values);
+#endif
+    return (fpVector3_t){ .v = { values[X], values[Y], values[Z] } };
 }
 
 void flightCommanderHeadingCalibrationUpdate(timeUs_t currentTimeUs)
 {
-    if (STATE(CALIBRATE_MAG) && !customMagCalibrationActive) {
-        startCustomMagCalibration(currentTimeUs);
-    }
-    if (!customMagCalibrationActive) {
+    if (!customMagCalibrationActive ||
+        activeFieldCalibrationSource >= FLIGHT_COMMANDER_HEADING_MOVING_BASELINE) {
         return;
     }
 
-
-    customMagCalibration_t *external =
-        &customMagCalibration[FLIGHT_COMMANDER_HEADING_EXTERNAL_I2C_MAG];
-    if (external->enabled) {
+    customMagCalibration_t *context =
+        &customMagCalibration[activeFieldCalibrationSource];
+    if (activeFieldCalibrationSource == FLIGHT_COMMANDER_HEADING_EXTERNAL_I2C_MAG) {
         fpVector3_t raw;
         timeMs_t updatedAtMs;
         if (flightCommanderExternalCompassGetSample(&raw, &updatedAtMs) &&
-            updatedAtMs != external->lastSequence) {
-            external->lastSequence = updatedAtMs;
-            pushCustomMagCalibrationSample(external, &raw);
+            updatedAtMs != context->lastSequence) {
+            context->lastSequence = updatedAtMs;
+            const fpVector3_t oriented = orientedCalibrationSample(
+                activeFieldCalibrationSource, &raw);
+            pushCustomMagCalibrationSample(context, &oriented);
         }
+    } else if (activeFieldCalibrationSource == FLIGHT_COMMANDER_HEADING_DRONECAN_MAG &&
+        dronecanRawSequence != context->lastSequence &&
+        dronecanRawNodeID == context->nodeID) {
+        context->lastSequence = dronecanRawSequence;
+        pushCustomMagCalibrationSample(context, &dronecanRawMilliGauss);
     }
 
-    customMagCalibration_t *dronecan =
-        &customMagCalibration[FLIGHT_COMMANDER_HEADING_DRONECAN_MAG];
-    if (dronecan->enabled && dronecanRawSequence != dronecan->lastSequence &&
-        dronecanRawNodeID == dronecan->nodeID) {
-        dronecan->lastSequence = dronecanRawSequence;
-        pushCustomMagCalibrationSample(dronecan, &dronecanRawMilliGauss);
-    }
-
-    const timeUs_t durationUs = (timeUs_t)compassConfig()->magCalibrationTimeLimit * 1000000U;
+    const timeUs_t durationUs =
+        (timeUs_t)compassConfig()->magCalibrationTimeLimit * 1000000U;
     if (currentTimeUs - customMagCalibrationStartedAtUs >= durationUs) {
         finishCustomMagCalibration();
     }
@@ -550,10 +676,18 @@ static void updateExternalCompassSample(void)
     externalSampleProcessed = true;
     externalSampleProcessedAtMs = updatedAtMs;
 
+    float native[XYZ_AXIS_COUNT] = { raw.x, raw.y, raw.z };
+#ifdef USE_FLIGHT_COMMANDER_COMPASS_ORIENTATION
+    flightCommanderCompassOrientationObserve(
+        micros(), FLIGHT_COMMANDER_HEADING_EXTERNAL_I2C_MAG, native);
+    flightCommanderCompassOrientationApply(
+        FLIGHT_COMMANDER_HEADING_EXTERNAL_I2C_MAG, native);
+#endif
+
     const flightCommanderHeadingConfig_t *config = flightCommanderHeadingConfig();
     fpVector3_t corrected;
     for (unsigned axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
-        corrected.v[axis] = (raw.v[axis] - config->externalMagZero[axis]) *
+        corrected.v[axis] = (native[axis] - config->externalMagZero[axis]) *
             1024.0F / config->externalMagGain[axis];
     }
 
@@ -968,9 +1102,22 @@ void flightCommanderHeadingReceiveDronecanMag(
         config->dronecanMagCalibrationNodeID != sourceNodeID) {
         return;
     }
+
+    float native[XYZ_AXIS_COUNT];
+    for (unsigned axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
+        native[axis] = message->magnetic_field_ga[axis] * 1000.0F;
+    }
+    dronecanRawNodeID = sourceNodeID;
+#ifdef USE_FLIGHT_COMMANDER_COMPASS_ORIENTATION
+    flightCommanderCompassOrientationObserve(
+        micros(), FLIGHT_COMMANDER_HEADING_DRONECAN_MAG, native);
+    flightCommanderCompassOrientationApply(
+        FLIGHT_COMMANDER_HEADING_DRONECAN_MAG, native);
+#endif
+
     fpVector3_t corrected;
-    for (unsigned axis = 0; axis < 3; axis++) {
-        dronecanRawMilliGauss.v[axis] = message->magnetic_field_ga[axis] * 1000.0F;
+    for (unsigned axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
+        dronecanRawMilliGauss.v[axis] = native[axis];
         corrected.v[axis] = dronecanRawMilliGauss.v[axis] -
             config->dronecanMagZeroMilliGauss[axis];
         if (config->dronecanMagGainMilliGauss[axis]) {
@@ -978,7 +1125,6 @@ void flightCommanderHeadingReceiveDronecanMag(
                 config->dronecanMagGainMilliGauss[axis];
         }
     }
-    dronecanRawNodeID = sourceNodeID;
     dronecanRawSequence++;
 
     const fp_angles_t alignmentAngles = {

@@ -2197,6 +2197,15 @@ static mspResult_e mspFcProcessInCommand(uint16_t cmdMSP, sbuf_t *src)
         break;
 #endif
 
+#ifdef USE_FLIGHT_COMMANDER_HEADING_FUSION
+    case MSP2_FLIGHT_COMMANDER_COMPASS_CALIBRATION_COMMAND:
+        if (ARMING_FLAG(ARMED) ||
+            !flightCommanderHeadingReadCompassCalibrationCommand(src)) {
+            return MSP_RESULT_ERROR;
+        }
+        break;
+#endif
+
     case MSP_SELECT_SETTING:
         if (sbufReadU8Safe(&tmp_u8, src) && (!ARMING_FLAG(ARMED)))
             setConfigProfileAndWriteEEPROM(tmp_u8);
@@ -3064,10 +3073,18 @@ static mspResult_e mspFcProcessInCommand(uint16_t cmdMSP, sbuf_t *src)
         break;
 
     case MSP_MAG_CALIBRATION:
+#ifdef USE_FLIGHT_COMMANDER_HEADING_FUSION
+        if (ARMING_FLAG(ARMED) ||
+            !flightCommanderHeadingStartCompassFieldCalibration(
+                FLIGHT_COMMANDER_HEADING_ONBOARD_MAG)) {
+            return MSP_RESULT_ERROR;
+        }
+#else
         if (!ARMING_FLAG(ARMED))
             ENABLE_STATE(CALIBRATE_MAG);
         else
             return MSP_RESULT_ERROR;
+#endif
         break;
 
 #ifdef USE_OPFLOW

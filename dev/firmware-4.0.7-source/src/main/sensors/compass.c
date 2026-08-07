@@ -64,6 +64,9 @@
 
 #ifdef USE_FLIGHT_COMMANDER_COMPASS_ORIENTATION
 #include "flight_commander/compass_orientation.h"
+#ifdef USE_FLIGHT_COMMANDER_HEADING_FUSION
+#include "flight_commander/heading_fusion.h"
+#endif
 #endif
 
 mag_t mag;                   // mag access functions
@@ -138,7 +141,8 @@ static uint32_t compassCalibrationSignature(const compassConfig_t *config)
 #ifdef USE_FLIGHT_COMMANDER_COMPASS_ORIENTATION
     signature = compassCalibrationSignatureMix(
         signature,
-        flightCommanderCompassOrientationGeneration()
+        flightCommanderCompassOrientationGeneration(
+            FLIGHT_COMMANDER_COMPASS_ORIENTATION_SOURCE_ONBOARD)
     );
 #endif
     signature = compassCalibrationSignatureMix(
@@ -169,7 +173,8 @@ static uint32_t compassCalibrationSignature(const compassConfig_t *config)
 static bool compassCalibrationValuesValid(const compassConfig_t *config)
 {
 #ifdef USE_FLIGHT_COMMANDER_COMPASS_ORIENTATION
-    if (!flightCommanderCompassOrientationIsValid()) {
+    if (!flightCommanderCompassOrientationIsValid(
+        FLIGHT_COMMANDER_COMPASS_ORIENTATION_SOURCE_ONBOARD)) {
         return false;
     }
 #endif
@@ -507,7 +512,8 @@ bool compassIsReady(void)
 bool compassIsCalibrationComplete(void)
 {
 #ifdef USE_FLIGHT_COMMANDER_COMPASS_ORIENTATION
-    return flightCommanderCompassOrientationIsValid() && STATE(COMPASS_CALIBRATED);
+    return flightCommanderCompassOrientationIsValid(
+        FLIGHT_COMMANDER_COMPASS_ORIENTATION_SOURCE_ONBOARD) && STATE(COMPASS_CALIBRATED);
 #else
     return STATE(COMPASS_CALIBRATED);
 #endif
@@ -554,12 +560,18 @@ void compassUpdate(timeUs_t currentTimeUs)
     // Learn only from the untouched canonical driver sample. The saved
     // signed-axis transform is then applied before conventional magnetic
     // offset/gain calibration and before any user or board alignment.
-    flightCommanderCompassOrientationObserve(currentTimeUs, mag.magADC);
-    flightCommanderCompassOrientationApply(mag.magADC);
+    flightCommanderCompassOrientationObserve(
+        currentTimeUs,
+        FLIGHT_COMMANDER_COMPASS_ORIENTATION_SOURCE_ONBOARD,
+        mag.magADC);
+    flightCommanderCompassOrientationApply(
+        FLIGHT_COMMANDER_COMPASS_ORIENTATION_SOURCE_ONBOARD,
+        mag.magADC);
 #endif
 
 #ifdef USE_FLIGHT_COMMANDER_COMPASS_ORIENTATION
-    if (STATE(CALIBRATE_MAG) && !flightCommanderCompassOrientationIsValid()) {
+    if (STATE(CALIBRATE_MAG) && !flightCommanderCompassOrientationIsValid(
+        FLIGHT_COMMANDER_COMPASS_ORIENTATION_SOURCE_ONBOARD)) {
         DISABLE_STATE(CALIBRATE_MAG);
         beeper(BEEPER_ACTION_FAIL);
     }
@@ -581,6 +593,9 @@ void compassUpdate(timeUs_t currentTimeUs)
         // Keep the previous stored calibration untouched until the complete
         // candidate has passed every validity check.
         beeper(BEEPER_ACTION_SUCCESS);
+#ifdef USE_FLIGHT_COMMANDER_HEADING_FUSION
+        flightCommanderHeadingOnboardCalibrationStarted();
+#endif
         DISABLE_STATE(CALIBRATE_MAG);
     }
 
@@ -661,11 +676,17 @@ void compassUpdate(timeUs_t currentTimeUs)
                     compassCalibrationSignature(config);
                 saveConfigAndNotify();
                 beeper(BEEPER_ACTION_SUCCESS);
+#ifdef USE_FLIGHT_COMMANDER_HEADING_FUSION
+                flightCommanderHeadingOnboardCalibrationFinished(true);
+#endif
             } else {
                 // The previous calibration remains intact. With no previous
                 // valid calibration, the compass remains explicitly
                 // uncalibrated instead of saving zeros or tiny gains.
                 beeper(BEEPER_ACTION_FAIL);
+#ifdef USE_FLIGHT_COMMANDER_HEADING_FUSION
+                flightCommanderHeadingOnboardCalibrationFinished(false);
+#endif
             }
 
             calStartedAt = 0;
