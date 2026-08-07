@@ -1,0 +1,129 @@
+name: Repair and dispatch Flight Commander 4.0.6 finalizer
+
+"on":
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/repair-and-dispatch-flight-commander-4.0.6-finalizer.yml
+  workflow_dispatch:
+  schedule:
+    - cron: '*/5 * * * *'
+
+permissions:
+  actions: write
+  contents: write
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: repair-and-dispatch-flight-commander-4.0.6-finalizer
+  cancel-in-progress: true
+
+jobs:
+  repair-dispatch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out main
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Replace stale generated ZIP checksums in finalizer
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('.github/workflows/finalize-flight-commander-4.0.6-release-v2.yml')
+          text = path.read_text(encoding='utf-8')
+          replacements = {
+              'ba6f5295a0233851f0d37b1f34f78efeb3c240dcd0eb46dbd84fa926a0119904':
+                  'ba6f5295abbfaf609a5818ec2f4918683ee019fb153e3f6437ad1e14b4b31496',
+              'eaf47f3a9fa38aa0af44478fe2f8b194a3f658ee24384ed56a6ea1ea3671cd10':
+                  '57498121111860b305ec07fc5dc5df76911755efe38796dd537dbe953d766cff',
+          }
+          for old, new in replacements.items():
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'Expected exactly one stale checksum {old}; found {count}')
+              text = text.replace(old, new)
+          path.write_text(text, encoding='utf-8')
+          print('Updated finalizer to the exact verified artifact checksums.')
+          PY
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .github/workflows/finalize-flight-commander-4.0.6-release-v2.yml
+          git commit -m 'ci: bind 4.0.6 finalizer to verified release artifact'
+          git push origin HEAD:main
+
+      - name: Dispatch repaired finalizer and capture real run
+        id: dispatch
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          workflow='finalize-flight-commander-4.0.6-release-v2.yml'
+          before="$(date -u +%s)"
+          gh workflow run "$workflow" --repo "$GITHUB_REPOSITORY" --ref main
+          run=''
+          for attempt in {1..30}; do
+            candidate="$(gh run list \
+              --repo "$GITHUB_REPOSITORY" \
+              --workflow "$workflow" \
+              --event workflow_dispatch \
+              --limit 5 \
+              --json databaseId,url,status,event,createdAt,headSha \
+              --jq 'if length == 0 then "" else .[0] | "\(.databaseId)\t\(.url)\t\(.status)\t\(.event)\t\(.createdAt)\t\(.headSha)" end')"
+            if [[ -n "$candidate" ]]; then
+              created="$(cut -f5 <<< "$candidate")"
+              created_epoch="$(date -u -d "$created" +%s)"
+              if (( created_epoch >= before )); then
+                run="$candidate"
+                break
+              fi
+            fi
+            sleep 4
+          done
+          if [[ -z "$run" ]]; then
+            echo 'Repaired finalizer was dispatched but its run was not listed.' >&2
+            exit 1
+          fi
+          IFS=$'\t' read -r run_id run_url run_status run_event created_at head_sha <<< "$run"
+          {
+            echo "run_id=$run_id"
+            echo "run_url=$run_url"
+            echo "run_status=$run_status"
+            echo "head_sha=$head_sha"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Report repaired finalizer run
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ steps.dispatch.outputs.run_id }}
+          RUN_URL: ${{ steps.dispatch.outputs.run_url }}
+          RUN_STATUS: ${{ steps.dispatch.outputs.run_status }}
+          HEAD_SHA: ${{ steps.dispatch.outputs.head_sha }}
+        run: |
+          set -euo pipefail
+          gh issue comment 21 --repo "$GITHUB_REPOSITORY" --body \
+            "Repaired Flight Commander 4.0.6 finalizer run **${RUN_ID}** is ${RUN_STATUS} on head \`${HEAD_SHA}\`: ${RUN_URL}."
+
+      - name: Remove this one-time repair dispatcher
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git reset --hard origin/main
+          git rm -f .github/workflows/repair-and-dispatch-flight-commander-4.0.6-finalizer.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'ci: remove one-time 4.0.6 finalizer repair dispatcher'
+          git push origin HEAD:main
