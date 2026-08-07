@@ -1,7 +1,7 @@
 /*
  * Flight Commander target-scoped external compass support.
  *
- * The MICOAIR743 target's official INAV 9.1.0 compass remains on I2C2.  These
+ * The MICOAIR743 target's official INAV 9.1.0 compass remains on I2C2. These
  * tagged descriptors expose the target's external I2C1 connector to a second
  * magDev_t while reusing INAV's unmodified compass drivers.
  *
@@ -121,6 +121,11 @@ bool flightCommanderExternalCompassIsConfigured(void)
         flightCommanderExternalCompassHardwareSupported(config->externalMagHardware);
 }
 
+bool flightCommanderExternalCompassIsDetected(void)
+{
+    return externalDetected;
+}
+
 static bool detectHardware(magSensor_e hardware)
 {
     switch (hardware) {
@@ -201,7 +206,6 @@ static bool detectConfiguredHardware(magSensor_e hardware)
         return detectHardware(hardware);
     }
 
-    // Match the official INAV compass autodetection order for supported I2C devices.
     static const magSensor_e autodetectOrder[] = {
         MAG_QMC5883,
         MAG_QMC5883P,
@@ -236,7 +240,8 @@ void flightCommanderExternalCompassInit(void)
     }
 
     externalMag.magSensorToUse = FLIGHT_COMMANDER_EXTERNAL_MAG_TAG;
-    if (!detectConfiguredHardware((magSensor_e)flightCommanderHeadingConfig()->externalMagHardware)) {
+    if (!detectConfiguredHardware(
+            (magSensor_e)flightCommanderHeadingConfig()->externalMagHardware)) {
         return;
     }
     if (!externalMag.init || !externalMag.read || !externalMag.init(&externalMag)) {
