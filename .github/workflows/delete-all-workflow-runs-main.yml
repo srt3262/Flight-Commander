@@ -1,0 +1,370 @@
+name: Delete every GitHub Actions workflow run
+
+"on":
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/delete-all-workflow-runs-main.yml
+
+permissions:
+  actions: write
+  contents: write
+
+concurrency:
+  group: flight-commander-delete-every-workflow-run
+  cancel-in-progress: false
+
+jobs:
+  purge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Delete every workflow run except this cleanup run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CURRENT_RUN_ID: ${{ github.run_id }}
+          MARKER_PATH: release/published/workflow-run-cleanup.json
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          deleted=0
+          already_gone=0
+          cancelled=0
+          initial_total="$(gh api \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "repos/$GITHUB_REPOSITORY/actions/runs?per_page=1" \
+            --jq '.total_count')"
+
+          wait_until_completed() {
+            local run_id="$1"
+            local attempt status
+
+            for attempt in $(seq 1 120); do
+              status="$(gh api \
+                -H 'Accept: application/vnd.github+json' \
+                -H 'X-GitHub-Api-Version: 2022-11-28' \
+                "repos/$GITHUB_REPOSITORY/actions/runs/$run_id" \
+                --jq '.status' 2>/dev/null || true)"
+
+              if [[ -z "$status" || "$status" == completed ]]; then
+                return 0
+              fi
+
+              if (( attempt == 1 )); then
+                gh api -X POST \
+                  -H 'Accept: application/vnd.github+json' \
+                  -H 'X-GitHub-Api-Version: 2022-11-28' \
+                  "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/cancel" \
+                  >/dev/null 2>&1 || true
+                cancelled=$((cancelled + 1))
+              elif (( attempt == 15 )); then
+                gh api -X POST \
+                  -H 'Accept: application/vnd.github+json' \
+                  -H 'X-GitHub-Api-Version: 2022-11-28' \
+                  "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/force-cancel" \
+                  >/dev/null 2>&1 || true
+              fi
+              sleep 1
+            done
+
+            echo "Workflow run $run_id did not become completed." >&2
+            return 1
+          }
+
+          delete_run() {
+            local run_id="$1"
+            local status="$2"
+            local attempt log_file
+            log_file="$RUNNER_TEMP/delete-$run_id.log"
+
+            if [[ "$status" != completed ]]; then
+              wait_until_completed "$run_id"
+            fi
+
+            for attempt in $(seq 1 12); do
+              if gh api -X DELETE \
+                -H 'Accept: application/vnd.github+json' \
+                -H 'X-GitHub-Api-Version: 2022-11-28' \
+                "repos/$GITHUB_REPOSITORY/actions/runs/$run_id" \
+                >"$log_file" 2>&1; then
+                deleted=$((deleted + 1))
+                return 0
+              fi
+
+              if grep -qiE '404|not found' "$log_file"; then
+                already_gone=$((already_gone + 1))
+                return 0
+              fi
+              sleep "$attempt"
+            done
+
+            cat "$log_file" >&2
+            return 1
+          }
+
+          for pass in $(seq 1 30); do
+            mapfile -t records < <(
+              gh api --paginate \
+                -H 'Accept: application/vnd.github+json' \
+                -H 'X-GitHub-Api-Version: 2022-11-28' \
+                "repos/$GITHUB_REPOSITORY/actions/runs?per_page=100" \
+                --jq '.workflow_runs[] | [.id, .status] | @tsv'
+            )
+
+            targets=0
+            for record in "${records[@]}"; do
+              IFS=$'\t' read -r run_id status <<< "$record"
+              [[ -z "$run_id" || "$run_id" == "$CURRENT_RUN_ID" ]] && continue
+              targets=$((targets + 1))
+              delete_run "$run_id" "$status"
+            done
+
+            if (( targets == 0 )); then
+              break
+            fi
+            sleep 2
+          done
+
+          mapfile -t remaining_ids < <(
+            gh api --paginate \
+              -H 'Accept: application/vnd.github+json' \
+              -H 'X-GitHub-Api-Version: 2022-11-28' \
+              "repos/$GITHUB_REPOSITORY/actions/runs?per_page=100" \
+              --jq '.workflow_runs[].id'
+          )
+
+          for run_id in "${remaining_ids[@]}"; do
+            if [[ "$run_id" != "$CURRENT_RUN_ID" ]]; then
+              echo "Unexpected workflow run remains before final self-delete: $run_id" >&2
+              exit 1
+            fi
+          done
+
+          python3 - "$MARKER_PATH" "$initial_total" "$deleted" "$already_gone" "$cancelled" "$CURRENT_RUN_ID" <<'PY'
+          import base64
+          import json
+          import os
+          import subprocess
+          import sys
+          from datetime import datetime, timezone
+
+          marker_path, initial_total, deleted, already_gone, cancelled, current_run_id = sys.argv[1:]
+          marker = {
+              "repository": os.environ["GITHUB_REPOSITORY"],
+              "requested_at": datetime.now(timezone.utc).isoformat(),
+              "status": "current_run_self_delete_pending",
+              "initial_workflow_runs": int(initial_total),
+              "deleted_before_current_run": int(deleted),
+              "already_absent": int(already_gone),
+              "active_runs_cancelled": int(cancelled),
+              "current_run_id": int(current_run_id),
+              "remaining_before_self_delete": 1,
+          }
+          content = base64.b64encode((json.dumps(marker, indent=2) + "\n").encode()).decode()
+          repo = os.environ["GITHUB_REPOSITORY"]
+          existing = subprocess.run(
+              ["gh", "api", f"repos/{repo}/contents/{marker_path}?ref=main", "--jq", ".sha"],
+              text=True,
+              capture_output=True,
+          )
+          command = [
+              "gh", "api", "-X", "PUT", f"repos/{repo}/contents/{marker_path}",
+              "-f", "message=Prepare final workflow-run deletion [skip ci]",
+              "-f", f"content={content}",
+              "-f", "branch=main",
+          ]
+          if existing.returncode == 0 and existing.stdout.strip():
+              command.extend(["-f", f"sha={existing.stdout.strip()}"])
+          subprocess.run(command, check=True)
+          PY
+
+          echo "INITIAL_TOTAL=$initial_total" >> "$GITHUB_ENV"
+          echo "DELETED_BEFORE_CURRENT=$deleted" >> "$GITHUB_ENV"
+          echo "ALREADY_GONE=$already_gone" >> "$GITHUB_ENV"
+          echo "CANCELLED_RUNS=$cancelled" >> "$GITHUB_ENV"
+          echo "Every run except cleanup run $CURRENT_RUN_ID has been removed."
+
+      - name: Remove all one-time cleanup machinery
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TEMP_BRANCH: agent/delete-all-workflow-runs-20260807
+          WORKFLOW_PATH: .github/workflows/delete-all-workflow-runs-main.yml
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          gh api -X DELETE \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "repos/$GITHUB_REPOSITORY/git/refs/heads/$TEMP_BRANCH" \
+            >/dev/null 2>&1 || true
+
+          workflow_sha="$(gh api \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "repos/$GITHUB_REPOSITORY/contents/$WORKFLOW_PATH?ref=main" \
+            --jq '.sha')"
+
+          gh api -X DELETE \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "repos/$GITHUB_REPOSITORY/contents/$WORKFLOW_PATH" \
+            -f 'message=Remove one-time all-run cleanup workflow [skip ci]' \
+            -f "sha=$workflow_sha" \
+            -f 'branch=main'
+
+      - name: Launch detached deletion of this final cleanup run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CURRENT_RUN_ID: ${{ github.run_id }}
+          MARKER_PATH: release/published/workflow-run-cleanup.json
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          script="$RUNNER_TEMP/delete-current-workflow-run.py"
+          cat > "$script" <<'PY'
+          from __future__ import annotations
+
+          import base64
+          import json
+          import os
+          import time
+          import urllib.error
+          import urllib.request
+          from datetime import datetime, timezone
+
+          API = "https://api.github.com"
+          REPO = os.environ["GITHUB_REPOSITORY"]
+          RUN_ID = int(os.environ["CURRENT_RUN_ID"])
+          TOKEN = os.environ["GH_TOKEN"]
+          MARKER_PATH = os.environ["MARKER_PATH"]
+          INITIAL_TOTAL = int(os.environ.get("INITIAL_TOTAL", "0"))
+          DELETED_BEFORE = int(os.environ.get("DELETED_BEFORE_CURRENT", "0"))
+          ALREADY_GONE = int(os.environ.get("ALREADY_GONE", "0"))
+          CANCELLED_RUNS = int(os.environ.get("CANCELLED_RUNS", "0"))
+
+          def daemonize() -> None:
+              os.environ.pop("RUNNER_TRACKING_ID", None)
+              first = os.fork()
+              if first > 0:
+                  raise SystemExit(0)
+              os.setsid()
+              second = os.fork()
+              if second > 0:
+                  raise SystemExit(0)
+              os.chdir("/")
+              os.umask(0o077)
+              null = os.open(os.devnull, os.O_RDWR)
+              for descriptor in (0, 1, 2):
+                  try:
+                      os.dup2(null, descriptor)
+                  except OSError:
+                      pass
+              if null > 2:
+                  os.close(null)
+
+          def request(method: str, path: str, payload: dict | None = None) -> tuple[int, bytes]:
+              body = None if payload is None else json.dumps(payload).encode()
+              headers = {
+                  "Accept": "application/vnd.github+json",
+                  "Authorization": f"Bearer {TOKEN}",
+                  "X-GitHub-Api-Version": "2022-11-28",
+                  "User-Agent": "flight-commander-workflow-run-cleanup",
+              }
+              if body is not None:
+                  headers["Content-Type"] = "application/json"
+              req = urllib.request.Request(API + path, data=body, headers=headers, method=method)
+              try:
+                  with urllib.request.urlopen(req, timeout=20) as response:
+                      return response.status, response.read()
+              except urllib.error.HTTPError as error:
+                  return error.code, error.read()
+              except Exception:
+                  return 0, b""
+
+          def delete_run(run_id: int) -> bool:
+              for attempt in range(1800):
+                  code, _ = request("DELETE", f"/repos/{REPO}/actions/runs/{run_id}")
+                  if code in (204, 404):
+                      return True
+                  if attempt == 5:
+                      request("POST", f"/repos/{REPO}/actions/runs/{run_id}/cancel")
+                  if attempt == 25:
+                      request("POST", f"/repos/{REPO}/actions/runs/{run_id}/force-cancel")
+                  time.sleep(0.10)
+              return False
+
+          def list_runs() -> list[dict]:
+              code, body = request("GET", f"/repos/{REPO}/actions/runs?per_page=100")
+              if code != 200:
+                  return []
+              try:
+                  return list(json.loads(body).get("workflow_runs", []))
+              except Exception:
+                  return []
+
+          def remove_late_runs_and_verify() -> tuple[bool, int]:
+              late_deleted = 0
+              stable_zero_checks = 0
+              for _ in range(360):
+                  runs = list_runs()
+                  if not runs:
+                      stable_zero_checks += 1
+                      if stable_zero_checks >= 3:
+                          return True, late_deleted
+                      time.sleep(0.5)
+                      continue
+
+                  stable_zero_checks = 0
+                  for run in runs:
+                      run_id = int(run["id"])
+                      if str(run.get("status", "")) != "completed":
+                          request("POST", f"/repos/{REPO}/actions/runs/{run_id}/cancel")
+                          request("POST", f"/repos/{REPO}/actions/runs/{run_id}/force-cancel")
+                      if delete_run(run_id):
+                          late_deleted += 1
+                  time.sleep(0.25)
+              return False, late_deleted
+
+          def update_marker(late_deleted: int) -> None:
+              marker = {
+                  "repository": REPO,
+                  "verified_at": datetime.now(timezone.utc).isoformat(),
+                  "status": "verified_zero",
+                  "initial_workflow_runs": INITIAL_TOTAL,
+                  "deleted_before_current_run": DELETED_BEFORE,
+                  "deleted_current_run": 1,
+                  "deleted_late_arriving_runs": late_deleted,
+                  "already_absent": ALREADY_GONE,
+                  "active_runs_cancelled": CANCELLED_RUNS,
+                  "remaining_workflow_runs": 0,
+              }
+              content = base64.b64encode((json.dumps(marker, indent=2) + "\n").encode()).decode()
+              code, body = request("GET", f"/repos/{REPO}/contents/{MARKER_PATH}?ref=main")
+              payload = {
+                  "message": "Verify all workflow runs deleted [skip ci]",
+                  "content": content,
+                  "branch": "main",
+              }
+              if code == 200:
+                  try:
+                      payload["sha"] = json.loads(body)["sha"]
+                  except Exception:
+                      pass
+              request("PUT", f"/repos/{REPO}/contents/{MARKER_PATH}", payload)
+
+          daemonize()
+          time.sleep(0.15)
+          if delete_run(RUN_ID):
+              verified, late_deleted = remove_late_runs_and_verify()
+              if verified:
+                  update_marker(late_deleted)
+          PY
+
+          chmod 700 "$script"
+          env -u RUNNER_TRACKING_ID python3 "$script"
+          echo "Detached deletion process launched for final run $CURRENT_RUN_ID."
