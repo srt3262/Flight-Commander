@@ -42,6 +42,23 @@ jobs:
             git apply --check release/configurator-patches/4.0.8-compass-source-selection.patch
             git apply release/configurator-patches/4.0.8-compass-source-selection.patch
           fi
+      - name: Make temporary Git cleanup idempotent
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('scripts/assemble-flight-commander-4.0.8-beta.py')
+          text = path.read_text(encoding='utf-8')
+          old = '    shutil.rmtree(source_root / ".git")\n'
+          new = '    shutil.rmtree(source_root / ".git", ignore_errors=True)\n'
+          if old in text:
+              text = text.replace(old, new, 1)
+              path.write_text(text, encoding='utf-8')
+          elif new not in text:
+              raise SystemExit('4.0.8 assembly cleanup marker was not found')
+          PY
       - name: Skip an already assembled release
         id: assembled
         shell: bash
@@ -99,6 +116,7 @@ jobs:
             release/firmware/Flight-Commander-Firmware-4.0.8-MICOAIR743.hex \
             release/firmware/Flight-Commander-Firmware-Source-v4.0.8.zip \
             release/firmware/build-metadata-4.0.8.json \
+            scripts/assemble-flight-commander-4.0.8-beta.py \
             scripts/build-flight-commander-4.0.8-firmware.py
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
