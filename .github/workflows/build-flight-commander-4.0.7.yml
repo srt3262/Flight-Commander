@@ -9,6 +9,14 @@ name: Build Flight Commander 4.0.7 IMU hotfix
       - release/firmware-patches/4.0.7.patch
       - release/configurator-patches/4.0.7.patch
       - scripts/build-flight-commander-4.0.7-firmware.py
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/build-flight-commander-4.0.7.yml
+      - release/firmware-patches/4.0.7.patch
+      - release/configurator-patches/4.0.7.patch
+      - scripts/build-flight-commander-4.0.7-firmware.py
   workflow_dispatch:
 
 permissions:
@@ -28,7 +36,7 @@ jobs:
       - name: Check out the exact hotfix branch
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          ref: ${{ github.ref }}
+          ref: ${{ github.head_ref || github.ref_name }}
           fetch-depth: 0
           persist-credentials: true
 
@@ -98,4 +106,5 @@ jobs:
           git add -A
           git -c core.whitespace=cr-at-eol diff --cached --check
           git commit -m "Flight Commander 4.0.7: restore IMU handedness"
-          git push origin "HEAD:${GITHUB_REF_NAME}"
+          target_branch="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
+          git push origin "HEAD:${target_branch}"
