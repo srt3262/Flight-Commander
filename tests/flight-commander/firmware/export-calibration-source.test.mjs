@@ -18,26 +18,47 @@ out = Path(sys.argv[2])
 with zipfile.ZipFile(archive) as z:
     z.extractall(out)
 root = out / 'Flight-Commander-Firmware-Source-v4.0.7'
-files = [
-    'src/main/flight_commander/heading_fusion.c',
-    'src/main/flight_commander/heading_fusion.h',
-    'src/main/fc/fc_msp.c',
-    'src/main/msp/msp_protocol_v2_flight_commander.h',
-    'src/main/sensors/compass.c',
-    'src/main/sensors/compass.h',
-]
-pattern = re.compile(r'calibrat|MAG_CALIBRATION|headingFusion.*Status|headingFusion.*Calibration|compass.*Calibration', re.I)
-for relative in files:
+
+def section(relative, first, last):
     lines = (root / relative).read_text(encoding='utf-8').splitlines()
-    matches = [(i + 1, line.strip()) for i, line in enumerate(lines) if pattern.search(line)]
-    print(f'FILE {relative}')
-    for number, line in matches[:160]:
-        print(f'{number}: {line}')
+    print(f'===== {relative} lines {first}-{last} =====')
+    for number in range(first, min(last, len(lines)) + 1):
+        print(f'{number:04d}: {lines[number - 1]}')
+
+section('src/main/flight_commander/heading_fusion.c', 330, 545)
+section('src/main/flight_commander/heading_fusion.c', 930, 980)
+section('src/main/flight_commander/heading_fusion.h', 1, 115)
+section('src/main/msp/msp_protocol_v2_flight_commander.h', 1, 180)
+
+fc = (root / 'src/main/fc/fc_msp.c').read_text(encoding='utf-8').splitlines()
+print('===== src/main/fc/fc_msp.c Flight Commander cases =====')
+for index, line in enumerate(fc):
+    if 'MSP2_FLIGHT_COMMANDER' in line or 'MSP_MAG_CALIBRATION' in line:
+        first = max(0, index - 5)
+        last = min(len(fc), index + 13)
+        print(f'--- {first + 1}-{last} ---')
+        for number in range(first, last):
+            print(f'{number + 1:04d}: {fc[number]}')
+
+print('===== capability declarations =====')
+patterns = re.compile(r'CAPABIL|capabil|0x7FFF|0xFFFF|FCFW')
+for path in sorted((root / 'src/main').rglob('*')):
+    if not path.is_file() or path.suffix not in {'.c', '.h'}:
+        continue
+    try:
+        lines = path.read_text(encoding='utf-8').splitlines()
+    except UnicodeDecodeError:
+        continue
+    matches = [(i + 1, line.strip()) for i, line in enumerate(lines) if patterns.search(line)]
+    if matches:
+        relative = path.relative_to(root).as_posix()
+        for number, line in matches[:40]:
+            print(f'{relative}:{number}: {line}')
 `;
     const result = spawnSync(
         process.env.PYTHON || (process.platform === 'win32' ? 'python' : 'python3'),
         ['-c', script, join(projectRoot, 'release/firmware/Flight-Commander-Firmware-Source-v4.0.7.zip'), output],
-        { encoding: 'utf8', maxBuffer: 2 * 1024 * 1024 },
+        { encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 },
     );
     console.log(result.stdout);
     console.error(result.stderr);
