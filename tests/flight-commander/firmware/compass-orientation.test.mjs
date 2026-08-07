@@ -157,5 +157,9 @@ describe('source-selective learned compass orientation protocol', () => {
     assert.match(headingSource, /flightCommanderCompassOrientationObserve\(\s*micros\(\), FLIGHT_COMMANDER_HEADING_EXTERNAL_I2C_MAG/);
     assert.match(headingSource, /flightCommanderCompassOrientationObserve\(\s*micros\(\), FLIGHT_COMMANDER_HEADING_DRONECAN_MAG/);
     assert.match(headingSource, /activeFieldCalibrationSource/);
+    assert.match(headingSource, /headingSourceOrientationIsValid/);
+    assert.match(headingSource, /headingSourceOrientationIsValid\(index\) && externalMagIsCalibrated/);
+    assert.match(headingSource, /headingSourceOrientationIsValid\(index\) && dronecanMagIsCalibrated/);
+    assert.match(headingSource, /if \(!headingSourceOrientationIsValid\(source\)\)/);
   });
 });

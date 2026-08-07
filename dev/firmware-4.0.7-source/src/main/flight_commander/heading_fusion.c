@@ -325,15 +325,27 @@ static bool onboardMagIsCalibrated(void)
     return adjusted && compassIsCalibrationComplete();
 }
 
+static bool headingSourceOrientationIsValid(unsigned index)
+{
+#ifdef USE_FLIGHT_COMMANDER_COMPASS_ORIENTATION
+    if (index <= FLIGHT_COMMANDER_HEADING_DRONECAN_MAG) {
+        return flightCommanderCompassOrientationIsValid(index);
+    }
+#else
+    UNUSED(index);
+#endif
+    return true;
+}
+
 static bool headingSourceIsCalibrated(unsigned index, const flightCommanderHeadingConfig_t *config)
 {
     switch (index) {
     case FLIGHT_COMMANDER_HEADING_ONBOARD_MAG:
         return onboardMagIsCalibrated();
     case FLIGHT_COMMANDER_HEADING_EXTERNAL_I2C_MAG:
-        return externalMagIsCalibrated(config);
+        return headingSourceOrientationIsValid(index) && externalMagIsCalibrated(config);
     case FLIGHT_COMMANDER_HEADING_DRONECAN_MAG:
-        return dronecanMagIsCalibrated(config) &&
+        return headingSourceOrientationIsValid(index) && dronecanMagIsCalibrated(config) &&
             (!samples[index].valid || samples[index].nodeID == config->dronecanMagCalibrationNodeID);
     case FLIGHT_COMMANDER_HEADING_MOVING_BASELINE:
         return samples[index].valid;
@@ -376,6 +388,9 @@ uint8_t flightCommanderHeadingCompassNodeID(uint8_t source)
 
 bool flightCommanderHeadingCompassFieldCalibrated(uint8_t source)
 {
+    if (!headingSourceOrientationIsValid(source)) {
+        return false;
+    }
     switch (source) {
     case FLIGHT_COMMANDER_HEADING_ONBOARD_MAG:
         return onboardMagIsCalibrated();
