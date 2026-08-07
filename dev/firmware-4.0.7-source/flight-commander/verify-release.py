@@ -148,7 +148,7 @@ def verify_source(root: Path) -> None:
         r"flightCommanderHeadingReadCompassCalibrationCommand\(src\)",
     ])
     require_text(root / "src/main/target/MICOAIR743/target.h", [
-        r"IMU_BMI088_ALIGN CW270_DEG",
+        r"IMU_BMI088_ALIGN\s+CW270_DEG",
         r"FLIGHT_COMMANDER_MICOAIR743_ONBOARD_IST8310",
     ])
 
