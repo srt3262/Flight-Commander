@@ -1,4 +1,4 @@
-name: Apply Flight Commander 4.0.8 Configurator compass changes
+name: Diagnose Flight Commander 4.0.8 tests
 
 "on":
   push:
@@ -8,33 +8,70 @@ name: Apply Flight Commander 4.0.8 Configurator compass changes
       - .github/workflows/export-flight-commander-4.0.7-calibration-source.yml
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  apply:
+  diagnose:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          ref: agent/fix-4.0.6-imu-handedness
-          fetch-depth: 0
-      - name: Apply source-selective Configurator transport and styling
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: yarn
+          cache-dependency-path: yarn.lock
+      - name: Enable pinned Yarn
+        run: |
+          corepack enable
+          yarn --version
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile --non-interactive
+      - name: Run tests and extract concise failures
+        id: tests
         shell: bash
         run: |
-          set -euo pipefail
-          python3 scripts/apply-flight-commander-4.0.8-configurator-calibration.py
-          python3 -m py_compile scripts/apply-flight-commander-4.0.8-configurator-calibration.py
-      - name: Commit transformed Configurator source
-        shell: bash
-        run: |
-          set -euo pipefail
-          git add js/msp/MSPHelper.js src/css/tabs/calibration.css
-          if git diff --cached --quiet; then
-            echo "4.0.8 Configurator compass transport already applied"
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "Wire source-selective compass calibration UI for 4.0.8 [skip ci]"
-          git push origin HEAD:agent/fix-4.0.6-imu-handedness
+          set +e
+          yarn test > full-test.log 2>&1
+          status=$?
+          python3 - "$status" <<'PY'
+          import re
+          import sys
+          from pathlib import Path
+
+          status = int(sys.argv[1])
+          lines = Path('full-test.log').read_text(encoding='utf-8', errors='replace').splitlines()
+          output = [f'yarn test exit status: {status}', '']
+          seen = set()
+          for index, line in enumerate(lines):
+              if not re.search(r'(^|\s)not ok\b|AssertionError|ERR_ASSERTION|SyntaxError|ReferenceError|TypeError|RangeError|error:', line):
+                  continue
+              start = max(0, index - 12)
+              end = min(len(lines), index + 34)
+              block = tuple(lines[start:end])
+              marker = '\n'.join(block)
+              if marker in seen:
+                  continue
+              seen.add(marker)
+              output.append(f'===== FAILURE CONTEXT {len(seen)} =====')
+              output.extend(block)
+              output.append('')
+              if len(seen) >= 20:
+                  break
+          if len(output) == 2:
+              output.extend(lines[-240:])
+          Path('ci-failure-summary.txt').write_text('\n'.join(output), encoding='utf-8')
+          PY
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit 0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: flight-commander-4.0.8-test-failures
+          retention-days: 1
+          if-no-files-found: error
+          path: ci-failure-summary.txt
+      - name: Fail after preserving diagnostics
+        if: steps.tests.outputs.status != '0'
+        run: exit 1
