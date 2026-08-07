@@ -1,6 +1,7 @@
 name: Diagnose Flight Commander 4.0.8 tests
 
 "on":
+  workflow_dispatch:
   push:
     branches:
       - agent/fix-4.0.6-imu-handedness
