@@ -1,11 +1,20 @@
 'use strict';
 
-export const COMPASS_ORIENTATION_STATUS_SCHEMA = 1;
+export const COMPASS_ORIENTATION_STATUS_SCHEMA = 2;
 export const COMPASS_ORIENTATION_STATUS_PAYLOAD_SIZE = 52;
-export const COMPASS_ORIENTATION_COMMAND_SCHEMA = 1;
+export const COMPASS_ORIENTATION_COMMAND_SCHEMA = 2;
 export const COMPASS_ORIENTATION_COMMAND_PAYLOAD_SIZE = 4;
 export const COMPASS_ORIENTATION_SOURCE_ONBOARD = 0;
+export const COMPASS_ORIENTATION_SOURCE_EXTERNAL_I2C = 1;
+export const COMPASS_ORIENTATION_SOURCE_DRONECAN = 2;
+export const COMPASS_ORIENTATION_SOURCE_COUNT = 3;
 export const COMPASS_ORIENTATION_FACE_NONE = 255;
+
+export const COMPASS_ORIENTATION_SOURCE_LABELS = Object.freeze([
+    'Onboard compass',
+    'External / UART GPS-module compass',
+    'DroneCAN GPS-module compass',
+]);
 
 export const COMPASS_ORIENTATION_PHASE = Object.freeze({
     IDLE: 0,
@@ -19,6 +28,7 @@ export const COMPASS_ORIENTATION_COMMAND = Object.freeze({
     CANCEL: 2,
     COMMIT: 3,
     CLEAR: 4,
+    SELECT: 5,
 });
 
 export const COMPASS_ORIENTATION_FLAG = Object.freeze({
@@ -45,7 +55,7 @@ export const COMPASS_ORIENTATION_FAILURE_LABELS = Object.freeze({
     0: '',
     1: 'The controller is armed. Disarm before learning compass orientation.',
     2: 'Complete and save the six-position accelerometer calibration first.',
-    3: 'The onboard compass is not detected.',
+    3: 'The selected compass is not detected or is no longer available.',
     4: 'Magnetic range was too small or too uneven. Move away from metal and high-current wiring, then repeat.',
     5: 'The data matched more than one axis transform. Repeat all six positions with wider, cleaner rotations.',
     6: 'The best transform residual was too large. Keep the requested face upward while rotating around that face.',
@@ -117,12 +127,18 @@ export function decodeCompassOrientationStatus(payload) {
     const flags = data.getUint8(2);
     const phase = data.getUint8(1);
     const failureReason = data.getUint8(3);
+    const source = data.getUint8(45);
+    if (source >= COMPASS_ORIENTATION_SOURCE_COUNT) {
+        throw new RangeError(`Unsupported compass-orientation source ${source}.`);
+    }
     const faceProgress = Array.from({ length: 6 }, (_, index) => data.getUint8(32 + index));
     const faceSamples = Array.from({ length: 6 }, (_, index) => data.getUint8(38 + index));
     const candidateAxisMap = [int8(data, 26), int8(data, 27), int8(data, 28)];
     const storedAxisMap = [int8(data, 29), int8(data, 30), int8(data, 31)];
     return {
         schema,
+        source,
+        sourceLabel: COMPASS_ORIENTATION_SOURCE_LABELS[source],
         phase,
         flags,
         failureReason,
@@ -169,8 +185,8 @@ export function encodeCompassOrientationCommand(
     if (!Object.values(COMPASS_ORIENTATION_COMMAND).includes(Number(command))) {
         throw new RangeError(`Unsupported compass-orientation command ${command}.`);
     }
-    if (!Number.isInteger(Number(source)) || Number(source) < 0 || Number(source) > 255) {
-        throw new RangeError('Compass-orientation source must fit in one byte.');
+    if (!Number.isInteger(Number(source)) || Number(source) < 0 || Number(source) >= COMPASS_ORIENTATION_SOURCE_COUNT) {
+        throw new RangeError(`Compass-orientation source must be from 0 through ${COMPASS_ORIENTATION_SOURCE_COUNT - 1}.`);
     }
     return Uint8Array.of(
         COMPASS_ORIENTATION_COMMAND_SCHEMA,
@@ -193,12 +209,11 @@ export function compassOrientationStage(status) {
     return { label: 'Orientation required', tone: 'warning' };
 }
 
-// Compatibility entry point retained for extensions that imported the older
-// fixed-transform guard. It now exposes the actual learned-orientation state.
 export function onboardCompassOrientationRequirement(status = null) {
+    const onboard = status?.source === COMPASS_ORIENTATION_SOURCE_ONBOARD ? status : null;
     return {
         required: true,
-        satisfied: Boolean(status?.valid),
-        mapping: status?.storedMapping ?? 'Not learned',
+        satisfied: Boolean(onboard?.valid),
+        mapping: onboard?.storedMapping ?? 'Not learned',
     };
 }
