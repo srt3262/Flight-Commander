@@ -9,7 +9,7 @@
 - Keep per-source manual roll, pitch and yaw alignment independent and apply it after the learned transform and field correction.
 - Block a magnetic source from heading fusion until both its own transform and field calibration are valid.
 - Remove the separate airspeed overlay from Ground Control so the HUD uses ground speed only.
-- Publish as a coordinated Configurator and MICOAIR743 firmware beta for propeller-off acceptance before official 4.0.8 promotion.
+- Publish the exact bench-accepted coordinated Configurator and MICOAIR743 firmware artifacts as the official 4.0.8 release.
 
 ## 4.0.7
 
