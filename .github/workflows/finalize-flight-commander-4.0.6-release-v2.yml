@@ -1,0 +1,581 @@
+name: Finalize verified Flight Commander 4.0.6 beta
+run-name: Integrate tested source and publish Flight Commander 4.0.6 beta
+
+"on":
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/finalize-flight-commander-4.0.6-release-v2.yml
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: write
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: publish-flight-commander-4.0.6
+  cancel-in-progress: true
+
+env:
+  FC_TAG: v4.0.6-beta
+  FC_RELEASE_SOURCE_RUN: 31133260246
+  FC_RELEASE_ARTIFACT: fc406-release-31133260246
+  FC_SOURCE_ZIP_SHA256: ba6f5295a0233851f0d37b1f34f78efeb3c240dcd0eb46dbd84fa926a0119904
+
+jobs:
+  integrate:
+    name: Integrate byte-verified 4.0.6 source
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      integrated_sha: ${{ steps.commit.outputs.integrated_sha }}
+
+    steps:
+      - name: Check out current main
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Download the already verified coordinated release
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: ${{ env.FC_RELEASE_ARTIFACT }}
+          path: release-candidate/Flight-Commander-v4.0.6
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ env.FC_RELEASE_SOURCE_RUN }}
+
+      - name: Verify release files and exact tested source ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$GITHUB_WORKSPACE/release-candidate/Flight-Commander-v4.0.6"
+          test -d "$root"
+          (
+            cd "$root"
+            sha256sum --check --strict SHA256SUMS.txt
+          )
+          printf '%s  %s\n' "$FC_SOURCE_ZIP_SHA256" \
+            "$root/FC-Configurator-Source-v4.0.6.zip" | sha256sum --check --strict
+          python3 - <<'PY'
+          import hashlib
+          import zipfile
+          from pathlib import Path
+
+          root = Path('release-candidate/Flight-Commander-v4.0.6').resolve()
+          expected = sorted([
+              'FC-Windows-v4.0.6.zip',
+              'FC-Configurator-Source-v4.0.6.zip',
+              'FC-Firmware-v4.0.6-MICOAIR743.hex',
+              'FC-Firmware-Source-v4.0.6.zip',
+          ])
+          complete = root / 'Flight-Commander-v4.0.6.zip'
+          with zipfile.ZipFile(complete) as archive:
+              names = sorted(info.filename for info in archive.infolist() if not info.is_dir())
+              if names != expected:
+                  raise SystemExit(f'Complete bundle mismatch: {names}')
+              for name in expected:
+                  local_digest = hashlib.sha256((root / name).read_bytes()).digest()
+                  bundle_digest = hashlib.sha256(archive.read(name)).digest()
+                  if local_digest != bundle_digest:
+                      raise SystemExit(f'Complete bundle byte mismatch: {name}')
+          print('Verified all four canonical files and their byte-matched complete bundle.')
+          PY
+
+      - name: Integrate only byte-verified tested source paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "shell_pwd=$PWD"
+          echo "github_workspace=$GITHUB_WORKSPACE"
+          echo "git_root=$(git rev-parse --show-toplevel)"
+          python3 - <<'PY'
+          import hashlib
+          import json
+          import os
+          import shutil
+          import subprocess
+          import zipfile
+          from pathlib import Path, PurePosixPath
+
+          workspace = Path(os.environ['GITHUB_WORKSPACE']).resolve()
+          git_root = Path(subprocess.check_output(
+              ['git', 'rev-parse', '--show-toplevel'],
+              cwd=workspace,
+              text=True,
+          ).strip()).resolve()
+          if workspace != git_root:
+              raise SystemExit(f'Workspace mismatch: GITHUB_WORKSPACE={workspace}; git_root={git_root}')
+
+          release_root = workspace / 'release-candidate/Flight-Commander-v4.0.6'
+          source_zip = release_root / 'FC-Configurator-Source-v4.0.6.zip'
+          expected_source_digest = os.environ['FC_SOURCE_ZIP_SHA256']
+          actual_source_digest = hashlib.sha256(source_zip.read_bytes()).hexdigest()
+          if actual_source_digest != expected_source_digest:
+              raise SystemExit(
+                  f'Tested source ZIP digest mismatch: expected={expected_source_digest}; actual={actual_source_digest}'
+              )
+
+          extract_root = Path(os.environ['RUNNER_TEMP']).resolve() / 'fc406-tested-source-v2'
+          if extract_root.exists():
+              shutil.rmtree(extract_root)
+          extract_root.mkdir(parents=True)
+
+          with zipfile.ZipFile(source_zip) as archive:
+              base = extract_root.resolve()
+              seen = set()
+              for info in archive.infolist():
+                  if info.filename in seen:
+                      raise SystemExit(f'Duplicate source archive entry: {info.filename}')
+                  seen.add(info.filename)
+                  candidate = (extract_root / info.filename).resolve()
+                  if candidate != base and base not in candidate.parents:
+                      raise SystemExit(f'Unsafe source archive path: {info.filename}')
+              archive.extractall(extract_root)
+
+          candidates = []
+          for candidate in [extract_root, *extract_root.rglob('*')]:
+              if not candidate.is_dir():
+                  continue
+              if (
+                  (candidate / 'package.json').is_file()
+                  and (candidate / 'manifest.json').is_file()
+                  and (candidate / 'release/configurator-patches/4.0.6.patch').is_file()
+              ):
+                  candidates.append(candidate.resolve())
+          candidates = sorted(set(candidates))
+          if len(candidates) != 1:
+              raise SystemExit(f'Expected exactly one tested source root; found {[str(path) for path in candidates]}')
+          source_root = candidates[0]
+
+          source_package_bytes = (source_root / 'package.json').read_bytes()
+          source_manifest_bytes = (source_root / 'manifest.json').read_bytes()
+          source_package = json.loads(source_package_bytes.decode('utf-8'))
+          source_manifest = json.loads(source_manifest_bytes.decode('utf-8'))
+          source_package_version = source_package.get('version')
+          source_manifest_version = source_manifest.get('version')
+          print(
+              'tested_source=' + json.dumps({
+                  'root': str(source_root),
+                  'zip_sha256': actual_source_digest,
+                  'package_version': source_package_version,
+                  'package_sha256': hashlib.sha256(source_package_bytes).hexdigest(),
+                  'manifest_version': source_manifest_version,
+                  'manifest_sha256': hashlib.sha256(source_manifest_bytes).hexdigest(),
+              }, sort_keys=True)
+          )
+          if source_package_version != '4.0.6' or source_manifest_version != '4.0.6':
+              raise SystemExit(
+                  f'Tested source version mismatch: package={source_package_version!r}; '
+                  f'manifest={source_manifest_version!r}'
+              )
+
+          patch = source_root / 'release/configurator-patches/4.0.6.patch'
+          expected_patch_paths = {
+              'CHANGELOG.md',
+              'js/fc.js',
+              'js/flightCommander/compassOrientation.js',
+              'js/flightCommander/firmwareCatalog.js',
+              'js/flightCommander/firmwareIdentity.js',
+              'js/main/ntripClient.js',
+              'js/msp/MSPCodes.js',
+              'js/msp/MSPHelper.js',
+              'manifest.json',
+              'package.json',
+              'release/notes/v4.0.6-beta.md',
+              'src/css/tabs/calibration.css',
+              'tabs/calibration.html',
+              'tabs/calibration.js',
+              'tabs/firmware_info.html',
+              'tabs/landing.html',
+              'tests/flight-commander/firmware/compass-orientation.test.mjs',
+              'tests/flight-commander/firmware/flight-commander-catalog.test.mjs',
+              'tests/flight-commander/firmware/flight-commander-identity.test.mjs',
+              'tests/flight-commander/firmware/onboard-ist8310-transform.test.mjs',
+              'tests/flight-commander/packaging/package-contract.test.mjs',
+          }
+          numstat = subprocess.check_output(
+              ['git', 'apply', '--numstat', str(patch)],
+              cwd=workspace,
+              text=True,
+          )
+          actual_patch_paths = {
+              line.split('\t', 2)[2]
+              for line in numstat.splitlines()
+              if line.strip()
+          }
+          if actual_patch_paths != expected_patch_paths:
+              missing = sorted(expected_patch_paths - actual_patch_paths)
+              extra = sorted(actual_patch_paths - expected_patch_paths)
+              raise SystemExit(f'4.0.6 patch path contract changed; missing={missing}; extra={extra}')
+
+          support_paths = {
+              'release/configurator-patches/4.0.6.patch',
+              'release/firmware-patches/4.0.6.patch',
+              'scripts/build-flight-commander-4.0.6.py',
+              'scripts/prepare-flight-commander-firmware-4.0.6.py',
+          }
+          retained_firmware = {
+              'release/firmware/Flight-Commander-Firmware-4.0.6-MICOAIR743.hex':
+                  'FC-Firmware-v4.0.6-MICOAIR743.hex',
+              'release/firmware/Flight-Commander-Firmware-Source-v4.0.6.zip':
+                  'FC-Firmware-Source-v4.0.6.zip',
+          }
+          deferred_version_paths = {'package.json', 'manifest.json'}
+          ordinary_paths = sorted(
+              (expected_patch_paths | support_paths | set(retained_firmware)) - deferred_version_paths
+          )
+
+          shutil.rmtree(workspace / 'release/firmware', ignore_errors=True)
+          for relative_text in ordinary_paths:
+              relative = PurePosixPath(relative_text)
+              if relative.is_absolute() or '..' in relative.parts:
+                  raise SystemExit(f'Unsafe integration path: {relative_text}')
+              source = source_root.joinpath(*relative.parts)
+              target = workspace.joinpath(*relative.parts)
+              if not source.is_file():
+                  raise SystemExit(f'Missing tested source file: {relative_text}')
+              target.parent.mkdir(parents=True, exist_ok=True)
+              if target.is_symlink():
+                  target.unlink()
+              shutil.copyfile(source, target)
+              target.chmod(0o755 if target.suffix in {'.py', '.sh'} else 0o644)
+              if source.read_bytes() != target.read_bytes():
+                  raise SystemExit(f'Integrated source byte mismatch: {relative_text}')
+
+          for relative_text, payload in (
+              ('package.json', source_package_bytes),
+              ('manifest.json', source_manifest_bytes),
+          ):
+              target = workspace / relative_text
+              if target.is_symlink():
+                  target.unlink()
+              target.write_bytes(payload)
+              target.chmod(0o644)
+              if target.read_bytes() != payload:
+                  raise SystemExit(f'Deferred version file byte mismatch: {relative_text}')
+
+          destination_package_bytes = (workspace / 'package.json').read_bytes()
+          destination_manifest_bytes = (workspace / 'manifest.json').read_bytes()
+          destination_package = json.loads(destination_package_bytes.decode('utf-8'))
+          destination_manifest = json.loads(destination_manifest_bytes.decode('utf-8'))
+          destination_package_version = destination_package.get('version')
+          destination_manifest_version = destination_manifest.get('version')
+          print(
+              'integrated_destination=' + json.dumps({
+                  'root': str(workspace),
+                  'package_version': destination_package_version,
+                  'package_sha256': hashlib.sha256(destination_package_bytes).hexdigest(),
+                  'manifest_version': destination_manifest_version,
+                  'manifest_sha256': hashlib.sha256(destination_manifest_bytes).hexdigest(),
+              }, sort_keys=True)
+          )
+          if destination_package_bytes != source_package_bytes:
+              raise SystemExit('Integrated package.json is not byte-identical to the tested source archive')
+          if destination_manifest_bytes != source_manifest_bytes:
+              raise SystemExit('Integrated manifest.json is not byte-identical to the tested source archive')
+          if destination_package_version != '4.0.6' or destination_manifest_version != '4.0.6':
+              raise SystemExit(
+                  f'Integrated Configurator version mismatch: package={destination_package_version!r}; '
+                  f'manifest={destination_manifest_version!r}'
+              )
+
+          flight_commander = destination_package.get('flightCommander', {})
+          required_metadata = {
+              'firmwareReleaseVersion': '4.0.6',
+              'firmwareSourceVersion': '4.0.6',
+              'firmwareReleaseSha256': 'b5215b8a2216c4d597511483ba377bec1725e3fb33e4785edbf28d252d7d6893',
+              'firmwareSourceSha256': 'fc305751a9bddb7879c7cc2e1cdd13aaf88d1ccc8684b43aca3ae9f49283f813',
+          }
+          for key, expected in required_metadata.items():
+              actual = flight_commander.get(key)
+              if actual != expected:
+                  raise SystemExit(
+                      f'Integrated package metadata mismatch for {key}: expected={expected!r}; actual={actual!r}'
+                  )
+
+          for retained, canonical in retained_firmware.items():
+              retained_path = workspace / retained
+              canonical_path = release_root / canonical
+              if retained_path.read_bytes() != canonical_path.read_bytes():
+                  raise SystemExit(f'Retained firmware differs from verified release artifact: {retained}')
+
+          ci = workspace / '.github/workflows/ci.yml'
+          if ci.is_file():
+              lines = ci.read_text(encoding='utf-8').splitlines(keepends=True)
+              filtered = [
+                  line for line in lines
+                  if not (
+                      line.lstrip().startswith('if:')
+                      and 'Start Flight Commander 4.0.6 release' in line
+                  )
+              ]
+              ci.write_text(''.join(filtered), encoding='utf-8')
+
+          sums = {}
+          for raw in (release_root / 'SHA256SUMS.txt').read_text(encoding='utf-8').splitlines():
+              digest, name = raw.split('  ', 1)
+              sums[name] = digest
+          marker = {
+              'version': '4.0.6',
+              'tag': 'v4.0.6-beta',
+              'status': 'source-integrated',
+              'workflow_run_id': int(os.environ['GITHUB_RUN_ID']),
+              'workflow_run_attempt': int(os.environ['GITHUB_RUN_ATTEMPT']),
+              'verified_firmware_run_id': 31131510835,
+              'verified_release_run_id': 31133260246,
+              'verified_release_artifact': 'fc406-release-31133260246',
+              'tested_source_zip_sha256': actual_source_digest,
+              'bundle_sha256': sums['Flight-Commander-v4.0.6.zip'],
+              'component_sha256': {
+                  name: digest
+                  for name, digest in sums.items()
+                  if name.startswith('FC-')
+              },
+          }
+          marker_path = workspace / 'release/published/v4.0.6-beta-build.json'
+          marker_path.parent.mkdir(parents=True, exist_ok=True)
+          marker_path.write_text(json.dumps(marker, indent=2) + '\n', encoding='utf-8')
+          print(json.dumps(marker, indent=2))
+          print(f'Integrated {len(ordinary_paths) + len(deferred_version_paths)} tested 4.0.6 source files.')
+          PY
+          git diff --check
+
+      - name: Commit integrated source
+        id: commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s\n' 'release-candidate/' >> .git/info/exclude
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          if git diff --cached --quiet; then
+            integrated_sha="$(git rev-parse HEAD)"
+          else
+            git commit -m 'Flight Commander 4.0.6: learned compass orientation'
+            git fetch origin main
+            git rebase origin/main
+            git push origin HEAD:main
+            integrated_sha="$(git rev-parse HEAD)"
+          fi
+          echo "integrated_sha=$integrated_sha" >> "$GITHUB_OUTPUT"
+          echo "Integrated source commit: $integrated_sha"
+
+  publish:
+    name: Publish, redownload, verify, and clean release path
+    needs: integrate
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Check out integrated main
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Download the verified coordinated release
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: ${{ env.FC_RELEASE_ARTIFACT }}
+          path: release-candidate/Flight-Commander-v4.0.6
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ env.FC_RELEASE_SOURCE_RUN }}
+
+      - name: Create or replace the 4.0.6 beta prerelease
+        id: release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INTEGRATED_SHA: ${{ needs.integrate.outputs.integrated_sha }}
+        run: |
+          set -euo pipefail
+          root='release-candidate/Flight-Commander-v4.0.6'
+          (
+            cd "$root"
+            sha256sum --check --strict SHA256SUMS.txt
+          )
+          git fetch origin main --tags --force
+          target_sha="$INTEGRATED_SHA"
+          test -n "$target_sha"
+          git cat-file -e "$target_sha^{commit}"
+          test "$(git rev-parse origin/main)" = "$target_sha"
+          assets=(
+            "$root/FC-Windows-v4.0.6.zip"
+            "$root/FC-Configurator-Source-v4.0.6.zip"
+            "$root/FC-Firmware-v4.0.6-MICOAIR743.hex"
+            "$root/FC-Firmware-Source-v4.0.6.zip"
+            "$root/Flight-Commander-v4.0.6.zip"
+            "$root/SHA256SUMS.txt"
+          )
+          if gh release view "$FC_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release delete "$FC_TAG" --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag
+          fi
+          gh release create "$FC_TAG" "${assets[@]}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$target_sha" \
+            --title 'Flight Commander 4.0.6 Beta' \
+            --notes-file release/notes/v4.0.6-beta.md \
+            --prerelease
+          release_url="$(gh release view "$FC_TAG" --repo "$GITHUB_REPOSITORY" --json url --jq '.url')"
+          echo "release_url=$release_url" >> "$GITHUB_OUTPUT"
+          echo "target_sha=$target_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Redownload every published asset and verify exact bytes
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_SHA: ${{ steps.release.outputs.target_sha }}
+        run: |
+          set -euo pipefail
+          local_root='release-candidate/Flight-Commander-v4.0.6'
+          published="$RUNNER_TEMP/published-fc406-v2"
+          rm -rf "$published"
+          mkdir -p "$published"
+          gh release download "$FC_TAG" --repo "$GITHUB_REPOSITORY" --dir "$published"
+          expected=(
+            FC-Windows-v4.0.6.zip
+            FC-Configurator-Source-v4.0.6.zip
+            FC-Firmware-v4.0.6-MICOAIR743.hex
+            FC-Firmware-Source-v4.0.6.zip
+            Flight-Commander-v4.0.6.zip
+            SHA256SUMS.txt
+          )
+          mapfile -t actual < <(find "$published" -maxdepth 1 -type f -printf '%f\n' | sort)
+          mapfile -t wanted < <(printf '%s\n' "${expected[@]}" | sort)
+          [[ "${actual[*]}" == "${wanted[*]}" ]]
+          for name in "${expected[@]}"; do
+            cmp "$local_root/$name" "$published/$name"
+          done
+          (
+            cd "$published"
+            sha256sum --check --strict SHA256SUMS.txt
+          )
+          release_json="$(gh release view "$FC_TAG" --repo "$GITHUB_REPOSITORY" \
+            --json url,tagName,isPrerelease,targetCommitish,publishedAt,assets)"
+          test "$(jq -r '.tagName' <<< "$release_json")" = "$FC_TAG"
+          test "$(jq -r '.isPrerelease' <<< "$release_json")" = 'true'
+          test "$(jq '.assets | length' <<< "$release_json")" = '6'
+          printf '%s\n' "$release_json"
+
+      - name: Mark published and remove all one-time 4.0.6 machinery
+        id: cleanup
+        shell: bash
+        env:
+          RELEASE_URL: ${{ steps.release.outputs.release_url }}
+          SOURCE_SHA: ${{ steps.release.outputs.target_sha }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          path = Path('release/published/v4.0.6-beta-build.json')
+          marker = json.loads(path.read_text(encoding='utf-8'))
+          marker.update({
+              'status': 'published',
+              'source_commit': os.environ['SOURCE_SHA'],
+              'release_url': os.environ['RELEASE_URL'],
+              'published_at_utc': datetime.now(timezone.utc).isoformat(),
+          })
+          path.write_text(json.dumps(marker, indent=2) + '\n', encoding='utf-8')
+          print(json.dumps(marker, indent=2))
+          PY
+          rm -f \
+            .flight-commander/4.0.6-build-inputs.part-* \
+            .flight-commander/publish-4.0.6.trigger \
+            .github/workflows/build-flight-commander-4.0.6.yml \
+            .github/workflows/finalize-flight-commander-4.0.6.yml \
+            .github/workflows/publish-flight-commander-4.0.6.yml \
+            .github/workflows/resume-flight-commander-4.0.6.yml \
+            .github/workflows/finalize-flight-commander-4.0.6-release.yml \
+            .github/workflows/finalize-flight-commander-4.0.6-release-v2.yml \
+            .github/workflows/manual-release-command.yml \
+            .github/workflows/bootstrap-flight-commander-4.0.6.yml
+          printf '%s\n' 'release-candidate/' >> .git/info/exclude
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'ci: finalize streamlined Flight Commander 4.0.6 release path'
+          git fetch origin main
+          git rebase origin/main
+          git push origin HEAD:main
+          final_sha="$(git rev-parse HEAD)"
+          git tag -f "$FC_TAG" "$final_sha"
+          git push origin "refs/tags/$FC_TAG" --force
+          remote_tag="$(git ls-remote origin "refs/tags/$FC_TAG" | cut -f1)"
+          test "$remote_tag" = "$final_sha"
+          echo "final_sha=$final_sha" >> "$GITHUB_OUTPUT"
+          echo "Final release commit: $final_sha"
+
+      - name: Verify final main, tag, marker, prerelease, and bundle
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FINAL_SHA: ${{ steps.cleanup.outputs.final_sha }}
+        run: |
+          set -euo pipefail
+          git fetch origin main --tags --force
+          test "$(git rev-parse origin/main)" = "$FINAL_SHA"
+          test "$(git rev-parse "$FC_TAG^{commit}")" = "$FINAL_SHA"
+          marker="$(git show origin/main:release/published/v4.0.6-beta-build.json)"
+          test "$(jq -r '.version' <<< "$marker")" = '4.0.6'
+          test "$(jq -r '.tag' <<< "$marker")" = "$FC_TAG"
+          test "$(jq -r '.status' <<< "$marker")" = 'published'
+          test "$(jq -r '.bundle_sha256' <<< "$marker")" = 'eaf47f3a9fa38aa0af44478fe2f8b194a3f658ee24384ed56a6ea1ea3671cd10'
+          rm -rf "$RUNNER_TEMP/final-release-check-v2"
+          mkdir -p "$RUNNER_TEMP/final-release-check-v2"
+          gh release download "$FC_TAG" --repo "$GITHUB_REPOSITORY" \
+            --pattern 'Flight-Commander-v4.0.6.zip' \
+            --dir "$RUNNER_TEMP/final-release-check-v2"
+          cmp \
+            'release-candidate/Flight-Commander-v4.0.6/Flight-Commander-v4.0.6.zip' \
+            "$RUNNER_TEMP/final-release-check-v2/Flight-Commander-v4.0.6.zip"
+          release_json="$(gh release view "$FC_TAG" --repo "$GITHUB_REPOSITORY" \
+            --json url,tagName,isPrerelease,publishedAt,assets)"
+          test "$(jq -r '.tagName' <<< "$release_json")" = "$FC_TAG"
+          test "$(jq -r '.isPrerelease' <<< "$release_json")" = 'true'
+          test "$(jq '.assets | length' <<< "$release_json")" = '6'
+          printf '%s\n' "$release_json"
+
+      - name: Report successful verified publication
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_URL: ${{ steps.release.outputs.release_url }}
+          FINAL_SHA: ${{ steps.cleanup.outputs.final_sha }}
+        run: |
+          set -euo pipefail
+          gh pr comment 21 --repo "$GITHUB_REPOSITORY" --body \
+            "Flight Commander **4.0.6 beta is published and fully verified**. Final main/tag commit: \`${FINAL_SHA}\`. Release: ${RELEASE_URL}. Firmware run: 31131510835; Configurator/package run: 31133260246; finalizer run: ${GITHUB_RUN_ID}."
+
+  report-failure:
+    name: Report precise finalizer failure
+    if: failure()
+    needs:
+      - integrate
+      - publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Post finalizer status
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INTEGRATE_RESULT: ${{ needs.integrate.result }}
+          PUBLISH_RESULT: ${{ needs.publish.result }}
+        run: |
+          set -euo pipefail
+          gh pr comment 21 --repo "$GITHUB_REPOSITORY" --body \
+            "Flight Commander 4.0.6 finalizer run **${GITHUB_RUN_ID}** stopped before verified completion. integrate=${INTEGRATE_RESULT}; publish=${PUBLISH_RESULT}. ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
