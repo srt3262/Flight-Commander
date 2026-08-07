@@ -7,6 +7,8 @@ name: Repair and run Flight Commander 4.0.6 finalizer
     paths:
       - .github/workflows/repair-and-run-flight-commander-4.0.6-finalizer.yml
   workflow_dispatch:
+  schedule:
+    - cron: '*/5 * * * *'
 
 permissions:
   actions: write
@@ -48,21 +50,34 @@ jobs:
               "          git commit -m 'ci: finalize streamlined Flight Commander 4.0.6 release path'\n":
                   "          git commit -m 'ci: finalize streamlined Flight Commander 4.0.6 release path [skip ci]'\n",
           }
+          changed = False
           for old, new in replacements.items():
-              count = text.count(old)
-              if count != 1:
-                  raise SystemExit(f'Expected exactly one finalizer fragment {old!r}; found {count}')
-              text = text.replace(old, new)
-          path.write_text(text, encoding='utf-8')
-          print('Finalizer repaired: CRLF-safe integration and explicit single-run publication.')
+              old_count = text.count(old)
+              new_count = text.count(new)
+              if old_count == 1 and new_count == 0:
+                  text = text.replace(old, new)
+                  changed = True
+              elif old_count == 0 and new_count == 1:
+                  continue
+              else:
+                  raise SystemExit(
+                      f'Unexpected finalizer fragment state for {old!r}: old={old_count}, new={new_count}'
+                  )
+          if changed:
+              path.write_text(text, encoding='utf-8')
+              print('Finalizer repaired: CRLF-safe integration and explicit single-run publication.')
+          else:
+              print('Finalizer was already repaired.')
           PY
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add .github/workflows/finalize-flight-commander-4.0.6-release-v2.yml
-          git commit -m 'ci: remove false CRLF failure from 4.0.6 finalizer [skip ci]'
-          git push origin HEAD:main
+          if ! git diff --cached --quiet; then
+            git commit -m 'ci: remove false CRLF failure from 4.0.6 finalizer [skip ci]'
+            git push origin HEAD:main
+          fi
 
-      - name: Dispatch exactly one repaired finalizer run
+      - name: Adopt or dispatch exactly one repaired finalizer run
         id: dispatch
         shell: bash
         env:
@@ -70,26 +85,33 @@ jobs:
         run: |
           set -euo pipefail
           workflow='finalize-flight-commander-4.0.6-release-v2.yml'
-          before="$(date -u +%s)"
-          gh workflow run "$workflow" --repo "$GITHUB_REPOSITORY" --ref main
-          run=''
-          for attempt in {1..30}; do
-            candidate="$(gh run list \
-              --repo "$GITHUB_REPOSITORY" \
-              --workflow "$workflow" \
-              --event workflow_dispatch \
-              --limit 5 \
-              --json databaseId,url,status,event,createdAt,headSha \
-              --jq 'if length == 0 then "" else .[0] | "\(.databaseId)\t\(.url)\t\(.status)\t\(.event)\t\(.createdAt)\t\(.headSha)" end')"
-            if [[ -n "$candidate" ]]; then
-              created="$(cut -f5 <<< "$candidate")"
-              if (( $(date -u -d "$created" +%s) >= before )); then
-                run="$candidate"
-                break
+          run="$(gh run list \
+            --repo "$GITHUB_REPOSITORY" \
+            --workflow "$workflow" \
+            --limit 20 \
+            --json databaseId,url,status,event,createdAt,headSha \
+            --jq 'if length == 0 then "" else ([.[] | select(.status != "completed")][0] // {}) | if has("databaseId") then "\(.databaseId)\t\(.url)\t\(.status)\t\(.event)\t\(.createdAt)\t\(.headSha)" else "" end end')"
+          if [[ -z "$run" ]]; then
+            before="$(date -u +%s)"
+            gh workflow run "$workflow" --repo "$GITHUB_REPOSITORY" --ref main
+            for attempt in {1..30}; do
+              candidate="$(gh run list \
+                --repo "$GITHUB_REPOSITORY" \
+                --workflow "$workflow" \
+                --event workflow_dispatch \
+                --limit 5 \
+                --json databaseId,url,status,event,createdAt,headSha \
+                --jq 'if length == 0 then "" else .[0] | "\(.databaseId)\t\(.url)\t\(.status)\t\(.event)\t\(.createdAt)\t\(.headSha)" end')"
+              if [[ -n "$candidate" ]]; then
+                created="$(cut -f5 <<< "$candidate")"
+                if (( $(date -u -d "$created" +%s) >= before )); then
+                  run="$candidate"
+                  break
+                fi
               fi
-            fi
-            sleep 4
-          done
+              sleep 4
+            done
+          fi
           if [[ -z "$run" ]]; then
             echo 'The repaired finalizer was dispatched, but its run could not be listed.' >&2
             exit 1
