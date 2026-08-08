@@ -32,30 +32,14 @@ export function resolveRtkCorrectionRoute(context = {}) {
     return { available: true, transport: "MSP" };
   }
 
-  if (
-    mavlinkState.connected === true &&
-    mavlinkState.firmwareFamily !== FIRMWARE_FAMILY_FLIGHT_COMMANDER
-  ) {
-    return {
-      available: false,
-      transport: null,
-      reason: "USB RTK base corrections are disabled for Official INAV and unsupported MAVLink firmware.",
-    };
-  }
-  if (
-    context.connectionValid === true &&
-    identity?.family !== FIRMWARE_FAMILY_FLIGHT_COMMANDER
-  ) {
-    return {
-      available: false,
-      transport: null,
-      reason: "USB RTK base corrections require Flight Commander Firmware.",
-    };
-  }
+  const unsupportedConnection =
+    mavlinkState.connected === true || context.connectionValid === true;
   return {
     available: false,
     transport: null,
-    reason: "Connect Flight Commander Firmware over MSP or MAVLink to forward corrections.",
+    reason: unsupportedConnection
+      ? "USB RTK base corrections require supported Flight Commander Firmware with the advertised GCS_RTK_BASE capability."
+      : "Connect Flight Commander Firmware over MSP or MAVLink to forward corrections.",
   };
 }
 

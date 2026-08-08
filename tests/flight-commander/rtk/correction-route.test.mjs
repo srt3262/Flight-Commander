@@ -32,7 +32,7 @@ test("RTK correction routing supports wired Flight Commander MSP injection", () 
   }), { available: true, transport: "MSP" });
 });
 
-test("Official INAV cannot receive Flight Commander GCS base corrections", () => {
+test("unidentified firmware cannot receive Flight Commander GCS base corrections", () => {
   const route = resolveRtkCorrectionRoute({
     mavlinkState: {
       connected: true,
@@ -41,5 +41,5 @@ test("Official INAV cannot receive Flight Commander GCS base corrections", () =>
     },
   });
   assert.equal(route.available, false);
-  assert.match(route.reason, /disabled for Official INAV/);
+  assert.match(route.reason, /require supported Flight Commander Firmware/);
 });

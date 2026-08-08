@@ -43,7 +43,7 @@ controller for target-specific details; it never assumes that every optional
 feature exists on every board.
 
 Flight Commander retains GPL-licensed INAV compatibility code and explicitly
-labels Official INAV compatibility mode, but Flight Commander product help and
+labels unsupported firmware compatibility mode, but Flight Commander product help and
 support belong here. Upstream links are retained only where provenance or a
 third-party dependency is the subject.
 
@@ -65,5 +65,5 @@ Include:
 
 Source and documentation improvements are welcome. Follow the
 [repository contribution workflow](../README.md#contributing), preserve the
-Flight Commander/Official INAV compatibility boundary, and add regression
+Flight Commander/unsupported firmware compatibility boundary, and add regression
 coverage for runtime or packaging changes.

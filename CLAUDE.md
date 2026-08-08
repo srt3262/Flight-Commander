@@ -4,7 +4,7 @@
 
 ## Overview
 
-Flight Commander is a cross-platform Electron application for configuring Flight Commander Firmware, planning missions, flashing supported firmware, and operating its Ground Control interface. The project is a maintained fork of INAV Configurator and retains an explicit official-INAV compatibility mode.
+Flight Commander is a cross-platform Electron application for configuring Flight Commander Firmware, planning missions, flashing supported firmware, and operating its Ground Control interface. The project is a maintained fork of INAV Configurator and retains an explicit official-unsupported-firmware state.
 
 **Tech Stack:** Electron + Vite + jQuery + i18next
 

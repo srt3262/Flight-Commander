@@ -468,7 +468,7 @@
         "message": "Diese Firmware-Version wird <span style=\"color: red\">nicht unterstützt</span>. Diese Configurator-Version unterstützt Firmware von $1 bis $2 (ausgeschlossen)"
     },
     "firmwareVariantNotSupported": {
-        "message": "Diese Firmware-Variante wird <span style=\"color: red\">nicht unterstützt</span>. Bitte auf INAV-Firmware aktualisieren. Nutze die CLI für ein Backup vor dem Flashen. Das CLI-Backup-/Restore-Vorgehen steht in der Dokumentation."
+        "message": "This controller firmware is not supported. Flash Flight Commander Firmware before using this application."
     },
     "tabSwitchConnectionRequired": {
         "message": "Du musst zuerst <strong>verbinden</strong>, bevor du die Tabs öffnen kannst."
@@ -2604,10 +2604,10 @@
         "message": "Keine Reboot-Sequenz"
     },
     "firmwareFlasherOnlineSelectBoardDescription": {
-        "message": "Wähle dein Board, um verfügbare Online-Firmware-Releases zu sehen - Wähle die passende Firmware für dein Board. Beachte, dass <strong>Auto-select Target</strong> nur für INAV-Firmwares 5.0 und neuer funktioniert."
+        "message": "Select the exact Flight Commander hardware target or use automatic target discovery from a controller already running Flight Commander Firmware."
     },
     "firmwareFlasherOnlineSelectFirmwareVersionDescription": {
-        "message": "Wähle die Firmware-Version für dein Board.<br />Hinweis: Auch wenn du mit diesem Configurator verschiedene Firmware-Versionen flashen kannst, solltest du beim Einrichten des Flight Controllers die Haupt- und Nebenversionsnummern von Firmware und Configurator aufeinander abstimmen."
+        "message": "Select a published Flight Commander Firmware version for this board. The firmware and Configurator major versions must match."
     },
     "firmwareFlasherNoRebootDescription": {
         "message": "Aktivieren, wenn du deinen FC mit gebrückten Bootloader-Pins eingeschaltet oder den BOOT-Knopf deines FC gedrückt gehalten hast."
@@ -2691,13 +2691,13 @@
         "message": "Warnung"
     },
     "firmwareFlasherWarningText": {
-        "message": "Bitte versuche <span style=\"color: red\">nicht</span>, <strong>Nicht-iNAV</strong>-Hardware mit diesem Firmware-Flasher zu flashen.<br /><span style=\"color: red\">Trenne</span> das Board <strong>nicht</strong> und <strong>schalte</strong> deinen Computer <span style=\"color: red\">nicht aus</span> während des Flashens.<br /><br /><strong>Hinweis: </strong>Der STM32-Bootloader ist im ROM gespeichert und kann nicht gebrickt werden.<br /><!--strong>Hinweis: </strong><span style=\"color: red\">Auto-Connect</span> ist im Firmware-Flasher immer deaktiviert.<br / --><strong>Hinweis: </strong>Stelle sicher, dass du ein Backup hast; einige Upgrades/Downgrades löschen deine Konfiguration.<br /><strong>Hinweis:</strong> Falls du Probleme beim Flashen hast, trenne zuerst alle Kabel von deinem FC, starte neu, aktualisiere Chrome und die Treiber.<br /><strong>Hinweis:</strong> Beim Flashen von Boards mit direkt angeschlossenen USB-Buchsen (Matek H743-SLIM, Holybro Kakute usw.) stelle sicher, dass du den Abschnitt USB-Flashing im INAV-Handbuch gelesen und die korrekte Software und Treiber installiert hast"
+        "message": "Flash only Flight Commander Firmware built for the detected controller target. The selected HEX must contain the FCFW identity and match this exact board.<br />Do <span style=\"color: red\">not</span> <strong>disconnect</strong> the board or <strong>turn off</strong> your computer while flashing.<br /><br /><strong>Before flashing:</strong> make a backup because some upgrades or downgrades erase configuration.<br /><strong>Recovery:</strong> enter STM32 DFU/BOOT mode and follow the <a href=\"https://github.com/srt3262/Flight-Commander/blob/main/docs/FIRMWARE_FLASHING.md\" target=\"_blank\">Flight Commander USB flashing guide</a>."
     },
     "firmwareFlasherRecoveryHead": {
         "message": "<strong>Recovery / Verbindung verloren<strong>"
     },
     "firmwareFlasherRecoveryText": {
-        "message": "Falls du die Verbindung zu deinem Board verloren hast, befolge diese Schritte, um sie wiederherzustellen: <ul><li>Ausschalten</li><li>'Keine Reboot-Sequenz' aktivieren, 'Vollständige Chip-Löschung' aktivieren.</li><li>Die BOOT-Pins brücken oder den BOOT-Knopf halten.</li><li>Einschalten (die Activity-LED blinkt bei korrekter Ausführung NICHT).</li><li>Alle STM32-Treiber und falls nötig Zadig installieren (siehe Abschnitt <a href=\"https://github.com/srt3262/Flight-Commander/blob/main/docs/FIRMWARE_FLASHING.md\"target=\"_blank\">USB Flashing</a> im INAV-Handbuch).</li><li>Configurator schließen, alle laufenden Chrome-Instanzen schließen, alle Chrome-Apps schließen, Configurator neu starten.</li><li>BOOT-Knopf loslassen, falls dein FC einen hat.</li><li>Mit der korrekten Firmware flashen (mit manueller Baudrate, falls im Handbuch deines FC angegeben).</li><li>Ausschalten.</li><li>BOOT-Brücke entfernen.</li><li>Einschalten (die Activity-LED sollte blinken).</li><li>Normal verbinden.</li></ul>"
+        "message": "If communication is lost, power off, enter STM32 DFU/BOOT mode, select the exact controller target, enable full-chip erase when required, and flash a valid Flight Commander FCFW image. Follow the <a href=\"https://github.com/srt3262/Flight-Commander/blob/main/docs/FIRMWARE_FLASHING.md\" target=\"_blank\">Flight Commander USB flashing guide</a>."
     },
     "firmwareFlasherButtonLeave": {
         "message": "Firmware-Flasher verlassen"
@@ -6378,10 +6378,10 @@
         "message": "Target-Prefetch nicht möglich: Flight Controller im DFU"
     },
     "targetPrefetchFailOld": {
-        "message": "Target-Prefetch nicht möglich: INAV-Firmware zu alt"
+        "message": "Cannot prefetch target: unsupported Flight Commander identity"
     },
     "targetPrefetchFailNonINAV": {
-        "message": "Target-Prefetch nicht möglich: Nicht-INAV-Firmware"
+        "message": "Cannot prefetch target: Flight Commander Firmware identity was not verified"
     },
     "targetPrefetchFailNoPort": {
         "message": "Target-Prefetch nicht möglich: Kein Port"

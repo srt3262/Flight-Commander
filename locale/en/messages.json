@@ -475,7 +475,7 @@
         "message": "This firmware version is <span style=\"color: red\">not supported</span>. This version of Configurator supports firmware from $1 to $2 (excluded)"
     },
     "firmwareVariantNotSupported": {
-        "message": "This firmware variant is <span style=\"color: red\">not supported</span>. Please upgrade to INAV firmware. Use CLI for backup before flashing.  CLI backup/restore procedure is in the documention."
+        "message": "This controller firmware is not supported. Flash Flight Commander Firmware before using this application."
     },
     "tabSwitchConnectionRequired": {
         "message": "You need to <strong>connect</strong> before you can view any of the tabs."
@@ -2611,10 +2611,10 @@
         "message": "No reboot sequence"
     },
     "firmwareFlasherOnlineSelectBoardDescription": {
-        "message": "Select your board to see available online firmware releases - Select the correct firmware appropriate for your board. Please note that <strong>Auto-select Target</strong> will only work for INAV firmwares 5.0 and newer."
+        "message": "Select the exact Flight Commander hardware target or use automatic target discovery from a controller already running Flight Commander Firmware."
     },
     "firmwareFlasherOnlineSelectFirmwareVersionDescription": {
-        "message": "Select firmware version for your board.<br />Note: even though you can flash different versions of the firmware using this Configurator. When setting up the flight controller, you should match the major and minor version numbers for both firmware and Configurator."
+        "message": "Select a published Flight Commander Firmware version for this board. The firmware and Configurator major versions must match."
     },
     "firmwareFlasherNoRebootDescription": {
         "message": "Enable if you powered your FC while the bootloader pins are jumpered or have your FC's BOOT button pressed."
@@ -2698,13 +2698,13 @@
         "message": "Warning"
     },
     "firmwareFlasherWarningText": {
-        "message": "Flash only firmware built for the detected controller target. Flight Commander Firmware and official INAV Firmware use the same target-specific STM32 flashing path, but the selected HEX must match this exact board.<br />Do <span style=\"color: red\">not</span> <strong>disconnect</strong> the board or <strong>turn off</strong> your computer while flashing.<br /><br /><strong>Before flashing:</strong> make a backup because some upgrades or downgrades erase configuration.<br /><strong>Recovery:</strong> disconnect peripherals, enter STM32 DFU/BOOT mode, and follow the <a href=\"https://github.com/srt3262/Flight-Commander/blob/main/docs/FIRMWARE_FLASHING.md\" target=\"_blank\">Flight Commander USB flashing guide</a>."
+        "message": "Flash only Flight Commander Firmware built for the detected controller target. The selected HEX must contain the FCFW identity and match this exact board.<br />Do <span style=\"color: red\">not</span> <strong>disconnect</strong> the board or <strong>turn off</strong> your computer while flashing.<br /><br /><strong>Before flashing:</strong> make a backup because some upgrades or downgrades erase configuration.<br /><strong>Recovery:</strong> enter STM32 DFU/BOOT mode and follow the <a href=\"https://github.com/srt3262/Flight-Commander/blob/main/docs/FIRMWARE_FLASHING.md\" target=\"_blank\">Flight Commander USB flashing guide</a>."
     },
     "firmwareFlasherRecoveryHead": {
         "message": "<strong>Recovery / Lost communication<strong>"
     },
     "firmwareFlasherRecoveryText": {
-        "message": "If you have lost communication with your board follow these steps to restore communication: <ul><li>Power off.</li><li>Enable 'No reboot sequence' and 'Full chip erase'.</li><li>Jumper the BOOT pins or hold the BOOT button.</li><li>Power on; the activity LED normally stays off in DFU mode.</li><li>Install the required STM32 drivers and Zadig if needed; follow the <a href=\"https://github.com/srt3262/Flight-Commander/blob/main/docs/FIRMWARE_FLASHING.md\" target=\"_blank\">Flight Commander USB flashing guide</a>.</li><li>Close other software that may be using the controller USB port, then restart Flight Commander.</li><li>Release the BOOT button if applicable.</li><li>Flash the correct target-specific firmware.</li><li>Power off, remove the BOOT jumper, power on, and connect normally.</li></ul>"
+        "message": "If communication is lost, power off, enter STM32 DFU/BOOT mode, select the exact controller target, enable full-chip erase when required, and flash a valid Flight Commander FCFW image. Follow the <a href=\"https://github.com/srt3262/Flight-Commander/blob/main/docs/FIRMWARE_FLASHING.md\" target=\"_blank\">Flight Commander USB flashing guide</a>."
     },
     "firmwareFlasherButtonLeave": {
         "message": "Leave Firmware Flasher"
@@ -6391,10 +6391,10 @@
         "message": "Cannot prefetch target: Flight Controller in DFU"
     },
     "targetPrefetchFailOld": {
-        "message": "Cannot prefetch target: INAV Firmware too old"
+        "message": "Cannot prefetch target: unsupported Flight Commander identity"
     },
     "targetPrefetchFailNonINAV": {
-        "message": "Cannot prefetch target: Non-INAV Firmware"
+        "message": "Cannot prefetch target: Flight Commander Firmware identity was not verified"
     },
     "targetPrefetchFailNoPort": {
         "message": "Cannot prefetch target: No port"

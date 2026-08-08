@@ -145,7 +145,7 @@ test("serial open completion uses the immutable protocol captured by the click a
   );
 });
 
-test("INAV save-and-reboot reconnect is bounded and performs a full close/reopen retry", () => {
+test("Flight Commander save-and-reboot reconnect is bounded and performs a full close/reopen retry", () => {
   assert.match(
     serialBackend,
     /GUI\.handleReconnect = function[\s\S]*?createInavRebootRecoveryAttempt\([\s\S]*?privateScope\.activeOpenAttempt[\s\S]*?reConnect\(\s*rebootOpenAttempt \? \{openAttempt: rebootOpenAttempt\} : \{\}/,
@@ -164,7 +164,7 @@ test("INAV save-and-reboot reconnect is bounded and performs a full close/reopen
   );
   assert.match(
     serialBackend,
-    /INAV did not respond after three post-reboot[\s\S]*?serial port has been closed/,
+    /Flight Commander Firmware did not respond after three post-reboot[\s\S]*?serial port has been closed/,
   );
 });
 

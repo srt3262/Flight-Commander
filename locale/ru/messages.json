@@ -464,7 +464,7 @@
         "message": "MSP соединение <span style=\"color: #37a8db\">успешно</span> открыто с ID: $1"
     },
     "firmwareFlasherOnlineSelectBoardDescription": {
-        "message": "Выберите свою плату, чтобы просмотреть доступные онлайн-версии прошивок. Выберите правильную прошивку, подходящую для вашей платы. Обратите внимание, что <strong>Автоматический выбор полётного контроллера</strong> будет работать только для прошивок INAV 5.0 и новее."
+        "message": "Select the exact Flight Commander hardware target or use automatic target discovery from a controller already running Flight Commander Firmware."
     },
     "stm32LocalErase": {
         "message": "Выполняется локальное стирание ..."
@@ -1600,7 +1600,7 @@
         "message": "Осталось заряда батареи:"
     },
     "targetPrefetchFailNonINAV": {
-        "message": "Невозможно определить полётный контроллер: полётный контроллер с не-INAV прошивкой"
+        "message": "Cannot prefetch target: Flight Commander Firmware identity was not verified"
     },
     "configurationSensorAlignmentMag": {
         "message": "Выравнивание магнитометра"
@@ -2755,7 +2755,7 @@
         "message": "<span style=\"color: red\">Ошибка анализа файла</span>"
     },
     "firmwareFlasherOnlineSelectFirmwareVersionDescription": {
-        "message": "Выберите версию прошивки для вашей платы.<br />Примечание: хотя с помощью этого конфигуратора вы можете прошить разные версии прошивок, при настройке полётного контроллера вы должны использовать одинаковые мажорную и минорную (MAJOR.MINOR.PATCH) версию как для прошивки, так и для конфигуратора."
+        "message": "Select a published Flight Commander Firmware version for this board. The firmware and Configurator major versions must match."
     },
     "navManualClimbRateHelp": {
         "message": "Максимальная скорость набора/снижения высоты, разрешённая прошивке при обработке команд пилота в режиме управления ALTHOLD [см/с]"
@@ -3891,7 +3891,7 @@
         "message": "Активировать"
     },
     "firmwareFlasherRecoveryText": {
-        "message": "Если вы потеряли связь с платой, выполните следующие действия, чтобы восстановить связь: <ul><li>Выключите питание</li><li>Включите «Без перезагрузки», включите «Полное стирание чипа».</li><li >Перемкните контакты BOOT или удерживайте кнопку BOOT.</li><li>Включите питание (светодиод активности НЕ будет мигать, если всё сделано правильно).</li><li>Если необходимо, установите все драйверы STM32 и Zadig (см. раздел <a href =\"https://github.com/srt3262/Flight-Commander/blob/main/docs/FIRMWARE_FLASHING.md\"target=\"_blank\">\"USB Flashing\"</a> руководства INAV).</ li><li>Закройте конфигуратор, закройте все запущенные экземпляры Chrome, закройте все приложения Chrome, перезапустите конфигуратор.</li><li>Отпустите кнопку BOOT, если она есть на вашем полётном контроллере.</li><li>Прошейте правильную прошивку (вручную установите скорость передачи данных, если это указано в руководстве вашего полётного контроллера).</li><li>Выключите питание.</li><li>Удалите перемычку BOOT.</li><li>Включите питание (светодиод активности должен мигать).</li><li>Нормально подключайтесь.</li></ul>"
+        "message": "If communication is lost, power off, enter STM32 DFU/BOOT mode, select the exact controller target, enable full-chip erase when required, and flash a valid Flight Commander FCFW image. Follow the <a href=\"https://github.com/srt3262/Flight-Commander/blob/main/docs/FIRMWARE_FLASHING.md\" target=\"_blank\">Flight Commander USB flashing guide</a>."
     },
     "missionSafehomeHead": {
         "message": "Менеджер SafeHome"
@@ -4137,7 +4137,7 @@
         "message": "Компас"
     },
     "targetPrefetchFailOld": {
-        "message": "Невозможно определить полётный контроллер: прошивка INAV слишком старая"
+        "message": "Cannot prefetch target: unsupported Flight Commander identity"
     },
     "configurationSerialRX": {
         "message": "Провайдер последовательного приёмника"
@@ -5215,7 +5215,7 @@
         "message": "Настройки проверены"
     },
     "firmwareFlasherWarningText": {
-        "message": "Пожалуйста, <span style=\"color: red\">не</span> пытайтесь прошить оборудование, <strong>не предназначенное для INAV</strong> с помощью этого загрузчика.<br /><span style=\"color: red\">Не</span> отключайте полетный контроллер и не выключайте компьютер во время прошивки.<br /><br /><strong>Примечание:</strong> Загрузчик STM32 хранится в ПЗУ, его нельзя окирпичить.<br /><!--strong>Примечание: </strong><span style=\"color: red\">Автоматическое подключение</span> всегда отключено, пока вы используете программатор.<br / --><strong>Примечание: </strong>Убедитесь, что у вас есть резервная копия; некоторые обновления/понижения версии приведут к стиранию вашей конфигурации.<br /><strong>Примечание:</strong> Если у вас возникли проблемы во время прошивки, попробуйте сначала отсоединить все кабели от вашего ПК, попробуйте перезагрузиться, обновить Chrome, обновить драйверы.<br /><strong>Примечание:</strong> При прошивке плат с напрямую подключенными USB-разъемами (Matek H743-SLIM, Holybro Kakute и т. д.), убедитесь, что вы прочитали раздел «Прошивка USB» в руководстве INAV и установили правильное программное обеспечение и драйверы"
+        "message": "Flash only Flight Commander Firmware built for the detected controller target. The selected HEX must contain the FCFW identity and match this exact board.<br />Do <span style=\"color: red\">not</span> <strong>disconnect</strong> the board or <strong>turn off</strong> your computer while flashing.<br /><br /><strong>Before flashing:</strong> make a backup because some upgrades or downgrades erase configuration.<br /><strong>Recovery:</strong> enter STM32 DFU/BOOT mode and follow the <a href=\"https://github.com/srt3262/Flight-Commander/blob/main/docs/FIRMWARE_FLASHING.md\" target=\"_blank\">Flight Commander USB flashing guide</a>."
     },
     "auxiliaryMax": {
         "message": "Макс."
@@ -6031,7 +6031,7 @@
         "message": "Точность напряжения"
     },
     "firmwareVariantNotSupported": {
-        "message": "Этот вариант прошивки <span style=\"color: red\">не поддерживается</span>. Пожалуйста, обновите прошивку INAV. Используйте CLI для резервного копирования перед прошивкой. Процедура резервного копирования/восстановления CLI описана в документации."
+        "message": "This controller firmware is not supported. Flash Flight Commander Firmware before using this application."
     },
     "fwLandFlareAltHelp": {
         "message_en": "At this altitude (measured from the altitude of the landing point) the last phase of landing is executed.",

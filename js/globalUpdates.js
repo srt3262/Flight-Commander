@@ -22,11 +22,11 @@ var update = {
         globalSettings.configuratorTreeLocation = `${FLIGHT_COMMANDER_REPOSITORY_URL}/blob/main/`;
 
         if (CONFIGURATOR.connectionValid) {
-            const fork = FC.CONFIG.flightCommanderFirmware;
-            const identity = fork
-                ? `Flight Commander Firmware ${fork.firmwareVersion ?? 'unknown'}`
-                : `Official INAV compatibility mode ${FC.CONFIG.flightControllerVersion}`;
-            $('#logo .firmware_version').text(`${identity} [${FC.CONFIG.target}]`);
+            const identity = FC.CONFIG.flightCommanderFirmware;
+            const label = identity
+                ? `Flight Commander Firmware ${identity.firmwareVersion ?? 'unknown'}`
+                : 'Unsupported firmware';
+            $('#logo .firmware_version').text(`${label} [${FC.CONFIG.target || 'unknown target'}]`);
         } else {
             $('#logo .firmware_version').text(i18n.getMessage('fcNotConnected'));
         }

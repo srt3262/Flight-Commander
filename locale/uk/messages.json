@@ -439,7 +439,7 @@
         "message": "Ця версія прошивки <span style=\"color: red\">не підтримується</span>. Ця версія конфігуратора підтримує прошивку з $1 до $2 (не включно)"
     },
     "firmwareVariantNotSupported": {
-        "message": "Ця версія прошивки <span style=\"color: red\">не підтримується</span>. Будь ласка, обновіть INAV прошивку. Використовуйте командний рядок для створення резервної копії перед прошивкою. Процедура створення резервної копії є в документації."
+        "message": "This controller firmware is not supported. Flash Flight Commander Firmware before using this application."
     },
     "tabSwitchConnectionRequired": {
         "message": "Необхідно <strong>під'єднатися</strong>, перш ніж ви зможете переглянути будь-яку з вкладок."
@@ -2557,10 +2557,10 @@
         "message": "Польотник уже в режимі завантажувача"
     },
     "firmwareFlasherOnlineSelectBoardDescription": {
-        "message": "Виберіть вашу плату, щоб побачити доступні онлайн-релізи прошивок - Виберіть правильну прошивку, відповідну вашій платі. Будь ласка, зверніть увагу, що <strong>Автовибір</strong> працюватиме лише для INAV прошивок версії 5.0 і новіше."
+        "message": "Select the exact Flight Commander hardware target or use automatic target discovery from a controller already running Flight Commander Firmware."
     },
     "firmwareFlasherOnlineSelectFirmwareVersionDescription": {
-        "message": "Виберіть версію прошивки для вашої плати.<br />Примітка: навіть якщо ви можете прошити різні версії прошивки за допомогою цього конфігуратора, при налаштуванні польотного контролера, вам треба зробити однаковими основні та другорядні номери версій як для прошивки, так і для конфігуратора."
+        "message": "Select a published Flight Commander Firmware version for this board. The firmware and Configurator major versions must match."
     },
     "firmwareFlasherNoRebootDescription": {
         "message": "Увімкніть, якщо ви подали живлення на ваш польотний контролер, коли ніжки завантажувача були з'єднані, або тримали затиснутою кнопку BOOT вашого польотного контролера."
@@ -2644,13 +2644,13 @@
         "message": "Попередження"
     },
     "firmwareFlasherWarningText": {
-        "message": "Будь ласка, <span style=\"color: red\">не</span> намагайтеся прошивати <strong>не-iNAV</strong> апаратне забезпечення за допомогою цього програматора.<br /> Під час прошивки <span style=\"color: red\">не</span> <strong>від'єднуйте</strong> плату або <strong>не вимикайте</strong> комп'ютер.<br /> <br /><strong>Примітка: </strong>Завантажувач STM32 зберігається в ПЗП, він не може бути пошкодженим.<br /><strong>Примітка: </strong><span style=\"color: red\">Автопідключення</span> завжди вимкнено, поки ви перебуваєте в програматорі прошивки.<br /><strong>Примітка: </strong>Переконайтеся, що у вас є резервна копія; деякі оновлення/пониження прошивки зітруть вашу конфігурацію.<br /><strong>Примітка:</strong> Якщо у вас виникають проблеми з прошивкою, спробуйте спочатку від'єднати всі кабелі від польотного контролера, перезапустіть, оновіть Chrome, оновіть драйвери.<br /><strong>Примітка:</strong> Під час прошивки плат із безпосередньо підключеними USB-гніздами (Matek H743-SLIM, Holybro Kakute тощо) переконайтеся, що ви прочитали розділ про прошивку USB в керівництві INAV і маєте встановлене правильне програмне забезпечення та драйвери"
+        "message": "Flash only Flight Commander Firmware built for the detected controller target. The selected HEX must contain the FCFW identity and match this exact board.<br />Do <span style=\"color: red\">not</span> <strong>disconnect</strong> the board or <strong>turn off</strong> your computer while flashing.<br /><br /><strong>Before flashing:</strong> make a backup because some upgrades or downgrades erase configuration.<br /><strong>Recovery:</strong> enter STM32 DFU/BOOT mode and follow the <a href=\"https://github.com/srt3262/Flight-Commander/blob/main/docs/FIRMWARE_FLASHING.md\" target=\"_blank\">Flight Commander USB flashing guide</a>."
     },
     "firmwareFlasherRecoveryHead": {
         "message": "<strong>Відновлення / Втрата зв'язку<strong>"
     },
     "firmwareFlasherRecoveryText": {
-        "message": "Якщо ви втратили зв'язок з вашою платою, дотримуйтесь цих кроків, щоб відновити його: <ul><li>Вимкніть живлення</li><li>Увімкніть 'Польотник уже в режимі завантажувача', увімкніть 'Повністю очистити мікроконтролер'.</li><li>З'єднайте контакти BOOT або утримуйте кнопку BOOT.</li><li>Увімкніть живлення (індикатор активності НЕ буде блимати, якщо все зроблено правильно).</li><li>Встановіть усі драйвери STM32 і Zadig, якщо це необхідно (див. розділ <a href=\"https://github.com/srt3262/Flight-Commander/blob/main/docs/FIRMWARE_FLASHING.md\"target=\"_blank\">Прошивка через USB</a> в документації INAV).</li><li>Закрийте конфігуратор, закрийте всі запущені екземпляри Chrome, закрийте всі програми Chrome, перезапустіть конфігуратор.</li><li>Відпустіть кнопку BOOT, якщо вона є на вашому польотному контролері.</li><li>Прошивайте правильною прошивкою (використовуючи ручну швидкість передачі даних, якщо це вказано в керівництві до вашого польотного контролера).</li><li>Вимкніть живлення.</li><li>Видаліть перемичку BOOT.</li><li>Увімкніть живлення (індикатор активності має блимати).</li><li>Під'єднайте як зазвичай.</li></ul>"
+        "message": "If communication is lost, power off, enter STM32 DFU/BOOT mode, select the exact controller target, enable full-chip erase when required, and flash a valid Flight Commander FCFW image. Follow the <a href=\"https://github.com/srt3262/Flight-Commander/blob/main/docs/FIRMWARE_FLASHING.md\" target=\"_blank\">Flight Commander USB flashing guide</a>."
     },
     "firmwareFlasherButtonLeave": {
         "message": "Вийти з програматора"
@@ -6067,10 +6067,10 @@
         "message": "Неможливо заздалегідь завантажити цільову прошивку: польотний контролер у режимі DFU"
     },
     "targetPrefetchFailOld": {
-        "message": "Не вдалося попередньо завантажити цільову прошивку: прошивка INAV застаріла"
+        "message": "Cannot prefetch target: unsupported Flight Commander identity"
     },
     "targetPrefetchFailNonINAV": {
-        "message": "Не вдалося завантажити цільову прошивку: Не INAV прошивка"
+        "message": "Cannot prefetch target: Flight Commander Firmware identity was not verified"
     },
     "targetPrefetchFailNoPort": {
         "message": "Не вдається завантажити цільову прошивку: Немає порту"

@@ -77,7 +77,7 @@ error with magnetic declination.
 ## Ground Control command is visible but disabled
 
 Hover/read the disabled reason. Common causes are MSP instead of MAVLink, no
-heartbeat, Official INAV compatibility mode, missing firmware capability,
+heartbeat, unsupported firmware compatibility mode, missing firmware capability,
 multiple systems on the link, no cached MSP command profile, missing AUX
 mapping, or an unconfirmable target mode. Do not bypass a disabled state with a
 raw command.

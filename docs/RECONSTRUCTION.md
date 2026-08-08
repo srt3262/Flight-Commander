@@ -82,13 +82,13 @@ The source keeps transport responsibilities explicit:
   native persistent mission path. The maintained fork adds a versioned,
   capability-gated identity extension without changing the inherited INAV
   handshake.
-- **INAV-compatible MAVLink** supplies telemetry and carefully gated AUX-backed
+- **Flight Commander MAVLink** supplies telemetry and carefully gated AUX-backed
   operational commands. Stock INAV's limited MAVLink mission representation is
   validated before transfer.
 - **INAV/LTM** is treated as read-only telemetry.
 - Other MAVLink firmware families are classified as unsupported; configuration,
   mission transfer, and commands remain disabled.
-- Official INAV and Flight Commander Firmware flashing share the guarded
+- unsupported firmware and Flight Commander Firmware flashing share the guarded
   STM32/DFU path and are not treated as live-aircraft MAVLink commands.
 
 Controller-specific commands are never intentionally translated by silently

@@ -4,7 +4,6 @@ import GUI from "./../js/gui";
 import FC from "./../js/fc";
 import {
   FLIGHT_COMMANDER_FEATURES,
-  createInavFirmwareIdentity,
   firmwareFeatureSupport,
 } from "./../js/flightCommander/firmwareIdentity";
 
@@ -21,37 +20,35 @@ firmwareInfo.initialize = function (callback) {
 };
 
 firmwareInfo.render = function () {
-  const identity =
-    FC.CONFIG.firmwareIdentity ??
-    createInavFirmwareIdentity(FC.CONFIG.flightControllerVersion);
-  const isFork = identity.family === "flight-commander";
-  const displayedVersion = isFork
-    ? identity.firmwareVersion ?? "unsupported identity schema"
-    : FC.CONFIG.flightControllerVersion;
+  const identity = FC.CONFIG.firmwareIdentity;
+  const supported = identity?.family === "flight-commander"
+    && identity.protocolSupported === true;
+  const displayedVersion = supported
+    ? identity.firmwareVersion ?? "unknown"
+    : FC.CONFIG.reportedFirmwareVersion || FC.CONFIG.flightControllerVersion || "--";
 
-  $("#firmwareInfoFamily").text(identity.displayName);
+  $("#firmwareInfoFamily").text(
+    supported ? "Flight Commander Firmware" : "Unsupported firmware",
+  );
   $("#firmwareInfoVersion").text(displayedVersion);
   $("#firmwareInfoCompatibility").text(
-    isFork
-      ? `Upstream protocol: INAV ${identity.compatibleInavVersion}`
-      : `Official INAV ${FC.CONFIG.flightControllerVersion}`,
+    supported ? `Protocol baseline ${identity.compatibleInavVersion}` : "Not available",
   );
   $("#firmwareInfoTarget").text(FC.CONFIG.target || FC.CONFIG.boardIdentifier || "Unknown");
   $("#firmwareInfoSchema").text(
-    identity.schemaVersion == null ? "Not advertised" : String(identity.schemaVersion),
+    identity?.schemaVersion == null ? "Not advertised" : String(identity.schemaVersion),
   );
   $("#firmwareInfoCapabilities").text(
-    `0x${Number(identity.capabilities ?? 0).toString(16).padStart(8, "0")}`,
+    `0x${Number(identity?.capabilities ?? 0).toString(16).padStart(8, "0")}`,
   );
 
-  const summary = isFork
-    ? identity.protocolSupported
-      ? `Flight Commander Firmware ${displayedVersion} is identified through the versioned FCFW extension. Only explicitly advertised capabilities are enabled.`
-      : identity.probeError
-    : "Official INAV is connected in compatibility mode. INAV configuration remains available; Flight Commander Ground Control commands and all fork-only capabilities are disabled.";
   $("#firmwareInfoSummary")
-    .text(summary)
-    .toggleClass("fc-action-status--error", isFork && !identity.protocolSupported);
+    .text(
+      supported
+        ? `Flight Commander Firmware ${displayedVersion} is verified through the versioned FCFW identity. Only explicitly advertised capabilities are enabled.`
+        : "Only Flight Commander Firmware is supported. Reflash this controller with a valid Flight Commander image before using configuration, planning, or Ground Control.",
+    )
+    .toggleClass("fc-action-status--error", !supported);
 
   for (const featureKey of Object.keys(FLIGHT_COMMANDER_FEATURES)) {
     const support = firmwareFeatureSupport(identity, featureKey);

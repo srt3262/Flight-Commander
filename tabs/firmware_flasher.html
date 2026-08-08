@@ -68,15 +68,12 @@
                 <table class="cf_table" style="margin-top: 10px;">
                     <tr>
                         <td>
-                            <label for="firmware_backend"><strong>Firmware family</strong></label><br />
-                            <select id="firmware_backend">
-                                <option value="flight-commander">Flight Commander Firmware</option>
-                                <option value="inav">Official INAV Firmware</option>
-                            </select>
+                            <input id="firmware_backend" type="hidden" value="flight-commander">
+                            <strong>Flight Commander Firmware only</strong>
                         </td>
                         <td>
                             <span id="firmware_backend_description" class="description">
-                                Automatic target discovery and guarded STM32/DFU flashing.
+                                Automatic target discovery and guarded STM32/DFU flashing for Flight Commander Firmware.
                             </span>
                         </td>
                     </tr>

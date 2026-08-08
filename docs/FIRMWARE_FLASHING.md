@@ -25,7 +25,7 @@ is loaded and validated, **Flash Selected Firmware** writes that selected image.
 
 - **Flight Commander Firmware** accepts only images carrying the Flight
   Commander `FCFW` identity and a recognized Flight Commander release name.
-- **Official INAV Firmware** uses the official INAV catalog and rejects images
+- **unsupported firmware** uses the unsupported firmware catalog and rejects images
   that carry the Flight Commander identity.
 
 Family choice does not convert firmware. It changes the catalog and the

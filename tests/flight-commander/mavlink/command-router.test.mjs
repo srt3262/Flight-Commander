@@ -114,7 +114,7 @@ function inavProfile() {
 }
 
 describe("unsupported firmware command gates", () => {
-  test("blocks every command for a parameter-capable non-INAV vehicle", () => {
+  test("blocks every command for a vehicle without Flight Commander identity", () => {
     const session = fakeUnsupportedSession();
     const router = new MavlinkCommandRouter(session);
     const capabilities = router.capabilities();
@@ -131,16 +131,16 @@ describe("unsupported firmware command gates", () => {
     ]) {
       assert.equal(capabilities[capability], false, capability);
     }
-    assert.match(capabilities.reason, /ArduPilot support has been removed/);
+    assert.match(capabilities.reason, /not running supported Flight Commander Firmware/);
     assert.deepEqual(router.availableModes(), []);
-    assert.throws(() => router.setMode("GUIDED"), /support has been removed/);
-    assert.throws(() => router.setArmed(true), /support has been removed/);
-    assert.throws(() => router.startMission(), /support has been removed/);
-    assert.throws(() => router.abortMission(), /support has been removed/);
-    assert.throws(() => router.takeoff(12), /support has been removed/);
-    assert.throws(() => router.returnToLaunch(), /support has been removed/);
-    assert.throws(() => router.land(), /support has been removed/);
-    assert.throws(() => router.holdMission(), /support has been removed/);
+    assert.throws(() => router.setMode("GUIDED"), /supported Flight Commander Firmware/);
+    assert.throws(() => router.setArmed(true), /supported Flight Commander Firmware/);
+    assert.throws(() => router.startMission(), /supported Flight Commander Firmware/);
+    assert.throws(() => router.abortMission(), /supported Flight Commander Firmware/);
+    assert.throws(() => router.takeoff(12), /supported Flight Commander Firmware/);
+    assert.throws(() => router.returnToLaunch(), /supported Flight Commander Firmware/);
+    assert.throws(() => router.land(), /supported Flight Commander Firmware/);
+    assert.throws(() => router.holdMission(), /supported Flight Commander Firmware/);
     assert.deepEqual(session.calls, []);
   });
 
@@ -164,7 +164,7 @@ describe("unsupported firmware command gates", () => {
     );
   });
 
-  test("keeps all command controls disabled for official INAV", () => {
+  test("rejects an inherited stock-firmware family as unsupported", () => {
     const session = fakeUnsupportedSession({
       state: {
         firmwareFamily: "inav",
@@ -184,9 +184,9 @@ describe("unsupported firmware command gates", () => {
       },
     });
     assert.equal(router.capabilities().canArm, false);
-    assert.match(router.capabilities().reason, /disabled for official INAV/);
-    assert.throws(() => router.setMode("NAV WP"), /disabled for official INAV/);
-    assert.throws(() => router.setArmed(true), /disabled for official INAV/);
+    assert.match(router.capabilities().reason, /not running supported Flight Commander Firmware/);
+    assert.throws(() => router.setMode("NAV WP"), /require supported Flight Commander Firmware/);
+    assert.throws(() => router.setArmed(true), /require supported Flight Commander Firmware/);
     assert.deepEqual(session.calls, []);
   });
 
@@ -208,7 +208,7 @@ describe("unsupported firmware command gates", () => {
 
     router.clearCommandBlock();
     assert.equal(router.capabilities().canArm, false);
-    assert.match(router.capabilities().reason, /support has been removed/);
+    assert.match(router.capabilities().reason, /supported Flight Commander Firmware/);
   });
 });
 

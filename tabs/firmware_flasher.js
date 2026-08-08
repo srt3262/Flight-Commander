@@ -93,8 +93,8 @@ firmwareFlasherTab.initialize = function (callback) {
     var intel_hex = false, // standard intel hex in string format
         parsed_hex = false, // parsed raw hex in array format
         localFirmwareLoaded = false, // true when firmware loaded from local file
-        fileName = "inav.hex";
-    var firmwareBackend = 'inav';
+        fileName = "flight-commander.hex";
+    var firmwareBackend = 'flight-commander';
     var loadedFirmwareFamily = null;
     var loadedFirmwareDescriptor = null;
     var flightCommanderCatalogReady = false;
@@ -107,7 +107,7 @@ firmwareFlasherTab.initialize = function (callback) {
         // translate to user-selected language
         i18n.localize();
         function setFirmwareBackend(backend) {
-            firmwareBackend = backend === 'flight-commander' ? 'flight-commander' : 'inav';
+            firmwareBackend = 'flight-commander';
             store.set('firmware_backend', firmwareBackend);
             $('#firmware_backend').val(firmwareBackend);
             $('div.release_info, div.git_info').hide();
@@ -136,7 +136,7 @@ firmwareFlasherTab.initialize = function (callback) {
                 }
             } else {
                 $('#firmware_backend_description').text(
-                    'Official INAV target discovery and STM32/DFU flashing.',
+                    'Only Flight Commander Firmware is supported. Load a published or local FCFW HEX, then flash it.',
                 );
                 $('a.load_file').text(i18n.getMessage('firmwareFlasherButtonLoadLocal')).removeClass('disabled');
                 $('a.load_remote_file').text(i18n.getMessage('firmwareFlasherButtonLoadOnline')).addClass('disabled');
@@ -590,32 +590,8 @@ firmwareFlasherTab.initialize = function (callback) {
             return true;
         }
 
-        $.get('https://api.github.com/repos/iNavFlight/inav-nightly/releases?per_page=50', function(releasesData) {
-            firmwareFlasherTab.inavDevReleasesData = releasesData;
-        }).fail(function (data){
-            firmwareFlasherTab.inavDevReleasesData = [];
-            if (data["responseJSON"]){
-                GUI.log("<b>GITHUB Query Failed: <code>{0}</code></b>".format(data["responseJSON"].message));
-            }
-        });
-
-        $.get('https://api.github.com/repos/iNavFlight/inav/releases?per_page=10', function (releasesData){
-            firmwareFlasherTab.inavReleasesData = releasesData;
-            if (firmwareBackend === 'inav') {
-                buildBoardOptions();
-                $('a.auto_select_target').removeClass('disabled');
-                firmwareFlasherTab.getTarget();
-            }
-        }).fail(function (data){
-            firmwareFlasherTab.inavReleasesData = [];
-            if (data["responseJSON"]){
-                GUI.log("<b>GITHUB Query Failed: <code>{0}</code></b>".format(data["responseJSON"].message));
-            }
-            if (firmwareBackend === 'inav') {
-                $('select[name="board"]').empty().append('<option value="0">INAV catalog offline</option>');
-                $('select[name="firmware_version"]').empty().append('<option value="0">Offline</option>');
-            }
-        });
+        firmwareFlasherTab.inavDevReleasesData = [];
+        firmwareFlasherTab.inavReleasesData = [];
 
         $.get(FLIGHT_COMMANDER_FIRMWARE_RELEASES_URL, function (releasesData) {
             firmwareFlasherTab.flightCommanderReleasesData = releasesData;
@@ -731,7 +707,7 @@ firmwareFlasherTab.initialize = function (callback) {
                                 ? 'Flash Selected Firmware'
                                 : i18n.getMessage('firmwareFlasherFlashFirmware');
                             $('span.progressLabel').text(
-                                `Local ${firmwareBackend === 'flight-commander' ? 'Flight Commander Firmware' : 'INAV'} file selected (${data.bytes_total} bytes). Click ${flashAction}.`,
+                                `Local Flight Commander Firmware file selected (${data.bytes_total} bytes). Click ${flashAction}.`,
                             );
                         }
                     });
@@ -1325,7 +1301,7 @@ firmwareFlasherTab.initialize = function (callback) {
             firmwareFlasherTab.getTarget();
         });
 
-        setFirmwareBackend(store.get('firmware_backend', 'inav'));
+        setFirmwareBackend('flight-commander');
         GUI.content_ready(callback);
     }));
 };
@@ -1463,14 +1439,13 @@ firmwareFlasherTab.onOpen = async function(openInfo) {
                                 : '0.0.0',
                         }).then(function(identity) {
                             if (
-                                reportedVariant === 'FCFW'
-                                && (
+                                (
                                     identity.family !== FIRMWARE_FAMILY_FLIGHT_COMMANDER
                                     || identity.protocolSupported !== true
                                 )
                             ) {
                                 GUI.log(
-                                    'Cannot prefetch target: Flight Commander Firmware did not provide a supported FCFW identity contract.',
+                                    'Cannot prefetch target: the controller did not provide a supported Flight Commander FCFW identity.',
                                 );
                                 firmwareFlasherTab.closeTempConnection();
                                 return;
@@ -1481,14 +1456,10 @@ firmwareFlasherTab.onOpen = async function(openInfo) {
                                 firmwareFlasherTab.closeTempConnection();
                                 return;
                             }
-                            if (identity.family === FIRMWARE_FAMILY_FLIGHT_COMMANDER) {
-                                GUI.log(
-                                    `Detected Flight Commander Firmware ${identity.firmwareVersion || 'unknown'} ` +
-                                    `(INAV ${identity.compatibleInavVersion} compatibility).`,
-                                );
-                            } else {
-                                GUI.log(`Detected official INAV ${FC.CONFIG.flightControllerVersion}.`);
-                            }
+                            GUI.log(
+                                `Detected Flight Commander Firmware ${identity.firmwareVersion || 'unknown'} ` +
+                                `(protocol baseline ${identity.compatibleInavVersion}).`,
+                            );
                             mspHelper.getCraftName(function(name) {
                                 if (name) {
                                     FC.CONFIG.name = name;

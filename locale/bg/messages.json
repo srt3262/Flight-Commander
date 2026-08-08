@@ -447,7 +447,7 @@
     "message": "Тази версия на фърмуера <span style=\"color: red\">не се поддържа</span>. Тази версия на Конфигуратора поддържа фърмуер от $1 до $2 (изключително)"
   },
   "firmwareVariantNotSupported": {
-    "message": "Този вариант на фърмуера <span style=\"color: red\">не се поддържа</span>. Моля, надстройте до INAV фърмуер. Използвайте CLI за архив преди флашване. Процедурата за архивиране/възстановяване чрез CLI е в документацията."
+    "message": "This controller firmware is not supported. Flash Flight Commander Firmware before using this application."
   },
 
   "tabSwitchConnectionRequired": {
@@ -2526,10 +2526,10 @@
     "message": "Няма последователност на рестартиране"
   },
   "firmwareFlasherOnlineSelectBoardDescription": {
-    "message": "Изберете вашата платка, за да видите наличните онлайн версии на фърмуера - Изберете правилния фърмуер, подходящ за вашата платка. Моля, имайте предвид, че <strong>Автоматичният избор на цел</strong> ще работи само за INAV фърмуери версия 5.0 и по-нови."
+    "message": "Select the exact Flight Commander hardware target or use automatic target discovery from a controller already running Flight Commander Firmware."
   },
   "firmwareFlasherOnlineSelectFirmwareVersionDescription": {
-    "message": "Изберете версия на фърмуера за вашата платка.<br />Забележка: въпреки че можете да флашвате различни версии на фърмуера с този конфигуратор, когато настройвате полетния контролер, трябва да съответствате на главния и второстепенния номер на версията както на фърмуера, така и на конфигуратора."
+    "message": "Select a published Flight Commander Firmware version for this board. The firmware and Configurator major versions must match."
   },
   "firmwareFlasherNoRebootDescription": {
     "message": "Активирайте, ако сте включили захранването на FC, докато щифтовете на bootloader са били свързани или бутонът BOOT на FC е бил натиснат."
@@ -2613,13 +2613,13 @@
     "message": "Предупреждение"
   },
   "firmwareFlasherWarningText": {
-    "message": "Моля, <span style=\"color: red\">не</span> се опитвайте да флашвате <strong>не-iNAV</strong> хардуер с този флашър.<br />Не <span style=\"color: red\">изключвайте</span> платката или <strong>изключвайте</strong> компютъра си по време на флашване.<br /><br /><strong>Забележка: </strong>STM32 bootloader-ът се съхранява в ROM, не може да бъде блокиран.<br /><!--strong>Забележка: </strong><span style=\"color: red\">Авто-свързването</span> винаги е изключено, докато сте във флашъра.<br / --><strong>Забележка: </strong>Уверете се, че имате архив; някои надстройки/връщания към по-стара версия ще изтрият конфигурацията ви.<br /><strong>Забележка:</strong> Ако имате проблеми с флашването, опитайте първо да изключите всички кабели от FC, опитайте да рестартирате, обновете Chrome, обновете драйверите.<br /><strong>Забележка:</strong> Когато флашвате платки, които имат директно свързани USB гнезда (Matek H743-SLIM, Holybro Kakute и др.), уверете се, че сте прочели раздела за USB флашване от ръководството на INAV и имате инсталиран правилния софтуер и драйвери."
+    "message": "Flash only Flight Commander Firmware built for the detected controller target. The selected HEX must contain the FCFW identity and match this exact board.<br />Do <span style=\"color: red\">not</span> <strong>disconnect</strong> the board or <strong>turn off</strong> your computer while flashing.<br /><br /><strong>Before flashing:</strong> make a backup because some upgrades or downgrades erase configuration.<br /><strong>Recovery:</strong> enter STM32 DFU/BOOT mode and follow the <a href=\"https://github.com/srt3262/Flight-Commander/blob/main/docs/FIRMWARE_FLASHING.md\" target=\"_blank\">Flight Commander USB flashing guide</a>."
   },
   "firmwareFlasherRecoveryHead": {
     "message": "<strong>Възстановяване / Загубена комуникация<strong>"
   },
   "firmwareFlasherRecoveryText": {
-    "message": "Ако сте загубили комуникация с платката си, следвайте тези стъпки, за да възстановите комуникацията: <ul><li>Изключете захранването</li><li>Активирайте 'No reboot sequence', активирайте 'Full chip erase'.</li><li>Свържете щифтовете BOOT или задръжте бутона BOOT.</li><li>Включете захранването (активността LED няма да мига, ако е направено правилно).</li><li>Инсталирайте всички STM32 драйвери и Zadig, ако е необходимо (вижте раздела <a href=\"https://github.com/srt3262/Flight-Commander/blob/main/docs/FIRMWARE_FLASHING.md\"target=\"_blank\">USB Flashing</a> от ръководството на INAV).</li><li>Затворете конфигуратора, затворете всички работещи инстанции на Chrome, затворете всички Chrome приложения, рестартирайте конфигуратора.</li><li>Освободете бутона BOOT, ако вашият FC има такъв.</li><li>Флашнете с правилния фърмуер (като използвате ръчна скорост на предаване, ако е посочена в ръководството на вашия FC).</li><li>Изключете захранването.</li><li>Премахнете джъмпера BOOT.</li><li>Включете захранването (светодиодът за активност трябва да мига).</li><li>Свържете се нормално.</li></ul>"
+    "message": "If communication is lost, power off, enter STM32 DFU/BOOT mode, select the exact controller target, enable full-chip erase when required, and flash a valid Flight Commander FCFW image. Follow the <a href=\"https://github.com/srt3262/Flight-Commander/blob/main/docs/FIRMWARE_FLASHING.md\" target=\"_blank\">Flight Commander USB flashing guide</a>."
   },
   "firmwareFlasherButtonLeave": {
     "message": "Напусни Firmware Flasher"
@@ -6048,10 +6048,10 @@
     "message": "Не може да се извлече предварително целта: Полетният контролер е в DFU режим"
   },
   "targetPrefetchFailOld": {
-    "message": "Не може да се извлече предварително целта: INAV фърмуерът е твърде стар"
+    "message": "Cannot prefetch target: unsupported Flight Commander identity"
   },
   "targetPrefetchFailNonINAV": {
-    "message": "Не може да се извлече предварително целта: Не е INAV фърмуер"
+    "message": "Cannot prefetch target: Flight Commander Firmware identity was not verified"
   },
   "targetPrefetchFailNoPort": {
     "message": "Не може да се извлече предварително целта: Няма порт"

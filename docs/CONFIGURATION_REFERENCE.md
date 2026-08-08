@@ -148,7 +148,7 @@ version, target, capability bitmap, and one card per optional feature. These
 cards are protocol gates. A disabled card means the Configurator will not infer
 support from a version number or UI selection.
 
-Official INAV compatibility retains supported inherited configuration but does
+unsupported firmware compatibility retains supported inherited configuration but does
 not advertise Flight Commander-only capabilities.
 
 ## GPS and RTK

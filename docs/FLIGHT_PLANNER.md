@@ -55,7 +55,7 @@ surface information, or service failures.
    limits and local airspace.
 
 Terrain-relative waypoint transfer is Flight Commander capability-gated.
-Official INAV compatibility receives only the lossless navigation subset.
+unsupported firmware compatibility receives only the lossless navigation subset.
 
 ## Read and write missions
 

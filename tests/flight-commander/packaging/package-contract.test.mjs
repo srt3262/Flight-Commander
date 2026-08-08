@@ -312,13 +312,13 @@ test("Windows verification follows the active renderer graph and rejects leftove
   assert.match(packageVerifier, /foreign-architecture/);
   assert.match(packageVerifier, /Windows extraction budget is 140/);
   assert.match(packageVerifier, /Flight Commander Firmware/);
-  assert.match(packageVerifier, /Official INAV Firmware/);
+  assert.doesNotMatch(packageVerifier, /Official INAV Firmware/);
   assert.match(packageVerifier, /Flight-Commander-Firmware-/);
   assert.match(packageVerifier, /FCFW/);
   assert.match(packageVerifier, /MICOAIR743/);
   assert.match(packageVerifier, /MICROAIR743/);
   assert.match(packageVerifier, /Firmware Capabilities/);
-  assert.match(packageVerifier, /Official INAV is connected in compatibility mode/);
+  assert.doesNotMatch(packageVerifier, /Official INAV is connected in compatibility mode/);
   assert.match(packageVerifier, /Multirotor AutoTune/);
   assert.match(packageVerifier, /Terrain-relative waypoints/);
   assert.match(packageVerifier, /Mission streaming/);
@@ -351,8 +351,8 @@ test("Windows verification follows the active renderer graph and rejects leftove
   assert.match(packageVerifier, /Keep every current value and save only the first-run acknowledgement/);
   assert.match(packageVerifier, /Selecting default control profile 1/);
   assert.match(packageVerifier, /Control profile 1:/);
-  assert.match(packageVerifier, /INAV is not responding after reboot/);
-  assert.match(packageVerifier, /INAV did not respond after three post-reboot/);
+  assert.match(packageVerifier, /Flight Commander Firmware is not responding after reboot/);
+  assert.match(packageVerifier, /Flight Commander Firmware did not respond after three post-reboot/);
   assert.match(packageVerifier, /Restoring the selected control profile/);
   assert.match(packageVerifier, /Control profile 2:/);
   assert.match(packageVerifier, /batteryProfileHighlightActive/);
@@ -619,17 +619,16 @@ test("firmware is release-only and the flasher exposes local, online, then flash
   assert.equal(existsSync(resolve(projectRoot, "resources/firmware-source")), false);
   assert.match(forgeConfig, /resources\\\/firmware\(\?:-source\)\?/);
   assert.match(forgeConfig, /release\\\/firmware/);
-  assert.deepEqual(
-    [...firmwareFlasherHtml.matchAll(/<option value="([^"]+)">(?:Flight Commander Firmware|Official INAV Firmware)<\/option>/g)]
-      .map((match) => match[1]),
-    ["flight-commander", "inav"],
+  assert.match(
+    firmwareFlasherHtml,
+    /id="firmware_backend" type="hidden" value="flight-commander"/,
   );
-  assert.match(firmwareFlasherHtml, /value="flight-commander">Flight Commander Firmware/);
-  assert.match(firmwareFlasherHtml, /value="inav">Official INAV Firmware/);
+  assert.match(firmwareFlasherHtml, /Flight Commander Firmware only/);
+  assert.doesNotMatch(firmwareFlasherHtml, /value="inav"|Official INAV Firmware/);
   const flasherWarning = englishMessages.firmwareFlasherWarningText?.message ?? "";
   const flasherRecovery = englishMessages.firmwareFlasherRecoveryText?.message ?? "";
-  assert.match(flasherWarning, /Flash only firmware built for the detected controller target/);
-  assert.match(flasherWarning, /Flight Commander Firmware and official INAV Firmware/);
+  assert.match(flasherWarning, /Flash only Flight Commander Firmware built for the detected controller target/);
+  assert.doesNotMatch(flasherWarning, /official INAV|Official INAV/);
   assert.doesNotMatch(flasherWarning, /non-iNAV|INAV manual/i);
   assert.match(flasherRecovery, /Flight Commander USB flashing guide/);
   assert.doesNotMatch(flasherRecovery, /INAV manual/i);
@@ -697,7 +696,7 @@ test("all requested large-prop INAV presets are wired into the release source", 
 });
 
 test("landing page reports the current Flight Commander release", () => {
-  assert.equal(packageManifest.version, "4.1.1");
+  assert.equal(packageManifest.version, "4.1.2");
   assert.equal(manifest.version, packageManifest.version);
   assert.match(
     landingHtml,

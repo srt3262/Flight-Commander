@@ -9,9 +9,9 @@ aircraft firmware actually supports.
 | Link | Primary purpose | Configuration | Missions | Ground Control commands |
 | --- | --- | --- | --- | --- |
 | Flight Commander Firmware over MSP | Bench setup over USB/UART | Full supported configuration | Native persistent mission transfer | Wired telemetry; airborne command availability still depends on a validated MAVLink command path |
-| Official INAV over MSP | Compatibility setup | INAV-compatible configuration | Native INAV mission transfer | Flight Commander-only controls remain gated |
+| unsupported firmware over MSP | Compatibility setup | INAV-compatible configuration | Native Flight Commander mission transfer | Flight Commander-only controls remain gated |
 | Flight Commander Firmware over MAVLink | Live aircraft link | Not a replacement for MSP setup | Validated mission transfer and advertised extensions | Telemetry plus capability-gated commands |
-| Official INAV over MAVLink | Live compatibility telemetry | No persistent setup | Lossless navigation subset only | Flight Commander native commands are disabled |
+| unsupported firmware over MAVLink | Live compatibility telemetry | No persistent setup | Lossless navigation subset only | Flight Commander native commands are disabled |
 | LTM | Lightweight telemetry | None | None | Read-only telemetry |
 | Unsupported MAVLink firmware | Identification only | Disabled | Disabled | Commands disabled |
 

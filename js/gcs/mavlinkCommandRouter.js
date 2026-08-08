@@ -76,8 +76,7 @@ export const MISSION_INTERRUPTION_ACTIONS = Object.freeze({
 });
 
 export const INAV_NO_TARGET_ISOLATION_WARNING =
-  "Stock INAV ignores target_system in MAVLink RC_CHANNELS_OVERRIDE. " +
-  "Connect exactly one INAV aircraft to this MAVLink transport, then confirm the single-aircraft link.";
+  "Flight Commander commands require a validated, target-isolated FCFW vehicle link.";
 
 export function normalizedName(value) {
   const candidate =
@@ -1276,10 +1275,8 @@ export class MavlinkCommandRouter {
     }
     this.releaseInavAdapter();
     return unavailable(
-      family === "inav"
-        ? "Ground Control commands are disabled for official INAV firmware. Flash Flight Commander Firmware to enable command controls."
-        : family === "unsupported"
-        ? "This MAVLink vehicle is not running INAV or Flight Commander Firmware. ArduPilot support has been removed."
+      family === "unsupported" || family === "inav"
+        ? "This MAVLink vehicle is not running supported Flight Commander Firmware."
         : "Command controls are disabled until Flight Commander Firmware is identified.",
     );
   }
@@ -1314,10 +1311,8 @@ export class MavlinkCommandRouter {
     }
     this.releaseInavAdapter();
     throw new Error(
-      family === "inav"
-        ? "Ground Control commands are disabled for official INAV firmware."
-        : family === "unsupported"
-        ? "Commands are unavailable because ArduPilot support has been removed. Connect an INAV-compatible vehicle."
+      family === "unsupported" || family === "inav"
+        ? "Commands require supported Flight Commander Firmware."
         : "Cannot send a command until Flight Commander Firmware is identified.",
     );
   }

@@ -29,7 +29,7 @@ function identityPayload({
 }
 
 describe("Flight Commander firmware identity", () => {
-  test("accepts both official INAV and the Flight Commander FCFW variant", () => {
+  test("recognizes inherited transport variants but authorizes only the FCFW identity", () => {
     assert.equal(isInavCompatibleFirmwareVariant("INAV"), true);
     assert.equal(isInavCompatibleFirmwareVariant("FCFW"), true);
     assert.equal(isInavCompatibleFirmwareVariant("ARDU"), false);
@@ -59,11 +59,12 @@ describe("Flight Commander firmware identity", () => {
     ]);
   });
 
-  test("treats an unsupported empty response as normal stock INAV", () => {
+  test("treats a missing FCFW response as unsupported firmware", () => {
     const identity = inspectFlightCommanderInfo(new Uint8Array(), "9.1.0");
     assert.equal(identity.family, FIRMWARE_FAMILY_INAV);
     assert.equal(identity.compatibleInavVersion, "9.1.0");
     assert.equal(identity.capabilities, 0);
+    assert.equal(identity.displayName, "Unsupported firmware");
   });
 
   test("identifies a newer Flight Commander schema but disables its features", () => {
@@ -75,6 +76,7 @@ describe("Flight Commander firmware identity", () => {
     assert.equal(identity.detected, true);
     assert.equal(identity.protocolSupported, false);
     assert.equal(identity.capabilities, 0);
+    assert.equal(identity.displayName, "Flight Commander Firmware");
     assert.match(identity.probeError, /schema 2/);
   });
 
@@ -149,7 +151,7 @@ describe("Flight Commander firmware identity", () => {
     assert.equal(unsupported.family, FIRMWARE_FAMILY_INAV);
   });
 
-  test("applies identity without replacing the inherited INAV version", () => {
+  test("applies Flight Commander identity without replacing the inherited protocol version", () => {
     const FC = {
       CONFIG: {
         flightControllerIdentifier: "INAV",
