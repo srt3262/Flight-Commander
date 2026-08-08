@@ -46,778 +46,778 @@ TAP version 13
     # Subtest: sanity: failedToFlash message contains raw HTML markup
     ok 1 - sanity: failedToFlash message contains raw HTML markup
       ---
-      duration_ms: 0.91809
+      duration_ms: 0.563399
       type: 'test'
       ...
     1..1
 ok 1 - failedToFlash message content
   ---
-  duration_ms: 2.073388
+  duration_ms: 1.35774
   type: 'suite'
   ...
 # Subtest: STM32_protocol onTimeout uses .html() for span.progressLabel
     # Subtest: onTimeout callback does not call .text() with failedToFlash on span.progressLabel
     ok 1 - onTimeout callback does not call .text() with failedToFlash on span.progressLabel
       ---
-      duration_ms: 1.972967
+      duration_ms: 1.523712
       type: 'test'
       ...
     1..1
 ok 2 - STM32_protocol onTimeout uses .html() for span.progressLabel
   ---
-  duration_ms: 2.110766
+  duration_ms: 1.658872
   type: 'suite'
   ...
 # Subtest: migration chain walk
     # Subtest: 7→9 chain uses exactly the two step profiles
     ok 1 - 7→9 chain uses exactly the two step profiles
       ---
-      duration_ms: 1.683492
+      duration_ms: 1.161386
       type: 'test'
       ...
     # Subtest: same-version returns empty chain
     ok 2 - same-version returns empty chain
       ---
-      duration_ms: 0.577758
+      duration_ms: 0.418872
       type: 'test'
       ...
     # Subtest: downgrade returns empty chain
     ok 3 - downgrade returns empty chain
       ---
-      duration_ms: 0.215616
+      duration_ms: 0.123057
       type: 'test'
       ...
     # Subtest: wide-span profile present: 7→9 still uses only 2 step profiles
     ok 4 - wide-span profile present: 7→9 still uses only 2 step profiles
       ---
-      duration_ms: 0.115802
+      duration_ms: 0.075534
       type: 'test'
       ...
     # Subtest: wide-span profile present: 7→10 chain-walks to gap → 2 profiles, not 3
     ok 5 - wide-span profile present: 7→10 chain-walks to gap → 2 profiles, not 3
       ---
-      duration_ms: 0.239978
+      duration_ms: 0.190132
       type: 'test'
       ...
     1..5
 ok 3 - migration chain walk
   ---
-  duration_ms: 3.814279
+  duration_ms: 2.620748
   type: 'suite'
   ...
 # Subtest: proceedWithFlash clears stale auto-backup
     # Subtest: first statement of proceedWithFlash is BackupRestore.clearLastAutoBackup()
     ok 1 - first statement of proceedWithFlash is BackupRestore.clearLastAutoBackup()
       ---
-      duration_ms: 0.40825
+      duration_ms: 0.24966
       type: 'test'
       ...
     1..1
 ok 4 - proceedWithFlash clears stale auto-backup
   ---
-  duration_ms: 0.568435
+  duration_ms: 0.359457
   type: 'suite'
   ...
 # Subtest: _enterCli removes and nulls callback before resolving
     # Subtest: removeOnReceiveCallback and null assignment come before resolve()
     ok 1 - removeOnReceiveCallback and null assignment come before resolve()
       ---
-      duration_ms: 0.315293
+      duration_ms: 0.204426
       type: 'test'
       ...
     1..1
 ok 5 - _enterCli removes and nulls callback before resolving
   ---
-  duration_ms: 0.572179
+  duration_ms: 0.366609
   type: 'suite'
   ...
 # Subtest: Status artificial horizon and 3D model use complementary roll scene rotations
 ok 6 - Status artificial horizon and 3D model use complementary roll scene rotations
   ---
-  duration_ms: 3.134758
+  duration_ms: 2.197894
   type: 'test'
   ...
 # Subtest: guided compass orientation names the physical left and right faces correctly
 ok 7 - guided compass orientation names the physical left and right faces correctly
   ---
-  duration_ms: 1.030415
+  duration_ms: 0.713336
   type: 'test'
   ...
 # Subtest: Configuration exposes independent onboard and external compass dropdowns
 ok 8 - Configuration exposes independent onboard and external compass dropdowns
   ---
-  duration_ms: 0.87038
+  duration_ms: 0.622473
   type: 'test'
   ...
 # Subtest: onboard and external compass sources can both be disabled
 ok 9 - onboard and external compass sources can both be disabled
   ---
-  duration_ms: 1.261262
+  duration_ms: 0.924489
   type: 'test'
   ...
 # Subtest: the external dropdown selects exactly one external compass transport
 ok 10 - the external dropdown selects exactly one external compass transport
   ---
-  duration_ms: 0.322539
+  duration_ms: 0.217022
   type: 'test'
   ...
 # Subtest: compass warning waits for populated selector settings and then refreshes
 ok 11 - compass warning waits for populated selector settings and then refreshes
   ---
-  duration_ms: 1.317296
+  duration_ms: 1.010265
   type: 'test'
   ...
 # Subtest: failsafe illustrations have higher-specificity dark-theme overrides
 ok 12 - failsafe illustrations have higher-specificity dark-theme overrides
   ---
-  duration_ms: 1.751323
+  duration_ms: 1.328963
   type: 'test'
   ...
 # Subtest: Flight Planner captions keep unit spans inline and controls below
 ok 13 - Flight Planner captions keep unit spans inline and controls below
   ---
-  duration_ms: 0.326142
+  duration_ms: 0.228853
   type: 'test'
   ...
 # Subtest: authoritative abort uses the backend hook even while UI controls are locked
 ok 14 - authoritative abort uses the backend hook even while UI controls are locked
   ---
-  duration_ms: 4.354446
+  duration_ms: 3.10041
   type: 'test'
   ...
 # Subtest: a delayed disconnect cannot clear or close the UI for a replacement connection
 ok 15 - a delayed disconnect cannot clear or close the UI for a replacement connection
   ---
-  duration_ms: 1.626976
+  duration_ms: 1.097163
   type: 'test'
   ...
 # Subtest: a stale successful open cannot replace a newer connection or replay its callback
 ok 16 - a stale successful open cannot replace a newer connection or replay its callback
   ---
-  duration_ms: 2.031323
+  duration_ms: 1.348026
   type: 'test'
   ...
 # Subtest: a stale failed open cannot report failure after a newer connection succeeds
 ok 17 - a stale failed open cannot report failure after a newer connection succeeds
   ---
-  duration_ms: 1.162535
+  duration_ms: 0.794216
   type: 'test'
   ...
 # Subtest: a failed replacement cannot restore a connection whose close is pending
 ok 18 - a failed replacement cannot restore a connection whose close is pending
   ---
-  duration_ms: 1.330845
+  duration_ms: 0.734866
   type: 'test'
   ...
 # Subtest: serial open uses protocol-specific options and does not persist an unvalidated shared baud
 ok 19 - serial open uses protocol-specific options and does not persist an unvalidated shared baud
   ---
-  duration_ms: 1.126454
+  duration_ms: 1.057893
   type: 'test'
   ...
 # Subtest: explicit MAVLink serial options reach the Windows control-line setup
 ok 20 - explicit MAVLink serial options reach the Windows control-line setup
   ---
-  duration_ms: 0.27906
+  duration_ms: 0.322054
   type: 'test'
   ...
 # Subtest: MAVLink listener installation precedes attach and explicit transport opens Ground Control
 ok 21 - MAVLink listener installation precedes attach and explicit transport opens Ground Control
   ---
-  duration_ms: 0.468334
+  duration_ms: 0.477582
   type: 'test'
   ...
 # Subtest: serial open completion uses the immutable protocol captured by the click attempt
 ok 22 - serial open completion uses the immutable protocol captured by the click attempt
   ---
-  duration_ms: 0.350014
+  duration_ms: 0.33231
   type: 'test'
   ...
 # Subtest: Flight Commander save-and-reboot reconnect is bounded and performs a full close/reopen retry
 ok 23 - Flight Commander save-and-reboot reconnect is bounded and performs a full close/reopen retry
   ---
-  duration_ms: 0.299735
+  duration_ms: 0.319536
   type: 'test'
   ...
 # Subtest: bytes received while the COM open promise is resolving are buffered and flushed
 ok 24 - bytes received while the COM open promise is resolving are buffered and flushed
   ---
-  duration_ms: 0.118805
+  duration_ms: 0.120293
   type: 'test'
   ...
 # Subtest: serial IPC data, close and error events are scoped to one connection ID
 ok 25 - serial IPC data, close and error events are scoped to one connection ID
   ---
-  duration_ms: 0.307634
+  duration_ms: 0.279892
   type: 'test'
   ...
 # Subtest: unexpected native serial termination survives cleanup without a false success
 ok 26 - unexpected native serial termination survives cleanup without a false success
   ---
-  duration_ms: 0.458865
+  duration_ms: 0.484826
   type: 'test'
   ...
 # Subtest: a delayed old send callback cannot mutate the new connection queue
 ok 27 - a delayed old send callback cannot mutate the new connection queue
   ---
-  duration_ms: 0.372665
+  duration_ms: 1.168991
   type: 'test'
   ...
 # Subtest: native serial open and cleanup paths are bounded
 ok 28 - native serial open and cleanup paths are bounded
   ---
-  duration_ms: 0.427494
+  duration_ms: 0.456147
   type: 'test'
   ...
 # Subtest: stale disconnect completion cannot clear a replacement connection
 ok 29 - stale disconnect completion cannot clear a replacement connection
   ---
-  duration_ms: 0.179423
+  duration_ms: 0.180901
   type: 'test'
   ...
 # Subtest: Ground Control can render before heartbeat while commands and mission reads remain gated
 ok 30 - Ground Control can render before heartbeat while commands and mission reads remain gated
   ---
-  duration_ms: 0.298444
+  duration_ms: 0.31816
   type: 'test'
   ...
 # Subtest: Ground Control mission reads are scoped to one MAVLink attachment
 ok 31 - Ground Control mission reads are scoped to one MAVLink attachment
   ---
-  duration_ms: 0.318478
+  duration_ms: 0.333659
   type: 'test'
   ...
 # Subtest: first heartbeat distinguishes live telemetry from control readiness
 ok 32 - first heartbeat distinguishes live telemetry from control readiness
   ---
-  duration_ms: 0.323231
+  duration_ms: 0.36292
   type: 'test'
   ...
 # Subtest: vehicle validation precedes firmware state and the first mission read
 ok 33 - vehicle validation precedes firmware state and the first mission read
   ---
-  duration_ms: 0.106441
+  duration_ms: 0.114806
   type: 'test'
   ...
 # Subtest: English serial status does not mislabel every transport as MSP
 ok 34 - English serial status does not mislabel every transport as MSP
   ---
-  duration_ms: 0.207032
+  duration_ms: 0.187905
   type: 'test'
   ...
 # Subtest: connection baud validation and defaults
     # Subtest: accepts only baud rates exposed by Flight Commander
     ok 1 - accepts only baud rates exposed by Flight Commander
       ---
-      duration_ms: 1.147425
+      duration_ms: 0.568862
       type: 'test'
       ...
     # Subtest: uses 460800 for explicit MAVLink and 115200 for MSP and Auto
     ok 2 - uses 460800 for explicit MAVLink and 115200 for MSP and Auto
       ---
-      duration_ms: 0.237587
+      duration_ms: 0.103397
       type: 'test'
       ...
     # Subtest: rejects unknown protocols instead of silently choosing a baud
     ok 3 - rejects unknown protocols instead of silently choosing a baud
       ---
-      duration_ms: 0.574136
+      duration_ms: 0.282988
       type: 'test'
       ...
     1..3
 ok 35 - connection baud validation and defaults
   ---
-  duration_ms: 7.801222
+  duration_ms: 2.478192
   type: 'suite'
   ...
 # Subtest: protocol-specific baud resolution
     # Subtest: explicit MAVLink ignores a legacy shared baud
     ok 1 - explicit MAVLink ignores a legacy shared baud
       ---
-      duration_ms: 0.419376
+      duration_ms: 0.18164
       type: 'test'
       ...
     # Subtest: explicit MAVLink restores only its own valid saved value
     ok 2 - explicit MAVLink restores only its own valid saved value
       ---
-      duration_ms: 0.20705
+      duration_ms: 0.080975
       type: 'test'
       ...
     # Subtest: MSP and Auto preserve valid legacy values and otherwise fall back to 115200
     ok 3 - MSP and Auto preserve valid legacy values and otherwise fall back to 115200
       ---
-      duration_ms: 0.186967
+      duration_ms: 0.069715
       type: 'test'
       ...
     # Subtest: a protocol-specific value takes precedence over the legacy value
     ok 4 - a protocol-specific value takes precedence over the legacy value
       ---
-      duration_ms: 0.359982
+      duration_ms: 0.142505
       type: 'test'
       ...
     1..4
 ok 36 - protocol-specific baud resolution
   ---
-  duration_ms: 1.804913
+  duration_ms: 0.751368
   type: 'suite'
   ...
 # Subtest: validated preference persistence
     # Subtest: returns a new protocol-specific record without mutating the input
     ok 1 - returns a new protocol-specific record without mutating the input
       ---
-      duration_ms: 1.213013
+      duration_ms: 0.547637
       type: 'test'
       ...
     # Subtest: rejects unsupported baud rates before persistence
     ok 2 - rejects unsupported baud rates before persistence
       ---
-      duration_ms: 0.330834
+      duration_ms: 0.14697
       type: 'test'
       ...
     # Subtest: persists only through the dedicated protocol preference key
     ok 3 - persists only through the dedicated protocol preference key
       ---
-      duration_ms: 0.512621
+      duration_ms: 0.268558
       type: 'test'
       ...
     # Subtest: requires an explicit compatible store
     ok 4 - requires an explicit compatible store
       ---
-      duration_ms: 0.198397
+      duration_ms: 0.088984
       type: 'test'
       ...
     1..4
 ok 37 - validated preference persistence
   ---
-  duration_ms: 2.617022
+  duration_ms: 1.200439
   type: 'suite'
   ...
 # Subtest: serial connection options
     # Subtest: forces DTR low for explicit MAVLink and Auto discovery
     ok 1 - forces DTR low for explicit MAVLink and Auto discovery
       ---
-      duration_ms: 0.340861
+      duration_ms: 0.150165
       type: 'test'
       ...
     # Subtest: does not force DTR low for explicit MSP
     ok 2 - does not force DTR low for explicit MSP
       ---
-      duration_ms: 0.15957
+      duration_ms: 0.048059
       type: 'test'
       ...
     # Subtest: normalizes a selected baud and rejects unsupported values
     ok 3 - normalizes a selected baud and rejects unsupported values
       ---
-      duration_ms: 0.18386
+      duration_ms: 0.066812
       type: 'test'
       ...
     1..3
 ok 38 - serial connection options
   ---
-  duration_ms: 0.867057
+  duration_ms: 0.327412
   type: 'suite'
   ...
 # Subtest: INAV reboot recovery preserves the exact MSP serial endpoint
 ok 39 - INAV reboot recovery preserves the exact MSP serial endpoint
   ---
-  duration_ms: 2.023574
+  duration_ms: 2.133707
   type: 'test'
   ...
 # Subtest: INAV reboot recovery is bounded to three full open attempts
 ok 40 - INAV reboot recovery is bounded to three full open attempts
   ---
-  duration_ms: 0.276203
+  duration_ms: 0.193341
   type: 'test'
   ...
 # Subtest: reboot recovery never hijacks MAVLink or an invalid serial target
 ok 41 - reboot recovery never hijacks MAVLink or an invalid serial target
   ---
-  duration_ms: 0.254116
+  duration_ms: 0.168801
   type: 'test'
   ...
 # Subtest: explicit MAVLink renders waiting state and installs recovery before attach
 ok 42 - explicit MAVLink renders waiting state and installs recovery before attach
   ---
-  duration_ms: 1.315755
+  duration_ms: 1.309974
   type: 'test'
   ...
 # Subtest: an attach exception is contained after the waiting UI and timeout exist
 ok 43 - an attach exception is contained after the waiting UI and timeout exist
   ---
-  duration_ms: 0.207027
+  duration_ms: 0.217506
   type: 'test'
   ...
 # Subtest: Ground Control activation waits for a concurrent tab switch and runs once
 ok 44 - Ground Control activation waits for a concurrent tab switch and runs once
   ---
-  duration_ms: 1.173224
+  duration_ms: 1.468353
   type: 'test'
   ...
 # Subtest: a critical connected transition invokes explicit recovery on failure
 ok 45 - a critical connected transition invokes explicit recovery on failure
   ---
-  duration_ms: 0.295834
+  duration_ms: 0.265344
   type: 'test'
   ...
 # Subtest: Ground Control activation stops after a bounded number of refused attempts
 ok 46 - Ground Control activation stops after a bounded number of refused attempts
   ---
-  duration_ms: 0.248226
+  duration_ms: 0.212557
   type: 'test'
   ...
 # Subtest: Ground Control retry uses the Chromium timer with its host receiver
 ok 47 - Ground Control retry uses the Chromium timer with its host receiver
   ---
-  duration_ms: 0.321095
+  duration_ms: 0.335517
   type: 'test'
   ...
 # Subtest: a transient COM omission cannot disconnect or remove a live connected port
 ok 48 - a transient COM omission cannot disconnect or remove a live connected port
   ---
-  duration_ms: 9.84293
+  duration_ms: 4.527051
   type: 'test'
   ...
 # Subtest: repeated initialize calls create exactly one polling loop
 ok 49 - repeated initialize calls create exactly one polling loop
   ---
-  duration_ms: 2.574792
+  duration_ms: 1.331586
   type: 'test'
   ...
 # Subtest: port removal callbacks still run after the native connection is no longer live
 ok 50 - port removal callbacks still run after the native connection is no longer live
   ---
-  duration_ms: 3.848116
+  duration_ms: 1.956384
   type: 'test'
   ...
 # Subtest: preload preserves the connection ID on serial close events
 ok 51 - preload preserves the connection ID on serial close events
   ---
-  duration_ms: 4.710177
+  duration_ms: 3.12085
   type: 'test'
   ...
 # Subtest: an unresponsive Flight Commander reboot performs bounded full serial reopen attempts
 ok 52 - an unresponsive Flight Commander reboot performs bounded full serial reopen attempts
   ---
-  duration_ms: 8.202282
+  duration_ms: 5.503037
   type: 'test'
   ...
 # Subtest: native MAVLink close forces cleanup through connect lock without a false success and retries once
 ok 53 - native MAVLink close forces cleanup through connect lock without a false success and retries once
   ---
-  duration_ms: 5.035366
+  duration_ms: 2.947588
   type: 'test'
   ...
 # Subtest: a vehicle heartbeat makes a later native close ineligible for startup recovery
 ok 54 - a vehicle heartbeat makes a later native close ineligible for startup recovery
   ---
-  duration_ms: 2.729501
+  duration_ms: 1.786402
   type: 'test'
   ...
 # Subtest: a queued Disconnect click after native loss cancels recovery instead of reconnecting
 ok 55 - a queued Disconnect click after native loss cancels recovery instead of reconnecting
   ---
-  duration_ms: 2.585057
+  duration_ms: 1.798839
   type: 'test'
   ...
 # Subtest: a fast Connect waits until an intentional native close releases the COM handle
 ok 56 - a fast Connect waits until an intentional native close releases the COM handle
   ---
-  duration_ms: 2.023576
+  duration_ms: 1.392948
   type: 'test'
   ...
 # Subtest: post-heartbeat renderer failure preserves telemetry attachment but blocks commands
 ok 57 - post-heartbeat renderer failure preserves telemetry attachment but blocks commands
   ---
-  duration_ms: 2.121712
+  duration_ms: 1.374
   type: 'test'
   ...
 # Subtest: the recovery harness instruments a Windows CRLF checkout
 ok 58 - the recovery harness instruments a Windows CRLF checkout
   ---
-  duration_ms: 7.267691
+  duration_ms: 5.062897
   type: 'test'
   ...
 # Subtest: port, protocol, and baud changes cancel recovery and invalidate its queued callback
 ok 59 - port, protocol, and baud changes cancel recovery and invalidate its queued callback
   ---
-  duration_ms: 5.661574
+  duration_ms: 3.16473
   type: 'test'
   ...
 # Subtest: a missing COM option retries the exact MAVLink link through manual selection
 ok 60 - a missing COM option retries the exact MAVLink link through manual selection
   ---
-  duration_ms: 3.319451
+  duration_ms: 2.191644
   type: 'test'
   ...
 # Subtest: a newer recovery generation makes an older queued timer inert
 ok 61 - a newer recovery generation makes an older queued timer inert
   ---
-  duration_ms: 1.939672
+  duration_ms: 1.339139
   type: 'test'
   ...
 # Subtest: native Windows open starts ExpressLRS with DTR and RTS low
 ok 62 - native Windows open starts ExpressLRS with DTR and RTS low
   ---
-  duration_ms: 2.159623
+  duration_ms: 1.357981
   type: 'test'
   ...
 # Subtest: pinned serial library receives low control lines before and after open
 ok 63 - pinned serial library receives low control lines before and after open
   ---
-  duration_ms: 1.469586
+  duration_ms: 0.804356
   type: 'test'
   ...
 # Subtest: DTR/RTS-low setup is applied only when explicitly requested on Windows
 ok 64 - DTR/RTS-low setup is applied only when explicitly requested on Windows
   ---
-  duration_ms: 0.326342
+  duration_ms: 0.143863
   type: 'test'
   ...
 # Subtest: DTR/RTS-low setup does not settle until the serial driver callback
 ok 65 - DTR/RTS-low setup does not settle until the serial driver callback
   ---
-  duration_ms: 0.369115
+  duration_ms: 0.324041
   type: 'test'
   ...
 # Subtest: DTR/RTS-low setup propagates callback and synchronous driver failures
 ok 66 - DTR/RTS-low setup propagates callback and synchronous driver failures
   ---
-  duration_ms: 0.83393
+  duration_ms: 1.627551
   type: 'test'
   ...
 # Subtest: DTR/RTS-low setup fails instead of leaving the UI connecting forever
 ok 67 - DTR/RTS-low setup fails instead of leaving the UI connecting forever
   ---
-  duration_ms: 8.975417
+  duration_ms: 5.705952
   type: 'test'
   ...
 # Subtest: DTR/RTS-low setup supports promise-based serial drivers
 ok 68 - DTR/RTS-low setup supports promise-based serial drivers
   ---
-  duration_ms: 0.39501
+  duration_ms: 0.376347
   type: 'test'
   ...
 # Subtest: failed serial setup removes listeners, closes, then destroys the port
 ok 69 - failed serial setup removes listeners, closes, then destroys the port
   ---
-  duration_ms: 0.40119
+  duration_ms: 0.354163
   type: 'test'
   ...
 # Subtest: failed serial setup destroys a port which is already closed
 ok 70 - failed serial setup destroys a port which is already closed
   ---
-  duration_ms: 0.420591
+  duration_ms: 0.298102
   type: 'test'
   ...
 # Subtest: failed serial cleanup destroys the port when its close callback hangs
 ok 71 - failed serial cleanup destroys the port when its close callback hangs
   ---
-  duration_ms: 5.539581
+  duration_ms: 6.115257
   type: 'test'
   ...
 # Subtest: serial preparation closes the port before propagating a DTR failure
 ok 72 - serial preparation closes the port before propagating a DTR failure
   ---
-  duration_ms: 0.471099
+  duration_ms: 0.341015
   type: 'test'
   ...
 # Subtest: serial preparation cannot hang when both DTR setup and close callbacks stall
 ok 73 - serial preparation cannot hang when both DTR setup and close callbacks stall
   ---
-  duration_ms: 10.379005
+  duration_ms: 10.620348
   type: 'test'
   ...
 # Subtest: a native port which opens after the app deadline is immediately closed
 ok 74 - a native port which opens after the app deadline is immediately closed
   ---
-  duration_ms: 0.509945
+  duration_ms: 0.221512
   type: 'test'
   ...
 # Subtest: a late old control-line setup cannot replace the current main-process connection ID
 ok 75 - a late old control-line setup cannot replace the current main-process connection ID
   ---
-  duration_ms: 7.249801
+  duration_ms: 5.542553
   type: 'test'
   ...
 # Subtest: an active native close preserves its phase and disconnected error details
 ok 76 - an active native close preserves its phase and disconnected error details
   ---
-  duration_ms: 1.161366
+  duration_ms: 1.132336
   type: 'test'
   ...
 # Subtest: an active native error preserves its phase and platform error details
 ok 77 - an active native error preserves its phase and platform error details
   ---
-  duration_ms: 1.079381
+  duration_ms: 1.074842
   type: 'test'
   ...
 # Subtest: one immediate native MAVLink close is eligible for bounded recovery
 ok 78 - one immediate native MAVLink close is eligible for bounded recovery
   ---
-  duration_ms: 1.249252
+  duration_ms: 0.888772
   type: 'test'
   ...
 # Subtest: recovery is denied after its single attempt or outside startup
 ok 79 - recovery is denied after its single attempt or outside startup
   ---
-  duration_ms: 0.248371
+  duration_ms: 0.156006
   type: 'test'
   ...
 # Subtest: intentional, non-native, and non-MAVLink closes never auto-reconnect
 ok 80 - intentional, non-native, and non-MAVLink closes never auto-reconnect
   ---
-  duration_ms: 0.311747
+  duration_ms: 0.204209
   type: 'test'
   ...
 # Subtest: a native close after a real vehicle heartbeat never auto-reconnects
 ok 81 - a native close after a real vehicle heartbeat never auto-reconnects
   ---
-  duration_ms: 0.192026
+  duration_ms: 0.146039
   type: 'test'
   ...
 # Subtest: unexpected-close status preserves the port, phase, and native detail
 ok 82 - unexpected-close status preserves the port, phase, and native detail
   ---
-  duration_ms: 1.53931
+  duration_ms: 0.842431
   type: 'test'
   ...
 # Subtest: native error and close are deduplicated and expose one structured cause
 ok 83 - native error and close are deduplicated and expose one structured cause
   ---
-  duration_ms: 5.458415
+  duration_ms: 4.589338
   type: 'test'
   ...
 # Subtest: native close triggers cleanup without a redundant serialClose IPC
 ok 84 - native close triggers cleanup without a redundant serialClose IPC
   ---
-  duration_ms: 1.438971
+  duration_ms: 0.964948
   type: 'test'
   ...
 # Subtest: an intentional renderer disconnect still closes the live native handle
 ok 85 - an intentional renderer disconnect still closes the live native handle
   ---
-  duration_ms: 1.344408
+  duration_ms: 0.847463
   type: 'test'
   ...
 # Subtest: legacy INAV exposes one configured primary compass with current values
 ok 86 - legacy INAV exposes one configured primary compass with current values
   ---
-  duration_ms: 2.533699
+  duration_ms: 2.38895
   type: 'test'
   ...
 # Subtest: auto magnetometer setting still exposes a physically detected onboard compass
 ok 87 - auto magnetometer setting still exposes a physically detected onboard compass
   ---
-  duration_ms: 0.310681
+  duration_ms: 0.212234
   type: 'test'
   ...
 # Subtest: Flight Commander lists each enabled and detected physical compass independently
 ok 88 - Flight Commander lists each enabled and detected physical compass independently
   ---
-  duration_ms: 0.617133
+  duration_ms: 0.445598
   type: 'test'
   ...
 # Subtest: enabled external and CAN sources are omitted until their hardware is detected
 ok 89 - enabled external and CAN sources are omitted until their hardware is detected
   ---
-  duration_ms: 0.269356
+  duration_ms: 0.183887
   type: 'test'
   ...
 # Subtest: calibration state gives active and failed sessions precedence
 ok 90 - calibration state gives active and failed sessions precedence
   ---
-  duration_ms: 0.325716
+  duration_ms: 0.19238
   type: 'test'
   ...
 # Subtest: implausible onboard results are rejected even when firmware reports calibrated
 ok 91 - implausible onboard results are rejected even when firmware reports calibrated
   ---
-  duration_ms: 0.41487
+  duration_ms: 0.25813
   type: 'test'
   ...
 # Subtest: source-selective learned compass orientation protocol
     # Subtest: accepts only complete proper signed-axis mappings
     ok 1 - accepts only complete proper signed-axis mappings
       ---
-      duration_ms: 2.773282
+      duration_ms: 2.235263
       type: 'test'
       ...
     # Subtest: decodes the selected source, face coverage, quality and live vectors
     ok 2 - decodes the selected source, face coverage, quality and live vectors
       ---
-      duration_ms: 1.73163
+      duration_ms: 0.775037
       type: 'test'
       ...
     # Subtest: encodes start, clear and selection for one explicit compass
     ok 3 - encodes start, clear and selection for one explicit compass
       ---
-      duration_ms: 0.802834
+      duration_ms: 0.417232
       type: 'test'
       ...
     # Subtest: Configurator selects one enabled compass for both learning and gain calibration
     ok 4 - Configurator selects one enabled compass for both learning and gain calibration
       ---
-      duration_ms: 0.962277
+      duration_ms: 0.560507
       type: 'test'
       ...
     # Subtest: firmware stores three independent transforms and applies them before field calibration
     ok 5 - firmware stores three independent transforms and applies them before field calibration
       ---
-      duration_ms: 0.670979
+      duration_ms: 0.477218
       type: 'test'
       ...
     1..5
 ok 92 - source-selective learned compass orientation protocol
   ---
-  duration_ms: 8.57386
+  duration_ms: 5.301887
   type: 'suite'
   ...
 # Subtest: the 4.0.0 firmware source includes a non-redundant DroneCAN allocator
 ok 93 - the 4.0.0 firmware source includes a non-redundant DroneCAN allocator
   ---
-  duration_ms: 0.926435
+  duration_ms: 0.845588
   type: 'test'
   ...
 # Subtest: published firmware source verification precedes compilation
 ok 94 - published firmware source verification precedes compilation
   ---
-  duration_ms: 0.241943
+  duration_ms: 0.236751
   type: 'test'
   ...
 # Subtest: permanent pull-request CI rebuilds the exact published firmware source archive
 ok 95 - permanent pull-request CI rebuilds the exact published firmware source archive
   ---
-  duration_ms: 1.037258
+  duration_ms: 0.992387
   type: 'test'
   ...
 # Subtest: dual-GPS status keeps UART and DroneCAN RTK solutions independent
 ok 96 - dual-GPS status keeps UART and DroneCAN RTK solutions independent
   ---
-  duration_ms: 1.389642
+  duration_ms: 0.871008
   type: 'test'
   ...
 # Subtest: DroneCAN configuration keeps navigation, base, rover and compass identities independent
 ok 97 - DroneCAN configuration keeps navigation, base, rover and compass identities independent
   ---
-  duration_ms: 1.212027
+  duration_ms: 0.896103
   type: 'test'
   ...
 # Subtest: DroneCAN navigation primary fails closed without a navigation GNSS binding
 ok 98 - DroneCAN navigation primary fails closed without a navigation GNSS binding
   ---
-  duration_ms: 0.538242
+  duration_ms: 0.432657
   type: 'test'
   ...
 # Subtest: legacy four-byte DroneCAN config safely defaults new pair fields
 ok 99 - legacy four-byte DroneCAN config safely defaults new pair fields
   ---
-  duration_ms: 1.030109
+  duration_ms: 1.109826
   type: 'test'
   ...
 # Subtest: pair validation rejects incomplete or duplicate node roles
 ok 100 - pair validation rejects incomplete or duplicate node roles
   ---
-  duration_ms: 0.232631
+  duration_ms: 0.202201
   type: 'test'
   ...
 # ===== src/main/flight_commander/heading_fusion.c lines 330-545 =====
@@ -1792,1090 +1792,1090 @@ ok 100 - pair validation rejects incomplete or duplicate node roles
 # Subtest: temporary calibration source inventory completed
 ok 101 - temporary calibration source inventory completed
   ---
-  duration_ms: 1.140242
+  duration_ms: 0.5203
   type: 'test'
   ...
 # Subtest: Flight Commander firmware catalog
     # Subtest: uses the Flight Commander GitHub Releases feed and supported baselines
     ok 1 - uses the Flight Commander GitHub Releases feed and supported baselines
       ---
-      duration_ms: 1.936753
+      duration_ms: 1.233712
       type: 'test'
       ...
     # Subtest: parses canonical release filenames
     ok 2 - parses canonical release filenames
       ---
-      duration_ms: 0.854568
+      duration_ms: 0.625984
       type: 'test'
       ...
     # Subtest: offers only official and beta assets and suppresses duplicates
     ok 3 - offers only official and beta assets and suppresses duplicates
       ---
-      duration_ms: 14.187768
+      duration_ms: 9.218234
       type: 'test'
       ...
     # Subtest: verifies online byte count and GitHub SHA-256
     ok 4 - verifies online byte count and GitHub SHA-256
       ---
-      duration_ms: 10.584955
+      duration_ms: 7.305245
       type: 'test'
       ...
     # Subtest: keeps identity and target helpers for verified online assets
     ok 5 - keeps identity and target helpers for verified online assets
       ---
-      duration_ms: 0.669906
+      duration_ms: 0.490999
       type: 'test'
       ...
     1..5
 ok 102 - Flight Commander firmware catalog
   ---
-  duration_ms: 29.89725
+  duration_ms: 20.010402
   type: 'suite'
   ...
 # Subtest: Flight Commander firmware identity
     # Subtest: recognizes inherited transport variants but authorizes only the FCFW identity
     ok 1 - recognizes inherited transport variants but authorizes only the FCFW identity
       ---
-      duration_ms: 1.673447
+      duration_ms: 1.632997
       type: 'test'
       ...
     # Subtest: parses the exact firmware 0.1.0 schema and little-endian capabilities
     ok 2 - parses the exact firmware 0.1.0 schema and little-endian capabilities
       ---
-      duration_ms: 0.9891
+      duration_ms: 1.097665
       type: 'test'
       ...
     # Subtest: treats a missing FCFW response as unsupported firmware
     ok 3 - treats a missing FCFW response as unsupported firmware
       ---
-      duration_ms: 0.168605
+      duration_ms: 0.224138
       type: 'test'
       ...
     # Subtest: identifies a newer Flight Commander schema but disables its features
     ok 4 - identifies a newer Flight Commander schema but disables its features
       ---
-      duration_ms: 0.270525
+      duration_ms: 0.32272
       type: 'test'
       ...
     # Subtest: rejects malformed nonempty payloads instead of granting capabilities
     ok 5 - rejects malformed nonempty payloads instead of granting capabilities
       ---
-      duration_ms: 0.476069
+      duration_ms: 0.555035
       type: 'test'
       ...
     # Subtest: feature gates require both Flight Commander identity and the exact bit
     ok 6 - feature gates require both Flight Commander identity and the exact bit
       ---
-      duration_ms: 0.247107
+      duration_ms: 0.289597
       type: 'test'
       ...
     # Subtest: the optional MSPv2 probe is single-attempt and falls back safely
     ok 7 - the optional MSPv2 probe is single-attempt and falls back safely
       ---
-      duration_ms: 0.440932
+      duration_ms: 0.485253
       type: 'test'
       ...
     # Subtest: applies Flight Commander identity without replacing the inherited protocol version
     ok 8 - applies Flight Commander identity without replacing the inherited protocol version
       ---
-      duration_ms: 0.260213
+      duration_ms: 0.319092
       type: 'test'
       ...
     1..8
 ok 103 - Flight Commander firmware identity
   ---
-  duration_ms: 5.577037
+  duration_ms: 6.103367
   type: 'suite'
   ...
 # Subtest: Flight Commander 4.1.3 keeps one Flight Commander operating product
 ok 104 - Flight Commander 4.1.3 keeps one Flight Commander operating product
   ---
-  duration_ms: 2.316685
+  duration_ms: 2.656152
   type: 'test'
   ...
 # Subtest: default heading priorities are unique and disabled weights are zero
 ok 105 - default heading priorities are unique and disabled weights are zero
   ---
-  duration_ms: 3.699748
+  duration_ms: 1.795325
   type: 'test'
   ...
 # Subtest: heading configuration round-trips the exact 71-byte firmware schema with per-node CAN calibration
 ok 106 - heading configuration round-trips the exact 71-byte firmware schema with per-node CAN calibration
   ---
-  duration_ms: 1.587988
+  duration_ms: 0.793134
   type: 'test'
   ...
 # Subtest: legacy compass yaw offsets are removed while moving-baseline alignment remains independent
 ok 107 - legacy compass yaw offsets are removed while moving-baseline alignment remains independent
   ---
-  duration_ms: 0.351018
+  duration_ms: 0.188589
   type: 'test'
   ...
 # Subtest: enabled heading sources form an unambiguous priority order
 ok 108 - enabled heading sources form an unambiguous priority order
   ---
-  duration_ms: 1.019318
+  duration_ms: 0.488289
   type: 'test'
   ...
 # Subtest: external compass hardware is limited to the target-scoped I2C1 driver set
 ok 109 - external compass hardware is limited to the target-scoped I2C1 driver set
   ---
-  duration_ms: 0.399494
+  duration_ms: 0.17909
   type: 'test'
   ...
 # Subtest: CAN compass and moving-baseline modes fail closed without assigned nodes
 ok 110 - CAN compass and moving-baseline modes fail closed without assigned nodes
   ---
-  duration_ms: 0.432192
+  duration_ms: 0.199689
   type: 'test'
   ...
 # Subtest: moving-baseline enable and source selection cannot diverge
 ok 111 - moving-baseline enable and source selection cannot diverge
   ---
-  duration_ms: 0.360495
+  duration_ms: 0.156034
   type: 'test'
   ...
 # Subtest: DroneCAN compass calibration is complete and bound to one node or absent
 ok 112 - DroneCAN compass calibration is complete and bound to one node or absent
   ---
-  duration_ms: 0.591613
+  duration_ms: 0.252343
   type: 'test'
   ...
 # Subtest: weighted fusion handles north wraparound and priority-based failover
 ok 113 - weighted fusion handles north wraparound and priority-based failover
   ---
-  duration_ms: 0.90162
+  duration_ms: 0.450712
   type: 'test'
   ...
 # Subtest: a source outside the configured disagreement guard is rejected
 ok 114 - a source outside the configured disagreement guard is rejected
   ---
-  duration_ms: 0.640715
+  duration_ms: 0.304882
   type: 'test'
   ...
 # Subtest: heading status decodes live masks, baseline geometry, quality, and age
 ok 115 - heading status decodes live masks, baseline geometry, quality, and age
   ---
-  duration_ms: 0.566054
+  duration_ms: 0.286103
   type: 'test'
   ...
 # Subtest: heading diagnostics distinguish missing, stale, and fresh low-quality magnetic samples
 ok 116 - heading diagnostics distinguish missing, stale, and fresh low-quality magnetic samples
   ---
-  duration_ms: 0.362087
+  duration_ms: 0.160109
   type: 'test'
   ...
 # Subtest: disabled heading sources default, decode, validate and migrate to zero weight
 ok 117 - disabled heading sources default, decode, validate and migrate to zero weight
   ---
-  duration_ms: 0.434944
+  duration_ms: 0.241719
   type: 'test'
   ...
 # Subtest: heading fusion retains the reviewed time-based IST8310 recovery
 ok 118 - heading fusion retains the reviewed time-based IST8310 recovery
   ---
-  duration_ms: 0.842451
+  duration_ms: 0.755878
   type: 'test'
   ...
 # Subtest: fresh magnetic samples keep heading availability even at displayed quality zero
 ok 119 - fresh magnetic samples keep heading availability even at displayed quality zero
   ---
-  duration_ms: 0.227047
+  duration_ms: 0.209274
   type: 'test'
   ...
 # Subtest: stationary startup uses a dedicated stable fused-heading seed
 ok 120 - stationary startup uses a dedicated stable fused-heading seed
   ---
-  duration_ms: 0.244663
+  duration_ms: 0.238365
   type: 'test'
   ...
 # Subtest: disabled sources use zero weight in reset, migration and MSP input paths
 ok 121 - disabled sources use zero weight in reset, migration and MSP input paths
   ---
-  duration_ms: 0.214309
+  duration_ms: 0.218367
   type: 'test'
   ...
 # Subtest: MICOAIR743 retains its fixed BMI088 rotation instead of reflecting one axis
 ok 122 - MICOAIR743 retains its fixed BMI088 rotation instead of reflecting one axis
   ---
-  duration_ms: 1.341395
+  duration_ms: 0.892788
   type: 'test'
   ...
 # Subtest: accelerometer attitude path has no 4.0.6 side buffer or mirrored write
 ok 123 - accelerometer attitude path has no 4.0.6 side buffer or mirrored write
   ---
-  duration_ms: 0.236054
+  duration_ms: 0.267716
   type: 'test'
   ...
 # Subtest: gyro attitude path has no 4.0.6 side buffer or mirrored write
 ok 124 - gyro attitude path has no 4.0.6 side buffer or mirrored write
   ---
-  duration_ms: 0.288875
+  duration_ms: 0.301817
   type: 'test'
   ...
 # Subtest: compass learning still consumes the on-demand pre-board IMU vectors
 ok 125 - compass learning still consumes the on-demand pre-board IMU vectors
   ---
-  duration_ms: 0.129163
+  duration_ms: 0.1243
   type: 'test'
   ...
 # Subtest: 4.0.8 exposes canonical IST8310 axes without a target-specific fixed transform
 ok 126 - 4.0.8 exposes canonical IST8310 axes without a target-specific fixed transform
   ---
-  duration_ms: 1.300073
+  duration_ms: 1.025256
   type: 'test'
   ...
 # Subtest: firmware owns a versioned persistent learned-transform parameter group
 ok 127 - firmware owns a versioned persistent learned-transform parameter group
   ---
-  duration_ms: 0.348726
+  duration_ms: 0.284376
   type: 'test'
   ...
 # Subtest: solver evaluates all proper signed-axis mappings and rejects weak solutions
 ok 128 - solver evaluates all proper signed-axis mappings and rejects weak solutions
   ---
-  duration_ms: 0.2251
+  duration_ms: 0.191136
   type: 'test'
   ...
 # Subtest: learning uses calibrated board-frame acceleration and gyro motion before user board alignment
 ok 129 - learning uses calibrated board-frame acceleration and gyro motion before user board alignment
   ---
-  duration_ms: 0.206037
+  duration_ms: 0.121624
   type: 'test'
   ...
 # Subtest: learned transform precedes field calibration and remains independent from CW0 manual alignment
 ok 130 - learned transform precedes field calibration and remains independent from CW0 manual alignment
   ---
-  duration_ms: 0.513755
+  duration_ms: 0.25513
   type: 'test'
   ...
 # Subtest: changing one source orientation invalidates only that source field calibration
 ok 131 - changing one source orientation invalidates only that source field calibration
   ---
-  duration_ms: 0.23919
+  duration_ms: 0.166442
   type: 'test'
   ...
 # Subtest: MSPv2 exposes independent status and command endpoints
 ok 132 - MSPv2 exposes independent status and command endpoints
   ---
-  duration_ms: 0.266365
+  duration_ms: 0.191463
   type: 'test'
   ...
 # Subtest: UART GPS presets include an explicit aircraft-side F9 RTK rover
 ok 133 - UART GPS presets include an explicit aircraft-side F9 RTK rover
   ---
-  duration_ms: 2.383301
+  duration_ms: 1.504565
   type: 'test'
   ...
 # Subtest: legacy u-blox hardware auto-detection remains stable and F9 stays explicit
 ok 134 - legacy u-blox hardware auto-detection remains stable and F9 stays explicit
   ---
-  duration_ms: 0.291206
+  duration_ms: 0.297022
   type: 'test'
   ...
 # Subtest: RTK rover guidance identifies the next safe setup action
 ok 135 - RTK rover guidance identifies the next safe setup action
   ---
-  duration_ms: 0.254819
+  duration_ms: 0.197762
   type: 'test'
   ...
 # Subtest: Alignment Tool enumerates UART, DroneCAN, and moving-baseline RTK targets
 ok 136 - Alignment Tool enumerates UART, DroneCAN, and moving-baseline RTK targets
   ---
-  duration_ms: 1.047132
+  duration_ms: 0.729774
   type: 'test'
   ...
 # Subtest: Alignment Tool locks ambiguous DroneCAN automatic compass selection
 ok 137 - Alignment Tool locks ambiguous DroneCAN automatic compass selection
   ---
-  duration_ms: 0.377494
+  duration_ms: 0.266268
   type: 'test'
   ...
 # Subtest: per-module alignment values round-trip in the firmware heading schema
 ok 138 - per-module alignment values round-trip in the firmware heading schema
   ---
-  duration_ms: 0.631327
+  duration_ms: 0.415771
   type: 'test'
   ...
 # Subtest: per-source alignment drafts cannot leak into another module
 ok 139 - per-source alignment drafts cannot leak into another module
   ---
-  duration_ms: 1.688762
+  duration_ms: 1.112074
   type: 'test'
   ...
 # Subtest: editing and revisiting every alignment target preserves four independent values
 ok 140 - editing and revisiting every alignment target preserves four independent values
   ---
-  duration_ms: 0.741086
+  duration_ms: 0.509692
   type: 'test'
   ...
 # Subtest: normalizes finite telemetry without inventing unavailable values
 ok 141 - normalizes finite telemetry without inventing unavailable values
   ---
-  duration_ms: 1.501852
+  duration_ms: 1.51693
   type: 'test'
   ...
 # Subtest: treats MAVLink unknown battery and satellite sentinels as unavailable
 ok 142 - treats MAVLink unknown battery and satellite sentinels as unavailable
   ---
-  duration_ms: 0.23763
+  duration_ms: 0.221706
   type: 'test'
   ...
 # Subtest: uses aircraft-attitude signs expected by an artificial horizon
 ok 143 - uses aircraft-attitude signs expected by an artificial horizon
   ---
-  duration_ms: 0.200582
+  duration_ms: 0.193237
   type: 'test'
   ...
 # Subtest: wraps a rounded north crossing to 000 instead of 360
 ok 144 - wraps a rounded north crossing to 000 instead of 360
   ---
-  duration_ms: 1.587336
+  duration_ms: 1.399971
   type: 'test'
   ...
 # Subtest: sizes the backing canvas for device pixel ratio while drawing in CSS pixels
 ok 145 - sizes the backing canvas for device pixel ratio while drawing in CSS pixels
   ---
-  duration_ms: 0.543926
+  duration_ms: 0.523331
   type: 'test'
   ...
 # Subtest: renders primary flight instruments at both major and inset sizes
 ok 146 - renders primary flight instruments at both major and inset sizes
   ---
-  duration_ms: 1.872128
+  duration_ms: 2.158255
   type: 'test'
   ...
 # Subtest: uses a green ground gradient with high-contrast HUD markings
 ok 147 - uses a green ground gradient with high-contrast HUD markings
   ---
-  duration_ms: 0.570945
+  duration_ms: 0.563181
   type: 'test'
   ...
 # Subtest: announces link, attitude, speed, and altitude for assistive technology
 ok 148 - announces link, attitude, speed, and altitude for assistive technology
   ---
-  duration_ms: 0.307993
+  duration_ms: 0.308297
   type: 'test'
   ...
 # Subtest: converts every HUD speed, altitude, and spoken unit in imperial mode
 ok 149 - converts every HUD speed, altitude, and spoken unit in imperial mode
   ---
-  duration_ms: 0.779347
+  duration_ms: 0.712554
   type: 'test'
   ...
 # Subtest: does not draw a false level horizon when attitude is unavailable
 ok 150 - does not draw a false level horizon when attitude is unavailable
   ---
-  duration_ms: 1.170478
+  duration_ms: 1.207206
   type: 'test'
   ...
 # Subtest: switches major view without moving or overlapping either live pane
 ok 151 - switches major view without moving or overlapping either live pane
   ---
-  duration_ms: 1.681431
+  duration_ms: 1.72874
   type: 'test'
   ...
 # Subtest: Ground Control exposes all telemetry below two persistent side-by-side panes
 ok 152 - Ground Control exposes all telemetry below two persistent side-by-side panes
   ---
-  duration_ms: 2.496427
+  duration_ms: 1.411863
   type: 'test'
   ...
 # Subtest: major and minor panes use grid columns and never overlap
 ok 153 - major and minor panes use grid columns and never overlap
   ---
-  duration_ms: 0.623835
+  duration_ms: 0.406365
   type: 'test'
   ...
 # Subtest: telemetry fits under both views while RTK is reached by normal page scrolling
 ok 154 - telemetry fits under both views while RTK is reached by normal page scrolling
   ---
-  duration_ms: 0.324809
+  duration_ms: 0.175334
   type: 'test'
   ...
 # Subtest: Ground Control owns RTK setup offline and subscribes during MAVLink startup
 ok 155 - Ground Control owns RTK setup offline and subscribes during MAVLink startup
   ---
-  duration_ms: 0.528863
+  duration_ms: 0.285598
   type: 'test'
   ...
 # Subtest: unit switching converts every Ground Control display and input boundary
 ok 156 - unit switching converts every Ground Control display and input boundary
   ---
-  duration_ms: 0.903402
+  duration_ms: 0.5215
   type: 'test'
   ...
 # Subtest: vehicle and mission commands stay visible with explicit safe actions
 ok 157 - vehicle and mission commands stay visible with explicit safe actions
   ---
-  duration_ms: 0.581114
+  duration_ms: 0.295987
   type: 'test'
   ...
 # Subtest: desktop minimum and responsive fallback both support the two-pane layout
 ok 158 - desktop minimum and responsive fallback both support the two-pane layout
   ---
-  duration_ms: 0.413108
+  duration_ms: 0.21386
   type: 'test'
   ...
 # Subtest: normalizes the two supported unit systems with a metric fallback
 ok 159 - normalizes the two supported unit systems with a metric fallback
   ---
-  duration_ms: 1.239204
+  duration_ms: 0.870009
   type: 'test'
   ...
 # Subtest: follows Flight Commander's global unit option and OSD unit family
 ok 160 - follows Flight Commander's global unit option and OSD unit family
   ---
-  duration_ms: 0.333733
+  duration_ms: 0.235279
   type: 'test'
   ...
 # Subtest: exposes immutable labels, multipliers, and readable HUD tape steps
 ok 161 - exposes immutable labels, multipliers, and readable HUD tape steps
   ---
-  duration_ms: 2.043126
+  duration_ms: 1.869621
   type: 'test'
   ...
 # Subtest: converts only display quantities from canonical SI values
 ok 162 - converts only display quantities from canonical SI values
   ---
-  duration_ms: 0.287468
+  duration_ms: 0.240297
   type: 'test'
   ...
 # Subtest: converts editable display values back to canonical SI
 ok 163 - converts editable display values back to canonical SI
   ---
-  duration_ms: 0.35395
+  duration_ms: 0.236681
   type: 'test'
   ...
 # Subtest: keeps unavailable and non-finite telemetry unavailable
 ok 164 - keeps unavailable and non-finite telemetry unavailable
   ---
-  duration_ms: 0.598729
+  duration_ms: 0.452906
   type: 'test'
   ...
 # Subtest: creates a converted display snapshot without mutating canonical SI state
 ok 165 - creates a converted display snapshot without mutating canonical SI state
   ---
-  duration_ms: 0.486972
+  duration_ms: 0.329017
   type: 'test'
   ...
 # Subtest: formats symbols and spoken units consistently
 ok 166 - formats symbols and spoken units consistently
   ---
-  duration_ms: 0.374238
+  duration_ms: 0.29443
   type: 'test'
   ...
 # Subtest: INAV VFR_HUD altitude feeds relative altitude without GPS
 ok 167 - INAV VFR_HUD altitude feeds relative altitude without GPS
   ---
-  duration_ms: 1.852943
+  duration_ms: 1.509769
   type: 'test'
   ...
 # Subtest: GPS_RAW_INT supplies MSL altitude only with a 3D fix
 ok 168 - GPS_RAW_INT supplies MSL altitude only with a 3D fix
   ---
-  duration_ms: 0.399274
+  duration_ms: 0.431064
   type: 'test'
   ...
 # Subtest: GLOBAL_POSITION_INT keeps existing MSL and relative altitude behavior
 ok 169 - GLOBAL_POSITION_INT keeps existing MSL and relative altitude behavior
   ---
-  duration_ms: 0.207966
+  duration_ms: 0.184762
   type: 'test'
   ...
 # Subtest: non-INAV VFR_HUD keeps standard MSL semantics
 ok 170 - non-INAV VFR_HUD keeps standard MSL semantics
   ---
-  duration_ms: 0.283555
+  duration_ms: 0.162534
   type: 'test'
   ...
 # Subtest: Ground Control leaves the global diagnostics log operator-controlled
 ok 171 - Ground Control leaves the global diagnostics log operator-controlled
   ---
-  duration_ms: 1.373315
+  duration_ms: 0.580705
   type: 'test'
   ...
 # Subtest: MAVLink timeout diagnostics distinguish bytes, frames, and heartbeats
 ok 172 - MAVLink timeout diagnostics distinguish bytes, frames, and heartbeats
   ---
-  duration_ms: 0.35099
+  duration_ms: 0.195175
   type: 'test'
   ...
 # Subtest: Ground Control subscribes while MAVLink waits for its first heartbeat
 ok 173 - Ground Control subscribes while MAVLink waits for its first heartbeat
   ---
-  duration_ms: 0.28248
+  duration_ms: 0.139823
   type: 'test'
   ...
 # Subtest: waiting serial MAVLink links use a bounded COM refresh loop
 ok 174 - waiting serial MAVLink links use a bounded COM refresh loop
   ---
-  duration_ms: 3.296634
+  duration_ms: 1.619603
   type: 'test'
   ...
 # Subtest: radio recovery cycles only the vehicle serial transport
 ok 175 - radio recovery cycles only the vehicle serial transport
   ---
-  duration_ms: 0.33608
+  duration_ms: 0.256177
   type: 'test'
   ...
 # Subtest: RTK base cleanup does not disconnect the independent USB base
 ok 176 - RTK base cleanup does not disconnect the independent USB base
   ---
-  duration_ms: 0.649909
+  duration_ms: 0.400169
   type: 'test'
   ...
 # Subtest: DroneCAN 4.0 configuration preserves independent base, rover, navigation and compass bindings
 ok 177 - DroneCAN 4.0 configuration preserves independent base, rover, navigation and compass bindings
   ---
-  duration_ms: 1.541972
+  duration_ms: 1.379362
   type: 'test'
   ...
 # Subtest: DroneCAN pair validation rejects incomplete and duplicate role bindings
 ok 178 - DroneCAN pair validation rejects incomplete and duplicate role bindings
   ---
-  duration_ms: 0.60177
+  duration_ms: 0.570069
   type: 'test'
   ...
 # Subtest: pair status decoder exposes role verification and live relative-heading telemetry
 ok 179 - pair status decoder exposes role verification and live relative-heading telemetry
   ---
-  duration_ms: 1.412407
+  duration_ms: 1.598472
   type: 'test'
   ...
 # Subtest: pair command wire contract is explicit and versioned
 ok 180 - pair command wire contract is explicit and versioned
   ---
-  duration_ms: 0.216912
+  duration_ms: 0.202387
   type: 'test'
   ...
 # Subtest: unsupported firmware command gates
     # Subtest: blocks every command for a vehicle without Flight Commander identity
     ok 1 - blocks every command for a vehicle without Flight Commander identity
       ---
-      duration_ms: 2.047555
+      duration_ms: 1.531329
       type: 'test'
       ...
     # Subtest: link loss remains the first failure for every firmware family
     ok 2 - link loss remains the first failure for every firmware family
       ---
-      duration_ms: 0.272916
+      duration_ms: 0.276854
       type: 'test'
       ...
     # Subtest: does not route commands until firmware family is known
     ok 3 - does not route commands until firmware family is known
       ---
-      duration_ms: 0.269503
+      duration_ms: 0.201727
       type: 'test'
       ...
     # Subtest: rejects an inherited stock-firmware family as unsupported
     ok 4 - rejects an inherited stock-firmware family as unsupported
       ---
-      duration_ms: 0.251361
+      duration_ms: 0.216812
       type: 'test'
       ...
     # Subtest: an application transition failure remains blocked after the transient block clears
     ok 5 - an application transition failure remains blocked after the transient block clears
       ---
-      duration_ms: 0.224017
+      duration_ms: 0.195044
       type: 'test'
       ...
     1..5
 ok 181 - unsupported firmware command gates
   ---
-  duration_ms: 4.039817
+  duration_ms: 3.195535
   type: 'suite'
   ...
 # Subtest: Flight Commander command routing
     # Subtest: default override timers retain the Chromium host receiver
     ok 1 - default override timers retain the Chromium host receiver
       ---
-      duration_ms: 0.621775
+      duration_ms: 0.523667
       type: 'test'
       ...
     # Subtest: requires the firmware capability and a matching cached profile
     ok 2 - requires the firmware capability and a matching cached profile
       ---
-      duration_ms: 10.116721
+      duration_ms: 8.166254
       type: 'test'
       ...
     # Subtest: rejects mismatched and ambiguous profiles
     ok 3 - rejects mismatched and ambiguous profiles
       ---
-      duration_ms: 0.341682
+      duration_ms: 0.241011
       type: 'test'
       ...
     1..3
 ok 182 - Flight Commander command routing
   ---
-  duration_ms: 11.333276
+  duration_ms: 9.136847
   type: 'suite'
   ...
 # Subtest: INAV profile persistence
     # Subtest: resolves exactly one MICOAIR743 wired profile as legacy Flight Commander identity
     ok 1 - resolves exactly one MICOAIR743 wired profile as legacy Flight Commander identity
       ---
-      duration_ms: 0.415128
+      duration_ms: 0.331777
       type: 'test'
       ...
     # Subtest: resolves one profile and reports ambiguity without silently choosing
     ok 2 - resolves one profile and reports ambiguity without silently choosing
       ---
-      duration_ms: 0.831313
+      duration_ms: 0.57585
       type: 'test'
       ...
     # Subtest: captures the command-safe MSP profile fields used by MAVLink routing
     ok 3 - captures the command-safe MSP profile fields used by MAVLink routing
       ---
-      duration_ms: 1.024365
+      duration_ms: 0.750273
       type: 'test'
       ...
     1..3
 ok 183 - INAV profile persistence
   ---
-  duration_ms: 2.509006
+  duration_ms: 2.017096
   type: 'suite'
   ...
 # Subtest: GCS discovery heartbeat matches known MAVLink wire vectors
 ok 184 - GCS discovery heartbeat matches known MAVLink wire vectors
   ---
-  duration_ms: 3.583159
+  duration_ms: 2.397312
   type: 'test'
   ...
 # Subtest: MAVLink IPC codec round-trips packets and rejects unsafe encode requests
 ok 185 - MAVLink IPC codec round-trips packets and rejects unsafe encode requests
   ---
-  duration_ms: 7.902642
+  duration_ms: 5.885736
   type: 'test'
   ...
 # Subtest: MAVLink IPC codec drops stale feeds and tags decoded packets with the active generation
 ok 186 - MAVLink IPC codec drops stale feeds and tags decoded packets with the active generation
   ---
-  duration_ms: 2.423785
+  duration_ms: 2.114634
   type: 'test'
   ...
 # Subtest: MAVLink IPC registration delivers packets and removes every handler on dispose
 ok 187 - MAVLink IPC registration delivers packets and removes every handler on dispose
   ---
-  duration_ms: 2.350221
+  duration_ms: 1.976697
   type: 'test'
   ...
 # Subtest: MavlinkSession unregisters the exact raw preload listener token
 ok 188 - MavlinkSession unregisters the exact raw preload listener token
   ---
-  duration_ms: 0.554042
+  duration_ms: 0.398132
   type: 'test'
   ...
 # Subtest: MavlinkMissionManager
     # Subtest: downloads INAV legacy mission items in sequence and cleans waiters
     ok 1 - downloads INAV legacy mission items in sequence and cleans waiters
       ---
-      duration_ms: 2.84617
+      duration_ms: 2.799303
       type: 'test'
       ...
     # Subtest: uploads INAV legacy items and blocks unsupported command 206
     ok 2 - uploads INAV legacy items and blocks unsupported command 206
       ---
-      duration_ms: 2.526482
+      duration_ms: 2.064529
       type: 'test'
       ...
     # Subtest: clear verifies a zero-item readback and timeout removes listeners
     ok 3 - clear verifies a zero-item readback and timeout removes listeners
       ---
-      duration_ms: 14.471801
+      duration_ms: 10.710013
       type: 'test'
       ...
     # Subtest: detach intrinsically cancels a mission read and reconnect installs one fresh listener
     ok 4 - detach intrinsically cancels a mission read and reconnect installs one fresh listener
       ---
-      duration_ms: 4.744744
+      duration_ms: 1.328741
       type: 'test'
       ...
     # Subtest: detach intrinsically cancels mission upload and clear verification delay
     ok 5 - detach intrinsically cancels mission upload and clear verification delay
       ---
-      duration_ms: 1.644639
+      duration_ms: 1.561979
       type: 'test'
       ...
     1..5
 ok 189 - MavlinkMissionManager
   ---
-  duration_ms: 27.453317
+  duration_ms: 19.442946
   type: 'suite'
   ...
 # Subtest: withAbortSignal prevents a detached firmware-identification result from escaping
 ok 190 - withAbortSignal prevents a detached firmware-identification result from escaping
   ---
-  duration_ms: 0.42638
+  duration_ms: 1.065129
   type: 'test'
   ...
 # Subtest: mission defaults retain the Chromium timer receiver
 ok 191 - mission defaults retain the Chromium timer receiver
   ---
-  duration_ms: 0.448383
+  duration_ms: 0.372902
   type: 'test'
   ...
 # Subtest: decoded frame normalization
     # Subtest: normalizes node-mavlink-style names, headers, protocol and payloads
     ok 1 - normalizes node-mavlink-style names, headers, protocol and payloads
       ---
-      duration_ms: 2.290634
+      duration_ms: 1.573239
       type: 'test'
       ...
     # Subtest: rejects decoded frames with no message identity
     ok 2 - rejects decoded frames with no message identity
       ---
-      duration_ms: 0.618923
+      duration_ms: 0.455132
       type: 'test'
       ...
     # Subtest: normalizes sensor, output, log and FTP message names
     ok 3 - normalizes sensor, output, log and FTP message names
       ---
-      duration_ms: 0.4243
+      duration_ms: 0.262185
       type: 'test'
       ...
     1..3
 ok 192 - decoded frame normalization
   ---
-  duration_ms: 4.581701
+  duration_ms: 3.109932
   type: 'suite'
   ...
 # Subtest: captures equivalent MAVLink sensor streams and servo outputs
 ok 193 - captures equivalent MAVLink sensor streams and servo outputs
   ---
-  duration_ms: 4.5466
+  duration_ms: 3.172407
   type: 'test'
   ...
 # Subtest: binds default host timers to the Electron renderer receiver
 ok 194 - binds default host timers to the Electron renderer receiver
   ---
-  duration_ms: 1.066813
+  duration_ms: 0.703047
   type: 'test'
   ...
 # Subtest: rolls back a failed timer initialization and permits a clean retry
 ok 195 - rolls back a failed timer initialization and permits a clean retry
   ---
-  duration_ms: 0.671665
+  duration_ms: 0.487243
   type: 'test'
   ...
 # Subtest: MAVLink state normalization and firmware detection
     # Subtest: normalizes heartbeat, position, attitude, battery and sentinel values
     ok 1 - normalizes heartbeat, position, attitude, battery and sentinel values
       ---
-      duration_ms: 1.697764
+      duration_ms: 1.189563
       type: 'test'
       ...
     # Subtest: keeps a generic-autopilot heartbeat locked while FCFW identity is pending
     ok 2 - keeps a generic-autopilot heartbeat locked while FCFW identity is pending
       ---
-      duration_ms: 0.847708
+      duration_ms: 0.627058
       type: 'test'
       ...
     # Subtest: recognizes legacy Firmware 4.0.8 from one cached wired Flight Commander profile
     ok 3 - recognizes legacy Firmware 4.0.8 from one cached wired Flight Commander profile
       ---
-      duration_ms: 0.801024
+      duration_ms: 0.569346
       type: 'test'
       ...
     # Subtest: promotes an INAV-compatible heartbeat to Flight Commander only after FCFW capability identity
     ok 4 - promotes an INAV-compatible heartbeat to Flight Commander only after FCFW capability identity
       ---
-      duration_ms: 1.130797
+      duration_ms: 0.805401
       type: 'test'
       ...
     # Subtest: publishes the validated connection before firmware state updates
     ok 5 - publishes the validated connection before firmware state updates
       ---
-      duration_ms: 0.718995
+      duration_ms: 0.501037
       type: 'test'
       ...
     # Subtest: does not unlock the vehicle session for malformed or non-vehicle heartbeats
     ok 6 - does not unlock the vehicle session for malformed or non-vehicle heartbeats
       ---
-      duration_ms: 1.122566
+      duration_ms: 0.77295
       type: 'test'
       ...
     # Subtest: uses parameter stream fingerprint to distinguish INAV from unsupported firmware
     ok 7 - uses parameter stream fingerprint to distinguish INAV from unsupported firmware
       ---
-      duration_ms: 1.270639
+      duration_ms: 0.868247
       type: 'test'
       ...
     # Subtest: fails closed when the INAV compatibility fingerprint probe is silent
     ok 8 - fails closed when the INAV compatibility fingerprint probe is silent
       ---
-      duration_ms: 20.160327
+      duration_ms: 20.189985
       type: 'test'
       ...
     1..8
 ok 196 - MAVLink state normalization and firmware detection
   ---
-  duration_ms: 28.510105
+  duration_ms: 26.050636
   type: 'suite'
   ...
 # Subtest: commands, acknowledgements and cleanup
     # Subtest: drops queued bytes and decoded frames from an earlier attachment
     ok 1 - drops queued bytes and decoded frames from an earlier attachment
       ---
-      duration_ms: 1.507209
+      duration_ms: 1.017611
       type: 'test'
       ...
     # Subtest: does not send an asynchronously encoded command on a replacement attachment
     ok 2 - does not send an asynchronously encoded command on a replacement attachment
       ---
-      duration_ms: 0.799041
+      duration_ms: 0.579723
       type: 'test'
       ...
     # Subtest: does not report a stale discovery result on a replacement attachment
     ok 3 - does not report a stale discovery result on a replacement attachment
       ---
-      duration_ms: 3.076643
+      duration_ms: 0.453127
       type: 'test'
       ...
     # Subtest: keeps discovery single-flight when MAVLink encoding is delayed
     ok 4 - keeps discovery single-flight when MAVLink encoding is delayed
       ---
-      duration_ms: 8.935175
+      duration_ms: 8.281819
       type: 'test'
       ...
     # Subtest: detach before the settle deadline prevents a late discovery timer
     ok 5 - detach before the settle deadline prevents a late discovery timer
       ---
-      duration_ms: 0.497679
+      duration_ms: 0.334205
       type: 'test'
       ...
     # Subtest: destroy while discovery encoding is pending cannot write or emit completion
     ok 6 - destroy while discovery encoding is pending cannot write or emit completion
       ---
-      duration_ms: 0.949902
+      duration_ms: 0.713826
       type: 'test'
       ...
     # Subtest: starts and stops the GCS discovery heartbeat with the transport
     ok 7 - starts and stops the GCS discovery heartbeat with the transport
       ---
-      duration_ms: 0.368847
+      duration_ms: 0.286005
       type: 'test'
       ...
     # Subtest: isolates a failing state subscriber without wedging transport startup
     ok 8 - isolates a failing state subscriber without wedging transport startup
       ---
-      duration_ms: 0.520881
+      duration_ms: 0.411449
       type: 'test'
       ...
     # Subtest: settles with MAVLink v1, decodes a chunked vehicle heartbeat, then uses the observed v2 protocol
     ok 9 - settles with MAVLink v1, decodes a chunked vehicle heartbeat, then uses the observed v2 protocol
       ---
-      duration_ms: 11.028788
+      duration_ms: 11.323121
       type: 'test'
       ...
     # Subtest: does not expose removed direct vehicle command helpers
     ok 10 - does not expose removed direct vehicle command helpers
       ---
-      duration_ms: 0.346515
+      duration_ms: 0.252246
       type: 'test'
       ...
     # Subtest: detaching rejects state, ACK, firmware, and mission waits
     ok 11 - detaching rejects state, ACK, firmware, and mission waits
       ---
-      duration_ms: 3.408297
+      duration_ms: 1.63269
       type: 'test'
       ...
     # Subtest: accepts progress ACK, rejects negative ACK, and times out cleanly
     ok 12 - accepts progress ACK, rejects negative ACK, and times out cleanly
       ---
-      duration_ms: 11.050167
+      duration_ms: 10.348423
       type: 'test'
       ...
     # Subtest: destroy removes transport, IPC, interval and event listeners
     ok 13 - destroy removes transport, IPC, interval and event listeners
       ---
-      duration_ms: 0.389248
+      duration_ms: 0.25431
       type: 'test'
       ...
     1..13
 ok 197 - commands, acknowledgements and cleanup
   ---
-  duration_ms: 43.517666
+  duration_ms: 36.368687
   type: 'suite'
   ...
 # Subtest: INAV MSP behavior returns native speed and terminal action
 ok 198 - INAV MSP behavior returns native speed and terminal action
   ---
-  duration_ms: 4.003573
+  duration_ms: 1.779009
   type: 'test'
   ...
 # Subtest: Flight Commander JSON round trip preserves metadata and settings
 ok 199 - Flight Commander JSON round trip preserves metadata and settings
   ---
-  duration_ms: 0.767233
+  duration_ms: 0.546007
   type: 'test'
   ...
 # Subtest: QGC WPL validates sequence, JUMP targets, and INAV boundaries
 ok 200 - QGC WPL validates sequence, JUMP targets, and INAV boundaries
   ---
-  duration_ms: 1.660496
+  duration_ms: 0.91606
   type: 'test'
   ...
 # Subtest: INAV planning model enforces safehome, approach, and geozone limits
 ok 201 - INAV planning model enforces safehome, approach, and geozone limits
   ---
-  duration_ms: 1.881084
+  duration_ms: 0.873259
   type: 'test'
   ...
 # Subtest: mission segment count follows raw INAV boundaries
 ok 202 - mission segment count follows raw INAV boundaries
   ---
-  duration_ms: 0.281709
+  duration_ms: 0.15324
   type: 'test'
   ...
 # Subtest: terrain insertion gives INAV samples fresh identities and remaps JUMP
 ok 203 - terrain insertion gives INAV samples fresh identities and remaps JUMP
   ---
-  duration_ms: 4.459936
+  duration_ms: 3.198268
   type: 'test'
   ...
 # Subtest: reindexing fails closed on duplicate INAV source identities
 ok 204 - reindexing fails closed on duplicate INAV source identities
   ---
-  duration_ms: 0.518319
+  duration_ms: 0.398082
   type: 'test'
   ...
 # Subtest: built-in terrain keeps native fetch bound to globalThis
 ok 205 - built-in terrain keeps native fetch bound to globalThis
   ---
-  duration_ms: 1.163131
+  duration_ms: 0.840376
   type: 'test'
   ...
 # Subtest: survey camera command 206 is explicit and optional
 ok 206 - survey camera command 206 is explicit and optional
   ---
-  duration_ms: 1.282538
+  duration_ms: 0.913312
   type: 'test'
   ...
 # Subtest: terrain-profile uploads require the Flight Commander capability
 ok 207 - terrain-profile uploads require the Flight Commander capability
   ---
-  duration_ms: 1.710293
+  duration_ms: 1.201794
   type: 'test'
   ...
 # Subtest: camera command 206 requires the Flight Commander photo capability
 ok 208 - camera command 206 requires the Flight Commander photo capability
   ---
-  duration_ms: 0.394253
+  duration_ms: 0.28754
   type: 'test'
   ...
 # Subtest: Flight Planner rejects MAVLink Null Island before GPS fix
 ok 209 - Flight Planner rejects MAVLink Null Island before GPS fix
   ---
-  duration_ms: 1.193088
+  duration_ms: 0.757334
   type: 'test'
   ...
 # Subtest: Flight Planner accepts a fixed vehicle position
 ok 210 - Flight Planner accepts a fixed vehicle position
   ---
-  duration_ms: 0.950511
+  duration_ms: 0.68791
   type: 'test'
   ...
 # Subtest: Flight Planner falls back to a valid home instead of an unfixed vehicle
 ok 211 - Flight Planner falls back to a valid home instead of an unfixed vehicle
   ---
-  duration_ms: 0.203991
+  duration_ms: 0.147167
   type: 'test'
   ...
 # Subtest: Flight Planner rejects out-of-range coordinates
 ok 212 - Flight Planner rejects out-of-range coordinates
   ---
-  duration_ms: 0.17943
+  duration_ms: 0.114135
   type: 'test'
   ...
 # Subtest: planner follows the Configurator imperial selection and OSD distance families
 ok 213 - planner follows the Configurator imperial selection and OSD distance families
   ---
-  duration_ms: 1.164594
+  duration_ms: 0.481974
   type: 'test'
   ...
 # Subtest: planner display conversions round-trip while mission values remain SI
 ok 214 - planner display conversions round-trip while mission values remain SI
   ---
-  duration_ms: 1.185545
+  duration_ms: 0.557456
   type: 'test'
   ...
 # Subtest: mission summary uses miles/acres or kilometres/hectares at useful thresholds
 ok 215 - mission summary uses miles/acres or kilometres/hectares at useful thresholds
   ---
-  duration_ms: 0.345927
+  duration_ms: 0.139496
   type: 'test'
   ...
 # Subtest: recovered Ground Control and Flight Planner imports are all exported
 ok 216 - recovered Ground Control and Flight Planner imports are all exported
   ---
-  duration_ms: 196.271613
+  duration_ms: 133.699685
   type: 'test'
   ...
 # Subtest: protocol filter refuses camera command 206 and raw INAV loss over MAVLink
 ok 217 - protocol filter refuses camera command 206 and raw INAV loss over MAVLink
   ---
-  duration_ms: 2.136665
+  duration_ms: 1.035671
   type: 'test'
   ...
 # Subtest: Flight Commander preserves command 206 over MAVLink and native MSP action 9
 ok 218 - Flight Commander preserves command 206 over MAVLink and native MSP action 9
   ---
-  duration_ms: 1.66914
+  duration_ms: 0.794612
   type: 'test'
   ...
 # Subtest: Flight Commander preserves absolute-MSL terrain waypoint frames
 ok 219 - Flight Commander preserves absolute-MSL terrain waypoint frames
   ---
-  duration_ms: 0.296708
+  duration_ms: 0.132851
   type: 'test'
   ...
 # Subtest: mission verification checks canonical INAV coordinates
 ok 220 - mission verification checks canonical INAV coordinates
   ---
-  duration_ms: 0.821373
+  duration_ms: 0.443947
   type: 'test'
   ...
 # Subtest: INAV progress estimate advances monotonically and recognizes final RTL
 ok 221 - INAV progress estimate advances monotonically and recognizes final RTL
   ---
-  duration_ms: 0.753135
+  duration_ms: 0.359549
   type: 'test'
   ...
 # Subtest: mission coordinator releases an attachment-scoped lease on abort
 ok 222 - mission coordinator releases an attachment-scoped lease on abort
   ---
-  duration_ms: 0.463051
+  duration_ms: 0.209362
   type: 'test'
   ...
 # Subtest: mission fingerprint is stable across metadata-only changes
 ok 223 - mission fingerprint is stable across metadata-only changes
   ---
-  duration_ms: 1.109865
+  duration_ms: 0.494062
   type: 'test'
   ...
 # Subtest: boot continuity supports clock wrap and rejects a reboot
 ok 224 - boot continuity supports clock wrap and rejects a reboot
   ---
-  duration_ms: 0.452482
+  duration_ms: 0.219409
   type: 'test'
   ...
 # Subtest: INAV resume suffix accepts only waypoints and optional final RTL
 ok 225 - INAV resume suffix accepts only waypoints and optional final RTL
   ---
-  duration_ms: 0.456309
+  duration_ms: 0.236938
   type: 'test'
   ...
 # Subtest: packaging starts from clean Vite output roots
 ok 226 - packaging starts from clean Vite output roots
   ---
-  duration_ms: 1.32664
+  duration_ms: 1.190234
   type: 'test'
   ...
 # Subtest: Windows verification follows the active renderer graph and rejects leftovers
 not ok 227 - Windows verification follows the active renderer graph and rejects leftovers
   ---
-  duration_ms: 4.813601
+  duration_ms: 1.786214
   type: 'test'
   location: '/home/runner/work/Flight-Commander/Flight-Commander/tests/flight-commander/packaging/package-contract.test.mjs:266:1'
   failureType: 'testCodeFailure'
@@ -4113,7 +4113,7 @@ not ok 227 - Windows verification follows the active renderer graph and rejects 
 # Subtest: native NTRIP and drone-off RTK base setup are release surfaces
 not ok 228 - native NTRIP and drone-off RTK base setup are release surfaces
   ---
-  duration_ms: 1.523847
+  duration_ms: 1.189404
   type: 'test'
   location: '/home/runner/work/Flight-Commander/Flight-Commander/tests/flight-commander/packaging/package-contract.test.mjs:377:1'
   failureType: 'testCodeFailure'
@@ -4742,73 +4742,73 @@ not ok 228 - native NTRIP and drone-off RTK base setup are release surfaces
 # Subtest: documentation and support stay on Flight Commander-owned resources
 ok 229 - documentation and support stay on Flight Commander-owned resources
   ---
-  duration_ms: 39.210433
+  duration_ms: 26.664751
   type: 'test'
   ...
 # Subtest: weighted heading fusion and moving-baseline setup are release surfaces
 ok 230 - weighted heading fusion and moving-baseline setup are release surfaces
   ---
-  duration_ms: 1.994138
+  duration_ms: 0.811027
   type: 'test'
   ...
 # Subtest: UART RTK rover selection and per-module alignment ship in the release UI
 ok 231 - UART RTK rover selection and per-module alignment ship in the release UI
   ---
-  duration_ms: 1.062257
+  duration_ms: 0.828439
   type: 'test'
   ...
 # Subtest: SITL presents a Flight Commander-owned operator surface
 ok 232 - SITL presents a Flight Commander-owned operator surface
   ---
-  duration_ms: 30.523387
+  duration_ms: 19.490223
   type: 'test'
   ...
 # Subtest: application remains dark-only
 ok 233 - application remains dark-only
   ---
-  duration_ms: 0.431081
+  duration_ms: 0.378964
   type: 'test'
   ...
 # Subtest: firmware is release-only and the flasher exposes local, online, then flash
 ok 234 - firmware is release-only and the flasher exposes local, online, then flash
   ---
-  duration_ms: 19.935274
+  duration_ms: 14.582651
   type: 'test'
   ...
 # Subtest: retired ArduPilot implementation files are absent
 ok 235 - retired ArduPilot implementation files are absent
   ---
-  duration_ms: 0.864053
+  duration_ms: 0.573284
   type: 'test'
   ...
 # Subtest: all requested large-prop INAV presets are wired into the release source
 ok 236 - all requested large-prop INAV presets are wired into the release source
   ---
-  duration_ms: 0.432516
+  duration_ms: 0.313843
   type: 'test'
   ...
 # Subtest: landing page describes Flight Commander capabilities without retirement copy
 ok 237 - landing page describes Flight Commander capabilities without retirement copy
   ---
-  duration_ms: 0.267009
+  duration_ms: 0.182366
   type: 'test'
   ...
 # Subtest: guarded official publication uses the verified release workflow
 ok 238 - guarded official publication uses the verified release workflow
   ---
-  duration_ms: 0.216847
+  duration_ms: 0.155563
   type: 'test'
   ...
 # Subtest: release policy distinguishes software-only updates from firmware rebuilds
 ok 239 - release policy distinguishes software-only updates from firmware rebuilds
   ---
-  duration_ms: 0.443687
+  duration_ms: 0.271555
   type: 'test'
   ...
 # Subtest: source-backed releases publish one complete bundle plus the online-flasher HEX
 not ok 240 - source-backed releases publish one complete bundle plus the online-flasher HEX
   ---
-  duration_ms: 1.190206
+  duration_ms: 3.271252
   type: 'test'
   location: '/home/runner/work/Flight-Commander/Flight-Commander/tests/flight-commander/packaging/package-contract.test.mjs:767:1'
   failureType: 'testCodeFailure'
@@ -6367,531 +6367,531 @@ not ok 240 - source-backed releases publish one complete bundle plus the online-
 # Subtest: canonical Flight Commander visual assets match the verified 1.3.5 identity
 ok 241 - canonical Flight Commander visual assets match the verified 1.3.5 identity
   ---
-  duration_ms: 0.713914
+  duration_ms: 0.485377
   type: 'test'
   ...
 # Subtest: every active product identity path selects Flight Commander artwork
 ok 242 - every active product identity path selects Flight Commander artwork
   ---
-  duration_ms: 0.532493
+  duration_ms: 0.434344
   type: 'test'
   ...
 # Subtest: legacy welcome art remains intact while the active theme selects dark branding
 ok 243 - legacy welcome art remains intact while the active theme selects dark branding
   ---
-  duration_ms: 0.617519
+  duration_ms: 0.396923
   type: 'test'
   ...
 # Flight Commander version contract OK: Configurator 4.1.3, published firmware 4.0.8, firmware major 4, firmware excluded from the Configurator and retained only as GitHub release assets.
 # Subtest: coordinated releases identify the standalone published firmware asset
 ok 244 - coordinated releases identify the standalone published firmware asset
   ---
-  duration_ms: 1.279618
+  duration_ms: 0.867675
   type: 'test'
   ...
 # Subtest: firmware-changing releases require the exact Configurator version
 ok 245 - firmware-changing releases require the exact Configurator version
   ---
-  duration_ms: 0.573758
+  duration_ms: 0.397172
   type: 'test'
   ...
 # Subtest: software-only releases may reuse a published firmware within the same major
 ok 246 - software-only releases may reuse a published firmware within the same major
   ---
-  duration_ms: 0.225567
+  duration_ms: 0.186735
   type: 'test'
   ...
 # Subtest: firmware source is mandatory and must match the published HEX version
 ok 247 - firmware source is mandatory and must match the published HEX version
   ---
-  duration_ms: 0.37835
+  duration_ms: 0.261801
   type: 'test'
   ...
 # Subtest: firmware source must use the release-only path and exact identities
 ok 248 - firmware source must use the release-only path and exact identities
   ---
-  duration_ms: 0.284685
+  duration_ms: 0.186611
   type: 'test'
   ...
 # Subtest: published firmware and source checksums are mandatory
 ok 249 - published firmware and source checksums are mandatory
   ---
-  duration_ms: 0.245372
+  duration_ms: 0.188495
   type: 'test'
   ...
 # Subtest: all release types reject a Configurator/firmware major mismatch
 ok 250 - all release types reject a Configurator/firmware major mismatch
   ---
-  duration_ms: 0.28276
+  duration_ms: 0.202848
   type: 'test'
   ...
 # Subtest: release declarations are explicit booleans
 ok 251 - release declarations are explicit booleans
   ---
-  duration_ms: 0.332011
+  duration_ms: 0.231301
   type: 'test'
   ...
 # Subtest: preset transaction runs controller writes sequentially and reports progress
 ok 252 - preset transaction runs controller writes sequentially and reports progress
   ---
-  duration_ms: 7.007494
+  duration_ms: 6.414088
   type: 'test'
   ...
 # Subtest: preset preflight validates every required value before returning writable settings
 ok 253 - preset preflight validates every required value before returning writable settings
   ---
-  duration_ms: 0.628646
+  duration_ms: 0.47133
   type: 'test'
   ...
 # Subtest: preset preflight rejects an unavailable required setting before application
 ok 254 - preset preflight rejects an unavailable required setting before application
   ---
-  duration_ms: 0.555501
+  duration_ms: 0.354524
   type: 'test'
   ...
 # Subtest: preset preflight rejects duplicate writes and invalid encoded values
 ok 255 - preset preflight rejects duplicate writes and invalid encoded values
   ---
-  duration_ms: 0.431711
+  duration_ms: 0.193009
   type: 'test'
   ...
 # Subtest: Keep current settings never enters control or battery profile selection
 ok 256 - Keep current settings never enters control or battery profile selection
   ---
-  duration_ms: 0.643768
+  duration_ms: 0.446312
   type: 'test'
   ...
 # Subtest: real presets write only control profile 1 and leave profiles 2 and 3 untouched
 ok 257 - real presets write only control profile 1 and leave profiles 2 and 3 untouched
   ---
-  duration_ms: 0.560392
+  duration_ms: 0.337062
   type: 'test'
   ...
 # Subtest: Keep current settings does not change the selected control profile
 ok 258 - Keep current settings does not change the selected control profile
   ---
-  duration_ms: 0.269928
+  duration_ms: 0.170317
   type: 'test'
   ...
 # Subtest: every INAV 9.1 control-profile field used by presets is classified correctly
 ok 259 - every INAV 9.1 control-profile field used by presets is classified correctly
   ---
-  duration_ms: 0.459399
+  duration_ms: 0.357335
   type: 'test'
   ...
 # Subtest: explicit command failure rejects instead of leaving the preset modal blocked
 ok 260 - explicit command failure rejects instead of leaving the preset modal blocked
   ---
-  duration_ms: 0.488856
+  duration_ms: 0.333192
   type: 'test'
   ...
 # Subtest: a callback that never returns is bounded by an explicit timeout
 ok 261 - a callback that never returns is bounded by an explicit timeout
   ---
-  duration_ms: 15.109149
+  duration_ms: 15.364793
   type: 'test'
   ...
 # Subtest: preset success requires a read-back match of applied_defaults
 ok 262 - preset success requires a read-back match of applied_defaults
   ---
-  duration_ms: 0.460219
+  duration_ms: 0.415772
   type: 'test'
   ...
 # Subtest: first-run preset UI has progress, recovery, retry, and read-back contracts
 ok 263 - first-run preset UI has progress, recovery, retry, and read-back contracts
   ---
-  duration_ms: 0.481444
+  duration_ms: 0.339625
   type: 'test'
   ...
 # Subtest: Flight Commander exposes exactly the requested large-prop INAV presets
 ok 264 - Flight Commander exposes exactly the requested large-prop INAV presets
   ---
-  duration_ms: 2.082453
+  duration_ms: 1.407716
   type: 'test'
   ...
 # Subtest: larger props receive progressively lower bandwidth and response
 ok 265 - larger props receive progressively lower bandwidth and response
   ---
-  duration_ms: 0.322009
+  duration_ms: 0.20329
   type: 'test'
   ...
 # Subtest: every large-prop preset writes a complete bounded INAV 9.1 EZ Tune profile
 ok 266 - every large-prop preset writes a complete bounded INAV 9.1 EZ Tune profile
   ---
-  duration_ms: 0.422752
+  duration_ms: 0.301516
   type: 'test'
   ...
 # Subtest: calculated preset PIDs mirror the INAV 9.1 EZ Tune generator
 ok 267 - calculated preset PIDs mirror the INAV 9.1 EZ Tune generator
   ---
-  duration_ms: 0.349688
+  duration_ms: 0.223392
   type: 'test'
   ...
 # Subtest: every multirotor prop-size preset is a complete coherent INAV 9.1 starting point
 ok 268 - every multirotor prop-size preset is a complete coherent INAV 9.1 starting point
   ---
-  duration_ms: 0.708731
+  duration_ms: 0.4724
   type: 'test'
   ...
 # Subtest: all first-run presets exclude removed INAV settings and use canonical names
 ok 269 - all first-run presets exclude removed INAV settings and use canonical names
   ---
-  duration_ms: 0.795085
+  duration_ms: 0.555892
   type: 'test'
   ...
 # Subtest: airframe presets select distinct INAV mixers and platform types
 ok 270 - airframe presets select distinct INAV mixers and platform types
   ---
-  duration_ms: 0.347477
+  duration_ms: 0.212132
   type: 'test'
   ...
 # Subtest: 4.1.3 is Configurator-only and retains verified Firmware 4.0.8
 ok 271 - 4.1.3 is Configurator-only and retains verified Firmware 4.0.8
   ---
-  duration_ms: 2.037529
+  duration_ms: 1.385002
   type: 'test'
   ...
 # Subtest: official publisher keeps Configurator and retained firmware versions distinct
 ok 272 - official publisher keeps Configurator and retained firmware versions distinct
   ---
-  duration_ms: 0.391757
+  duration_ms: 0.28462
   type: 'test'
   ...
 # Subtest: RTK base refinement averages stable fixed samples and reports readiness
 ok 273 - RTK base refinement averages stable fixed samples and reports readiness
   ---
-  duration_ms: 1.811482
+  duration_ms: 1.167065
   type: 'test'
   ...
 # Subtest: RTK base refinement remains unready before ten consecutive fixed samples
 ok 274 - RTK base refinement remains unready before ten consecutive fixed samples
   ---
-  duration_ms: 0.282041
+  duration_ms: 0.259428
   type: 'test'
   ...
 # Subtest: RTK correction forwarder sends an RTCM frame in ordered MAVLink fragments
 ok 275 - RTK correction forwarder sends an RTCM frame in ordered MAVLink fragments
   ---
-  duration_ms: 2.68949
+  duration_ms: 1.238424
   type: 'test'
   ...
 # Subtest: RTK correction forwarder bounds its queue and records transport failures
 ok 276 - RTK correction forwarder bounds its queue and records transport failures
   ---
-  duration_ms: 0.749357
+  duration_ms: 0.373753
   type: 'test'
   ...
 # Subtest: RTK correction routing prefers an advertised Flight Commander MAVLink link
 ok 277 - RTK correction routing prefers an advertised Flight Commander MAVLink link
   ---
-  duration_ms: 1.268491
+  duration_ms: 1.23122
   type: 'test'
   ...
 # Subtest: RTK correction routing supports wired Flight Commander MSP injection
 ok 278 - RTK correction routing supports wired Flight Commander MSP injection
   ---
-  duration_ms: 0.147422
+  duration_ms: 0.173068
   type: 'test'
   ...
 # Subtest: unidentified firmware cannot receive Flight Commander GCS base corrections
 ok 279 - unidentified firmware cannot receive Flight Commander GCS base corrections
   ---
-  duration_ms: 0.995523
+  duration_ms: 0.901309
   type: 'test'
   ...
 # Subtest: NTRIP GGA uses NMEA coordinates, UTC, altitude, and a valid checksum
 ok 280 - NTRIP GGA uses NMEA coordinates, UTC, altitude, and a valid checksum
   ---
-  duration_ms: 1.518836
+  duration_ms: 0.999441
   type: 'test'
   ...
 # Subtest: NTRIP GGA rejects out-of-range coordinates
 ok 281 - NTRIP GGA rejects out-of-range coordinates
   ---
-  duration_ms: 0.667067
+  duration_ms: 0.484458
   type: 'test'
   ...
 # Subtest: NTRIP request selects the mountpoint and uses Basic authentication
 ok 282 - NTRIP request selects the mountpoint and uses Basic authentication
   ---
-  duration_ms: 7.672484
+  duration_ms: 4.428889
   type: 'test'
   ...
 # Subtest: NTRIP response decoder accepts an ICY stream split across chunks
 ok 283 - NTRIP response decoder accepts an ICY stream split across chunks
   ---
-  duration_ms: 1.520949
+  duration_ms: 0.806119
   type: 'test'
   ...
 # Subtest: NTRIP response decoder de-chunks HTTP/1.1 RTCM bodies
 ok 284 - NTRIP response decoder de-chunks HTTP/1.1 RTCM bodies
   ---
-  duration_ms: 0.626004
+  duration_ms: 0.319433
   type: 'test'
   ...
 # Subtest: NTRIP response decoder rejects authentication and mountpoint errors
 ok 285 - NTRIP response decoder rejects authentication and mountpoint errors
   ---
-  duration_ms: 0.787223
+  duration_ms: 0.505949
   type: 'test'
   ...
 # Subtest: NTRIP sourcetable request uses the caster root without a mountpoint
 ok 286 - NTRIP sourcetable request uses the caster root without a mountpoint
   ---
-  duration_ms: 1.929172
+  duration_ms: 1.190739
   type: 'test'
   ...
 # Subtest: NTRIP response decoder accepts a sourcetable only when requested
 ok 287 - NTRIP response decoder accepts a sourcetable only when requested
   ---
-  duration_ms: 0.445308
+  duration_ms: 0.328284
   type: 'test'
   ...
 # Subtest: native NTRIP client discovers a caster and opens its RTCM stream
 ok 288 - native NTRIP client discovers a caster and opens its RTCM stream
   ---
-  duration_ms: 19.097231
+  duration_ms: 10.430122
   type: 'test'
   ...
 # Subtest: RTK2go preset resolves to the native public caster endpoint
 ok 289 - RTK2go preset resolves to the native public caster endpoint
   ---
-  duration_ms: 0.766735
+  duration_ms: 0.676686
   type: 'test'
   ...
 # Subtest: RTK2go stream connection requires its valid-email username
 ok 290 - RTK2go stream connection requires its valid-email username
   ---
-  duration_ms: 0.510765
+  duration_ms: 0.420728
   type: 'test'
   ...
 # Subtest: NTRIP sourcetable parser exposes free RTCM stream metadata
 ok 291 - NTRIP sourcetable parser exposes free RTCM stream metadata
   ---
-  duration_ms: 1.446654
+  duration_ms: 1.039549
   type: 'test'
   ...
 # Subtest: NTRIP mountpoints sort by distance from the surveyed base
 ok 292 - NTRIP mountpoints sort by distance from the surveyed base
   ---
-  duration_ms: 0.434489
+  duration_ms: 0.316728
   type: 'test'
   ...
 # Subtest: RTCM3 parser validates CRC and reconstructs chunked input
 ok 293 - RTCM3 parser validates CRC and reconstructs chunked input
   ---
-  duration_ms: 2.162695
+  duration_ms: 1.445389
   type: 'test'
   ...
 # Subtest: RTCM3 parser rejects a corrupt frame
 ok 294 - RTCM3 parser rejects a corrupt frame
   ---
-  duration_ms: 0.368397
+  duration_ms: 0.257258
   type: 'test'
   ...
 # Subtest: MAVLink RTCM fragmentation follows the four-fragment protocol
 ok 295 - MAVLink RTCM fragmentation follows the four-fragment protocol
   ---
-  duration_ms: 1.04222
+  duration_ms: 0.713751
   type: 'test'
   ...
 # Subtest: u-blox parser validates and reconstructs UBX frames
 ok 296 - u-blox parser validates and reconstructs UBX frames
   ---
-  duration_ms: 2.213235
+  duration_ms: 1.464679
   type: 'test'
   ...
 # Subtest: survey-in configuration enables USB RTCM MSM7 output
 ok 297 - survey-in configuration enables USB RTCM MSM7 output
   ---
-  duration_ms: 0.506763
+  duration_ms: 0.55409
   type: 'test'
   ...
 # Subtest: fixed base coordinates retain u-blox high-precision residuals
 ok 298 - fixed base coordinates retain u-blox high-precision residuals
   ---
-  duration_ms: 1.328663
+  duration_ms: 1.256942
   type: 'test'
   ...
 # Subtest: u-blox MON-VER, NAV-SVIN, and ACK status decode
 ok 299 - u-blox MON-VER, NAV-SVIN, and ACK status decode
   ---
-  duration_ms: 0.478423
+  duration_ms: 0.361914
   type: 'test'
   ...
 # Subtest: RTK workflow selection applies safe route recommendations
 ok 300 - RTK workflow selection applies safe route recommendations
   ---
-  duration_ms: 0.848417
+  duration_ms: 0.945151
   type: 'test'
   ...
 # Subtest: direct NTRIP guidance advances from caster to aircraft to live route
 ok 301 - direct NTRIP guidance advances from caster to aircraft to live route
   ---
-  duration_ms: 0.506373
+  duration_ms: 0.447122
   type: 'test'
   ...
 # Subtest: refined-base guidance requires survey, refinement, finalization, and aircraft in order
 ok 302 - refined-base guidance requires survey, refinement, finalization, and aircraft in order
   ---
-  duration_ms: 0.310695
+  duration_ms: 0.216143
   type: 'test'
   ...
 # Subtest: INAV normalization preserves scale, corrects pitch, and reports native 3D fix accurately
 ok 303 - INAV normalization preserves scale, corrects pitch, and reports native 3D fix accurately
   ---
-  duration_ms: 2.056085
+  duration_ms: 0.946922
   type: 'test'
   ...
 # Subtest: INAV normalization uses explicit connection state and fails safely on invalid values
 ok 304 - INAV normalization uses explicit connection state and fails safely on invalid values
   ---
-  duration_ms: 0.316906
+  duration_ms: 0.132215
   type: 'test'
   ...
 # Subtest: LTM normalization keeps armed semantics and separates consumed mAh from current
 ok 305 - LTM normalization keeps armed semantics and separates consumed mAh from current
   ---
-  duration_ms: 1.688046
+  duration_ms: 0.926889
   type: 'test'
   ...
 # Subtest: LTM supports the inherited misspelled consumption field without inventing amperage
 ok 306 - LTM supports the inherited misspelled consumption field without inventing amperage
   ---
-  duration_ms: 0.235581
+  duration_ms: 0.10423
   type: 'test'
   ...
 # Subtest: dark stylesheet is loaded after every legacy and Flight Commander surface
 ok 307 - dark stylesheet is loaded after every legacy and Flight Commander surface
   ---
-  duration_ms: 0.990137
+  duration_ms: 0.958495
   type: 'test'
   ...
 # Subtest: dark palette maintains readable body, secondary, disabled, warning, and action text
 ok 308 - dark palette maintains readable body, secondary, disabled, warning, and action text
   ---
-  duration_ms: 0.605816
+  duration_ms: 0.650568
   type: 'test'
   ...
 # Subtest: contrast scrub explicitly covers every active configuration family
 ok 309 - contrast scrub explicitly covers every active configuration family
   ---
-  duration_ms: 0.371472
+  duration_ms: 0.330906
   type: 'test'
   ...
 # Subtest: disabled fields, zebra rows, PID panels, and preset modal cannot fall back to light
 ok 310 - disabled fields, zebra rows, PID panels, and preset modal cannot fall back to light
   ---
-  duration_ms: 0.239583
+  duration_ms: 0.288906
   type: 'test'
   ...
 # Subtest: battery and control profile fields use dark classes instead of inline light colors
 ok 311 - battery and control profile fields use dark classes instead of inline light colors
   ---
-  duration_ms: 0.264601
+  duration_ms: 0.277996
   type: 'test'
   ...
 # Subtest: application theme normalization defaults safely to dark
 ok 312 - application theme normalization defaults safely to dark
   ---
-  duration_ms: 2.07962
+  duration_ms: 1.233771
   type: 'test'
   ...
 # Subtest: startup replaces any legacy light preference with canonical dark
 ok 313 - startup replaces any legacy light preference with canonical dark
   ---
-  duration_ms: 0.317478
+  duration_ms: 0.289406
   type: 'test'
   ...
 # Subtest: all theme requests persist and announce dark
 ok 314 - all theme requests persist and announce dark
   ---
-  duration_ms: 0.29257
+  duration_ms: 0.204841
   type: 'test'
   ...
 # Subtest: dark-only header has no theme control that can overlap Connect
 ok 315 - dark-only header has no theme control that can overlap Connect
   ---
-  duration_ms: 2.63706
+  duration_ms: 1.738563
   type: 'test'
   ...
 # Subtest: Quad X labels map motors 1-4 to the four motor circles
 ok 316 - Quad X labels map motors 1-4 to the four motor circles
   ---
-  duration_ms: 2.14859
+  duration_ms: 0.995595
   type: 'test'
   ...
 # Subtest: Quad Plus labels center the front/rear and left/right motors
 ok 317 - Quad Plus labels center the front/rear and left/right motors
   ---
-  duration_ms: 0.414958
+  duration_ms: 0.23663
   type: 'test'
   ...
 # Subtest: Mixer and Outputs both use the image-bound motor-number overlay
 ok 318 - Mixer and Outputs both use the image-bound motor-number overlay
   ---
-  duration_ms: 2.245339
+  duration_ms: 1.496633
   type: 'test'
   ...
 # Subtest: INAV motor order and rotation stay aligned for Props-in and Props-out
 ok 319 - INAV motor order and rotation stay aligned for Props-in and Props-out
   ---
-  duration_ms: 0.852417
+  duration_ms: 0.544871
   type: 'test'
   ...
 # Subtest: an empty live mixer falls back to the selected Quad X preset
 ok 320 - an empty live mixer falls back to the selected Quad X preset
   ---
-  duration_ms: 0.255555
+  duration_ms: 0.136045
   type: 'test'
   ...
 # Subtest: the fallback renderer makes labels 1-4 visible at percentage positions
 ok 321 - the fallback renderer makes labels 1-4 visible at percentage positions
   ---
-  duration_ms: 0.676132
+  duration_ms: 0.381155
   type: 'test'
   ...
 # Subtest: magnetometer slider synchronisation
     # Subtest: moving slider updates value field
     ok 1 - moving slider updates value field
       ---
-      duration_ms: 0.836277
+      duration_ms: 1.244785
       type: 'test'
       ...
     # Subtest: changing value field moves slider
     ok 2 - changing value field moves slider
       ---
-      duration_ms: 0.148066
+      duration_ms: 0.14732
       type: 'test'
       ...
     # Subtest: re-entrancy guard prevents infinite loop
     ok 3 - re-entrancy guard prevents infinite loop
       ---
-      duration_ms: 0.257111
+      duration_ms: 0.260531
       type: 'test'
       ...
     # Subtest: all three axes round-trip values across [-180..360]
     ok 4 - all three axes round-trip values across [-180..360]
       ---
-      duration_ms: 0.465819
+      duration_ms: 0.335237
       type: 'test'
       ...
     # Subtest: regression baseline: jQuery .val() on slider element does not move handle
     ok 5 - regression baseline: jQuery .val() on slider element does not move handle
       ---
-      duration_ms: 0.144025
+      duration_ms: 0.131367
       type: 'test'
       ...
     # Subtest: noUiSlider.get() returns value set via .set()
     ok 6 - noUiSlider.get() returns value set via .set()
       ---
-      duration_ms: 0.128797
+      duration_ms: 0.13422
       type: 'test'
       ...
     1..6
 ok 322 - magnetometer slider synchronisation
   ---
-  duration_ms: 3.859239
+  duration_ms: 4.154873
   type: 'suite'
   ...
 # 🧪 Running Tests...
@@ -6928,7 +6928,7 @@ ok 322 - magnetometer slider synchronisation
 # Subtest: /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/and_or_precedence.test.cjs
 ok 71 - /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/and_or_precedence.test.cjs
   ---
-  duration_ms: 50.122601
+  duration_ms: 40.217005
   type: 'test'
   ...
 # 🧪 Running Tests...
@@ -6962,7 +6962,7 @@ ok 71 - /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/and
 # Subtest: /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/approx_equal.test.cjs
 ok 72 - /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/approx_equal.test.cjs
   ---
-  duration_ms: 66.820153
+  duration_ms: 41.617827
   type: 'test'
   ...
 # 🧪 Running Tests...
@@ -6995,7 +6995,7 @@ ok 72 - /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/app
 # Subtest: /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/auto_import.test.cjs
 ok 73 - /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/auto_import.test.cjs
   ---
-  duration_ms: 95.99681
+  duration_ms: 66.068148
   type: 'test'
   ...
 # 🧪 Running Tests...
@@ -7059,7 +7059,7 @@ ok 73 - /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/aut
 # Subtest: /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/chained_conditions.test.cjs
 ok 74 - /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/chained_conditions.test.cjs
   ---
-  duration_ms: 50.781344
+  duration_ms: 42.09235
   type: 'test'
   ...
 # 🧪 Running Tests...
@@ -7079,7 +7079,7 @@ ok 74 - /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/cha
 # Subtest: /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/comparison_operators.test.cjs
 ok 75 - /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/comparison_operators.test.cjs
   ---
-  duration_ms: 80.988274
+  duration_ms: 57.172974
   type: 'test'
   ...
 # 🧪 Running Tests...
@@ -7099,7 +7099,7 @@ ok 75 - /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/com
 # Subtest: /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/const_support.test.cjs
 ok 76 - /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/const_support.test.cjs
   ---
-  duration_ms: 85.501696
+  duration_ms: 55.219001
   type: 'test'
   ...
 # 🧪 Running Tests...
@@ -7115,7 +7115,7 @@ ok 76 - /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/con
 # Subtest: /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/debug_logs.test.cjs
 ok 77 - /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/debug_logs.test.cjs
   ---
-  duration_ms: 38.950872
+  duration_ms: 21.70098
   type: 'test'
   ...
 # 🧪 Running Tests...
@@ -7346,7 +7346,7 @@ ok 77 - /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/deb
 # Subtest: /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/decompiler.test.cjs
 ok 78 - /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/decompiler.test.cjs
   ---
-  duration_ms: 123.286736
+  duration_ms: 87.973324
   type: 'test'
   ...
 # 🧪 Running Tests...
@@ -7362,7 +7362,7 @@ ok 78 - /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/dec
 # Subtest: /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/diagnostics.test.cjs
 ok 79 - /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/diagnostics.test.cjs
   ---
-  duration_ms: 28.801517
+  duration_ms: 27.286645
   type: 'test'
   ...
 # 🧪 Running Tests...
@@ -7409,7 +7409,7 @@ ok 79 - /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/dia
 # Subtest: /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/edge_activator_in_sticky.test.cjs
 ok 80 - /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/edge_activator_in_sticky.test.cjs
   ---
-  duration_ms: 51.265673
+  duration_ms: 38.416805
   type: 'test'
   ...
 # 🧪 Running Tests...
@@ -7448,139 +7448,139 @@ ok 80 - /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/edg
 # Subtest: /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/edge_no_children.test.cjs
 ok 81 - /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/edge_no_children.test.cjs
   ---
-  duration_ms: 59.527471
+  duration_ms: 40.527166
   type: 'test'
   ...
 # Subtest: transpiler example: arm-init
 ok 334 - transpiler example: arm-init
   ---
-  duration_ms: 11.028265
+  duration_ms: 9.744671
   type: 'test'
   ...
 # Subtest: transpiler example: vtx-distance
 ok 335 - transpiler example: vtx-distance
   ---
-  duration_ms: 3.066703
+  duration_ms: 3.136603
   type: 'test'
   ...
 # Subtest: transpiler example: battery-protection
 ok 336 - transpiler example: battery-protection
   ---
-  duration_ms: 1.072404
+  duration_ms: 1.153565
   type: 'test'
   ...
 # Subtest: transpiler example: rssi-vtx
 ok 337 - transpiler example: rssi-vtx
   ---
-  duration_ms: 1.224243
+  duration_ms: 1.4166
   type: 'test'
   ...
 # Subtest: transpiler example: altitude-stages
 ok 338 - transpiler example: altitude-stages
   ---
-  duration_ms: 2.344333
+  duration_ms: 2.279055
   type: 'test'
   ...
 # Subtest: transpiler example: heading-tracking
 ok 339 - transpiler example: heading-tracking
   ---
-  duration_ms: 1.544695
+  duration_ms: 1.604261
   type: 'test'
   ...
 # Subtest: transpiler example: gps-check
 ok 340 - transpiler example: gps-check
   ---
-  duration_ms: 0.911676
+  duration_ms: 0.974532
   type: 'test'
   ...
 # Subtest: transpiler example: multi-condition
 ok 341 - transpiler example: multi-condition
   ---
-  duration_ms: 1.05223
+  duration_ms: 1.108841
   type: 'test'
   ...
 # Subtest: transpiler example: simple-counter
 ok 342 - transpiler example: simple-counter
   ---
-  duration_ms: 1.596826
+  duration_ms: 1.715788
   type: 'test'
   ...
 # Subtest: transpiler example: edge-detection
 ok 343 - transpiler example: edge-detection
   ---
-  duration_ms: 1.186954
+  duration_ms: 1.326371
   type: 'test'
   ...
 # Subtest: transpiler example: waypoint-arrival
 ok 344 - transpiler example: waypoint-arrival
   ---
-  duration_ms: 1.549444
+  duration_ms: 0.961162
   type: 'test'
   ...
 # Subtest: transpiler example: rc-controlled
 ok 345 - transpiler example: rc-controlled
   ---
-  duration_ms: 1.067974
+  duration_ms: 1.863029
   type: 'test'
   ...
 # Subtest: transpiler example: override-rc
 ok 346 - transpiler example: override-rc
   ---
-  duration_ms: 0.890839
+  duration_ms: 0.967855
   type: 'test'
   ...
 # Subtest: transpiler example: debounce-edge
 ok 347 - transpiler example: debounce-edge
   ---
-  duration_ms: 0.773305
+  duration_ms: 0.897737
   type: 'test'
   ...
 # Subtest: transpiler example: sticky-condition
 ok 348 - transpiler example: sticky-condition
   ---
-  duration_ms: 1.256348
+  duration_ms: 1.030306
   type: 'test'
   ...
 # Subtest: transpiler example: sticky-variable
 ok 349 - transpiler example: sticky-variable
   ---
-  duration_ms: 0.802009
+  duration_ms: 0.637773
   type: 'test'
   ...
 # Subtest: transpiler example: let-variables
 ok 350 - transpiler example: let-variables
   ---
-  duration_ms: 1.42399
+  duration_ms: 1.181143
   type: 'test'
   ...
 # Subtest: transpiler example: ternary-operator
 ok 351 - transpiler example: ternary-operator
   ---
-  duration_ms: 1.638483
+  duration_ms: 1.318912
   type: 'test'
   ...
 # Subtest: transpiler example: pid-output
 ok 352 - transpiler example: pid-output
   ---
-  duration_ms: 0.879817
+  duration_ms: 0.791859
   type: 'test'
   ...
 # Subtest: transpiler example: flight-modes
 ok 353 - transpiler example: flight-modes
   ---
-  duration_ms: 0.76929
+  duration_ms: 0.692989
   type: 'test'
   ...
 # Subtest: transpiler example: pid-throttle-control
 ok 354 - transpiler example: pid-throttle-control
   ---
-  duration_ms: 0.764973
+  duration_ms: 0.568944
   type: 'test'
   ...
 # Subtest: transpiler example: mode-based-vtx
 ok 355 - transpiler example: mode-based-vtx
   ---
-  duration_ms: 2.229838
+  duration_ms: 1.036224
   type: 'test'
   ...
 # 🧪 Running Tests...
@@ -7626,7 +7626,7 @@ ok 355 - transpiler example: mode-based-vtx
 # Subtest: /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/examples_coverage.test.cjs
 ok 83 - /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/examples_coverage.test.cjs
   ---
-  duration_ms: 155.760987
+  duration_ms: 106.759499
   type: 'test'
   ...
 # 🧪 Running Tests...
@@ -7687,7 +7687,7 @@ ok 83 - /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/exa
 # Subtest: /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/expression_utils.test.cjs
 ok 84 - /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/expression_utils.test.cjs
   ---
-  duration_ms: 69.750777
+  duration_ms: 36.101946
   type: 'test'
   ...
 # 🧪 Running Tests...
@@ -7705,7 +7705,7 @@ ok 84 - /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/exp
 # Subtest: /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/flight_axis_override.test.cjs
 ok 85 - /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/flight_axis_override.test.cjs
   ---
-  duration_ms: 93.173334
+  duration_ms: 60.191049
   type: 'test'
   ...
 # 🧪 Running Tests...
@@ -7741,7 +7741,7 @@ ok 85 - /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/fli
 # Subtest: /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/gvar_hoisting_order.test.cjs
 ok 86 - /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/gvar_hoisting_order.test.cjs
   ---
-  duration_ms: 59.042722
+  duration_ms: 47.352618
   type: 'test'
   ...
 # 🧪 Running Tests...
@@ -7772,7 +7772,7 @@ ok 86 - /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/gva
 # Subtest: /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/let_integration.test.cjs
 ok 87 - /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/let_integration.test.cjs
   ---
-  duration_ms: 94.083784
+  duration_ms: 63.694273
   type: 'test'
   ...
 # 🧪 Running Tests...
@@ -7787,7 +7787,7 @@ ok 87 - /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/let
 # Subtest: /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/load_example.test.cjs
 ok 88 - /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/load_example.test.cjs
   ---
-  duration_ms: 40.143328
+  duration_ms: 26.350584
   type: 'test'
   ...
 # 🧪 Running Tests...
@@ -7819,7 +7819,7 @@ ok 88 - /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/loa
 # Subtest: /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/missing_override_activator.test.cjs
 ok 89 - /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/missing_override_activator.test.cjs
   ---
-  duration_ms: 55.769846
+  duration_ms: 39.885477
   type: 'test'
   ...
 # 🧪 Running Tests...
@@ -7848,7 +7848,7 @@ ok 89 - /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/mis
 # Subtest: /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/namespace_validation.test.cjs
 ok 90 - /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/namespace_validation.test.cjs
   ---
-  duration_ms: 111.31995
+  duration_ms: 75.381008
   type: 'test'
   ...
 # 🧪 Running Tests...
@@ -7869,7 +7869,7 @@ ok 90 - /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/nam
 # Subtest: /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/nand_nor_pattern.test.cjs
 ok 91 - /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/nand_nor_pattern.test.cjs
   ---
-  duration_ms: 85.526225
+  duration_ms: 61.803179
   type: 'test'
   ...
 # 🧪 Running Tests...
@@ -7887,7 +7887,7 @@ ok 91 - /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/nan
 # Subtest: /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/nested_if.test.cjs
 ok 92 - /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/nested_if.test.cjs
   ---
-  duration_ms: 89.059953
+  duration_ms: 61.882854
   type: 'test'
   ...
 # 🧪 Running Tests...
@@ -7911,7 +7911,7 @@ ok 92 - /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/nes
 # Subtest: /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/optimizer.test.cjs
 ok 93 - /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/optimizer.test.cjs
   ---
-  duration_ms: 49.839724
+  duration_ms: 28.803347
   type: 'test'
   ...
 # 🧪 Running Tests...
@@ -7961,7 +7961,7 @@ ok 93 - /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/opt
 # Subtest: /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/sticky_scope.test.cjs
 ok 94 - /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/sticky_scope.test.cjs
   ---
-  duration_ms: 43.240622
+  duration_ms: 40.31551
   type: 'test'
   ...
 # 🧪 Running Tests...
@@ -7977,7 +7977,7 @@ ok 94 - /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/sti
 # Subtest: /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/strict_mode.test.cjs
 ok 95 - /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/strict_mode.test.cjs
   ---
-  duration_ms: 41.929784
+  duration_ms: 26.975569
   type: 'test'
   ...
 # 🧪 Running Tests...
@@ -7997,7 +7997,7 @@ ok 95 - /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/str
 # Subtest: /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/ternary_expression.test.cjs
 ok 96 - /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/ternary_expression.test.cjs
   ---
-  duration_ms: 95.712957
+  duration_ms: 58.246198
   type: 'test'
   ...
 # 🧪 Running Tests...
@@ -8013,62 +8013,62 @@ ok 96 - /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/ter
 # Subtest: /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/ui_selectors.test.cjs
 ok 97 - /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/ui_selectors.test.cjs
   ---
-  duration_ms: 29.378371
+  duration_ms: 23.795635
   type: 'test'
   ...
 # Subtest: transpiler validation
     # Subtest: Invalid function call (intermediate object)
     ok 1 - Invalid function call (intermediate object)
       ---
-      duration_ms: 6.770547
+      duration_ms: 6.422508
       type: 'test'
       ...
     # Subtest: Invalid function call (unknown function)
     ok 2 - Invalid function call (unknown function)
       ---
-      duration_ms: 0.987967
+      duration_ms: 1.033633
       type: 'test'
       ...
     # Subtest: Assign to intermediate object (2-level)
     ok 3 - Assign to intermediate object (2-level)
       ---
-      duration_ms: 1.697741
+      duration_ms: 1.764999
       type: 'test'
       ...
     # Subtest: Assign to intermediate object (3-level)
     ok 4 - Assign to intermediate object (3-level)
       ---
-      duration_ms: 0.896491
+      duration_ms: 1.009866
       type: 'test'
       ...
     # Subtest: Use intermediate object in expression
     ok 5 - Use intermediate object in expression
       ---
-      duration_ms: 1.642973
+      duration_ms: 1.371083
       type: 'test'
       ...
     # Subtest: Valid yaw angle assignment
     ok 6 - Valid yaw angle assignment
       ---
-      duration_ms: 1.4753
+      duration_ms: 1.584555
       type: 'test'
       ...
     # Subtest: Valid VTX power assignment
     ok 7 - Valid VTX power assignment
       ---
-      duration_ms: 0.725916
+      duration_ms: 0.563075
       type: 'test'
       ...
     # Subtest: Valid helper function call
     ok 8 - Valid helper function call
       ---
-      duration_ms: 3.072571
+      duration_ms: 1.796435
       type: 'test'
       ...
     1..8
 ok 371 - transpiler validation
   ---
-  duration_ms: 19.03262
+  duration_ms: 16.55066
   type: 'suite'
   ...
 # 🧪 Running Tests...
@@ -8130,7 +8130,7 @@ ok 371 - transpiler validation
 # Subtest: /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/variable_handler.test.cjs
 ok 99 - /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/variable_handler.test.cjs
   ---
-  duration_ms: 55.005261
+  duration_ms: 27.575056
   type: 'test'
   ...
 # 🧪 Running Tests...
@@ -8171,7 +8171,7 @@ ok 99 - /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/var
 # Subtest: /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/variable_map.test.cjs
 ok 100 - /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/variable_map.test.cjs
   ---
-  duration_ms: 74.697022
+  duration_ms: 58.11824
   type: 'test'
   ...
 1..373
@@ -8182,7 +8182,7 @@ ok 100 - /home/runner/work/Flight-Commander/Flight-Commander/tests/transpiler/va
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 3244.608617
+# duration_ms 2252.7623
 Node tests failed.
 error Command failed with exit code 1.
 info Visit https://yarnpkg.com/en/docs/cli/run for documentation about this command.
