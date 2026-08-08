@@ -87,8 +87,11 @@ jobs:
               echo "--- dependency log ---"
               tail -n 200 /tmp/install.log 2>/dev/null || true
               echo
-              echo "--- test log ---"
-              tail -n 500 /tmp/test.log 2>/dev/null || true
+              echo "--- test failure index ---"
+              grep -nE '(^|# )(not ok|failureType:|error:|AssertionError|SyntaxError|ERR_[A-Z_]+|expected:|actual:)' /tmp/test.log 2>/dev/null || true
+              echo
+              echo "--- complete test log ---"
+              cat /tmp/test.log 2>/dev/null || true
             } > "$status_path"
           fi
 
