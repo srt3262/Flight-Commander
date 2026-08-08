@@ -1,4 +1,4 @@
-name: Build GCS diagnostics Configurator
+name: Build GCS altitude and recovery Configurator
 
 "on":
   pull_request:
@@ -6,27 +6,36 @@ name: Build GCS diagnostics Configurator
       - main
     paths:
       - .github/workflows/build-gcs-diagnostics-configurator.yml
+      - scripts/apply-gcs-altitude-order-recovery.py
       - tabs/flight_data.js
+      - tabs/rtk_base.html
       - js/mavlink/mavlinkSession.js
       - js/serial_backend.js
+      - js/connection/mavlinkWaitingRecovery.js
       - tests/flight-commander/gcs/mavlink-live-diagnostics.test.mjs
+      - tests/flight-commander/gcs/mavlink-altitude-telemetry.test.mjs
+      - tests/flight-commander/gcs/mavlink-waiting-recovery.test.mjs
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
+
+concurrency:
+  group: gcs-altitude-recovery-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   windows-configurator:
-    name: Build Windows GCS diagnostics test Configurator
+    name: Build Windows GCS altitude and recovery test Configurator
     runs-on: windows-latest
-    timeout-minutes: 45
+    timeout-minutes: 50
 
     steps:
-      - name: Check out the exact pull-request source
+      - name: Check out the development branch
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          persist-credentials: false
+          ref: agent/fix-4.0.8-ui-regressions
+          fetch-depth: 0
 
       - name: Set up Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
@@ -35,33 +44,70 @@ jobs:
           cache: yarn
           cache-dependency-path: yarn.lock
 
-      - name: Enable pinned Yarn
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Apply the deterministic source patch
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $patchScript = Join-Path $PWD 'scripts/apply-gcs-altitude-order-recovery.py'
+          if (Test-Path -LiteralPath $patchScript) {
+            python $patchScript
+          } else {
+            Write-Host 'Altitude/order-recovery source patch is already committed.'
+          }
+
+      - name: Install dependencies and run all tests
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           corepack enable
           corepack prepare yarn@1.22.22 --activate
-          yarn --version
-
-      - name: Install dependencies
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
           yarn install --frozen-lockfile --non-interactive
-
-      - name: Run complete Configurator test suite
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
+          node --check js/mavlink/mavlinkSession.js
+          node --check js/serial_backend.js
+          node --test tests/flight-commander/gcs/mavlink-altitude-telemetry.test.mjs
+          node --test tests/flight-commander/gcs/mavlink-waiting-recovery.test.mjs
           yarn test
 
-      - name: Package Windows x64
+      - name: Commit the verified Configurator source
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          @(
+            '.github/workflows/apply-mavlink-altitude-telemetry-fix.yml',
+            '.github/workflows/apply-mavlink-altitude-telemetry-fix-v2.yml',
+            '.github/workflows/apply-gcs-altitude-and-order-recovery.yml',
+            'scripts/apply-gcs-altitude-order-recovery.py'
+          ) | ForEach-Object {
+            $path = Join-Path $PWD $_
+            if (Test-Path -LiteralPath $path) {
+              Remove-Item -LiteralPath $path -Force
+            }
+          }
+          git add -A
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git diff --cached --quiet
+          if ($LASTEXITCODE -ne 0) {
+            git commit -m 'Restore MAVLink altitude and remove startup-order dependency'
+            git push origin HEAD:agent/fix-4.0.8-ui-regressions
+          }
+          $sourceSha = (git rev-parse HEAD).Trim()
+          "VERIFIED_SOURCE_SHA=$sourceSha" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          Write-Host "Verified source commit: $sourceSha"
+
+      - name: Package and verify Windows x64
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
           yarn package:windows
+          yarn verify:windows
 
-      - name: Create downloadable diagnostics ZIP
+      - name: Create downloadable Configurator ZIP
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -73,9 +119,10 @@ jobs:
           if ($packages.Count -ne 1) {
             throw "Expected one Windows x64 package directory, found $($packages.Count)."
           }
-          $artifactDir = Join-Path $PWD 'diagnostics-artifact'
+          $artifactDir = Join-Path $PWD 'gcs-altitude-recovery-artifact'
           New-Item -ItemType Directory -Force -Path $artifactDir | Out-Null
-          $zipPath = Join-Path $artifactDir 'FC-Windows-v4.0.8-GCS-Diagnostics-Test.zip'
+          $zipName = 'FC-Windows-v4.0.8-GCS-Altitude-Recovery-Test.zip'
+          $zipPath = Join-Path $artifactDir $zipName
           if (Test-Path -LiteralPath $zipPath) {
             Remove-Item -LiteralPath $zipPath -Force
           }
@@ -87,46 +134,26 @@ jobs:
           )
           $hash = (Get-FileHash -LiteralPath $zipPath -Algorithm SHA256).Hash.ToLowerInvariant()
           @"
-          Flight Commander 4.0.8 GCS diagnostics test Configurator
-          Source commit: ${{ github.event.pull_request.head.sha || github.sha }}
+          Flight Commander 4.0.8 GCS altitude and connection-recovery test
+          Source commit: $env:VERIFIED_SOURCE_SHA
           ZIP SHA-256: $hash
 
-          This is a Configurator-only diagnostic build. It keeps Show Log available in Ground Control and reports whether inbound serial bytes, valid MAVLink frames, and vehicle heartbeats are still arriving. Flight Commander Firmware 4.0.8 is unchanged.
+          Configurator-only changes:
+          - INAV VFR_HUD altitude is displayed as relative barometer/INS altitude.
+          - GPS MSL altitude is displayed only after a valid 3D GPS fix.
+          - A waiting ExpressLRS MAVLink COM port is periodically closed and reopened without restarting Flight Commander.
+          - The independent USB RTK base connection and survey remain active during vehicle-radio recovery.
+          - Ground Control live diagnostics remain available.
+
+          Flight Commander Firmware 4.0.8 is unchanged; do not reflash firmware for this test.
           "@ | Set-Content -LiteralPath (Join-Path $artifactDir 'BUILD-INFO.txt') -Encoding UTF8
-          "$hash  FC-Windows-v4.0.8-GCS-Diagnostics-Test.zip" |
-            Set-Content -LiteralPath (Join-Path $artifactDir 'SHA256SUMS.txt') -Encoding ASCII
+          "$hash  $zipName" | Set-Content -LiteralPath (Join-Path $artifactDir 'SHA256SUMS.txt') -Encoding ASCII
           Get-Item -LiteralPath $zipPath | Format-List FullName,Length
 
-      - name: Upload the packaged Configurator
+      - name: Upload verified Configurator
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: Flight-Commander-v4.0.8-GCS-Diagnostics-Test
-          path: diagnostics-artifact
-          if-no-files-found: error
-          retention-days: 7
-
-      - name: Verify packaged application
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          yarn verify:windows
-
-      - name: Record successful packaged verification
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          @"
-          VERIFIED
-          Complete source tests: passed
-          Windows x64 packaging: passed
-          Packaged-application verification: passed
-          Source commit: ${{ github.event.pull_request.head.sha || github.sha }}
-          "@ | Set-Content -LiteralPath 'diagnostics-artifact/VERIFIED.txt' -Encoding UTF8
-
-      - name: Upload verification record
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: Flight-Commander-v4.0.8-GCS-Diagnostics-Verification
-          path: diagnostics-artifact/VERIFIED.txt
+          name: Flight-Commander-v4.0.8-GCS-Altitude-Recovery-Test
+          path: gcs-altitude-recovery-artifact
           if-no-files-found: error
           retention-days: 7
