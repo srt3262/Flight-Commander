@@ -329,7 +329,11 @@ test("Windows verification follows the active renderer graph and rejects leftove
     packageVerifier,
     /NTRIP FlightCommander\/\$\{sourcePackage\.version\}/,
   );
-  assert.match(packageVerifier, /ArduPilot support has been removed/);
+  assert.doesNotMatch(packageVerifier, /ArduPilot support has been removed/);
+  assert.match(
+    packageVerifier,
+    /Flash only Flight Commander Firmware built for the detected controller target/,
+  );
   for (const propInches of [10, 12, 15, 17]) {
     assert.match(
       packageVerifier,
