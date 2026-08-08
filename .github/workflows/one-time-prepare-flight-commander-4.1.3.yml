@@ -53,6 +53,16 @@ jobs:
             | base64 --decode \
             | gzip --decompress \
             > "$transform_path"
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/prepare-flight-commander-4.1.3.py')
+          text = path.read_text(encoding='utf-8')
+          old = 'updated, count = re.subn(pattern, replacement, text, count=1, flags=flags)'
+          new = 'updated, count = re.subn(pattern, lambda _match: replacement, text, count=1, flags=flags)'
+          if old not in text:
+              raise SystemExit('regex replacement helper marker was not found')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
           python3 -m py_compile "$transform_path"
           python3 "$transform_path"
           rm -f "$transform_path"
