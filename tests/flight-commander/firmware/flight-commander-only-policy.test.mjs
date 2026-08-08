@@ -24,7 +24,8 @@ test("Flight Commander 4.1.3 keeps one Flight Commander operating product", () =
   assert.match(catalog, /publishedReleaseChannel/);
   assert.match(catalog, /status: channel/);
   assert.match(session, /resolveFlightCommanderIdentity/);
-  assert.match(session, /legacy cached proof/);
+  assert.match(session, /MAV_CMD_REQUEST_AUTOPILOT_CAPABILITIES/);
+  assert.match(session, /firmwareDetectionRetryIntervalMs/);
   assert.match(router, /resolveCachedFlightCommanderIdentity/);
   assert.match(router, /legacy-msp-profile/);
   assert.match(landing, /Flight Commander capabilities/);
