@@ -1,12 +1,24 @@
-LICENSE text
-*.md text
+* -text
+*.md text eol=lf
+*.c text
+*.h text
+*.cc text
+*.S text
+*.s text
+*.ld text
 *.js text
+*.mjs text
+*.cjs text
 *.json text
-*.html text
+*.html -text
 *.css text
 *.txt text
-*.png -crlf -diff
-*.svg -crlf -diff
+*.sh text eol=lf
+*.bat text eol=crlf
+*.png -text -diff
+*.svg -text -diff
 *.hex -text -diff
+*.elf -text -diff
 *.zip -text -diff
-release/firmware/ export-ignore
+LICENSE text
+Makefile text

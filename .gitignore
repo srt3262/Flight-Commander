@@ -1,35 +1,54 @@
-.DS_store
-nbproject/
-node_modules/
-npm-debug.log
-.idea/
-npm-debug.log
-inav-configurator.iml
-/out
-/.vite
-.eslintrc.json
-/.project
-/cache/
-/dist/
-/apps/
-/build/
-*~
-*.swp
+# Firmware build output
+*.o
+*.dep
+*.elf
+*.hex
+*.map
 *.bak
-eeprom.bin
+*.swp
+*~
+/.cache/
+/build/
+/build_*/
+/cmake-build-debug/
+/downloads/
+/ninja/
+/obj/
+/release/
+/settings.json
+/[hs]itl/
+/*_SITL/
+__pycache__/
 
-# Retired ArduPilot UI files are excluded from the v2 source graph. These
-# explicit paths also prevent recovery tooling from reintroducing old runtime
-# assets into a current checkout.
-/src/css/ardupilot_setup.css
-/tabs/ardupilot_pid_tuning.html
-/tabs/ardupilot_pid_tuning.js
-/tabs/ardupilot_ports.html
-/tabs/ardupilot_ports.js
-/tabs/ardupilot_receiver.html
-/tabs/ardupilot_receiver.js
+# Configurator dependencies and output
+/configurator/node_modules/
+/configurator/out/
+/configurator/.vite/
+/configurator/cache/
+/configurator/dist/
+/configurator/apps/
+/configurator/build/
+/configurator/eeprom.bin
+/configurator/nbproject/
+/configurator/.idea/
+/configurator/*.iml
+/configurator/npm-debug.log
 
-# ctags
+# Retired UI files
+/configurator/src/css/ardupilot_setup.css
+/configurator/tabs/ardupilot_pid_tuning.html
+/configurator/tabs/ardupilot_pid_tuning.js
+/configurator/tabs/ardupilot_ports.html
+/configurator/tabs/ardupilot_ports.js
+/configurator/tabs/ardupilot_receiver.html
+/configurator/tabs/ardupilot_receiver.js
+
+# Local editor and operating-system files
+.DS_Store
+.project
+.settings/
+.vagrant/
+launch.json
 tags
 TAGS
-start-with-debugging.sh
+tokens.yaml
