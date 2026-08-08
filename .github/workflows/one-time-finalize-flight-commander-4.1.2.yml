@@ -7,6 +7,7 @@ name: One-time finalize Flight Commander 4.1.2
     paths:
       - .github/workflows/one-time-finalize-flight-commander-4.1.2.yml
       - scripts/finalize-flight-commander-4.1.2.py
+      - scripts/fix-finalize-tests-4.1.2.py
 
 permissions:
   contents: write
@@ -35,6 +36,7 @@ jobs:
           set -euo pipefail
           git fetch origin main
           git show origin/main:scripts/finalize-flight-commander-4.1.2.py > /tmp/finalize-flight-commander-4.1.2.py
+          git show origin/main:scripts/fix-finalize-tests-4.1.2.py > /tmp/fix-finalize-tests-4.1.2.py
 
       - name: Apply cleanup, run tests, and publish result
         shell: bash
@@ -42,10 +44,16 @@ jobs:
           set +e
           python3 /tmp/finalize-flight-commander-4.1.2.py > /tmp/finalize.log 2>&1
           finalize_status=$?
+          fix_status=0
           install_status=0
           test_status=0
 
           if [ "$finalize_status" -eq 0 ]; then
+            python3 /tmp/fix-finalize-tests-4.1.2.py > /tmp/fix.log 2>&1
+            fix_status=$?
+          fi
+
+          if [ "$finalize_status" -eq 0 ] && [ "$fix_status" -eq 0 ]; then
             corepack enable > /tmp/install.log 2>&1
             install_status=$?
             if [ "$install_status" -eq 0 ]; then
@@ -64,7 +72,7 @@ jobs:
 
           status_path=docs/internal/flight-commander-4.1.2-finalize-status.txt
           mkdir -p docs/internal
-          if [ "$finalize_status" -eq 0 ] && [ "$install_status" -eq 0 ] && [ "$test_status" -eq 0 ]; then
+          if [ "$finalize_status" -eq 0 ] && [ "$fix_status" -eq 0 ] && [ "$install_status" -eq 0 ] && [ "$test_status" -eq 0 ]; then
             rm -f "$status_path"
           else
             # Do not leave a partially transformed source tree on the release
@@ -74,11 +82,15 @@ jobs:
             {
               echo "Flight Commander 4.1.2 final cleanup failed."
               echo "finalize_status=$finalize_status"
+              echo "fix_status=$fix_status"
               echo "install_status=$install_status"
               echo "test_status=$test_status"
               echo
               echo "--- finalizer log ---"
               cat /tmp/finalize.log 2>/dev/null || true
+              echo
+              echo "--- focused test-fix log ---"
+              cat /tmp/fix.log 2>/dev/null || true
               echo
               echo "--- dependency log ---"
               cat /tmp/install.log 2>/dev/null || true
@@ -95,7 +107,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
           if ! git diff --cached --quiet; then
-            if [ "$finalize_status" -eq 0 ] && [ "$install_status" -eq 0 ] && [ "$test_status" -eq 0 ]; then
+            if [ "$finalize_status" -eq 0 ] && [ "$fix_status" -eq 0 ] && [ "$install_status" -eq 0 ] && [ "$test_status" -eq 0 ]; then
               git commit -m "Finalize Flight Commander 4.1.2 firmware-only surfaces"
             else
               git commit -m "Record Flight Commander 4.1.2 finalizer failure"
@@ -104,5 +116,6 @@ jobs:
           fi
 
           if [ "$finalize_status" -ne 0 ]; then exit "$finalize_status"; fi
+          if [ "$fix_status" -ne 0 ]; then exit "$fix_status"; fi
           if [ "$install_status" -ne 0 ]; then exit "$install_status"; fi
           exit "$test_status"
