@@ -589,7 +589,7 @@ test("application remains dark-only", () => {
 
 test("firmware is release-only and the flasher exposes local, online, then flash", () => {
   assert.equal(packageManifest.flightCommander.firmwareReleaseVersion, "4.0.8");
-  assert.equal(packageManifest.flightCommander.firmwareChangedInRelease, true);
+  assert.equal(packageManifest.flightCommander.firmwareChangedInRelease, false);
   assert.equal(packageManifest.flightCommander.firmwareSourceAvailable, true);
   assert.equal(packageManifest.flightCommander.firmwareSourceVersion, "4.0.8");
   assert.equal(
@@ -697,7 +697,7 @@ test("all requested large-prop INAV presets are wired into the release source", 
 });
 
 test("landing page reports the current Flight Commander release", () => {
-  assert.equal(packageManifest.version, "4.0.8");
+  assert.equal(packageManifest.version, "4.1.0");
   assert.equal(manifest.version, packageManifest.version);
   assert.match(
     landingHtml,
@@ -896,3 +896,5 @@ test("legacy welcome art remains intact while the active theme selects dark bran
     /\.tab-landing \.content_top\s*\{[^}]*background-color:\s*#17242b/s,
   );
 });
+
+

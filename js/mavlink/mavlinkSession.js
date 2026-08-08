@@ -659,7 +659,8 @@ export class MavlinkSession {
         break;
       }
       case "GpsRawInt": {
-        this.state.gpsFix = numeric(field(data, "fixType", "fix_type")) ?? 0;
+        const fixType = numeric(field(data, "fixType", "fix_type")) ?? 0;
+        this.state.gpsFix = fixType;
         const satellites = numeric(
           field(data, "satellitesVisible", "satellites_visible"),
         );
@@ -667,6 +668,12 @@ export class MavlinkSession {
           satellites == null || satellites === 255 ? null : satellites;
         const eph = numeric(field(data, "eph"));
         this.state.hdop = eph == null || eph === 65535 ? null : eph / 100;
+        const altitude = numeric(field(data, "alt"));
+        if (fixType >= 3 && altitude != null) {
+          this.state.altitudeMsl = altitude / 1000;
+        } else if (fixType < 3) {
+          this.state.altitudeMsl = null;
+        }
         break;
       }
       case "Attitude": {
@@ -788,12 +795,29 @@ export class MavlinkSession {
         );
         break;
       }
-      case "VfrHud":
+      case "VfrHud": {
         this.state.airSpeed = numeric(field(data, "airspeed"));
         this.state.groundSpeed = numeric(field(data, "groundspeed"));
         this.state.climbRate = numeric(field(data, "climb"));
         this.state.heading = numeric(field(data, "heading"));
+        const altitude = numeric(field(data, "alt"));
+        const inavRelativeAltitude =
+          this.state.firmwareFamily === FIRMWARE_FAMILY_INAV ||
+          this.state.firmwareFamily === FIRMWARE_FAMILY_FLIGHT_COMMANDER ||
+          this.state.autopilot === MAV_AUTOPILOT_GENERIC;
+        if (altitude != null && inavRelativeAltitude) {
+          // INAV fills VFR_HUD.alt from getEstimatedActualPosition(Z), which
+          // is its barometer/INS relative-altitude estimate. Preserve those
+          // semantics instead of labelling the value as MSL.
+          this.state.relativeAltitude = altitude;
+        } else if (
+          altitude != null &&
+          this.state.firmwareFamily === FIRMWARE_FAMILY_UNSUPPORTED
+        ) {
+          this.state.altitudeMsl = altitude;
+        }
         break;
+      }
       case "RadioStatus":
         this.state.rssi = numeric(field(data, "rssi"));
         break;
