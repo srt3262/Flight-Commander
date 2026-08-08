@@ -87,7 +87,7 @@ jobs:
           # Complete the release-version conversion that the first assembly pass
           # intentionally left for the final release validation layer.
           Replace-ExactlyOnce `
-            -Path (Join-Path $PWD 'js/mavlink/ntripClient.js') `
+            -Path (Join-Path $PWD 'js/main/ntripClient.js') `
             -Old 'NTRIP FlightCommander/4.0.8' `
             -New 'NTRIP FlightCommander/4.1.0' `
             -Label 'NTRIP User-Agent version'
