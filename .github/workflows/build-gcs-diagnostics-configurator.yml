@@ -137,16 +137,13 @@ jobs:
           git add -A
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git diff --cached --quiet
-          $hasChanges = $LASTEXITCODE -ne 0
-          if (-not $hasChanges) {
+          $stagedFiles = @(git diff --cached --name-only)
+          if ($stagedFiles.Count -eq 0) {
             throw 'The 4.1.0 assembly produced no product-source changes.'
           }
+          Write-Host "Staged verified product files: $($stagedFiles.Count)"
           git commit -m 'Flight Commander 4.1.0 order-independent GCS and RTK workflow'
           git push origin HEAD:agent/fix-4.0.8-ui-regressions
-          if ($LASTEXITCODE -ne 0) {
-            throw "git push failed with exit code $LASTEXITCODE."
-          }
 
           $sourceSha = (git rev-parse HEAD).Trim()
           $remoteSha = (git ls-remote origin refs/heads/agent/fix-4.0.8-ui-regressions).Split("`t")[0].Trim()
