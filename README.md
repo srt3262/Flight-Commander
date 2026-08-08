@@ -29,9 +29,10 @@ uses those formats; they do not provide a stock-firmware compatibility mode.
   and guarded same-session mission resume.
 - Built-in online ASTER terrain through OpenTopoData with no API key, plus
   optional Google Elevation and local GIS sources.
-- Versioned Flight Commander Firmware identity over MSPv2. Fork-only features
-  remain disabled unless the connected firmware advertises the corresponding
-  capability bit.
+- Versioned Flight Commander Firmware identity over MSPv2, with signed
+  MAVLink identity when available. Legacy Firmware 4.0.8 MAVLink sessions can
+  use one unique controller-matched profile captured during wired MSP setup;
+  feature and command gates still require the recorded capability contract.
 - Concurrent UART u-blox and DroneCAN GPS/RTK configuration. Both receivers
   remain active, each reports independent RTK state, either can be selected as
   navigation primary, and RTCM corrections are sent to every enabled path.
@@ -57,11 +58,12 @@ uses those formats; they do not provide a stock-firmware compatibility mode.
   imperial Ground Control displays.
 - INAV 10, 12, 15, and 17-inch multirotor presets with prop-size-tuned EZ Tune
   baselines and explicit generated P/I/D/FF values.
-- Flight Commander Firmware-only flashing through the proven STM32/DFU path.
-  The app detects the target, requires the FCFW identity, and prevents
-  target-mismatched or foreign firmware images from being written.
+- Flight Commander online firmware through the proven STM32/DFU path.
+  Official and beta GitHub release assets are identity, target, size, and
+  SHA-256 verified. A local Intel HEX is an explicit operator-controlled source
+  and is written as selected without firmware-family or target classification.
 
-Every controller firmware other than Flight Commander Firmware is unsupported. A vehicle without the versioned FCFW identity is blocked from configuration, mission transfer, Ground Control commands, and RTK correction routing.
+Every controller firmware other than Flight Commander Firmware is unsupported. Wired setup requires the versioned MSP FCFW identity. MAVLink accepts either the signed FCFW payload or, for legacy Firmware 4.0.8, exactly one controller-matched Flight Commander profile captured through wired MSP setup; unidentified vehicles remain blocked from mission, command, configuration, and RTK routes.
 
 ## Controller and transport boundaries
 
@@ -71,7 +73,7 @@ assumed to exist on another.
 | Controller and link | Configuration | Missions and planning | Live Ground Control |
 | --- | --- | --- | --- |
 | **Flight Commander Firmware over MSP** | Full persistent configuration, including UART GPS, DroneCAN nodes, primary-GPS selection, and advertised capability status | Native mission and planning-data read/write, including safe homes, approaches, geozones, terrain profiles, and supported photo actions | Wired telemetry is available; airborne commands require a MAVLink link |
-| **Flight Commander Firmware over MAVLink** | Not a replacement for the wired MSP setup link | Active mission transfer plus advertised terrain and photo extensions | Telemetry and native Ground Control commands after FCFW identity and capability verification |
+| **Flight Commander Firmware over MAVLink** | Not a replacement for the wired MSP setup link | Active mission transfer plus advertised terrain and photo extensions | Telemetry and Ground Control commands after signed FCFW verification or a unique wired profile match for legacy Firmware 4.0.8 |
 | **Other firmware or unidentified MAVLink vehicles** | Unsupported | Disabled | Connection remains locked or is shown as unsupported |
 
 Flight Commander interruption checkpoints are position-estimated, and the
@@ -79,7 +81,7 @@ persistent `nav_wp_mission_restart` policy is managed over MSP. Resume is
 intended for the same powered flight controller; power loss invalidates the
 checkpoint.
 
-Firmware flashing is a separate bootloader operation, not an airborne MAVLink command. Flight Commander Firmware HEX files must contain the compiled `FCFW` identity marker and match the selected target. Raw STM32 DFU cannot report a board model and still requires manual target confirmation. Always verify the detected identity, target, and firmware before writing.
+Firmware flashing is a separate bootloader operation, not an airborne MAVLink command. Online Flight Commander assets must contain `FCFW`, match the selected target, and pass the published size and SHA-256 checks. A local Intel HEX bypasses those suitability checks and is flashed exactly as selected, so the operator must verify its target. Raw STM32 DFU cannot report a complete board model.
 
 ### USB MAVLink radios
 
@@ -99,9 +101,10 @@ cable directly to the external TX module when using the serial method.
 
 Ground Control opens immediately after the COM port is ready and reports that
 it is waiting for a vehicle heartbeat. This means the serial transport is open,
-not that the aircraft or firmware identity has been validated. Telemetry-driven
-operations, mission reads, and commands stay locked until the FCFW signature and
-required capability data are verified.
+not that the aircraft or firmware identity has been validated. A signed FCFW
+payload is preferred; legacy Firmware 4.0.8 may instead match one unique wired
+Flight Commander profile. Commands stay locked without identity and capability
+proof.
 
 ## Documentation and support
 

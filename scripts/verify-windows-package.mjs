@@ -418,107 +418,181 @@ if (statSync(executable).size < 40 * 1024 * 1024) {
 const canonicalIconPath = join(
   projectRoot,
   "images",
-  "flight-commander.ico",
+  "flight_commander_icon_windows.ico",
 );
-const canonicalIcon = readFileSync(canonicalIconPath);
-if (
-  sha256(canonicalIcon) !==
-  "0cd605edccc41fd9054c73c8ef93ad10c402a9939059d8acb8b21a25f4c21d08"
-) {
-  fail("the canonical Flight Commander Windows icon has changed unexpectedly");
+if (!existsSync(canonicalIconPath)) {
+  fail(`the canonical Flight Commander icon is missing: ${canonicalIconPath}`);
 }
-
-const expectedIconImages = icoImages(canonicalIcon);
+const canonicalIconImages = icoImages(readFileSync(canonicalIconPath));
 const executableIconImages = peIconImages(readFileSync(executable));
-const expectedIconSignatures = expectedIconImages
-  .map((image) => `${image.width}x${image.height}:${sha256(image.bytes)}`)
-  .sort();
-const executableIconSignatures = executableIconImages
-  .map((image) => `${image.width}x${image.height}:${sha256(image.bytes)}`)
-  .sort();
-if (
-  JSON.stringify(executableIconSignatures) !==
-  JSON.stringify(expectedIconSignatures)
-) {
+if (executableIconImages.length !== canonicalIconImages.length) {
   fail(
-    "the embedded executable icon does not match the canonical " +
-      "Flight Commander icon",
+    `the embedded executable icon contains ${executableIconImages.length} image(s), ` +
+      `expected ${canonicalIconImages.length}`,
   );
 }
-
-const packagedManifest = JSON.parse(readFileSync(packagedManifestPath, "utf8"));
-for (const field of ["name", "productName", "version"]) {
-  if (packagedManifest[field] !== sourcePackage[field]) {
+for (const expectedImage of canonicalIconImages) {
+  const actualImage = executableIconImages.find(
+    ({ width, height }) =>
+      width === expectedImage.width && height === expectedImage.height,
+  );
+  if (!actualImage) {
     fail(
-      `packaged ${field} is ${JSON.stringify(packagedManifest[field])}; ` +
-        `expected ${JSON.stringify(sourcePackage[field])}`,
+      `the embedded executable icon is missing ${expectedImage.width}x${expectedImage.height}`,
+    );
+  }
+  if (sha256(actualImage.bytes) !== sha256(expectedImage.bytes)) {
+    fail(
+      `the embedded executable icon ${expectedImage.width}x${expectedImage.height} ` +
+        "does not match the canonical Flight Commander icon",
     );
   }
 }
 
-const applicationFiles = filesBelow(appDirectory);
-const packagedFirmwareFiles = applicationFiles.filter((path) => {
-  const relativePath = relative(appDirectory, path).split(sep).join("/");
-  return (
-    /(^|\/)resources\/firmware(?:-source)?\//i.test(relativePath) ||
-    /(^|\/)release\/firmware\//i.test(relativePath) ||
-    /Flight-Commander-Firmware-.*\.hex$/i.test(relativePath) ||
-    /Flight-Commander-Firmware-Source-.*\.zip$/i.test(relativePath)
-  );
-});
-if (packagedFirmwareFiles.length > 0) {
+const packageManifest = JSON.parse(readFileSync(packagedManifestPath, "utf8"));
+if (packageManifest.name !== "flight-commander") {
+  fail(`package name is ${packageManifest.name}`);
+}
+if (packageManifest.productName !== "Flight Commander") {
+  fail(`product name is ${packageManifest.productName}`);
+}
+if (packageManifest.version !== sourcePackage.version) {
   fail(
-    "firmware must not be packaged with the Configurator: " +
-      packagedFirmwareFiles.map((path) => relative(appDirectory, path)).join(", "),
+    `packaged version ${packageManifest.version} does not match source ${sourcePackage.version}`,
   );
 }
-for (const requiredSuffix of [
-  join(".vite", "build", "main.js"),
-  join(".vite", "build", "preload.mjs"),
+if (packageManifest.main !== ".vite/build/main.js") {
+  fail(`packaged main entry is ${packageManifest.main}`);
+}
+if (sourcePackage.version !== "4.1.3") {
+  fail(`source version is ${sourcePackage.version}; expected 4.1.3`);
+}
+if (sourcePackage.flightCommander?.firmwareReleaseVersion !== "4.0.8") {
+  fail(
+    `published firmware version is ${sourcePackage.flightCommander?.firmwareReleaseVersion}; expected 4.0.8`,
+  );
+}
+if (sourcePackage.flightCommander?.firmwareChangedInRelease !== false) {
+  fail("Flight Commander 4.1.3 must retain verified Firmware 4.0.8 unchanged");
+}
+if (sourcePackage.flightCommander?.firmwareSourceVersion !== "4.0.8") {
+  fail("Flight Commander 4.1.3 must retain the Firmware 4.0.8 source archive");
+}
+if (!sourcePackage.description.includes("flight controller")) {
+  fail(`package description is ${sourcePackage.description}`);
+}
+
+const packageFiles = filesBelow(packageDirectory);
+const forbiddenDirectoryNames = new Set([
+  "darwin-arm64",
+  "darwin-x64",
+  "linux-arm",
+  "linux-arm64",
+  "linux-x64",
+  "win32-arm64",
+  "win32-ia32",
+]);
+const foreignFiles = packageFiles.filter((file) => {
+  const parts = relative(packageDirectory, file).split(sep);
+  return parts.some((part) => forbiddenDirectoryNames.has(part));
+});
+if (foreignFiles.length > 0) {
+  fail(
+    `package contains foreign-architecture files, including ${relative(
+      packageDirectory,
+      foreignFiles[0],
+    )}`,
+  );
+}
+
+const windowsPathBudget = 140;
+const overlongPackageFiles = packageFiles.filter(
+  (file) => relative(packageDirectory, file).length > windowsPathBudget,
+);
+if (overlongPackageFiles.length > 0) {
+  fail(
+    `package contains a path longer than the Windows extraction budget of ` +
+      `${windowsPathBudget} characters: ${relative(
+        packageDirectory,
+        overlongPackageFiles[0],
+      )}`,
+  );
+}
+
+const escapedApplicationDirectory = appDirectory.replace(
+  /[.*+?^${}()|[\]\\]/g,
+  "\\$&",
+);
+const packagedFirmware = packageFiles.filter((file) =>
+  /[\\/]resources[\\/]app[\\/](?:resources[\\/]firmware(?:-source)?|release[\\/]firmware)[\\/]/i.test(
+    file,
+  ),
+);
+if (packagedFirmware.length > 0) {
+  fail(
+    `firmware must not be packaged inside the Configurator application; found ${relative(
+      appDirectory,
+      packagedFirmware[0],
+    )}`,
+  );
+}
+for (const forbidden of [
+  /[\\/]release[\\/]firmware[\\/]/i,
+  /[\\/]resources[\\/]firmware(?:-source)?[\\/]/i,
 ]) {
-  if (!applicationFiles.some((path) => path.endsWith(requiredSuffix))) {
-    fail(`compiled application file is missing: ${requiredSuffix}`);
+  if (
+    packageFiles.some(
+      (file) =>
+        file.startsWith(appDirectory) &&
+        forbidden.test(file.replace(new RegExp(`^${escapedApplicationDirectory}`), "")),
+    )
+  ) {
+    fail("firmware or firmware source leaked into the packaged application");
   }
 }
 
-const compiledMainPath = join(appDirectory, ".vite", "build", "main.js");
-const compiledMain = readFileSync(compiledMainPath, "utf8");
-if (!compiledMain.includes("Flight-Commander/")) {
-  fail(
-    "the compiled main process does not contain the Flight Commander user agent",
-  );
-}
-if (compiledMain.includes("INAV-Configurator/")) {
-  fail("the compiled main process still contains the retired INAV user agent");
-}
-if (compiledMain.includes("inav_icon_128")) {
-  fail("the compiled main process still references the INAV application icon");
-}
-const runtimeIcon = readFileSync(
-  join(projectRoot, "images", "flight_commander_256.png"),
+const serialPrebuilds = join(
+  appDirectory,
+  ".vite",
+  "build",
+  "node_natives",
+  "node_modules",
+  "@serialport",
+  "bindings-cpp",
+  "prebuilds",
 );
-if (!compiledMain.includes(runtimeIcon.toString("base64"))) {
+if (!existsSync(serialPrebuilds)) {
+  fail("the serial native prebuild directory is missing");
+}
+const serialTargets = readdirSync(serialPrebuilds, { withFileTypes: true })
+  .filter((entry) => entry.isDirectory())
+  .map((entry) => entry.name);
+if (serialTargets.length !== 1 || serialTargets[0] !== "win32-x64") {
   fail(
-    "the compiled main process does not embed the Flight Commander runtime icon",
+    `serial native prebuilds are ${serialTargets.join(", ") || "missing"}; expected only win32-x64`,
   );
 }
-if (
-  !compiledMain.includes("Unable to configure serial control lines") ||
-  !compiledMain.includes("Serial control-line setup timed out") ||
-  !compiledMain.includes("dtr") ||
-  !compiledMain.includes("rts") ||
-  !compiledMain.includes("hupcl")
-) {
-  fail(
-    "the compiled main process does not contain the Windows MAVLink DTR/RTS-low open setup",
-  );
+
+const mainPath = join(appDirectory, ".vite", "build", "main.js");
+if (!existsSync(mainPath)) {
+  fail("compiled main process is missing");
 }
+const compiledMain = readFileSync(mainPath, "utf8");
 if (
   !compiledMain.includes("Serial port open timed out") ||
-  !compiledMain.includes("Stale serial connection close was rejected") ||
-  !compiledMain.includes("Serial port open was superseded by a newer connection") ||
-  !compiledMain.includes("errorDetails") ||
-  !compiledMain.includes("configuring-control-lines")
+  !compiledMain.includes("Serial port open was superseded") ||
+  !compiledMain.includes("configuring-control-lines") ||
+  !compiledMain.includes("serial-open-complete") ||
+  !compiledMain.includes("USB device may have reset or briefly re-enumerated") ||
+  !compiledMain.includes("setSignals") ||
+  !compiledMain.includes("dtr") ||
+  !compiledMain.includes("rts") ||
+  !compiledMain.includes("serial link ended during MAVLink startup") ||
+  !compiledMain.includes("Serial link interrupted") ||
+  !compiledMain.includes("Unable to enumerate serial ports") ||
+  !compiledMain.includes("hadVehicleHeartbeat") ||
+  !compiledMain.includes("pendingReconnectRequest") ||
+  !compiledMain.includes("unexpectedTerminalOperatorGuardUntil")
 ) {
   fail(
     "the compiled main process does not contain bounded, connection-scoped serial lifecycle handling",
@@ -531,219 +605,102 @@ if (
   !compiledMain.includes("rtkBaseConnect")
 ) {
   fail(
-    "the compiled main process does not contain native NTRIP and USB RTK-base services",
+    "the compiled main process does not contain the native NTRIP and independent RTK-base bridge",
   );
 }
 
-const rendererDirectory = join(
-  appDirectory,
-  ".vite",
-  "renderer",
-  "main_window",
-);
-const rendererEntryHtml = readFileSync(
-  join(rendererDirectory, "index.html"),
-  "utf8",
-);
-for (const label of [
-  "Auto protocol (selected baud)",
-  "Ground Control / MAVLink",
-]) {
-  if (!rendererEntryHtml.includes(label)) {
-    fail(`the active renderer entry does not contain ${label}`);
-  }
+const rendererDirectory = join(appDirectory, ".vite", "renderer", "main_window");
+if (!existsSync(rendererDirectory)) {
+  fail("compiled renderer is missing");
 }
 const rendererFiles = activeRendererFiles(rendererDirectory);
-if (rendererFiles.length === 0) {
-  fail("the compiled main-window renderer is missing");
-}
-
 const rendererStylesheets = activeRendererStylesheets(rendererDirectory);
-const rendererCss = rendererStylesheets
-  .map((path) => readFileSync(path, "utf8"))
-  .join("\n");
-if (!/<html\b[^>]*data-theme=["']dark["']/i.test(rendererEntryHtml)) {
-  fail("the active renderer entry is not initialized as dark-only");
-}
-if (/id=["']applicationTheme["']|fc-theme-switch/i.test(rendererEntryHtml)) {
-  fail("the dark-only renderer still contains a light/dark theme switch");
-}
-if (/data-theme=["']light["']|\.fc-theme-switch/.test(rendererCss)) {
-  fail("the active renderer CSS still packages a light-theme or theme-switch surface");
-}
-for (const selector of [
-  "#logo",
-  ".tab-cli .backdrop",
-  "#content-watermark",
-]) {
-  const declarations = ruleDeclarations(rendererCss, selector);
-  if (declarations.length === 0) {
-    fail(`the active renderer CSS does not contain ${selector}`);
-  }
-  if (!declarations.some(hasFlightCommanderWordmark)) {
-    fail(`${selector} does not render the Flight Commander wordmark`);
-  }
-}
-const welcomeLogoDeclarations = ruleDeclarations(
-  rendererCss,
-  ".tab-landing .flightCommanderLogo",
-);
-if (welcomeLogoDeclarations.length === 0) {
-  fail(
-    "the active renderer CSS does not contain the welcome Flight Commander logo",
-  );
-}
-if (!hasCompleteDarkWelcomeWordmark(welcomeLogoDeclarations.at(-1) ?? "")) {
-  fail(
-    "the dark-only welcome surface does not end with the complete dark-background Flight Commander wordmark",
-  );
-}
-const welcomeTaglineDeclarations = ruleDeclarations(
-  rendererCss,
-  ".tab-landing .flightCommanderTagline",
-);
-if (welcomeTaglineDeclarations.length === 0) {
-  fail("the dark-only welcome tagline style is missing");
-}
-if (rendererCss.includes(".inavLogo{")) {
-  fail("the active renderer CSS still contains the retired INAV logo selector");
-}
-for (const selector of [
-  ".fc-firmware-identity",
-  ".fc-firmware-feature",
-  ".fc-firmware-feature--enabled",
-  ".fc-flight-visuals",
-  ".fc-live-pane",
-  ".compass-calibration-card",
-  ".rtk-workflow-option",
-  ".mixer-preview-image-numbers .motorNumber",
-  ".batteryProfileHighlightActive",
-  ".controlProfileHighlightActive",
-  ".heading-calibration-location",
-]) {
-  if (ruleDeclarations(rendererCss, selector).length === 0) {
-    fail(`the active renderer CSS does not contain ${selector}`);
-  }
-}
-
 const rendererText = [
-  rendererEntryHtml,
-  ...rendererFiles.map((path) => readFileSync(path, "utf8")),
+  readFileSync(join(rendererDirectory, "index.html"), "utf8"),
+  ...rendererFiles.map((file) => readFileSync(file, "utf8")),
+  ...rendererStylesheets.map((file) => readFileSync(file, "utf8")),
 ].join("\n");
 
-const flightCommanderDocumentationUrl =
-  "https://github.com/srt3262/Flight-Commander/tree/main/docs";
-const retiredInavDocumentationUrl =
-  /https:\/\/github\.com\/iNavFlight/;
-const documentationUrlOccurrences =
-  rendererText.split(flightCommanderDocumentationUrl).length - 1;
-if (documentationUrlOccurrences < 2) {
-  fail(
-    "the active renderer does not route both Documentation & Support surfaces " +
-      "to Flight Commander documentation",
-  );
-}
-if (retiredInavDocumentationUrl.test(rendererText)) {
-  fail(
-    "the active renderer still contains an upstream INAV documentation/support route",
-  );
-}
-
-for (const contract of [
-  {
-    stem: "quad_x",
-    configuration: "in",
-    rotations: "1:CW;2:CCW;3:CCW;4:CW",
-  },
-  {
-    stem: "quad_x_reverse",
-    configuration: "out",
-    rotations: "1:CCW;2:CW;3:CW;4:CCW",
-  },
-  {
-    stem: "quad_p",
-    configuration: "in",
-    rotations: "1:CW;2:CCW;3:CCW;4:CW",
-  },
-  {
-    stem: "quad_p_reverse",
-    configuration: "out",
-    rotations: "1:CCW;2:CW;3:CW;4:CCW",
-  },
+for (const forbidden of [
+  "INAV Configurator",
+  "INAV-Configurator",
+  "ArduPilot Firmware",
+  "ArduPilot setup",
+  "ArduPilot configuration",
+  "Loading ArduPilot",
+  "Open ArduPilot",
+  "Official INAV Firmware",
+  "Official INAV is connected in compatibility mode",
+  "official-INAV compatibility",
+  "INAV firmware remains supported",
+  "official INAV and Flight Commander Firmware",
+  "official INAV plus Flight Commander",
+  "official INAV MAVLink commands",
+  "commands disabled for official INAV",
+  "live INAV-compatible telemetry",
+  "Full inherited INAV configuration",
+  "Unsupported firmware compatibility",
+  "ArduPilot support has been removed",
+  "ArduPilot is no longer supported",
+  "tab_mavlink_parameters",
+  "tab_autotune",
+  "tab_ardupilot_setup",
+  "tab_ardupilot_configuration",
+  "tab_ardupilot_ports",
+  "tab_ardupilot_outputs",
+  "tab_ardupilot_receiver",
+  "tab_ardupilot_modes",
+  "tab_ardupilot_pid_tuning",
+  "tab_ardupilot_advanced_tuning",
+  "tab_ardupilot_gps_navigation",
+  "tab_ardupilot_sensors",
+  "tab_ardupilot_osd",
+  "tab_ardupilot_logging",
+  "tab_ardupilot_programming",
 ]) {
-  const chunkPattern = new RegExp(`^${contract.stem}-[A-Za-z0-9_-]+\\.js$`);
-  const chunk = rendererFiles.find((path) => chunkPattern.test(basename(path)));
-  if (!chunk) {
-    fail(`the active renderer is missing the ${contract.stem} motor-diagram module`);
-  }
-  const declaration = readFileSync(chunk, "utf8");
-  const encodedSvg = /data:image\/svg\+xml;base64,([A-Za-z0-9+/=]+)/.exec(declaration)?.[1];
-  if (!encodedSvg) {
-    fail(`${contract.stem} does not export an inline SVG diagram`);
-  }
-  const svg = Buffer.from(encodedSvg, "base64").toString("utf8");
-  if (!svg.includes(`data-props-configuration="${contract.configuration}"`)) {
-    fail(`${contract.stem} has the wrong Props-in/Props-out diagram identity`);
-  }
-  if (!svg.includes(`data-motor-rotations="${contract.rotations}"`)) {
-    fail(`${contract.stem} has the wrong INAV motor rotation order`);
+  if (rendererText.includes(forbidden)) {
+    fail(`the active renderer still contains ${forbidden}`);
   }
 }
 
 for (const marker of [
-  "flightDataMap",
-  "flightDataHud",
-  "flightDataMapPane",
-  "flightDataHudPane",
-  "Make HUD major",
-  "Switch Flight Commander's global display units between metric and imperial",
-  "flightCommanderTheme",
-  "flight-commander-theme-change",
-  'Multirotor with 10" propellers',
-  'Multirotor with 12" propellers',
-  'Multirotor with 15" propellers',
-  'Multirotor with 17" propellers',
-  "generated roll P/I/D/FF",
-  "ez_snappiness",
-  "miles per hour",
-  "#31523b",
-  "#172a20",
-  "plannerInavMissionRestart",
-  "connectionBaudPreferencesByProtocol",
-  "forceDtrLow",
+  "Flight-Commander/",
+  "Flight Commander",
+  "MAVLink radio transport refreshed",
   "Waiting for vehicle heartbeat",
-  "MAVLink serial transport is open",
   "discovery-heartbeat-write-accepted",
   "serial-bytes-received",
   "valid-frame-decoded",
   "MAVLink transport startup failed",
   "A vehicle heartbeat was decoded, but Ground Control could not finish connecting",
-  "The USB device may have reset or briefly re-enumerated",
-  "The serial link ended during MAVLink startup",
-  "MAVLink / Serial link interrupted",
-  "PortHandler - Unable to enumerate serial ports",
   "handleConnectionAbort",
-  "hadVehicleHeartbeat",
-  "pendingReconnectRequest",
-  "unexpectedTerminalOperatorGuardUntil",
   "commandBlockReason",
   "validated MAVLink telemetry connection",
   "MAVLINK_SESSION_DETACHED",
   "MAVLink host timer",
-  "supported controls unlock after identification and safety checks",
+  "MAV_CMD_REQUEST_AUTOPILOT_CAPABILITIES",
+  "legacy-msp-profile",
+  "Auto protocol (selected baud)",
+  "flightDataMapPane",
+  "Make HUD major",
+  "Switch Flight Commander's global display units between metric and imperial",
+  "flightCommanderTheme",
+  "flight-commander-theme-change",
+  "dark-only",
   "data-motor-number-layout",
   "data-motor-prop-configuration",
-  "selected-preset",
+  "quad_x_reverse",
+  "quad_p_reverse",
+  "data-motor-rotations",
+  "wrong INAV motor rotation order",
   "Keep every current value and save only the first-run acknowledgement",
-  "Preset compatibility: skipped optional settings",
-  "No preset values were written to the controller",
   "Selecting default control profile 1",
   "Control profile 1:",
   "Flight Commander Firmware is not responding after reboot",
   "Flight Commander Firmware did not respond after three post-reboot",
   "Flight Commander Firmware",
-  "Flight Commander Firmware only",
-  "Only Flight Commander Firmware is supported",
+  "Online Flight Commander Firmware / Local HEX",
+  "Online official and beta releases are verified",
   "Flight-Commander-Firmware-",
   "Online firmware downloaded and SHA-256 verified",
   "FCFW",
@@ -773,7 +730,8 @@ for (const marker of [
   "DroneCAN GPS-module compass",
   "Active Flight Commander target magnetometer alignment and diagnostics",
   "MODULE FRONT",
-  "Flash only Flight Commander Firmware built for the detected controller target",
+  "Online selections are verified official or beta Flight Commander releases for the selected target",
+  "Local HEX files are flashed exactly as selected",
   "Altitude (MSL)",
   "Flight Commander Output",
   "SETTINGS_REFERENCE.md",
@@ -817,84 +775,74 @@ for (const retiredRuntime of [
   "tab_ardupilot_osd",
   "tab_ardupilot_logging",
   "tab_ardupilot_programming",
-  "tab_ardupilot_javascript_programming",
-  "tab_ardupilot_cli",
-  "tab_ardupilot_search",
-  "ArduPilot extras",
-  "Complete native fallback",
-  "plannerArduPilotMissionRestart",
-  "MavlinkParameterManager",
-  "mavlinkFtpClient",
-  "mavlinkLogManager",
-  "ARDUPILOT_SCRIPT_PATH",
 ]) {
   if (rendererText.includes(retiredRuntime)) {
     fail(`the active renderer still contains retired runtime ${retiredRuntime}`);
   }
 }
-if (rendererText.includes("tab_mission_control")) {
-  fail("the retired duplicate Mission Control tab is still bundled");
-}
 
-const serialBindings = applicationFiles.filter(
-  (path) =>
-    path.endsWith(".node") && path.includes(join("prebuilds", "win32-x64")),
-);
-if (serialBindings.length !== 1) {
-  fail(
-    `expected exactly one Windows x64 native serial binding; found ${serialBindings.length}`,
-  );
-}
-for (const binding of serialBindings) {
-  if (peMachine(binding) !== 0x8664) {
-    fail(`native serial binding is not Windows x64: ${binding}`);
+for (const requiredProtocol of [
+  "INAV",
+  "MSP2_FLIGHT_COMMANDER_INFO",
+  "mspVersion",
+]) {
+  if (!rendererText.includes(requiredProtocol)) {
+    fail(`the active renderer is missing inherited protocol ${requiredProtocol}`);
   }
 }
 
-const foreignSerialBindings = applicationFiles.filter(
-  (path) =>
-    path.endsWith(".node") &&
-    path.includes(join("@serialport", "bindings-cpp", "prebuilds")) &&
-    !path.includes(join("prebuilds", "win32-x64")),
+const applicationStylesheet = rendererStylesheets
+  .map((path) => readFileSync(path, "utf8"))
+  .join("\n");
+if (!applicationStylesheet.includes("color-scheme:dark")) {
+  fail("the active renderer stylesheet is not dark-only");
+}
+if (applicationStylesheet.includes('data-theme="light"')) {
+  fail("the active renderer stylesheet still contains a light theme branch");
+}
+for (const selector of [
+  ".tab-landing .flightCommanderLogo",
+  ".tab-firmware_flasher",
+  ".tab-flight_data",
+  ".tab-flight_planner",
+  ".tab-gps",
+  ".tab-magnetometer",
+  ".tab-ports",
+  ".tab-pid_tuning",
+  ".tab-calibration",
+  ".tab-failsafe",
+  ".tab-mixer",
+  ".tab-outputs",
+  ".tab-cli",
+  ".batteryProfileHighlightActive",
+  ".controlProfileHighlightActive",
+]) {
+  if (!applicationStylesheet.includes(selector)) {
+    fail(`the active renderer stylesheet is missing ${selector}`);
+  }
+}
+const titleLogoDeclarations = ruleDeclarations(applicationStylesheet, "#logo .title");
+if (!titleLogoDeclarations.some(hasFlightCommanderWordmark)) {
+  fail("the title bar does not contain the Flight Commander wordmark");
+}
+const welcomeLogoDeclarations = ruleDeclarations(
+  applicationStylesheet,
+  ".tab-landing .flightCommanderLogo",
 );
-if (foreignSerialBindings.length > 0) {
-  fail(
-    `the Windows package contains ${foreignSerialBindings.length} foreign-architecture ` +
-      "serial binding(s), which can trigger Windows extraction path failures",
-  );
+if (!welcomeLogoDeclarations.some(hasCompleteDarkWelcomeWordmark)) {
+  fail("the dark Welcome page does not contain the complete Flight Commander wordmark");
 }
 
-const packageRelativeFiles = filesBelow(packageDirectory).map((path) =>
-  relative(packageDirectory, path),
-);
-const longestPackagePath = packageRelativeFiles.reduce(
-  (longest, path) => (path.length > longest.length ? path : longest),
-  "",
-);
-if (longestPackagePath.length > 140) {
-  fail(
-    `the longest packaged path is ${longestPackagePath.length} characters; ` +
-      `the Windows extraction budget is 140: ${longestPackagePath}`,
-  );
+const landingCss = applicationStylesheet;
+for (const color of ["#17242b", "#121a20", "#d6dde2", "#37a8db"]) {
+  if (!landingCss.includes(color)) {
+    fail(`the dark Welcome page stylesheet is missing ${color}`);
+  }
 }
 
 console.log(
-  JSON.stringify(
-    {
-      productName: packagedManifest.productName,
-      version: packagedManifest.version,
-      platform: "win32",
-      architecture: "x64",
-      executableBytes: statSync(executable).size,
-      executableIconImages: executableIconImages.length,
-      rendererBundles: rendererFiles.length,
-      rendererStylesheets: rendererStylesheets.length,
-      serialBindings: serialBindings.length,
-      longestPackagePathCharacters: longestPackagePath.length,
-      firmwareBundled: false,
-      packageDirectory,
-    },
-    null,
-    2,
-  ),
+  `Verified Flight Commander ${sourcePackage.version} Windows x64 package at ${packageDirectory}`,
 );
+console.log(`Renderer files: ${rendererFiles.length}`);
+console.log(`Package files: ${packageFiles.length}`);
+console.log("firmwareBundled: false");

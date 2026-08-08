@@ -1,5 +1,15 @@
 # Flight Commander 4.0.0
 
+
+## 4.1.3
+
+- Restore legacy Flight Commander Firmware 4.0.8 recognition on MAVLink by using the unique, controller-matched Flight Commander profile captured during wired MSP setup when the firmware does not emit the newer MAVLink FCFW signature.
+- Keep a signed MAVLink FCFW identity authoritative whenever it is available, while preserving capability-gated Ground Control commands and the existing one-aircraft/profile safety checks.
+- Make local HEX flashing operator-controlled: any syntactically valid local Intel HEX can be flashed without Flight Commander family, filename, embedded-target, or selected-target rejection.
+- Limit the online firmware list to official and beta Flight Commander firmware assets published in GitHub Releases, suppress bench-only/RC/development images, and de-duplicate repeated assets by firmware version and target with official releases preferred.
+- Replace the Welcome page's retired-firmware/removal narrative with a Flight Commander capabilities overview.
+- Retain the verified Flight Commander Firmware 4.0.8 HEX and exact firmware source archive unchanged.
+
 ## 4.0.8
 
 - Add one compass-source dropdown populated only by enabled, detected onboard, external I2C/UART GPS-module and DroneCAN magnetic sources.

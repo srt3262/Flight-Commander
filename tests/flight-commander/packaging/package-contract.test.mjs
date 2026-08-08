@@ -30,7 +30,7 @@ const releaseWorkflow = readFileSync(
   "utf8",
 );
 const releaseOrchestrator = readFileSync(
-  resolve(projectRoot, ".github/workflows/publish-flight-commander-beta.yml"),
+  resolve(projectRoot, ".github/workflows/release.yml"),
   "utf8",
 );
 const firmwareRebuildScript = readFileSync(
@@ -332,7 +332,11 @@ test("Windows verification follows the active renderer graph and rejects leftove
   assert.doesNotMatch(packageVerifier, /ArduPilot support has been removed/);
   assert.match(
     packageVerifier,
-    /Flash only Flight Commander Firmware built for the detected controller target/,
+    /Online selections are verified official or beta Flight Commander releases for the selected target/,
+  );
+  assert.match(
+    packageVerifier,
+    /Local HEX files are flashed exactly as selected/,
   );
   for (const propInches of [10, 12, 15, 17]) {
     assert.match(
@@ -627,18 +631,20 @@ test("firmware is release-only and the flasher exposes local, online, then flash
     firmwareFlasherHtml,
     /id="firmware_backend" type="hidden" value="flight-commander"/,
   );
-  assert.match(firmwareFlasherHtml, /Flight Commander Firmware only/);
+  assert.match(firmwareFlasherHtml, /Online Flight Commander Firmware \/ Local HEX/);
   assert.doesNotMatch(firmwareFlasherHtml, /value="inav"|Official INAV Firmware/);
   const flasherWarning = englishMessages.firmwareFlasherWarningText?.message ?? "";
   const flasherRecovery = englishMessages.firmwareFlasherRecoveryText?.message ?? "";
-  assert.match(flasherWarning, /Flash only Flight Commander Firmware built for the detected controller target/);
+  assert.match(flasherWarning, /Online selections are verified official or beta/);
+  assert.match(flasherWarning, /Local HEX files are flashed exactly as selected/);
   assert.doesNotMatch(flasherWarning, /official INAV|Official INAV/);
   assert.doesNotMatch(flasherWarning, /non-iNAV|INAV manual/i);
   assert.match(flasherRecovery, /Flight Commander USB flashing guide/);
   assert.doesNotMatch(flasherRecovery, /INAV manual/i);
   assert.doesNotMatch(firmwareFlasherHtml, /value="ardupilot"/i);
   assert.match(firmwareFlasherSource, /parsedHexContainsFlightCommanderIdentity/);
-  assert.match(firmwareFlasherSource, /loadedFirmwareFamily !== firmwareBackend/);
+  assert.match(firmwareFlasherSource, /!localFirmwareLoaded && loadedFirmwareFamily !== firmwareBackend/);
+  assert.match(firmwareFlasherSource, /if \(local\) \{[\s\S]+flashed as supplied/);
   assert.match(firmwareFlasherSource, /isInavCompatibleFirmwareVariant\(reportedVariant\)/);
   assert.match(firmwareFlasherSource, /flightCommanderCatalogIsReady\(\)/);
   assert.match(firmwareFlasherSource, /verifyFlightCommanderOnlinePayload/);
@@ -699,19 +705,23 @@ test("all requested large-prop INAV presets are wired into the release source", 
   assert.match(presetSource, /setting\("ez_snappiness", profile\.snappiness\)/);
 });
 
-test("landing page reports the current Flight Commander release", () => {
-  assert.equal(packageManifest.version, "4.1.2");
+test("landing page describes Flight Commander capabilities without retirement copy", () => {
+  assert.equal(packageManifest.version, "4.1.3");
   assert.equal(manifest.version, packageManifest.version);
-  assert.match(
+  assert.match(landingHtml, /Flight Commander capabilities/);
+  assert.match(landingHtml, /same-session mission resume/);
+  assert.match(landingHtml, /USB RTK base workflows/);
+  assert.doesNotMatch(
     landingHtml,
-    new RegExp(`>Flight Commander ${packageManifest.version.replaceAll(".", "\\.")}<`),
+    /retired stock-firmware|compatibility path|have been removed|removal of/i,
   );
 });
 
-test("guarded beta publication is tied to the current release version", () => {
-  assert.match(releaseOrchestrator, /name: Publish Flight Commander beta release/);
+test("guarded official publication uses the verified release workflow", () => {
+  assert.match(releaseOrchestrator, /name: Publish release/);
+  assert.match(releaseOrchestrator, /Publish verified release/);
   assert.match(releaseOrchestrator, /gh release create/);
-  assert.match(releaseOrchestrator, /--prerelease/);
+  assert.doesNotMatch(releaseOrchestrator, /--prerelease/);
 });
 
 test("release policy distinguishes software-only updates from firmware rebuilds", () => {
@@ -805,8 +815,14 @@ test("source-backed releases publish one complete bundle plus the online-flasher
     /\$releaseAssetPaths = @\(\$completeBundlePath, \$onlineFirmwarePath\)/,
   );
   assert.match(releaseWorkflow, /Published online-flasher firmware asset/);
-  assert.match(releaseOrchestrator, /The beta candidate does not contain exactly the four canonical components/);
-  assert.match(releaseOrchestrator, /Complete beta ZIP contains exactly four byte-matched components/);
+  assert.match(
+    releaseOrchestrator,
+    /Complete release bundle does not contain exactly the four canonical files/,
+  );
+  assert.match(
+    releaseOrchestrator,
+    /Published complete release asset does not match the verified bundle/,
+  );
   assert.match(releaseWorkflow, /must contain exactly the four canonical release files/);
   assert.doesNotMatch(releaseWorkflow, /Firmware-Package|firmwarePackageDirectory/);
 });

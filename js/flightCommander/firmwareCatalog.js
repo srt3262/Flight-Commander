@@ -75,47 +75,93 @@ export function parseFlightCommanderFirmwareFilename(filename) {
   });
 }
 
+function publishedReleaseChannel(release) {
+  if (!release || release.draft) return null;
+  if (release.prerelease !== true) return "official";
+  const label = `${release.tag_name ?? ""} ${release.name ?? ""}`.toLowerCase();
+  return /(^|[._\-\s])beta(?:[._\-\s]|\d|$)/.test(label)
+    ? "beta"
+    : null;
+}
+
+function releaseCoreVersion(release) {
+  const value = `${release?.tag_name ?? ""} ${release?.name ?? ""}`;
+  const match = /(?:^|[^0-9])v?(\d+\.\d+\.\d+)(?:[-+\s]|$)/i.exec(value);
+  return match?.[1] ?? null;
+}
+
+function releasePreference(record) {
+  const channel = record.descriptor.status === "official" ? 2 : 1;
+  const canonical = record.canonicalRelease ? 1 : 0;
+  const published = Number.isFinite(record.publishedMs) ? record.publishedMs : 0;
+  return [channel, canonical, published];
+}
+
+function isPreferredRelease(candidate, current) {
+  const candidatePreference = releasePreference(candidate);
+  const currentPreference = releasePreference(current);
+  for (let index = 0; index < candidatePreference.length; index += 1) {
+    if (candidatePreference[index] > currentPreference[index]) return true;
+    if (candidatePreference[index] < currentPreference[index]) return false;
+  }
+  return false;
+}
+
 export function flightCommanderReleaseDescriptors(releases = []) {
-  const descriptors = [];
+  const selected = new Map();
   for (const release of Array.isArray(releases) ? releases : []) {
-    if (release?.draft) continue;
+    const channel = publishedReleaseChannel(release);
+    if (!channel) continue;
+    const releaseVersion = releaseCoreVersion(release);
     for (const asset of Array.isArray(release?.assets) ? release.assets : []) {
       const parsed = parseFlightCommanderFirmwareFilename(asset?.name);
-      if (!parsed || !isSupportedFlightCommanderFirmwareVersion(parsed.version)) continue;
+      if (
+        !parsed ||
+        parsed.benchOnly ||
+        !isSupportedFlightCommanderFirmwareVersion(parsed.version)
+      ) continue;
       const digest = String(asset?.digest ?? "");
       const bytes = asset?.size;
       if (
-        !asset?.browser_download_url
-        || !/^sha256:[0-9a-f]{64}$/i.test(digest)
-        || !Number.isSafeInteger(bytes)
-        || bytes <= 0
+        !asset?.browser_download_url ||
+        !/^sha256:[0-9a-f]{64}$/i.test(digest) ||
+        !Number.isSafeInteger(bytes) ||
+        bytes <= 0
       ) continue;
       const publishedAt = release.published_at ?? release.created_at ?? null;
-      descriptors.push(Object.freeze({
+      const descriptor = Object.freeze({
         releaseUrl: release.html_url ?? "",
         name: release.name || release.tag_name || `Flight Commander Firmware ${parsed.version}`,
         version: parsed.version,
         tag: release.tag_name ?? parsed.version,
-        url: asset.browser_download_url ?? "",
+        url: asset.browser_download_url,
         file: asset.name,
         target_id: parsed.target_id,
         target: parsed.target,
         date: publishedAt ? new Date(publishedAt).toISOString() : "",
         notes: release.body ?? "",
-        status: parsed.benchOnly
-          ? "bench-only"
-          : release.prerelease
-            ? "prerelease"
-            : "stable",
-        benchOnly: parsed.benchOnly,
+        status: channel,
+        benchOnly: false,
         digest,
         bytes,
-      }));
+      });
+      const record = {
+        descriptor,
+        canonicalRelease: releaseVersion === parsed.version,
+        publishedMs: publishedAt ? Date.parse(publishedAt) : 0,
+      };
+      const key = `${parsed.target_id}:${parsed.version}`;
+      const current = selected.get(key);
+      if (!current || isPreferredRelease(record, current)) {
+        selected.set(key, record);
+      }
     }
   }
-  return descriptors.sort((left, right) =>
-    right.version.localeCompare(left.version, undefined, { numeric: true }),
-  );
+  return [...selected.values()]
+    .map(({ descriptor }) => descriptor)
+    .sort((left, right) =>
+      right.version.localeCompare(left.version, undefined, { numeric: true }),
+    );
 }
 
 function firmwareBytes(payload) {

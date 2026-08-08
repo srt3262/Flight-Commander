@@ -17,6 +17,7 @@ export const MAV_RESULT_ACCEPTED = 0;
 export const MAV_RESULT_IN_PROGRESS = 5;
 export const MAV_CMD_SET_MESSAGE_INTERVAL = 511;
 export const MAV_CMD_REQUEST_MESSAGE = 512;
+export const MAV_CMD_REQUEST_AUTOPILOT_CAPABILITIES = 520;
 export const MAVLINK_MSG_ID_AUTOPILOT_VERSION = 148;
 export const MAV_DATA_STREAM_ALL = 0;
 
@@ -288,12 +289,17 @@ export class MavlinkSession {
     this.gcsHeartbeat = null;
     this.gcsHeartbeatStartTimer = null;
     this.firmwareDetectionTimer = null;
+    this.firmwareDetectionRetryTimer = null;
     this.firmwareDetectionTimeoutMs =
-      options.firmwareDetectionTimeoutMs ?? 1500;
+      options.firmwareDetectionTimeoutMs ?? 6000;
+    this.firmwareDetectionRetryIntervalMs =
+      options.firmwareDetectionRetryIntervalMs ?? 750;
     this.heartbeatTimeoutMs = options.heartbeatTimeoutMs ?? 5000;
     this.discoveryDelayMs =
       options.discoveryDelayMs ?? DEFAULT_DISCOVERY_DELAY_MS;
     this.firmwareFamilyOverride = options.firmwareFamilyOverride ?? null;
+    this.flightCommanderIdentityResolver =
+      options.flightCommanderIdentityResolver ?? null;
     this.bridge = options.bridge ?? globalThis.window?.electronAPI ?? null;
     this.now = options.now ?? Date.now;
     // Chromium's Window timers are receiver-sensitive. Storing an unbound
@@ -1015,38 +1021,105 @@ export class MavlinkSession {
   }
 
   stopFirmwareDetection() {
+    if (this.firmwareDetectionRetryTimer != null) {
+      this.clearTimeoutFn(this.firmwareDetectionRetryTimer);
+      this.firmwareDetectionRetryTimer = null;
+    }
     if (this.firmwareDetectionTimer != null) {
       this.clearTimeoutFn(this.firmwareDetectionTimer);
       this.firmwareDetectionTimer = null;
     }
   }
 
-  startFirmwareDetection() {
-    this.stopFirmwareDetection();
-    if (this.applyFirmwareFamilyOverride()) return;
+  resolveFlightCommanderIdentity() {
+  if (typeof this.flightCommanderIdentityResolver !== "function") return null;
+  try {
+    const resolved = this.flightCommanderIdentityResolver(this.snapshot());
+    if (!resolved) return null;
+    const capabilities = normalizeUnsignedInteger(
+      resolved.capabilities,
+      0xffffffff,
+    );
+    if (capabilities == null) return null;
+    return {
+      capabilities: capabilities >>> 0,
+      source: String(resolved.source || "cached-fcfw-profile"),
+    };
+  } catch (error) {
+    this.emit("transportDiagnostic", {
+      stage: "cached-firmware-identity-error",
+      generation: this.attachmentGeneration,
+      message: error?.message ?? String(error),
+    });
+    return null;
+  }
+}
 
-    if (
-      this.state.autopilot !== MAV_AUTOPILOT_GENERIC &&
-      this.state.autopilot !== MAV_AUTOPILOT_ARDUPILOTMEGA
-    ) {
-      this.setFirmwareFamily(FIRMWARE_FAMILY_UNSUPPORTED, "autopilot-family");
-      return;
-    }
-
-    this.setFirmwareFamily(FIRMWARE_FAMILY_UNKNOWN, "probing");
-    this.requestAutopilotVersion().catch(() => {});
-    if (this.state.autopilot === MAV_AUTOPILOT_ARDUPILOTMEGA) {
-      this.send("ParamRequestList", this.target()).catch(() => {});
-    }
-    const attachment = this.activeAttachment("firmware detection");
-    this.firmwareDetectionTimer = timerUnref(
-      this.setTimeoutFn(() => {
-        this.firmwareDetectionTimer = null;
-        if (!this.attachmentIsCurrent(attachment)) return;
-        this.setFirmwareFamily(FIRMWARE_FAMILY_UNSUPPORTED, "probe-timeout");
-      }, this.firmwareDetectionTimeoutMs),
+setFlightCommanderIdentityResolver(resolver) {
+  if (resolver != null && typeof resolver !== "function") {
+    throw new TypeError(
+      "Flight Commander identity resolver must be a function or null.",
     );
   }
+  this.flightCommanderIdentityResolver = resolver;
+  if (this.state.connected) this.startFirmwareDetection();
+  return this.snapshot();
+}
+
+startFirmwareDetection() {
+  this.stopFirmwareDetection();
+  if (this.applyFirmwareFamilyOverride()) return;
+
+  if (
+    this.state.autopilot !== MAV_AUTOPILOT_GENERIC &&
+    this.state.autopilot !== MAV_AUTOPILOT_ARDUPILOTMEGA
+  ) {
+    this.setFirmwareFamily(FIRMWARE_FAMILY_UNSUPPORTED, "autopilot-family");
+    return;
+  }
+
+  const cachedIdentity = this.resolveFlightCommanderIdentity();
+  if (cachedIdentity) {
+    this.state.flightCommanderCapabilities = cachedIdentity.capabilities;
+    this.setFirmwareFamily(
+      FIRMWARE_FAMILY_FLIGHT_COMMANDER,
+      cachedIdentity.source,
+    );
+  } else {
+    this.setFirmwareFamily(FIRMWARE_FAMILY_UNKNOWN, "probing");
+  }
+
+  if (
+    !cachedIdentity &&
+    this.state.autopilot === MAV_AUTOPILOT_ARDUPILOTMEGA
+  ) {
+    this.send("ParamRequestList", this.target()).catch(() => {});
+  }
+
+  const attachment = this.activeAttachment("firmware detection");
+  const probe = () => {
+    if (!this.attachmentIsCurrent(attachment)) return;
+    this.requestFlightCommanderIdentity().catch(() => {});
+    this.firmwareDetectionRetryTimer = timerUnref(
+      this.setTimeoutFn(probe, this.firmwareDetectionRetryIntervalMs),
+    );
+  };
+  probe();
+
+  this.firmwareDetectionTimer = timerUnref(
+    this.setTimeoutFn(() => {
+      this.firmwareDetectionTimer = null;
+      if (this.firmwareDetectionRetryTimer != null) {
+        this.clearTimeoutFn(this.firmwareDetectionRetryTimer);
+        this.firmwareDetectionRetryTimer = null;
+      }
+      if (!this.attachmentIsCurrent(attachment)) return;
+      if (this.state.firmwareFamily === FIRMWARE_FAMILY_UNKNOWN) {
+        this.setFirmwareFamily(FIRMWARE_FAMILY_UNSUPPORTED, "probe-timeout");
+      }
+    }, this.firmwareDetectionTimeoutMs),
+  );
+}
 
   handleFirmwareFingerprint(envelope) {
     if (
@@ -1595,6 +1668,21 @@ export class MavlinkSession {
     });
   }
 
+  requestAutopilotCapabilities() {
+    return this.send("CommandLong", {
+      ...this.target(),
+      command: MAV_CMD_REQUEST_AUTOPILOT_CAPABILITIES,
+      confirmation: 0,
+      param1: 1,
+      param2: 0,
+      param3: 0,
+      param4: 0,
+      param5: 0,
+      param6: 0,
+      param7: 0,
+    });
+  }
+
   requestAutopilotVersion() {
     return this.send("CommandLong", {
       ...this.target(),
@@ -1608,6 +1696,13 @@ export class MavlinkSession {
       param6: 0,
       param7: 0,
     });
+  }
+
+  requestFlightCommanderIdentity() {
+    return Promise.allSettled([
+      this.requestAutopilotCapabilities(),
+      this.requestAutopilotVersion(),
+    ]);
   }
 
   waitFor(messageNames, predicate = () => true, timeoutMs = 3000) {
