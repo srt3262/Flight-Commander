@@ -10,16 +10,20 @@ The header identifies the active transport and detected firmware family.
 
 - **Flight Commander MSP wired** is the bench setup link. It supplies live
   telemetry, but airborne command buttons require a validated MAVLink link.
-- **MAVLink · Flight Commander** can supply live telemetry, mission transport,
-  and capability-gated commands.
-- **MAVLink · unsupported firmware** is compatibility telemetry/navigation; native
-  Flight Commander command controls remain disabled.
-- **LTM** is read-only telemetry.
+- **MAVLink · detecting Flight Commander Firmware** means a valid vehicle
+  heartbeat has arrived but the FCFW signature and capabilities are still being
+  verified. Operational paths remain locked.
+- **MAVLink · Flight Commander** supplies live telemetry, mission transport, and
+  capability-gated commands after identity verification.
+- **MAVLink · unsupported firmware** means the FCFW identity was missing or
+  invalid. Mission transfer, commands, configuration, and RTK forwarding are
+  blocked; any visible telemetry is diagnostic only.
 - **Offline RTK setup** means the aircraft is disconnected but the lower RTK
   workspace can still operate an independent USB base.
 
 The link, armed state, selected flight mode, and command explanation are always
-visible. Disabled commands remain present and state why they cannot be sent.
+visible. Unsupported firmware never enters a reduced-functionality operating
+mode; command and mission paths stay blocked.
 
 ## Map and HUD
 

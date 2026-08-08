@@ -547,7 +547,7 @@ test("UART RTK rover selection and per-module alignment ship in the release UI",
   assert.match(magnetometerSource, /moduleFrontArrowGlyph/);
   assert.doesNotMatch(magnetometerSource, /alignmentTechnicalPreview|technicalPreview|createGenericRtkModel/);
   assert.match(alignmentTargetsSource, /label: 'Onboard compass'/);
-  assert.match(alignmentTargetsSource, /Active INAV target magnetometer alignment/);
+  assert.match(alignmentTargetsSource, /Active Flight Commander target magnetometer alignment/);
   assert.doesNotMatch(alignmentTargetsSource, /does not override the target/);
   assert.match(alignmentTargetsSource, /automatic selection is ambiguous/);
   assert.match(alignmentTargetsSource, /externalMagAlignmentDecidegrees/);

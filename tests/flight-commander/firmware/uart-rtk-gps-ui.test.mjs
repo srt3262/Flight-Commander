@@ -88,7 +88,7 @@ test('Alignment Tool enumerates UART, DroneCAN, and moving-baseline RTK targets'
     );
     assert.equal(targets[0].label, 'Onboard compass');
     assert.doesNotMatch(targets[0].label, /external/i);
-    assert.match(targets[0].description, /Active INAV target/);
+    assert.match(targets[0].description, /Active Flight Commander target/);
     assert.doesNotMatch(targets[0].description, /does not override/i);
     assert.match(targets[1].label, /External I²C compass/);
     assert.match(targets[2].label, /node 42/);

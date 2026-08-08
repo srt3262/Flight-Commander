@@ -58,16 +58,16 @@ export function enumerateAlignmentTargets({
     const targets = [{
         id: ALIGNMENT_TARGET_LEGACY_MAG,
         label: 'Onboard compass',
-        description: 'Active INAV target magnetometer alignment and diagnostics.',
+        description: 'Active Flight Commander target magnetometer alignment and diagnostics.',
         axes: ['roll', 'pitch', 'yaw'],
         sourceIndex: HEADING_SOURCE_ONBOARD_MAG,
         previewIndex: 0,
         previewKind: 'onboard',
         previewTitle: 'Onboard compass',
         previewDetail: 'Aircraft and selected compass model.',
-        transport: 'INAV target compass path',
+        transport: 'Flight Commander target compass path',
         binding: 'Onboard / target-selected compass',
-        setting: 'INAV align_mag and align_mag_roll/pitch/yaw',
+        setting: 'Inherited align_mag and align_mag_roll/pitch/yaw settings',
         editable: true,
     }];
     if (!headingConfig) return targets;

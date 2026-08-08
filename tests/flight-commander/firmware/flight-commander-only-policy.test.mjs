@@ -15,6 +15,14 @@ test("Flight Commander 4.1.2 exposes no stock-INAV product mode", () => {
   const ground = text("tabs/flight_data.js");
   const planner = text("tabs/flight_planner.js");
   const landing = text("tabs/landing.html");
+  const alignmentTargets = text("js/flightCommander/alignmentTargets.js");
+  const plannerHtml = text("tabs/flight_planner.html");
+  const docs = [
+    text("README.md"),
+    text("docs/CONNECTIONS.md"),
+    text("docs/FIRMWARE_FLASHING.md"),
+    text("docs/GROUND_CONTROL.md"),
+  ].join("\n");
 
   assert.equal(packageJson.version, "4.1.2");
   assert.match(flasherHtml, /Flight Commander Firmware only/);
@@ -29,4 +37,8 @@ test("Flight Commander 4.1.2 exposes no stock-INAV product mode", () => {
   assert.doesNotMatch(ground, /MAVLink · Official INAV|commands disabled for official INAV/i);
   assert.doesNotMatch(planner, /Official INAV|Flight Commander\/INAV-compatible/);
   assert.match(landing, /Flight Commander Firmware the only/);
+  assert.match(alignmentTargets, /Active Flight Commander target magnetometer alignment and diagnostics/);
+  assert.doesNotMatch(alignmentTargets, /Active INAV target|INAV target compass path/);
+  assert.doesNotMatch(plannerHtml, /INAV's persistent|resets INAV's native/);
+  assert.doesNotMatch(docs, /Official INAV|official-INAV compatibility|unsupported firmware compatibility|Live compatibility telemetry/);
 });

@@ -6,9 +6,9 @@
 Flight Commander is a desktop flight-controller configurator, mission planner,
 firmware flasher, and ground control station centered on Flight Commander
 Firmware. It is a maintained, independently versioned fork—not an INAV skin.
-It retains an explicit official-INAV compatibility mode while Flight Commander
-owns the product identity, release contract, capability protocol, and new
-feature development.
+Flight Commander Firmware is the only supported controller firmware. Inherited
+INAV source and protocol names remain only where Flight Commander Firmware still
+uses those formats; they do not provide a stock-firmware compatibility mode.
 
 > **Source provenance:** the repository history includes a reconstructed 1.3.6
 > source baseline built from INAV Configurator 9.1.1 and a verified Flight
@@ -99,8 +99,9 @@ cable directly to the external TX module when using the serial method.
 
 Ground Control opens immediately after the COM port is ready and reports that
 it is waiting for a vehicle heartbeat. This means the serial transport is open,
-not that the aircraft link has been validated. Telemetry, mission reads, and
-vehicle commands stay disabled until a non-GCS autopilot heartbeat is received.
+not that the aircraft or firmware identity has been validated. Telemetry-driven
+operations, mission reads, and commands stay locked until the FCFW signature and
+required capability data are verified.
 
 ## Documentation and support
 

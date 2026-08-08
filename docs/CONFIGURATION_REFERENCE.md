@@ -143,13 +143,12 @@ changes backed by logs.
 
 ## Firmware Features
 
-Firmware Features displays the Flight Commander identity schema, compatibility
+Firmware Features displays the Flight Commander identity schema, protocol-baseline
 version, target, capability bitmap, and one card per optional feature. These
 cards are protocol gates. A disabled card means the Configurator will not infer
-support from a version number or UI selection.
-
-unsupported firmware compatibility retains supported inherited configuration but does
-not advertise Flight Commander-only capabilities.
+support from a version number or UI selection. Controllers without a supported
+FCFW identity are rejected before configuration tabs unlock; there is no
+stock-firmware compatibility mode.
 
 ## GPS and RTK
 

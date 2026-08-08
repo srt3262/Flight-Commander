@@ -547,7 +547,7 @@ magnetometerTab.initialize = function (callback) {
             state = 'Healthy standby';
             stateClass = 'is-healthy';
         } else if (!supportsHeadingFusion && sourceIndex === 0) {
-            state = 'INAV onboard compass';
+            state = 'Onboard compass';
             stateClass = 'is-healthy';
         }
         $('#alignmentDiagnosticState')
@@ -595,7 +595,7 @@ magnetometerTab.initialize = function (callback) {
             vector = diagnosticVector(FC.SENSOR_DATA?.magnetometer, 3);
             zero = diagnosticVector(objectVector(FC.CALIBRATION_DATA?.magZero));
             gain = diagnosticVector(objectVector(FC.CALIBRATION_DATA?.magGain));
-            detail = 'Live vector is the standard INAV onboard magnetometer sample. Zero and gain are the saved onboard calibration.';
+            detail = 'Live vector is the standard onboard magnetometer sample. Zero and gain are the saved onboard calibration.';
         } else if (sourceIndex === 1) {
             zero = diagnosticVector(FC.HEADING_CONFIG?.externalMagZero);
             gain = diagnosticVector(FC.HEADING_CONFIG?.externalMagGain);

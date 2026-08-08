@@ -238,15 +238,6 @@ function resolveSurveyCameraPolicy({
   }
 
   if (normalizedMode === SURVEY_CAMERA_MODES.FLIGHT_COMMANDER) {
-    if (target === 'inav') {
-      return {
-        mode: normalizedMode,
-        target,
-        includeCameraCommands: false,
-        incompatible: true,
-        notice: 'unsupported firmware does not support Flight Commander camera-trigger missions. Select Navigation only or connect Flight Commander Firmware.',
-      };
-    }
     if (target === 'flight-commander' && !photoTriggersSupported) {
       return {
         mode: normalizedMode,
@@ -277,15 +268,13 @@ function resolveSurveyCameraPolicy({
     };
   }
 
-  if (target === 'inav' || target === 'flight-commander') {
+  if (target === 'flight-commander') {
     return {
       mode: normalizedMode,
       target,
       includeCameraCommands: false,
       incompatible: false,
-      notice: target === 'inav'
-        ? 'unsupported firmware is navigation-only in Flight Commander; photo spacing estimates images but no shutter command is sent.'
-        : 'The connected Flight Commander Firmware does not advertise photo triggers; photo spacing estimates images only.',
+      notice: 'The connected Flight Commander Firmware does not advertise photo triggers; photo spacing estimates images only.',
     };
   }
 
@@ -1826,14 +1815,14 @@ flightPlanner.resolveMavlinkFirmwareFamily = async function () {
   const state = mavlinkSession.state.firmwareFamily === 'unknown'
     ? await mavlinkSession.waitForFirmwareFamily()
     : mavlinkSession.snapshot();
-  if (!['inav', 'flight-commander'].includes(state.firmwareFamily)) {
+  if (state.firmwareFamily !== 'flight-commander') {
     throw new Error(
-      state.firmwareFamily === 'unsupported'
-        ? 'ArduPilot mission transfer has been removed. Connect Flight Commander Firmware or unsupported firmware.'
-        : 'This MAVLink firmware is not supported for mission transfer.',
+      state.firmwareFamily === 'unknown'
+        ? 'Mission transfer is waiting for Flight Commander FCFW identification.'
+        : 'Mission transfer requires supported Flight Commander Firmware.',
     );
   }
-  return state.firmwareFamily;
+  return 'flight-commander';
 };
 
 flightPlanner.startPolygonDraw = function () {
@@ -2321,7 +2310,7 @@ flightPlanner.upload = async function () {
         source: 'flight-planner-upload-readback',
       });
       this.setStatus(
-        `${missionToUpload.length} ${firmwareFamily === 'flight-commander' ? 'Flight Commander' : 'unsupported firmware'} mission items written to active memory and verified.`
+        `${missionToUpload.length} Flight Commander mission items written to active memory and verified.`
         + ' This active mission is not stored across a power cycle.',
       );
     } else {
@@ -2354,7 +2343,7 @@ flightPlanner.upload = async function () {
         ...extensionOptions,
       });
       this.setStatus(
-        `Mission saved to ${firmwareFamily === 'flight-commander' ? 'Flight Commander' : 'unsupported firmware'} EEPROM. Reading it back for verification…`,
+        'Mission saved to Flight Commander EEPROM. Reading it back for verification…',
       );
       savedMission = await inavMissionAdapter.download({ loadFromEeprom: true });
       assertMissionReadback(
@@ -2366,7 +2355,7 @@ flightPlanner.upload = async function () {
         ? ` ${result.omitted} MAVLink-only command items were omitted.`
         : '';
       this.setStatus(
-        `${result.uploaded} ${firmwareFamily === 'flight-commander' ? 'Flight Commander' : 'unsupported firmware'} mission items written to EEPROM and verified.${suffix}`,
+        `${result.uploaded} Flight Commander mission items written to EEPROM and verified.${suffix}`,
       );
     }
   } catch (error) {
@@ -2466,7 +2455,7 @@ flightPlanner.clearVehicleMission = async function () {
       await mavlinkMissionManager.clear({ legacyOnly: true, volatile: true });
       mavlinkSession.state.missionTotal = 0;
       this.setStatus(
-        `Active ${firmwareFamily === 'flight-commander' ? 'Flight Commander' : 'unsupported firmware'} RAM mission cleared and verified for this power cycle. `
+        'Active Flight Commander RAM mission cleared and verified for this power cycle. '
         + 'The stored mission is unchanged; this MAVLink mission transport cannot persist an empty mission, '
         + 'so replace it with another valid mission if it must not return after reboot.',
       );
