@@ -1,9 +1,13 @@
 name: Build Flight Commander 4.0.8 UI-fix downloads
 
 "on":
-  push:
+  pull_request:
     branches:
-      - agent/fix-4.0.8-ui-regressions
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
     paths:
       - .github/workflows/apply-ui-regression-fixes-pr.yml
 
