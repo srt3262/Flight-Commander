@@ -146,36 +146,27 @@ const flightData = {
 };
 
 flightData.suspendGlobalLog = function () {
-  this.globalLogWasOpen = $('#content').hasClass('logopen');
-  if (this.globalLogWasOpen) {
-    $('#showlog').trigger('click');
-    store.set('logopen', true);
+  // Ground Control must never hide the only live serial/MAVLink
+  // diagnostic surface. Preserve the operator's current log state
+  // and make the normal Show/Hide Log control available.
+  if (this.globalLogGuard) {
+    document.querySelector('#showlog')?.removeEventListener(
+      'click',
+      this.globalLogGuard,
+      true,
+    );
   }
-  this.globalLogGuard = (event) => {
-    event.preventDefault();
-    event.stopImmediatePropagation();
-  };
-  document.querySelector('#showlog')?.addEventListener('click', this.globalLogGuard, true);
-  $('#showlog')
-    .prop('disabled', true)
-    .addClass('fc-ground-control-locked')
-    .attr('aria-disabled', 'true')
-    .attr('title', 'The diagnostics log is collapsed while Ground Control is active.');
-};
-
-flightData.restoreGlobalLog = function () {
-  const shouldRestore = this.globalLogWasOpen;
   this.globalLogWasOpen = false;
-  document.querySelector('#showlog')?.removeEventListener('click', this.globalLogGuard, true);
   this.globalLogGuard = null;
   $('#showlog')
     .prop('disabled', false)
     .removeClass('fc-ground-control-locked')
     .removeAttr('aria-disabled')
     .removeAttr('title');
-  if (shouldRestore && !$('#content').hasClass('logopen')) {
-    $('#showlog').trigger('click');
-  }
+};
+
+flightData.restoreGlobalLog = function () {
+  this.suspendGlobalLog();
 };
 
 flightData.initialize = function (callback) {

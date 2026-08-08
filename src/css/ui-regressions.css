@@ -1,0 +1,59 @@
+/*
+ * Narrow fixes for regressions discovered during Flight Commander 4.0.8 bench review.
+ * These selectors intentionally outrank inherited dark-theme and form-grid rules.
+ */
+
+/* Restore INAV's Drop, Land, and RTH behavior illustrations in the dark theme. */
+.tab-failsafe .radioarea {
+    color: var(--fc-theme-text) !important;
+    border: 1px solid var(--fc-theme-border) !important;
+    background-color: var(--fc-theme-surface-alt) !important;
+}
+
+.tab-failsafe .radioarea.pro1,
+.tab-failsafe .radioarea.pro2,
+.tab-failsafe .radioarea.pro4 {
+    background-repeat: no-repeat, no-repeat !important;
+    background-position: center right 10px, center right !important;
+    background-size: 200px auto, 220px 100% !important;
+}
+
+.tab-failsafe .radioarea.pro1 {
+    background-image:
+        url("./../../images/icons/cf_failsafe_procedure1.svg"),
+        linear-gradient(#dce3e7, #dce3e7) !important;
+}
+
+.tab-failsafe .radioarea.pro2 {
+    background-image:
+        url("./../../images/icons/cf_failsafe_procedure2.svg"),
+        linear-gradient(#dce3e7, #dce3e7) !important;
+}
+
+.tab-failsafe .radioarea.pro4 {
+    background-image:
+        url("./../../images/icons/cf_failsafe_procedure4.svg"),
+        linear-gradient(#dce3e7, #dce3e7) !important;
+}
+
+.tab-failsafe .radioarea.pro5 {
+    background-image: none !important;
+}
+
+/* Keep label captions and their unit spans inline, with the control below. */
+.tab-flight-planner .fc-form-grid label {
+    display: block;
+    min-width: 0;
+    line-height: 1.35;
+}
+
+.tab-flight-planner .fc-form-grid label > .planner-distance-unit,
+.tab-flight-planner .fc-form-grid label > .planner-speed-unit {
+    display: inline;
+}
+
+.tab-flight-planner .fc-form-grid label > input,
+.tab-flight-planner .fc-form-grid label > select {
+    display: block;
+    margin-top: 4px;
+}

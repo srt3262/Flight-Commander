@@ -34,26 +34,26 @@
       </div>
       <div class="column half text2">
         <div class="wrap">
-          <h2>Flight Commander 4.0.8</h2>
+          <h2>Flight Commander 4.1.0</h2>
           <p>
-            Flight Commander 4.0.8 Beta lets you select each enabled and detected
-            compass individually, learn its six-side orientation and alignment,
-            then calibrate only that source's offsets and gains.
+            Flight Commander 4.1.0 removes the MAVLink startup-order dependency.
+            Ground Control now keeps listening and automatically refreshes only
+            the selected radio COM port until a valid aircraft heartbeat arrives.
           </p>
           <p>
-            Onboard, external I2C/UART GPS-module and DroneCAN compasses retain
-            independent persistent transforms, manual alignment and field
-            calibration. A source cannot enter heading fusion until its own two
-            calibration stages are valid.
+            The independent USB RTK base connection remains open during radio
+            recovery, so survey-in can begin with the aircraft powered off and
+            the aircraft link can be added later without restarting the survey.
           </p>
           <p>
-            Ground Control now uses ground speed as the only HUD speed indication.
-            The verified 4.0.7 IMU handedness and compass baseline remain intact.
+            INAV barometer/INS altitude from VFR_HUD is shown as relative
+            altitude, while valid GPS altitude remains the MSL source. Live GCS
+            diagnostics and the 4.0.8 compass, IMU and ground-speed fixes remain.
           </p>
           <p>
-            This build is a beta for propeller-off hardware acceptance. Successful
-            testing will promote the same validated 4.0.8 artifacts to the official
-            release without rebuilding different binaries.
+            This is a Configurator-only beta. It reuses the verified Flight
+            Commander Firmware 4.0.8 image and exact 4.0.8 firmware source; no
+            flight-controller reflash is required when upgrading from 4.0.8.
           </p>
           <h2 style="margin-top: 1em">Open-source foundations</h2>
           <div>
