@@ -92,6 +92,14 @@ jobs:
             } > "$status_path"
           fi
 
+          # GitHub Actions' repository token cannot update workflow files. Keep
+          # all workflow files and the transformer identical to main while the
+          # tested application/source changes are published to the release branch.
+          git checkout origin/main -- \
+            .github/workflows/release.yml \
+            .github/workflows/one-time-prepare-flight-commander-4.1.2.yml \
+            scripts/prepare-flight-commander-4.1.2.py
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
@@ -107,5 +115,3 @@ jobs:
           if [ "$transform_status" -ne 0 ]; then exit "$transform_status"; fi
           if [ "$install_status" -ne 0 ]; then exit "$install_status"; fi
           exit "$test_status"
-
-# Triggered after bootstrap merge.
