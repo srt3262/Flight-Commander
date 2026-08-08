@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "product": "Flight Commander",
+  "version": "4.1.2",
+  "tag": "v4.1.2",
+  "releaseId": 367258688,
+  "releaseUrl": "https://github.com/srt3262/Flight-Commander/releases/tag/v4.1.2",
+  "targetCommit": "50954c4c3a8318bd922f06dbf6edfec256bda0c6",
+  "publishedAt": "2026-08-08T17:21:31Z",
+  "prerelease": false,
+  "firmwareVersion": "4.0.8",
+  "firmwareChangedInRelease": false,
+  "validation": {
+    "workflowRun": 31269005902,
+    "firmwareSourceRebuild": "success",
+    "sourceTests": "success",
+    "windowsPackaging": "success",
+    "windowsPackageVerification": "success",
+    "fourFileBundleVerification": "success",
+    "releasePublication": "success"
+  },
+  "assets": [
+    {
+      "name": "Flight-Commander-v4.1.2.zip",
+      "contentType": "application/zip",
+      "bytes": 203650462,
+      "sha256": "3fd05f730b74670973b1787bc4a923954d152e52e41c00f160707183f6fd7066",
+      "url": "https://github.com/srt3262/Flight-Commander/releases/download/v4.1.2/Flight-Commander-v4.1.2.zip",
+      "contains": [
+        "FC-Windows-v4.1.2.zip",
+        "FC-Configurator-Source-v4.1.2.zip",
+        "FC-Firmware-v4.0.8-MICOAIR743.hex",
+        "FC-Firmware-Source-v4.0.8.zip"
+      ]
+    },
+    {
+      "name": "Flight-Commander-Firmware-4.0.8-MICOAIR743.hex",
+      "contentType": "application/octet-stream",
+      "bytes": 1937234,
+      "sha256": "ca553e5b3c788b73635e92aebb75a95c370ad2a400a2f783d3c742d6da448ac1",
+      "url": "https://github.com/srt3262/Flight-Commander/releases/download/v4.1.2/Flight-Commander-Firmware-4.0.8-MICOAIR743.hex"
+    }
+  ]
+}
