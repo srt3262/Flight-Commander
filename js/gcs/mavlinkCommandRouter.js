@@ -93,6 +93,44 @@ function integerOrNull(value) {
   return Number.isInteger(number) ? number : null;
 }
 
+export const FLIGHT_COMMANDER_KNOWN_CAPABILITY_MASK = Object.values(
+  FLIGHT_COMMANDER_CAPABILITIES,
+).reduce((mask, capability) => (mask | capability) >>> 0, 0);
+
+export function resolveCachedFlightCommanderIdentity(profileStore, state = {}) {
+  // Firmware 4.0.8 predates the MAVLink AUTOPILOT_VERSION FCFW payload.
+  // Accept only one controller-matched profile that was captured through
+  // Flight Commander's wired MSP setup path. Signed MAVLink identity remains
+  // authoritative and will replace this fallback when present.
+  if (Number(state.autopilot) !== 0 || state.systemId == null) return null;
+  const resolution = profileStore?.resolve?.(state.systemId);
+  if (resolution?.status !== "resolved" || !resolution.profile) return null;
+  const profile = resolution.profile;
+  const family = String(profile.firmwareFamily ?? "").trim().toLowerCase();
+  if (family && family !== "flight-commander") return null;
+  const board = String(profile.boardIdentifier ?? "")
+    .trim()
+    .replace(/[\s_-]/g, "")
+    .toUpperCase();
+  if (board !== "MICOAIR743" && board !== "MICROAIR743") return null;
+
+  const recordedCapabilities = Number(profile.flightCommanderCapabilities);
+  const capabilities =
+    Number.isInteger(recordedCapabilities) &&
+    recordedCapabilities >= 0 &&
+    recordedCapabilities <= 0xffffffff
+      ? recordedCapabilities >>> 0
+      : FLIGHT_COMMANDER_KNOWN_CAPABILITY_MASK;
+  return Object.freeze({
+    capabilities,
+    source: family === "flight-commander"
+      ? "cached-fcfw-profile"
+      : "legacy-msp-profile",
+    profileId: profile.profileId ?? null,
+    firmwareVersion: profile.flightCommanderFirmwareVersion ?? "4.0.8",
+  });
+}
+
 export function rangeIsConfigured(range) {
   return Number(range?.range?.end) > Number(range?.range?.start);
 }
@@ -1063,6 +1101,15 @@ export class InavMavlinkProfileStore {
       uid: uidString(FC.CONFIG?.uid),
       name: String(FC.CONFIG?.name ?? ""),
       boardIdentifier: String(FC.CONFIG?.boardIdentifier ?? ""),
+      firmwareFamily: String(
+        FC.CONFIG?.firmwareIdentity?.family ?? FC.CONFIG?.firmwareFamily ?? "",
+      ),
+      flightCommanderFirmwareVersion:
+        FC.CONFIG?.flightCommanderFirmware?.firmwareVersion ?? null,
+      flightCommanderIdentitySchema:
+        FC.CONFIG?.flightCommanderFirmware?.schemaVersion ?? null,
+      flightCommanderCapabilities:
+        FC.CONFIG?.flightCommanderFirmware?.capabilities ?? null,
       platformType: FC.MIXER_CONFIG?.platformType ?? null,
       systemId,
       mavlinkVersion: numericSetting(mavlinkVersion),

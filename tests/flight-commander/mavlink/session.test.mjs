@@ -388,6 +388,23 @@ describe("MAVLink state normalization and firmware detection", () => {
     assert.equal(session.state.firmwareFamilySource, "probing");
   });
 
+  test("recognizes legacy Firmware 4.0.8 from one cached wired Flight Commander profile", () => {
+    const capabilities = FLIGHT_COMMANDER_CAPABILITIES.NATIVE_GCS_COMMANDS |
+      FLIGHT_COMMANDER_CAPABILITIES.MISSION_RESUME;
+    const { session } = createAttachedSession({
+      flightCommanderIdentityResolver(state) {
+        assert.equal(state.systemId, 23);
+        assert.equal(state.autopilot, 0);
+        return { capabilities, source: "legacy-msp-profile" };
+      },
+    });
+
+    session.handleMessage(heartbeat({ autopilot: 0, sysid: 23 }));
+
+    assert.equal(session.state.firmwareFamily, FIRMWARE_FAMILY_FLIGHT_COMMANDER);
+    assert.equal(session.state.firmwareFamilySource, "legacy-msp-profile");
+    assert.equal(session.state.flightCommanderCapabilities, capabilities);
+  });
   test("promotes an INAV-compatible heartbeat to Flight Commander only after FCFW capability identity", () => {
     const { session } = createAttachedSession();
     session.handleMessage(heartbeat({ autopilot: 0 }));

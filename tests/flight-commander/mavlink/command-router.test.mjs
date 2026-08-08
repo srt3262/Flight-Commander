@@ -5,6 +5,8 @@ import {
   InavMavlinkCommandAdapter,
   InavMavlinkProfileStore,
   MavlinkCommandRouter,
+  FLIGHT_COMMANDER_KNOWN_CAPABILITY_MASK,
+  resolveCachedFlightCommanderIdentity,
 } from "../../../js/gcs/mavlinkCommandRouter.js";
 import { FLIGHT_COMMANDER_CAPABILITIES } from "../../../js/flightCommander/firmwareIdentity.js";
 
@@ -69,6 +71,7 @@ function inavProfile() {
   return {
     profileId: "test-profile",
     systemId: 9,
+    boardIdentifier: "MICOAIR743",
     receiverType: "SERIAL",
     serialRxProvider: "MAVLINK",
     mavlinkVersion: 2,
@@ -362,6 +365,32 @@ describe("Flight Commander command routing", () => {
 });
 
 describe("INAV profile persistence", () => {
+
+test("resolves exactly one MICOAIR743 wired profile as legacy Flight Commander identity", () => {
+  const profile = inavProfile();
+  const resolved = resolveCachedFlightCommanderIdentity(
+    { resolve: () => ({ status: "resolved", profile }) },
+    { autopilot: 0, systemId: 9 },
+  );
+  assert.equal(resolved.source, "legacy-msp-profile");
+  assert.equal(resolved.capabilities, FLIGHT_COMMANDER_KNOWN_CAPABILITY_MASK);
+
+  assert.equal(
+    resolveCachedFlightCommanderIdentity(
+      { resolve: () => ({ status: "ambiguous", profile: null }) },
+      { autopilot: 0, systemId: 9 },
+    ),
+    null,
+  );
+  assert.equal(
+    resolveCachedFlightCommanderIdentity(
+      { resolve: () => ({ status: "resolved", profile }) },
+      { autopilot: 3, systemId: 9 },
+    ),
+    null,
+  );
+});
+
   test("resolves one profile and reports ambiguity without silently choosing", () => {
     let stored;
     const storage = {
@@ -415,7 +444,14 @@ describe("INAV profile persistence", () => {
         CONFIG: {
           uid: [1, 2, 3],
           name: "Survey aircraft",
-          boardIdentifier: "DALRCF722DUAL",
+          boardIdentifier: "MICOAIR743",
+          firmwareFamily: "flight-commander",
+          firmwareIdentity: { family: "flight-commander" },
+          flightCommanderFirmware: {
+            firmwareVersion: "4.0.8",
+            schemaVersion: 1,
+            capabilities: FLIGHT_COMMANDER_CAPABILITIES.NATIVE_GCS_COMMANDS,
+          },
         },
         MIXER_CONFIG: { platformType: 3 },
         RC_MAP: Array.from({ length: 18 }, (_unused, index) => index),
@@ -448,6 +484,12 @@ describe("INAV profile persistence", () => {
     assert.equal(profile.receiverType, "SERIAL");
     assert.equal(profile.serialRxProvider, "MAVLINK");
     assert.equal(profile.profileId, "uid:1-2-3");
+    assert.equal(profile.firmwareFamily, "flight-commander");
+    assert.equal(profile.flightCommanderFirmwareVersion, "4.0.8");
+    assert.equal(
+      profile.flightCommanderCapabilities,
+      FLIGHT_COMMANDER_CAPABILITIES.NATIVE_GCS_COMMANDS,
+    );
     assert.equal(
       profile.modeRanges.find(({ name }) => name === "NAV WP").rcChannelIndex,
       5,

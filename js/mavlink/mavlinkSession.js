@@ -294,6 +294,8 @@ export class MavlinkSession {
     this.discoveryDelayMs =
       options.discoveryDelayMs ?? DEFAULT_DISCOVERY_DELAY_MS;
     this.firmwareFamilyOverride = options.firmwareFamilyOverride ?? null;
+    this.flightCommanderIdentityResolver =
+      options.flightCommanderIdentityResolver ?? null;
     this.bridge = options.bridge ?? globalThis.window?.electronAPI ?? null;
     this.now = options.now ?? Date.now;
     // Chromium's Window timers are receiver-sensitive. Storing an unbound
@@ -1021,32 +1023,81 @@ export class MavlinkSession {
     }
   }
 
-  startFirmwareDetection() {
-    this.stopFirmwareDetection();
-    if (this.applyFirmwareFamilyOverride()) return;
 
-    if (
-      this.state.autopilot !== MAV_AUTOPILOT_GENERIC &&
-      this.state.autopilot !== MAV_AUTOPILOT_ARDUPILOTMEGA
-    ) {
-      this.setFirmwareFamily(FIRMWARE_FAMILY_UNSUPPORTED, "autopilot-family");
-      return;
-    }
+resolveFlightCommanderIdentity() {
+  if (typeof this.flightCommanderIdentityResolver !== "function") return null;
+  try {
+    const resolved = this.flightCommanderIdentityResolver(this.snapshot());
+    if (!resolved) return null;
+    const capabilities = normalizeUnsignedInteger(
+      resolved.capabilities,
+      0xffffffff,
+    );
+    if (capabilities == null) return null;
+    return {
+      capabilities: capabilities >>> 0,
+      source: String(resolved.source || "cached-fcfw-profile"),
+    };
+  } catch (error) {
+    this.emit("transportDiagnostic", {
+      stage: "cached-firmware-identity-error",
+      generation: this.attachmentGeneration,
+      message: error?.message ?? String(error),
+    });
+    return null;
+  }
+}
 
-    this.setFirmwareFamily(FIRMWARE_FAMILY_UNKNOWN, "probing");
-    this.requestAutopilotVersion().catch(() => {});
-    if (this.state.autopilot === MAV_AUTOPILOT_ARDUPILOTMEGA) {
-      this.send("ParamRequestList", this.target()).catch(() => {});
-    }
-    const attachment = this.activeAttachment("firmware detection");
-    this.firmwareDetectionTimer = timerUnref(
-      this.setTimeoutFn(() => {
-        this.firmwareDetectionTimer = null;
-        if (!this.attachmentIsCurrent(attachment)) return;
-        this.setFirmwareFamily(FIRMWARE_FAMILY_UNSUPPORTED, "probe-timeout");
-      }, this.firmwareDetectionTimeoutMs),
+setFlightCommanderIdentityResolver(resolver) {
+  if (resolver != null && typeof resolver !== "function") {
+    throw new TypeError(
+      "Flight Commander identity resolver must be a function or null.",
     );
   }
+  this.flightCommanderIdentityResolver = resolver;
+  if (this.state.connected) this.startFirmwareDetection();
+  return this.snapshot();
+}
+
+startFirmwareDetection() {
+  this.stopFirmwareDetection();
+  if (this.applyFirmwareFamilyOverride()) return;
+
+  if (
+    this.state.autopilot !== MAV_AUTOPILOT_GENERIC &&
+    this.state.autopilot !== MAV_AUTOPILOT_ARDUPILOTMEGA
+  ) {
+    this.setFirmwareFamily(FIRMWARE_FAMILY_UNSUPPORTED, "autopilot-family");
+    return;
+  }
+
+  const cachedIdentity = this.resolveFlightCommanderIdentity();
+  if (cachedIdentity) {
+    this.state.flightCommanderCapabilities = cachedIdentity.capabilities;
+    this.setFirmwareFamily(
+      FIRMWARE_FAMILY_FLIGHT_COMMANDER,
+      cachedIdentity.source,
+    );
+    // Keep probing so a signed AUTOPILOT_VERSION identity can replace the
+    // legacy cached proof and capability mask whenever firmware provides it.
+    this.requestAutopilotVersion().catch(() => {});
+    return;
+  }
+
+  this.setFirmwareFamily(FIRMWARE_FAMILY_UNKNOWN, "probing");
+  this.requestAutopilotVersion().catch(() => {});
+  if (this.state.autopilot === MAV_AUTOPILOT_ARDUPILOTMEGA) {
+    this.send("ParamRequestList", this.target()).catch(() => {});
+  }
+  const attachment = this.activeAttachment("firmware detection");
+  this.firmwareDetectionTimer = timerUnref(
+    this.setTimeoutFn(() => {
+      this.firmwareDetectionTimer = null;
+      if (!this.attachmentIsCurrent(attachment)) return;
+      this.setFirmwareFamily(FIRMWARE_FAMILY_UNSUPPORTED, "probe-timeout");
+    }, this.firmwareDetectionTimeoutMs),
+  );
+}
 
   handleFirmwareFingerprint(envelope) {
     if (

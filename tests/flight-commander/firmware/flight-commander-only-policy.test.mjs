@@ -4,41 +4,33 @@ import { resolve } from "node:path";
 import test from "node:test";
 
 const root = resolve(import.meta.dirname, "../../..");
-const text = (path) => readFileSync(resolve(root, path), "utf8");
+const text = (relative) => readFileSync(resolve(root, relative), "utf8");
 
-test("Flight Commander 4.1.2 exposes no stock-INAV product mode", () => {
+test("Flight Commander 4.1.3 keeps one Flight Commander operating product", () => {
   const packageJson = JSON.parse(text("package.json"));
   const flasherHtml = text("tabs/firmware_flasher.html");
   const flasherSource = text("tabs/firmware_flasher.js");
-  const serial = text("js/serial_backend.js");
+  const catalog = text("js/flightCommander/firmwareCatalog.js");
   const session = text("js/mavlink/mavlinkSession.js");
-  const ground = text("tabs/flight_data.js");
-  const planner = text("tabs/flight_planner.js");
+  const router = text("js/gcs/mavlinkCommandRouter.js");
   const landing = text("tabs/landing.html");
-  const alignmentTargets = text("js/flightCommander/alignmentTargets.js");
-  const plannerHtml = text("tabs/flight_planner.html");
-  const docs = [
-    text("README.md"),
-    text("docs/CONNECTIONS.md"),
-    text("docs/FIRMWARE_FLASHING.md"),
-    text("docs/GROUND_CONTROL.md"),
-  ].join("\n");
 
-  assert.equal(packageJson.version, "4.1.2");
-  assert.match(flasherHtml, /Flight Commander Firmware only/);
+  assert.equal(packageJson.version, "4.1.3");
+  assert.equal(packageJson.flightCommander.firmwareReleaseVersion, "4.0.8");
+  assert.match(flasherHtml, /Online Flight Commander Firmware \/ Local HEX/);
   assert.doesNotMatch(flasherHtml, /value="inav"|Official INAV/);
-  assert.doesNotMatch(flasherSource, /repos\/iNavFlight\/inav(?:-nightly)?\/releases/);
-  assert.match(flasherSource, /parsedHexContainsFlightCommanderIdentity/);
-  assert.match(serial, /identity\.family !== FIRMWARE_FAMILY_FLIGHT_COMMANDER/);
-  assert.doesNotMatch(serial, /Official INAV|compatibility mode/);
-  assert.doesNotMatch(session, /setFirmwareFamily\(FIRMWARE_FAMILY_INAV, "heartbeat"\)/);
-  assert.match(session, /FIRMWARE_FAMILY_UNKNOWN, "probing"/);
-  assert.match(ground, /return family === 'flight-commander'/);
-  assert.doesNotMatch(ground, /MAVLink · Official INAV|commands disabled for official INAV/i);
-  assert.doesNotMatch(planner, /Official INAV|Flight Commander\/INAV-compatible/);
-  assert.match(landing, /Flight Commander Firmware the only/);
-  assert.match(alignmentTargets, /Active Flight Commander target magnetometer alignment and diagnostics/);
-  assert.doesNotMatch(alignmentTargets, /Active INAV target|INAV target compass path/);
-  assert.doesNotMatch(plannerHtml, /INAV's persistent|resets INAV's native/);
-  assert.doesNotMatch(docs, /Official INAV|official-INAV compatibility|unsupported firmware compatibility|Live compatibility telemetry/);
+  assert.match(flasherSource, /if \(local\) \{[\s\S]+flashed as supplied/);
+  assert.match(flasherSource, /!localFirmwareLoaded && loadedFirmwareFamily/);
+  assert.match(catalog, /publishedReleaseChannel/);
+  assert.match(catalog, /status: channel/);
+  assert.match(session, /resolveFlightCommanderIdentity/);
+  assert.match(session, /legacy cached proof/);
+  assert.match(router, /resolveCachedFlightCommanderIdentity/);
+  assert.match(router, /legacy-msp-profile/);
+  assert.match(landing, /Flight Commander capabilities/);
+  assert.match(landing, /USB RTK base workflows/);
+  assert.doesNotMatch(
+    landing,
+    /retired stock-firmware|compatibility path|have been removed|removal of/i,
+  );
 });
