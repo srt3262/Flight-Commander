@@ -182,12 +182,12 @@ function missionTargetForConnection(protocol, firmwareFamily) {
   if (protocol === 'msp') {
     return FC.CONFIG?.firmwareIdentity?.family === 'flight-commander'
       ? 'flight-commander'
-      : 'inav';
+      : 'unknown';
   }
-  if (protocol === 'ltm') return 'unknown';
   if (protocol !== 'mavlink') return 'unknown';
-  const family = String(firmwareFamily ?? '').toLowerCase();
-  return ['flight-commander', 'inav'].includes(family) ? family : 'unknown';
+  return String(firmwareFamily ?? '').toLowerCase() === 'flight-commander'
+    ? 'flight-commander'
+    : 'unknown';
 }
 
 function connectedFlightCommanderFeature(featureKey) {
@@ -238,15 +238,6 @@ function resolveSurveyCameraPolicy({
   }
 
   if (normalizedMode === SURVEY_CAMERA_MODES.FLIGHT_COMMANDER) {
-    if (target === 'inav') {
-      return {
-        mode: normalizedMode,
-        target,
-        includeCameraCommands: false,
-        incompatible: true,
-        notice: 'Official INAV does not support Flight Commander camera-trigger missions. Select Navigation only or connect Flight Commander Firmware.',
-      };
-    }
     if (target === 'flight-commander' && !photoTriggersSupported) {
       return {
         mode: normalizedMode,
@@ -277,15 +268,13 @@ function resolveSurveyCameraPolicy({
     };
   }
 
-  if (target === 'inav' || target === 'flight-commander') {
+  if (target === 'flight-commander') {
     return {
       mode: normalizedMode,
       target,
       includeCameraCommands: false,
       incompatible: false,
-      notice: target === 'inav'
-        ? 'Official INAV is navigation-only in Flight Commander; photo spacing estimates images but no shutter command is sent.'
-        : 'The connected Flight Commander Firmware does not advertise photo triggers; photo spacing estimates images only.',
+      notice: 'The connected Flight Commander Firmware does not advertise photo triggers; photo spacing estimates images only.',
     };
   }
 
@@ -525,7 +514,7 @@ flightPlanner.bindControls = function () {
   $('#plannerInavMissionRestart').on('change', () => {
     if (this.inavMissionRestartLoaded) {
       this.setInavMissionRestartStatus(
-        'Policy changed locally. Save it to INAV to make the selection persistent.',
+        'Policy changed locally. Save it to Flight Commander Firmware to make the selection persistent.',
       );
     }
   });
@@ -588,7 +577,7 @@ flightPlanner.bindControls = function () {
           .some(approachIsConfigured)
       ) {
         throw new Error(
-          'One or more INAV mission landing approaches are configured. Clear or move those '
+          'One or more Flight Commander mission landing approaches are configured. Clear or move those '
           + 'approaches before deleting the final mission item.',
         );
       }
@@ -679,67 +668,61 @@ flightPlanner.vehiclePosition = function () {
 };
 
 flightPlanner.updateVehicleTransferState = function () {
-  const connected = Boolean(
-    CONFIGURATOR.connectionValid
-    && ['msp', 'mavlink'].includes(CONFIGURATOR.connectionProtocol),
+  const protocol = CONFIGURATOR.connectionProtocol;
+  const transportConnected = Boolean(
+    CONFIGURATOR.connectionValid && ['msp', 'mavlink'].includes(protocol),
   );
-  const telemetryOnly = CONFIGURATOR.connectionProtocol === 'ltm';
-  const isMavlink = CONFIGURATOR.connectionProtocol === 'mavlink';
+  const isMavlink = protocol === 'mavlink';
   const firmwareFamily = isMavlink ? mavlinkSession.state.firmwareFamily : null;
-  const firmwareReady = !isMavlink
-    || ['inav', 'flight-commander'].includes(firmwareFamily);
-  const inavMavlink = isMavlink && firmwareFamily === 'inav';
-  const flightCommanderMavlink = isMavlink && firmwareFamily === 'flight-commander';
+  const mspSupported = protocol === 'msp'
+    && FC.CONFIG?.firmwareIdentity?.family === 'flight-commander';
+  const flightCommanderMavlink = isMavlink
+    && firmwareFamily === 'flight-commander';
+  const connected = transportConnected && (mspSupported || flightCommanderMavlink);
+  const unsupportedConnected = transportConnected && !connected;
   const missionOperationBusy = missionOperationCoordinator.isBusy();
   const vehicleName = isMavlink
-    ? `${flightCommanderMavlink ? 'Flight Commander' : inavMavlink ? 'Official INAV' : mavlinkSession.state.autopilotName} ${mavlinkSession.state.vehicleTypeName}`
-    : FC.CONFIG?.firmwareIdentity?.family === 'flight-commander'
-      ? 'Flight Commander Firmware'
-      : FC.CONFIG?.name || FC.CONFIG?.flightControllerIdentifier || 'Official INAV';
+    ? `Flight Commander ${mavlinkSession.state.vehicleTypeName}`
+    : 'Flight Commander Firmware';
 
-  $('#plannerVehicleStatus').text(connected
-    ? firmwareReady
+  $('#plannerVehicleStatus').text(
+    connected
       ? `Connected: ${vehicleName}`
-      : 'Connected: detecting MAVLink firmware'
-    : telemetryOnly ? 'Connected: INAV LTM telemetry' : 'Offline planning');
-  $('#plannerVehicleStatusDetail').text(connected
-    ? CONFIGURATOR.connectionProtocol === 'msp'
-      ? `${FC.CONFIG?.firmwareIdentity?.family === 'flight-commander' ? 'Flight Commander' : 'Official INAV'} / MSP wired · persistent mission read/write; empty erase is unsupported · ${this.mission.length} planned mission items`
-      : inavMavlink
-        ? `MAVLink · Official INAV active mission is retained only for this power cycle · ${this.mission.length} planned mission items`
-        : flightCommanderMavlink
-          ? `MAVLink · Flight Commander active mission is retained only for this power cycle · ${this.mission.length} planned mission items`
-        : firmwareFamily === 'unsupported'
-          ? 'Unsupported MAVLink firmware. Mission transfer is disabled.'
-          : 'MAVLink is connected; mission controls will unlock after Flight Commander or Official INAV detection.'
-    : telemetryOnly
-      ? 'LTM is read-only. Reconnect through MAVLink for active missions and commands.'
-      : 'Connect a flight controller to transfer this mission.');
+      : unsupportedConnected
+        ? 'Connected: unsupported firmware'
+        : 'Offline planning',
+  );
+  $('#plannerVehicleStatusDetail').text(
+    connected
+      ? protocol === 'msp'
+        ? `Flight Commander / MSP wired · persistent mission read/write · ${this.mission.length} planned mission items`
+        : `MAVLink · Flight Commander active mission is retained only for this power cycle · ${this.mission.length} planned mission items`
+      : unsupportedConnected
+        ? 'Only Flight Commander Firmware is supported. Mission transfer is disabled.'
+        : 'Connect Flight Commander Firmware to transfer this mission.',
+  );
 
-  $('#plannerUpload').text((inavMavlink || flightCommanderMavlink)
+  $('#plannerUpload').text(flightCommanderMavlink
     ? 'Write active mission (current power cycle)'
     : 'Write & save mission to flight controller');
-  $('#plannerClearVehicle').text((inavMavlink || flightCommanderMavlink)
+  $('#plannerClearVehicle').text(flightCommanderMavlink
     ? 'Clear active mission (current power cycle)'
-    : CONFIGURATOR.connectionProtocol === 'msp'
+    : protocol === 'msp'
       ? 'Stored-mission erase limitation'
       : 'Erase mission from flight controller');
-  $('#plannerDownload').prop(
-    'disabled',
-    !connected || !firmwareReady || missionOperationBusy,
-  );
+  $('#plannerDownload').prop('disabled', !connected || missionOperationBusy);
   $('#plannerUpload').prop(
     'disabled',
-    !connected || !firmwareReady || !this.mission.length || missionOperationBusy,
+    !connected || !this.mission.length || missionOperationBusy,
   );
   $('#plannerClearVehicle')
-    .prop('disabled', !connected || !firmwareReady || missionOperationBusy)
+    .prop('disabled', !connected || missionOperationBusy)
     .attr(
       'title',
-      inavMavlink || flightCommanderMavlink
+      flightCommanderMavlink
         ? 'Clear and verify the active RAM mission for this power cycle; persistent storage is unchanged'
-        : CONFIGURATOR.connectionProtocol === 'msp'
-          ? 'Stock INAV cannot save an empty mission to persistent storage; select this for details'
+        : protocol === 'msp'
+          ? 'Flight Commander Firmware cannot save an empty persistent mission; select this for details'
           : 'Erase and verify the mission stored on the connected flight controller',
     );
   this.updateMissionBehaviorAvailability();
@@ -761,11 +744,8 @@ flightPlanner.updateSurveyCameraAvailability = function () {
   });
   const connectedTarget = missionTargetForConnection(protocol, firmwareFamily);
   const incompatibleCameraItems = (
-    connectedTarget === 'inav'
-    || (
-      connectedTarget === 'flight-commander'
+    connectedTarget === 'flight-commander'
       && !connectedFlightCommanderFeature('photoTriggers')
-    )
   )
     ? this.mission
       .map((item, index) => (
@@ -800,15 +780,15 @@ flightPlanner.updateInavPlanningAvailability = function () {
     .attr(
       'title',
       geozoneEnabled
-        ? 'Write all geozones, verify controller readback, save to EEPROM, and reboot INAV'
-        : 'Requires a wired INAV/MSP connection with the GEOZONE feature enabled',
+        ? 'Write all geozones, verify controller readback, save to EEPROM, and reboot Flight Commander Firmware'
+        : 'Requires a wired Flight Commander MSP connection with the GEOZONE feature enabled',
     );
 
   const message = wiredInav
     ? geozoneEnabled
-      ? 'Wired INAV/MSP connected. Safe homes, all 17 landing-approach slots, and geozones can be read and saved.'
-      : 'Wired INAV/MSP connected. Safe homes and landing approaches are available; GEOZONE is disabled in this INAV configuration.'
-    : 'Offline editing is available. Controller transfer requires the wired INAV/MSP setup link; MAVLink telemetry does not expose these INAV configuration records.';
+      ? 'Wired Flight Commander MSP connected. Safe homes, all 17 landing-approach slots, and geozones can be read and saved.'
+      : 'Wired Flight Commander MSP connected. Safe homes and landing approaches are available; GEOZONE is disabled in this INAV configuration.'
+    : 'Offline editing is available. Controller transfer requires the wired Flight Commander MSP setup link; MAVLink telemetry does not expose these INAV configuration records.';
   $('#plannerInavPlanningAvailability').text(message);
   this.updateInavMissionRestartAvailability();
 };
@@ -816,7 +796,8 @@ flightPlanner.updateInavPlanningAvailability = function () {
 flightPlanner.hasWiredInavSetupLink = function () {
   return Boolean(
     CONFIGURATOR.connectionValid
-    && CONFIGURATOR.connectionProtocol === 'msp',
+    && CONFIGURATOR.connectionProtocol === 'msp'
+    && FC.CONFIG?.firmwareIdentity?.family === 'flight-commander',
   );
 };
 
@@ -836,7 +817,7 @@ flightPlanner.updateInavMissionRestartAvailability = function () {
   if (!wiredInav) {
     this.inavMissionRestartLoaded = false;
     this.setInavMissionRestartStatus(
-      'Connect through the wired INAV/MSP setup link to read this controller setting.',
+      'Connect through the wired Flight Commander MSP setup link to read this controller setting.',
     );
   }
 };
@@ -850,7 +831,7 @@ flightPlanner.setInavMissionRestartStatus = function (message, error = false) {
 flightPlanner.validateInavMissionRestartSetting = function (result) {
   if (!result?.setting || !Number.isInteger(Number(result.value))) {
     throw new Error(
-      'The connected controller does not expose nav_wp_mission_restart through INAV/MSP.',
+      'The connected controller does not expose nav_wp_mission_restart through Flight Commander MSP.',
     );
   }
   const setting = result.setting;
@@ -900,7 +881,7 @@ flightPlanner.readInavMissionRestartPolicy = async function (options = {}) {
     this.updateInavMissionRestartAvailability();
     if (!options.quiet) {
       this.setInavMissionRestartStatus(
-        'Connect through the wired INAV/MSP setup link to read the INAV interruption policy.',
+        'Connect through the wired Flight Commander MSP setup link to read the INAV interruption policy.',
         true,
       );
     }
@@ -910,7 +891,7 @@ flightPlanner.readInavMissionRestartPolicy = async function (options = {}) {
   this.inavMissionRestartBusy = true;
   this.updateInavMissionRestartAvailability();
   if (!options.quiet) {
-    this.setInavMissionRestartStatus('Reading nav_wp_mission_restart from INAV…');
+    this.setInavMissionRestartStatus('Reading nav_wp_mission_restart from Flight Commander Firmware…');
   }
   try {
     const result = await mspHelper.getSetting(INAV_MISSION_RESTART_SETTING);
@@ -919,7 +900,7 @@ flightPlanner.readInavMissionRestartPolicy = async function (options = {}) {
     this.inavMissionRestartLoaded = true;
     this.setInavMissionRestartStatus(
       `Controller policy: ${setting.options[setting.value].name}. `
-      + 'The displayed value was read directly from INAV.',
+      + 'The displayed value was read directly from Flight Commander Firmware.',
     );
     return setting.value;
   } catch (error) {
@@ -935,21 +916,21 @@ flightPlanner.readInavMissionRestartPolicy = async function (options = {}) {
 flightPlanner.writeInavMissionRestartPolicy = async function () {
   if (!this.hasWiredInavSetupLink() || !this.inavMissionRestartLoaded) {
     this.setInavMissionRestartStatus(
-      'Read the current policy through the wired INAV/MSP setup link before saving.',
+      'Read the current policy through the wired Flight Commander MSP setup link before saving.',
       true,
     );
     return;
   }
   const expected = Number($('#plannerInavMissionRestart').val());
   if (!INAV_MISSION_RESTART_ENUM.some((entry) => entry.value === expected)) {
-    this.setInavMissionRestartStatus('Select a valid INAV mission restart policy.', true);
+    this.setInavMissionRestartStatus('Select a valid Flight Commander mission restart policy.', true);
     return;
   }
 
   this.inavMissionRestartBusy = true;
   this.updateInavMissionRestartAvailability();
   this.setInavMissionRestartStatus(
-    `Writing ${INAV_MISSION_RESTART_ENUM[expected].name} to INAV…`,
+    `Writing ${INAV_MISSION_RESTART_ENUM[expected].name} to Flight Commander Firmware…`,
   );
   try {
     const before = this.validateInavMissionRestartSetting(
@@ -962,7 +943,7 @@ flightPlanner.writeInavMissionRestartPolicy = async function () {
     await mspHelper.setSetting(INAV_MISSION_RESTART_SETTING, expected);
     await callMspHelper(
       mspHelper.saveToEeprom,
-      'saving the INAV mission restart policy to EEPROM',
+      'saving the Flight Commander mission restart policy to EEPROM',
     );
 
     const readback = this.validateInavMissionRestartSetting(
@@ -970,7 +951,7 @@ flightPlanner.writeInavMissionRestartPolicy = async function () {
     );
     if (readback.value !== expected) {
       throw new Error(
-        `INAV mission restart policy verification failed: requested `
+        `Flight Commander mission restart policy verification failed: requested `
         + `${INAV_MISSION_RESTART_ENUM[expected].name}, but the controller returned `
         + `${readback.options[readback.value].name}.`,
       );
@@ -979,7 +960,7 @@ flightPlanner.writeInavMissionRestartPolicy = async function () {
     this.renderInavMissionRestartSetting(readback);
     this.inavMissionRestartLoaded = true;
     this.setInavMissionRestartStatus(
-      `${readback.options[readback.value].name} saved to INAV EEPROM and verified by readback.`,
+      `${readback.options[readback.value].name} saved to Flight Commander Firmware EEPROM and verified by readback.`,
     );
   } catch (error) {
     this.inavMissionRestartLoaded = false;
@@ -1540,7 +1521,7 @@ flightPlanner.deleteGeozone = function (index) {
 
 flightPlanner.readInavPlanningData = async function () {
   if (!CONFIGURATOR.connectionValid || CONFIGURATOR.connectionProtocol !== 'msp') {
-    this.setStatus('Connect through the wired INAV/MSP setup link to read planning data.', true);
+    this.setStatus('Connect through the wired Flight Commander MSP setup link to read planning data.', true);
     return;
   }
   $('#plannerReadInavPlanning').prop('disabled', true);
@@ -1570,7 +1551,7 @@ flightPlanner.readInavPlanningData = async function () {
 
 flightPlanner.writeSafehomesAndApproaches = async function () {
   if (!CONFIGURATOR.connectionValid || CONFIGURATOR.connectionProtocol !== 'msp') {
-    this.setStatus('Connect through the wired INAV/MSP setup link to save safe homes.', true);
+    this.setStatus('Connect through the wired Flight Commander MSP setup link to save safe homes.', true);
     return;
   }
   const errors = collectSafehomeAndApproachErrors(this.inavPlanning);
@@ -1580,7 +1561,7 @@ flightPlanner.writeSafehomesAndApproaches = async function () {
   }
   $('#plannerWriteSafehomes').prop('disabled', true);
   try {
-    this.setStatus('Writing safe homes and all fixed-wing approach slots to INAV…');
+    this.setStatus('Writing safe homes and all fixed-wing approach slots to Flight Commander Firmware…');
     const readback = await inavPlanningAdapter.uploadSafehomesAndApproaches(this.inavPlanning);
     this.inavPlanning = normalizeInavPlanningData({
       ...this.inavPlanning,
@@ -1606,7 +1587,7 @@ flightPlanner.writeGeozones = async function () {
     || !FC.isFeatureEnabled('GEOZONE')
   ) {
     this.setStatus(
-      'Geozone transfer requires wired INAV/MSP with the GEOZONE feature enabled.',
+      'Geozone transfer requires wired Flight Commander MSP with the GEOZONE feature enabled.',
       true,
     );
     return;
@@ -1617,7 +1598,7 @@ flightPlanner.writeGeozones = async function () {
     return;
   }
   if (!await dialog.confirm(
-    'Write all geozones, verify them, save to EEPROM, and reboot the INAV controller now?',
+    'Write all geozones, verify them, save to EEPROM, and reboot the Flight Commander controller now?',
   )) {
     return;
   }
@@ -1691,7 +1672,7 @@ flightPlanner.updateMissionBehaviorAvailability = function () {
     ? String(mavlinkSession.state.firmwareFamily ?? 'unknown').toLowerCase()
     : null;
   const inavMavlink = protocol === 'mavlink'
-    && ['inav', 'flight-commander'].includes(firmwareFamily);
+    && firmwareFamily === 'flight-commander';
   const inavSegments = new Set(
     this.mission
       .map((item) => Number(item?.metadata?.inavMultiMissionIndex))
@@ -1704,7 +1685,7 @@ flightPlanner.updateMissionBehaviorAvailability = function () {
     .attr(
       'title',
       inavMavlink
-        ? 'The Flight Commander/INAV-compatible MAVLink mission transport does not support a mission speed command; use MSP or controller defaults.'
+        ? 'The Flight Commander/Flight Commander MAVLink mission transport does not support a mission speed command; use MSP or controller defaults.'
         : `0 preserves the mission/controller default; maximum ${speedToPlannerDisplay(
           INAV_SPEED_M_S_MAX,
           currentPlannerUnitSystem(),
@@ -1731,13 +1712,13 @@ flightPlanner.updateMissionBehaviorAvailability = function () {
     ? 'This INAV plan contains multiple mission segments. Each existing segment terminal '
       + 'is preserved; one global completion selector cannot safely replace them.'
     : inavMavlink
-    ? 'The Flight Commander/INAV-compatible MAVLink transport supports no added terminal action or RTL. '
+    ? 'The Flight Commander/Flight Commander MAVLink transport supports no added terminal action or RTL. '
       + 'Mission cruise speed, terminal hold, and terminal land require the wired MSP mission link.'
     : protocol === 'msp'
-      ? 'INAV/MSP stores cruise speed in waypoint P1 (cm/s) and maps terminal hold, RTL, or land to native mission actions.'
+      ? 'Flight Commander MSP stores cruise speed in waypoint P1 (cm/s) and maps terminal hold, RTL, or land to native mission actions.'
       : `Cruise speed is entered in ${plannerUnitLabels(currentPlannerUnitSystem()).speed}; `
         + '0 preserves the INAV/controller default. '
-        + 'Terminal behavior is compiled for the INAV-compatible controller during upload.';
+        + 'Terminal behavior is compiled for the Flight Commander controller during upload.';
   const warningText = this.missionBehaviorWarnings.length
     ? ` ${this.missionBehaviorWarnings.join(' ')}`
     : '';
@@ -1834,14 +1815,14 @@ flightPlanner.resolveMavlinkFirmwareFamily = async function () {
   const state = mavlinkSession.state.firmwareFamily === 'unknown'
     ? await mavlinkSession.waitForFirmwareFamily()
     : mavlinkSession.snapshot();
-  if (!['inav', 'flight-commander'].includes(state.firmwareFamily)) {
+  if (state.firmwareFamily !== 'flight-commander') {
     throw new Error(
-      state.firmwareFamily === 'unsupported'
-        ? 'ArduPilot mission transfer has been removed. Connect Flight Commander Firmware or Official INAV.'
-        : 'This MAVLink firmware is not supported for mission transfer.',
+      state.firmwareFamily === 'unknown'
+        ? 'Mission transfer is waiting for Flight Commander FCFW identification.'
+        : 'Mission transfer requires supported Flight Commander Firmware.',
     );
   }
-  return state.firmwareFamily;
+  return 'flight-commander';
 };
 
 flightPlanner.startPolygonDraw = function () {
@@ -1978,7 +1959,7 @@ flightPlanner.generateGrid = function () {
     ).slice(INAV_MAX_SAFEHOMES).some(approachIsConfigured);
     if (hasConfiguredMissionApproach) {
       throw new Error(
-        'One or more INAV mission landing approaches are configured. Clear or move those '
+        'One or more Flight Commander mission landing approaches are configured. Clear or move those '
         + 'approaches before replacing the current mission with a new survey grid.',
       );
     }
@@ -2307,7 +2288,7 @@ flightPlanner.upload = async function () {
       );
       if (!missionToUpload.length) {
         throw new Error(
-          'This plan has no INAV MAVLink-compatible waypoint or RTL items.',
+          'This plan has no Flight Commander MAVLink-compatible waypoint or RTL items.',
         );
       }
       await mavlinkMissionManager.upload(missionToUpload, {
@@ -2329,7 +2310,7 @@ flightPlanner.upload = async function () {
         source: 'flight-planner-upload-readback',
       });
       this.setStatus(
-        `${missionToUpload.length} ${firmwareFamily === 'flight-commander' ? 'Flight Commander' : 'Official INAV'} mission items written to active memory and verified.`
+        `${missionToUpload.length} Flight Commander mission items written to active memory and verified.`
         + ' This active mission is not stored across a power cycle.',
       );
     } else {
@@ -2362,7 +2343,7 @@ flightPlanner.upload = async function () {
         ...extensionOptions,
       });
       this.setStatus(
-        `Mission saved to ${firmwareFamily === 'flight-commander' ? 'Flight Commander' : 'Official INAV'} EEPROM. Reading it back for verification…`,
+        'Mission saved to Flight Commander EEPROM. Reading it back for verification…',
       );
       savedMission = await inavMissionAdapter.download({ loadFromEeprom: true });
       assertMissionReadback(
@@ -2374,7 +2355,7 @@ flightPlanner.upload = async function () {
         ? ` ${result.omitted} MAVLink-only command items were omitted.`
         : '';
       this.setStatus(
-        `${result.uploaded} ${firmwareFamily === 'flight-commander' ? 'Flight Commander' : 'Official INAV'} mission items written to EEPROM and verified.${suffix}`,
+        `${result.uploaded} Flight Commander mission items written to EEPROM and verified.${suffix}`,
       );
     }
   } catch (error) {
@@ -2474,7 +2455,7 @@ flightPlanner.clearVehicleMission = async function () {
       await mavlinkMissionManager.clear({ legacyOnly: true, volatile: true });
       mavlinkSession.state.missionTotal = 0;
       this.setStatus(
-        `Active ${firmwareFamily === 'flight-commander' ? 'Flight Commander' : 'Official INAV'} RAM mission cleared and verified for this power cycle. `
+        'Active Flight Commander RAM mission cleared and verified for this power cycle. '
         + 'The stored mission is unchanged; this MAVLink mission transport cannot persist an empty mission, '
         + 'so replace it with another valid mission if it must not return after reboot.',
       );

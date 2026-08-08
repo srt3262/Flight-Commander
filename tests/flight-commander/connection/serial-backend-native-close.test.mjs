@@ -672,7 +672,7 @@ function createBackendHarness({ deferDisconnect = false, protocol = "mavlink" } 
   };
 }
 
-test("an unresponsive INAV reboot performs bounded full serial reopen attempts", () => {
+test("an unresponsive Flight Commander reboot performs bounded full serial reopen attempts", () => {
   const harness = createBackendHarness({ protocol: "msp" });
 
   harness.connect();
@@ -705,7 +705,7 @@ test("an unresponsive INAV reboot performs bounded full serial reopen attempts",
   assert.equal(harness.GUI.connecting_to, false);
   assert.ok(
     harness.logs.some((message) =>
-      message.includes("INAV did not respond after three post-reboot"),
+      message.includes("Flight Commander Firmware did not respond after three post-reboot"),
     ),
   );
   for (const attempt of harness.connectCalls.slice(1)) {

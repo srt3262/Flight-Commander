@@ -91,7 +91,7 @@ const MSP_TELEMETRY_CODES = [
 ];
 
 function isSupportedMissionFamily(family) {
-  return family === 'flight-commander' || family === 'inav';
+  return family === 'flight-commander';
 }
 
 function format(value, decimals, suffix = '') {
@@ -479,9 +479,9 @@ flightData.configureProtocol = function () {
   if (this.protocol === 'ltm') {
     this.setCommandButtonsDisabled(true);
     $('#flightDataCommandCapability').text(
-      'LTM provides live telemetry only. Reconnect to Flight Commander Firmware through MAVLink to send commands.',
+      'LTM is unsupported because it cannot verify the Flight Commander FCFW identity. Reconnect through MAVLink.',
     );
-    this.appendLocalMessage('LTM telemetry connected in read-only compatibility mode.');
+    this.appendLocalMessage('Unsupported LTM telemetry detected.');
     interval.add('flight-data-ltm-refresh', () => {
       this.render(normalizeLtmTelemetry(ltmDecoder.get(), ltmDecoder.isReceiving()));
     }, 200, true);
@@ -801,7 +801,7 @@ flightData.updateActionAvailability = function (state) {
       canTakeoff: false,
       canRtl: false,
       canLand: false,
-      reason: 'LTM provides live telemetry only. Reconnect to Flight Commander Firmware through MAVLink to send commands.',
+      reason: 'LTM is unsupported because it cannot verify the Flight Commander FCFW identity. Reconnect through MAVLink.',
     };
   } else {
     capabilities = {
@@ -887,29 +887,24 @@ flightData.currentState = function () {
 
 flightData.render = function (state) {
   const offline = !this.protocol || !CONFIGURATOR.connectionValid;
+  const flightCommander = state.firmwareFamily === 'flight-commander';
   const protocolLabel = offline
     ? 'Offline RTK setup'
     : this.protocol === 'mavlink'
-    ? state.firmwareFamily === 'flight-commander'
-      ? 'MAVLink · Flight Commander'
-      : state.firmwareFamily === 'inav'
-        ? 'MAVLink · Official INAV (commands disabled)'
-      : state.firmwareFamily === 'unsupported'
-        ? 'MAVLink · unsupported firmware'
-        : 'MAVLink · detecting firmware'
-    : this.protocol === 'ltm'
-      ? 'Flight Commander-compatible LTM'
-      : 'Flight Commander MSP wired';
+      ? flightCommander
+        ? 'MAVLink · Flight Commander'
+        : state.firmwareFamily === 'unsupported' || state.firmwareFamily === 'inav'
+          ? 'MAVLink · unsupported firmware'
+          : 'MAVLink · detecting Flight Commander Firmware'
+      : this.protocol === 'ltm'
+        ? 'Unsupported LTM telemetry'
+        : 'Flight Commander MSP wired';
   $('#flightDataVehicle').text(
     offline
       ? 'Aircraft not connected · RTK setup available below'
       : state.connected
-      ? `${state.firmwareFamily === 'flight-commander'
-        ? 'Flight Commander Firmware'
-        : state.firmwareFamily === 'inav'
-          ? 'Official INAV'
-          : 'Unsupported firmware'} · ${state.vehicleTypeName}`
-      : 'Waiting for vehicle',
+        ? `${flightCommander ? 'Flight Commander Firmware' : 'Unsupported firmware'} · ${state.vehicleTypeName}`
+        : 'Waiting for vehicle',
   );
   $('#flightDataProtocol').text(protocolLabel);
   $('#flightDataLink')
@@ -1111,7 +1106,7 @@ flightData.loadVehicleMission = async function () {
       if (!isSupportedMissionFamily(state.firmwareFamily)) {
         throw new Error(
           state.firmwareFamily === 'unsupported'
-            ? 'ArduPilot mission download has been removed. Connect Flight Commander Firmware or official INAV.'
+            ? 'Mission download requires supported Flight Commander Firmware.'
             : 'Mission download is waiting for supported firmware identification.',
         );
       }

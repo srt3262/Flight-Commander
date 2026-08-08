@@ -802,7 +802,6 @@ export class MavlinkSession {
         this.state.heading = numeric(field(data, "heading"));
         const altitude = numeric(field(data, "alt"));
         const inavRelativeAltitude =
-          this.state.firmwareFamily === FIRMWARE_FAMILY_INAV ||
           this.state.firmwareFamily === FIRMWARE_FAMILY_FLIGHT_COMMANDER ||
           this.state.autopilot === MAV_AUTOPILOT_GENERIC;
         if (altitude != null && inavRelativeAltitude) {
@@ -1025,16 +1024,20 @@ export class MavlinkSession {
   startFirmwareDetection() {
     this.stopFirmwareDetection();
     if (this.applyFirmwareFamilyOverride()) return;
-    if (this.state.autopilot === MAV_AUTOPILOT_GENERIC) {
-      this.setFirmwareFamily(FIRMWARE_FAMILY_INAV, "heartbeat");
+
+    if (
+      this.state.autopilot !== MAV_AUTOPILOT_GENERIC &&
+      this.state.autopilot !== MAV_AUTOPILOT_ARDUPILOTMEGA
+    ) {
+      this.setFirmwareFamily(FIRMWARE_FAMILY_UNSUPPORTED, "autopilot-family");
       return;
     }
-    if (this.state.autopilot !== MAV_AUTOPILOT_ARDUPILOTMEGA) {
-      this.setFirmwareFamily(FIRMWARE_FAMILY_UNKNOWN, "unresolved");
-      return;
-    }
+
     this.setFirmwareFamily(FIRMWARE_FAMILY_UNKNOWN, "probing");
-    this.send("ParamRequestList", this.target()).catch(() => {});
+    this.requestAutopilotVersion().catch(() => {});
+    if (this.state.autopilot === MAV_AUTOPILOT_ARDUPILOTMEGA) {
+      this.send("ParamRequestList", this.target()).catch(() => {});
+    }
     const attachment = this.activeAttachment("firmware detection");
     this.firmwareDetectionTimer = timerUnref(
       this.setTimeoutFn(() => {

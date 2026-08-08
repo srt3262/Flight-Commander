@@ -74,26 +74,28 @@ bytes and checksums from 1.3.5. That difference is not evidence that the
 provenance statement is incomplete; it is the reason this is a new source
 release.
 
-## Compatibility boundaries preserved by the reconstruction
+## Firmware and transport boundaries after reconstruction
 
-The source keeps transport responsibilities explicit:
+The source keeps transport responsibilities explicit while enforcing one
+supported controller firmware family:
 
-- **INAV and Flight Commander Firmware/MSP** use the wired configuration and
-  native persistent mission path. The maintained fork adds a versioned,
-  capability-gated identity extension without changing the inherited INAV
-  handshake.
-- **INAV-compatible MAVLink** supplies telemetry and carefully gated AUX-backed
-  operational commands. Stock INAV's limited MAVLink mission representation is
-  validated before transfer.
-- **INAV/LTM** is treated as read-only telemetry.
-- Other MAVLink firmware families are classified as unsupported; configuration,
-  mission transfer, and commands remain disabled.
-- Official INAV and Flight Commander Firmware flashing share the guarded
-  STM32/DFU path and are not treated as live-aircraft MAVLink commands.
+- **Flight Commander Firmware over MSP** uses the inherited wired handshake and
+  native persistent mission/settings formats. The versioned FCFW identity is
+  mandatory before normal setup tabs unlock.
+- **Flight Commander Firmware over MAVLink** supplies telemetry, active mission
+  transfer, and capability-gated commands after the FCFW signature is verified.
+- A generic heartbeat, an inherited MSP variant field, or parameter behavior is
+  not accepted as firmware authorization.
+- LTM is not exposed as a supported aircraft connection because it cannot carry
+  the FCFW identity and capability contract.
+- Other or unidentified firmware is classified as unsupported. Configuration,
+  mission transfer, commands, and aircraft RTK forwarding remain blocked; wired
+  CLI recovery may remain available for reflashing.
+- The Firmware Flasher accepts only target-matched Flight Commander FCFW images.
 
-Controller-specific commands are never intentionally translated by silently
-dropping information. An operation that stock INAV cannot represent is rejected
-before transfer.
+Inherited INAV names remain in source identifiers, setting names, wire-format
+code, licensing notices, and provenance where Flight Commander Firmware still
+uses them. They are implementation history, not a stock-firmware product mode.
 
 ## Verification policy
 

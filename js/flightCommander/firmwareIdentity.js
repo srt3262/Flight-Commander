@@ -168,8 +168,10 @@ export function createInavFirmwareIdentity(
   probe = {},
 ) {
   return immutableIdentity({
+    // The inherited INAV family token is retained only as a low-level
+    // discovery result. It is not a supported Flight Commander product mode.
     family: FIRMWARE_FAMILY_INAV,
-    displayName: "Official INAV",
+    displayName: "Unsupported firmware",
     detected: false,
     protocolSupported: false,
     schemaVersion: null,
@@ -179,7 +181,9 @@ export function createInavFirmwareIdentity(
     capabilityNames: [],
     unknownCapabilities: 0,
     probeStatus: probe.probeStatus ?? "not-advertised",
-    probeError: probe.probeError ?? null,
+    probeError:
+      probe.probeError ??
+      "The controller did not advertise the required Flight Commander FCFW identity.",
   });
 }
 
@@ -220,7 +224,7 @@ export function inspectFlightCommanderInfo(
       unknownCapabilities: 0,
       probeStatus: "unsupported-schema",
       probeError:
-        `Flight Commander identity schema ${schemaVersion} is newer than the supported schema ${FLIGHT_COMMANDER_INFO_SCHEMA_VERSION}. Fork-only features are disabled.`,
+        `Flight Commander identity schema ${schemaVersion} is newer than the supported schema ${FLIGHT_COMMANDER_INFO_SCHEMA_VERSION}. This firmware identity schema is unsupported.`,
     });
   }
   if (view.byteLength !== FLIGHT_COMMANDER_INFO_PAYLOAD_SIZE) {
@@ -260,7 +264,7 @@ export function firmwareFeatureSupport(identity, featureKey) {
       featureKey,
       ...feature,
       enabled: false,
-      reason: `${feature.label} requires Flight Commander Firmware. Standard INAV remains supported, but this fork-only feature is disabled.`,
+      reason: `${feature.label} requires Flight Commander Firmware. Only Flight Commander Firmware is supported; this feature is disabled.`,
     });
   }
   if (identity.protocolSupported !== true) {

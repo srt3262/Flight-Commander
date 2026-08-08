@@ -20,8 +20,7 @@
             Configure Flight Commander aircraft through the wired MSP
             connection, then use MAVLink telemetry for airborne ground control.
             Monitor live telemetry, send supported commands, and plan missions
-            without changing applications. Official INAV remains available as
-            an explicitly identified compatibility mode.
+            through one Flight Commander Firmware-only application and release contract.
           </div>
           <h2 style="margin-top: 1em">Mission and mapping tools</h2>
           <div>
@@ -34,27 +33,27 @@
       </div>
       <div class="column half text2">
         <div class="wrap">
-          <h2>Flight Commander 4.1.1</h2>
+          <h2>Flight Commander 4.1.2</h2>
           <p>
-            Flight Commander 4.1.1 fixes the Ground Control handoff from an open
-            MAVLink serial transport to a validated aircraft connection. The tab
-            now subscribes before the first heartbeat instead of remaining in its
-            offline setup state after the vehicle has already been identified.
+            Flight Commander 4.1.2 makes Flight Commander Firmware the only
+            supported controller firmware. The retired stock-firmware
+            compatibility path and every reduced-functionality product mode
+            have been removed.
           </p>
           <p>
-            A decoded aircraft heartbeat immediately promotes the waiting display
-            to live telemetry, updates the HUD and data tiles, and starts the
-            supported mission and command readiness checks without reconnecting or
-            changing tabs.
+            Wired setup now requires the versioned FCFW identity before
+            configuration tabs unlock. MAVLink remains in a detecting state
+            until the Flight Commander signature and capability bitmap arrive,
+            so a generic heartbeat can no longer be misidentified.
           </p>
           <p>
-            The 4.1.0 radio COM-port recovery, independent USB RTK survey workflow,
-            altitude telemetry semantics, and live diagnostics remain intact.
+            The Firmware Flasher now offers Flight Commander Firmware only and
+            rejects any local or online HEX without the required FCFW identity
+            or exact target match.
           </p>
           <p>
-            This is a Configurator-only beta. It reuses the verified Flight
-            Commander Firmware 4.0.8 image and exact 4.0.8 firmware source; no
-            flight-controller reflash is required when upgrading from 4.1.0.
+            This Configurator-only release reuses verified Flight Commander
+            Firmware 4.0.8 and its exact firmware source archive.
           </p>
           <h2 style="margin-top: 1em">Open-source foundations</h2>
           <div>

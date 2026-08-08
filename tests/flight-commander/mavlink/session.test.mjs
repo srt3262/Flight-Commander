@@ -381,17 +381,18 @@ describe("MAVLink state normalization and firmware detection", () => {
     assert.equal(state.hdop, null);
   });
 
-  test("identifies generic-autopilot heartbeat as INAV", () => {
+  test("keeps a generic-autopilot heartbeat locked while FCFW identity is pending", () => {
     const { session } = createAttachedSession();
     session.handleMessage(heartbeat({ autopilot: 0 }));
-    assert.equal(session.state.firmwareFamily, FIRMWARE_FAMILY_INAV);
-    assert.equal(session.state.firmwareFamilySource, "heartbeat");
+    assert.equal(session.state.firmwareFamily, "unknown");
+    assert.equal(session.state.firmwareFamilySource, "probing");
   });
 
   test("promotes an INAV-compatible heartbeat to Flight Commander only after FCFW capability identity", () => {
     const { session } = createAttachedSession();
     session.handleMessage(heartbeat({ autopilot: 0 }));
-    assert.equal(session.state.firmwareFamily, FIRMWARE_FAMILY_INAV);
+    assert.equal(session.state.firmwareFamily, "unknown");
+    assert.equal(session.state.firmwareFamilySource, "probing");
 
     const capabilities =
       FLIGHT_COMMANDER_CAPABILITIES.NATIVE_GCS_COMMANDS |
@@ -817,7 +818,7 @@ describe("commands, acknowledgements and cleanup", () => {
     assert.match(listenerErrors[0].error.message, /broken renderer subscriber/);
   });
 
-  test("settles with MAVLink v1, decodes chunked INAV, then uses the observed v2 protocol", async () => {
+  test("settles with MAVLink v1, decodes a chunked vehicle heartbeat, then uses the observed v2 protocol", async () => {
     const timeoutHandles = [];
     const intervalHandles = [];
     let bridgeListener = null;
@@ -907,7 +908,8 @@ describe("commands, acknowledgements and cleanup", () => {
 
     assert.equal(session.state.connected, true);
     assert.equal(session.state.protocolVersion, 2);
-    assert.equal(session.state.firmwareFamily, FIRMWARE_FAMILY_INAV);
+    assert.equal(session.state.firmwareFamily, "unknown");
+    assert.equal(session.state.firmwareFamilySource, "probing");
     assert.equal(session.state.systemId, 1);
     const heartbeatsBeforeProtocolLock = bridge.encoded.filter(
       ({ messageName }) => messageName === "Heartbeat",

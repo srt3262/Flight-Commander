@@ -439,7 +439,7 @@
         "message": "このファームウェアバージョンは<span style=\"color: red\">サポートされていません</span>。このバージョンのConfiguratorは $1 から $2 (除外) までのファームウェアをサポートしています。"
     },
     "firmwareVariantNotSupported": {
-        "message": "このファームウェアは<span style=\"color: red\">サポートされていません</span>。INAVファームウェアにアップグレードしてください。ファームウェアフラッシュする前にCLIでバックアップを取得してください。CLIによるバックアップ/リストアの手順はドキュメントに記載されています。"
+        "message": "This controller firmware is not supported. Flash Flight Commander Firmware before using this application."
     },
     "tabSwitchConnectionRequired": {
         "message": "いずれかのタブを表示するには、<strong>接続</strong>する必要があります。"
@@ -2551,10 +2551,10 @@
         "message": "再起動シーケンスなし"
     },
     "firmwareFlasherOnlineSelectBoardDescription": {
-        "message": "FCボードを選択して利用可能なオンライン リリースファームウェアを表示してください - FCボードに適した正しいファームウェアを選択してください。<strong>自動ターゲット選択</strong>はINAVファームウェア5.0以降でのみ動作しますのでご注意ください。"
+        "message": "Select the exact Flight Commander hardware target or use automatic target discovery from a controller already running Flight Commander Firmware."
     },
     "firmwareFlasherOnlineSelectFirmwareVersionDescription": {
-        "message": "FCボードのファームウェアバージョンを選択してください。<br />注: このConfiguratorを使用して異なるバージョンのファームウェアを書き込みできますが、フライトコントローラの設定時には、ファームウェアとConfiguratorのメジャーおよびマイナーバージョン番号を一致させる必要があります。"
+        "message": "Select a published Flight Commander Firmware version for this board. The firmware and Configurator major versions must match."
     },
     "firmwareFlasherNoRebootDescription": {
         "message": "ブートローダーのピンをジャンパーで接続されている状態でFCボードに電源を入れる場合、またはFCボードのBOOTボタンを押しながら電源を入れる場合には有効にしてください。"
@@ -2638,13 +2638,13 @@
         "message": "警告"
     },
     "firmwareFlasherWarningText": {
-        "message": "<span style=\"color: red\">注:</span> このファームフラッシャーで<strong>iNAV以外</strong>のハードウェアを書き換えようとしないでください。<br />書き換え中はFCボードを<strong>切断</strong>したり、コンピュータを<strong>シャットダウン</strong>しないでください。<br /><br /><strong>注:</strong> STM32のブートローダーはROM上に格納されているため、別途生成や改修はできません。<br /><strong>注:</strong> バックアップを必ず取ってください。アップグレード / ダウングレードを行うと設定は一部消去されます。<br /><strong>注:</strong> ファームウェア書き込みに問題がある場合、まずFCボードからすべてのケーブルを外して再起動を行い、Chromeのアップグレードやドライバのアップグレードをお試しください。<br /><strong>注:</strong> USBソケットが直接接続されているFCボード (Matek H743-SLIM、Holybro Kakute等) にファームウェア書き込みする際は、INAVマニュアルの[USB Flashing]章を読み、正しいソフトウェアとドライバがインストールされていることを確認してください。"
+        "message": "Flash only Flight Commander Firmware built for the detected controller target. The selected HEX must contain the FCFW identity and match this exact board.<br />Do <span style=\"color: red\">not</span> <strong>disconnect</strong> the board or <strong>turn off</strong> your computer while flashing.<br /><br /><strong>Before flashing:</strong> make a backup because some upgrades or downgrades erase configuration.<br /><strong>Recovery:</strong> enter STM32 DFU/BOOT mode and follow the <a href=\"https://github.com/srt3262/Flight-Commander/blob/main/docs/FIRMWARE_FLASHING.md\" target=\"_blank\">Flight Commander USB flashing guide</a>."
     },
     "firmwareFlasherRecoveryHead": {
         "message": "<strong>リカバリー / 通信ロスト</strong>"
     },
     "firmwareFlasherRecoveryText": {
-        "message": "FCボードとの通信が切断された場合、次の手順で通信を復旧してください: <ul><li>電源をOFFにする</li><li>『再起動シーケンスなし』を有効にし、『チップメモリの完全消去』を有効にします。</li><li>BOOTピンをジャンパーで接続するか、BOOTボタンを押し続けます。</li><li>電源をONにします。(正しく行われればアクティビティLEDは点滅しません)</li><li>必要に応じて、すべてのSTM32ドライバとZadigをインストールします。(INAVマニュアルの<a href=\"https://github.com/srt3262/Flight-Commander/blob/main/docs/FIRMWARE_FLASHING.md\"target=\"_blank\">USB Flashing</a>章を参照)</li><li>Configuratorを閉じ、すべてのChromeブラウザとChromeアプリを終了してから、Configuratorを再起動します。</li><li>FCボードにBOOTボタンがある場合は、ここでボタンを放します。</li><li>正しいファームウェアで書き込みします。(FCボードのマニュアルに指定がある場合は手動で伝送速度[ボーレート]を設定)</li><li>電源をOFFにします。</li> <li>BOOTジャンパーを取り外します。</li><li>電源をONにします。(アクティビティLEDが点滅するはずです)</li><li>再度、通常通りに接続してください。</li></ul>"
+        "message": "If communication is lost, power off, enter STM32 DFU/BOOT mode, select the exact controller target, enable full-chip erase when required, and flash a valid Flight Commander FCFW image. Follow the <a href=\"https://github.com/srt3262/Flight-Commander/blob/main/docs/FIRMWARE_FLASHING.md\" target=\"_blank\">Flight Commander USB flashing guide</a>."
     },
     "firmwareFlasherButtonLeave": {
         "message": "ファームフラッシャーより退避"
@@ -6055,10 +6055,10 @@
         "message": "ターゲットのプリフェッチに失敗しました: フライトコントローラがDFUモードです"
     },
     "targetPrefetchFailOld": {
-        "message": "ターゲットのプリフェッチに失敗しました: INAVファームウェアが古すぎます"
+        "message": "Cannot prefetch target: unsupported Flight Commander identity"
     },
     "targetPrefetchFailNonINAV": {
-        "message": "ターゲットのプリフェッチに失敗しました: INAVファームウェアではありません"
+        "message": "Cannot prefetch target: Flight Commander Firmware identity was not verified"
     },
     "targetPrefetchFailNoPort": {
         "message": "ターゲットのプリフェッチに失敗しました: ポートがありません"

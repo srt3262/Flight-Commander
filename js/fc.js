@@ -140,7 +140,7 @@ var FC = {
             flightControllerIdentifier: '',
             flightControllerVersion: '',
             reportedFirmwareVersion: '',
-            firmwareFamily: 'inav',
+            firmwareFamily: 'unknown',
             firmwareIdentity: null,
             flightCommanderFirmware: null,
             version: 0,

@@ -10,7 +10,7 @@ match the installed Flight Commander interface and its safety gates.
 | Area | Guide | Use it for |
 | --- | --- | --- |
 | First use | [Getting started](GETTING_STARTED.md) | Installation, application options, first connection, backup, and initial bench setup |
-| Links | [Connection modes](CONNECTIONS.md) | MSP, MAVLink, LTM, USB radios, baud rates, and transport limitations |
+| Links | [Connection modes](CONNECTIONS.md) | MSP, MAVLink, USB radios, FCFW identity checks, baud rates, and transport limitations |
 | Firmware | [Firmware flashing](FIRMWARE_FLASHING.md) | Online, bundled, and local firmware sources; target checks; DFU recovery |
 | Aircraft setup | [Configuration reference](CONFIGURATION_REFERENCE.md) | Every connected-aircraft configuration tab and save/reboot behavior |
 | Navigation | [GPS and RTK](GPS_AND_RTK.md) | UART F9 RTK rovers, DroneCAN GPS, primary receivers, corrections, and alignment |
@@ -42,10 +42,10 @@ The manual explains the complete Configurator workflow and how to query the
 controller for target-specific details; it never assumes that every optional
 feature exists on every board.
 
-Flight Commander retains GPL-licensed INAV compatibility code and explicitly
-labels Official INAV compatibility mode, but Flight Commander product help and
-support belong here. Upstream links are retained only where provenance or a
-third-party dependency is the subject.
+Flight Commander Firmware is the only supported controller firmware. The
+repository retains GPL-licensed INAV-derived source and inherited protocol names
+where required for provenance and implementation, but it provides no stock-firmware
+compatibility mode. Flight Commander product help and support belong here.
 
 ## Get support
 
@@ -65,5 +65,5 @@ Include:
 
 Source and documentation improvements are welcome. Follow the
 [repository contribution workflow](../README.md#contributing), preserve the
-Flight Commander/Official INAV compatibility boundary, and add regression
-coverage for runtime or packaging changes.
+Flight Commander Firmware-only identity boundary, and add regression coverage for
+runtime or packaging changes.

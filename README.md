@@ -6,9 +6,9 @@
 Flight Commander is a desktop flight-controller configurator, mission planner,
 firmware flasher, and ground control station centered on Flight Commander
 Firmware. It is a maintained, independently versioned fork—not an INAV skin.
-It retains an explicit official-INAV compatibility mode while Flight Commander
-owns the product identity, release contract, capability protocol, and new
-feature development.
+Flight Commander Firmware is the only supported controller firmware. Inherited
+INAV source and protocol names remain only where Flight Commander Firmware still
+uses those formats; they do not provide a stock-firmware compatibility mode.
 
 > **Source provenance:** the repository history includes a reconstructed 1.3.6
 > source baseline built from INAV Configurator 9.1.1 and a verified Flight
@@ -21,10 +21,10 @@ feature development.
 - A coordinated major-version contract: Configurator and firmware minors may
   differ, but a major transition releases both products together at `X.0.0`.
 
-- Full inherited INAV configuration over the wired MSP setup link.
+- Full Flight Commander configuration over the wired MSP setup link.
 - Ground Control with satellite mapping, a live attitude HUD, telemetry,
   autopilot messages, mission progress, and map-primary/HUD-primary layouts.
-- One Flight Planner for INAV-compatible firmware, including survey grids,
+- One Flight Planner for Flight Commander Firmware, including survey grids,
   mission read/write, cruise-speed and completion policies, terrain following,
   and guarded same-session mission resume.
 - Built-in online ASTER terrain through OpenTopoData with no API key, plus
@@ -52,21 +52,16 @@ feature development.
   relative-heading, and battery services, with explicit
   disabled/automatic/fixed-node choices and CAN bitrate controls in Ports.
 - Capability-gated terrain-following mission upload and distance-based MAVLink
-  camera triggering for Flight Commander Firmware. Official INAV remains
-  navigation-only for those fork extensions.
+  camera triggering for Flight Commander Firmware.
 - One application-wide high-contrast dark theme, with synchronized metric or
   imperial Ground Control displays.
 - INAV 10, 12, 15, and 17-inch multirotor presets with prop-size-tuned EZ Tune
   baselines and explicit generated P/I/D/FF values.
-- INAV and Flight Commander Firmware flashing through the same proven
-  STM32/DFU path. The app automatically detects the target, validates the
-  selected firmware family, and prevents cross-family or target-mismatched HEX
-  images from being written.
+- Flight Commander Firmware-only flashing through the proven STM32/DFU path.
+  The app detects the target, requires the FCFW identity, and prevents
+  target-mismatched or foreign firmware images from being written.
 
-ArduPilot firmware is unsupported. A parameter-capable non-INAV MAVLink vehicle
-is identified as unsupported, and its configuration, mission, and command
-paths remain disabled. Flight Commander also fails closed whenever an INAV
-mission or command cannot be represented losslessly.
+Every controller firmware other than Flight Commander Firmware is unsupported. A vehicle without the versioned FCFW identity is blocked from configuration, mission transfer, Ground Control commands, and RTK correction routing.
 
 ## Controller and transport boundaries
 
@@ -76,25 +71,15 @@ assumed to exist on another.
 | Controller and link | Configuration | Missions and planning | Live Ground Control |
 | --- | --- | --- | --- |
 | **Flight Commander Firmware over MSP** | Full persistent configuration, including UART GPS, DroneCAN nodes, primary-GPS selection, and advertised capability status | Native mission and planning-data read/write, including safe homes, approaches, geozones, terrain profiles, and supported photo actions | Wired telemetry is available; airborne commands require a MAVLink link |
-| **Flight Commander Firmware over MAVLink** | Not a replacement for the wired MSP setup link | The lossless navigation subset plus advertised Flight Commander terrain and photo extensions | Telemetry and native Ground Control commands; command use requires the advertised capability, a matching profile captured over MSP, and confirmation that exactly one aircraft is on the link |
-| **Official INAV over MSP** | Full compatible configuration and persistent settings | Native INAV-compatible mission and planning-data read/write | Wired telemetry is available; Flight Commander-only controls remain disabled |
-| **Official INAV over MAVLink** | Not a replacement for the wired MSP setup link | Lossless navigation-only mission subset; Flight Commander terrain/photo extensions are rejected | Telemetry only in Flight Commander; Ground Control commands are disabled |
-| **LTM** | None | None | Read-only telemetry |
-| **Other firmware over MAVLink** | Unsupported | Disabled | Telemetry may identify the vehicle, but configuration, missions, and commands remain blocked |
+| **Flight Commander Firmware over MAVLink** | Not a replacement for the wired MSP setup link | Active mission transfer plus advertised terrain and photo extensions | Telemetry and native Ground Control commands after FCFW identity and capability verification |
+| **Other firmware or unidentified MAVLink vehicles** | Unsupported | Disabled | Connection remains locked or is shown as unsupported |
 
-INAV-compatible interruption checkpoints are position-estimated, and the
+Flight Commander interruption checkpoints are position-estimated, and the
 persistent `nav_wp_mission_restart` policy is managed over MSP. Resume is
 intended for the same powered flight controller; power loss invalidates the
 checkpoint.
 
-Firmware flashing is a separate bootloader operation, not an airborne MAVLink
-Ground Control command. Official INAV and Flight Commander Firmware use the
-same target discovery and STM32/DFU machinery. Flight Commander Firmware HEX
-files must use a recognized release filename, contain the compiled `FCFW`
-identity marker, and match the selected target. Official INAV mode rejects an
-image containing that marker. Raw STM32 DFU cannot report a board model and
-therefore still requires manual hardware-target confirmation. Always verify
-the detected identity, selected family, target, and firmware before writing.
+Firmware flashing is a separate bootloader operation, not an airborne MAVLink command. Flight Commander Firmware HEX files must contain the compiled `FCFW` identity marker and match the selected target. Raw STM32 DFU cannot report a board model and still requires manual target confirmation. Always verify the detected identity, target, and firmware before writing.
 
 ### USB MAVLink radios
 
@@ -114,16 +99,16 @@ cable directly to the external TX module when using the serial method.
 
 Ground Control opens immediately after the COM port is ready and reports that
 it is waiting for a vehicle heartbeat. This means the serial transport is open,
-not that the aircraft link has been validated. Telemetry, mission reads, and
-vehicle commands stay disabled until a non-GCS autopilot heartbeat is received.
+not that the aircraft or firmware identity has been validated. Telemetry-driven
+operations, mission reads, and commands stay locked until the FCFW signature and
+required capability data are verified.
 
 ## Documentation and support
 
 Flight Commander's maintained documentation starts in the
 [Documentation & Support hub](docs/README.md). It links the operating guides,
 release downloads, issue tracker, and contribution workflow owned by this
-project. INAV references are retained only where an inherited compatibility
-feature specifically requires upstream INAV behavior.
+project. INAV references are retained only for source provenance or inherited protocol and setting names used by Flight Commander Firmware.
 
 ## Install
 

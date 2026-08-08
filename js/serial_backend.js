@@ -785,14 +785,8 @@ var SerialBackend = (function () {
                 CONFIGURATOR.connectionValid = true;
                 GUI.allowedTabs = GUI.defaultAllowedTabsWhenConnected.slice();
                 $('body')
-                    .toggleClass(
-                        'fc-firmware-flight-commander',
-                        FC.CONFIG.firmwareFamily === FIRMWARE_FAMILY_FLIGHT_COMMANDER,
-                    )
-                    .toggleClass(
-                        'fc-firmware-inav',
-                        FC.CONFIG.firmwareFamily !== FIRMWARE_FAMILY_FLIGHT_COMMANDER,
-                    );
+                    .addClass('fc-firmware-flight-commander')
+                    .removeClass('fc-firmware-unsupported fc-controller-unsupported');
                 privateScope.onConnect();
 
                 defaultsDialog.init().then( () => {
@@ -815,14 +809,14 @@ var SerialBackend = (function () {
         if (nextAttempt) {
             const safePort = $('<div>').text(nextAttempt.port).html();
             GUI.log(
-                `<span style="color: #d98f00">INAV is not responding after reboot. ` +
+                `<span style="color: #d98f00">Flight Commander Firmware is not responding after reboot. ` +
                 `Flight Commander will close and reopen ${safePort} ` +
                 `(attempt ${nextAttempt.rebootRecoveryAttempt} of 3).</span>`,
             );
             privateScope.pendingReconnectRequest = {openAttempt: nextAttempt};
         } else {
             GUI.log(
-                '<span style="color: red">INAV did not respond after three post-reboot ' +
+                '<span style="color: red">Flight Commander Firmware did not respond after three post-reboot ' +
                 'connection attempts. The serial port has been closed; reconnect manually ' +
                 'after checking the USB connection.</span>',
             );
@@ -835,11 +829,15 @@ var SerialBackend = (function () {
         if (!privateScope.selectProtocol('msp')) {
             return;
         }
-        GUI.log(i18n.getMessage('firmwareVariantNotSupported'));
-        CONFIGURATOR.connectionValid = true; // making it possible to open the CLI tab
+        GUI.log(
+            '<span style="color: red">Unsupported controller firmware detected. ' +
+            'Only Flight Commander Firmware with a valid FCFW identity is supported. ' +
+            'CLI recovery remains available so the controller can be reflashed.</span>',
+        );
+        CONFIGURATOR.connectionValid = true;
         GUI.allowedTabs = ['cli'];
         privateScope.onConnect();
-        $('#tabs .tab_cli a').trigger( "click" );
+        $('#tabs .tab_cli a').trigger('click');
     }
 
     privateScope.onInvalidFirmwareVersion = function ()
@@ -928,7 +926,7 @@ var SerialBackend = (function () {
                 throw error;
             }
 
-            const allowInavProtocols = requestedProtocol !== 'mavlink';
+            const allowMsp = requestedProtocol !== 'mavlink';
             const allowMavlink = requestedProtocol !== 'msp';
             let connectingTimeoutInstalled = false;
             const scheduleConnectingTimeout = function () {
@@ -975,9 +973,8 @@ var SerialBackend = (function () {
                 }, 10000);
             };
 
-            if (allowInavProtocols) {
+            if (allowMsp) {
                 CONFIGURATOR.connection.addOnReceiveListener(publicScope.read_serial);
-                CONFIGURATOR.connection.addOnReceiveListener(ltmDecoder.read);
             }
             if (allowMavlink) {
                 privateScope.mavlinkConnectedUnsubscribe = mavlinkSession.on('connected', function (state) {
@@ -1009,21 +1006,10 @@ var SerialBackend = (function () {
 
             scheduleConnectingTimeout();
 
-            if (allowInavProtocols) {
-                interval.add('ltm-connection-check', function () {
-                    if (
-                        !privateScope.activeProtocol &&
-                        ltmDecoder.isReceiving() &&
-                        !MSP.isReceiving()
-                    ) {
-                        privateScope.onLtmConnected();
-                    }
-                }, 1000);
-            }
 
             // request configuration data. Start with MSPv1 and
             // upgrade to MSPv2 if possible.
-            if (allowInavProtocols) {
+            if (allowMsp) {
                 MSP.protocolVersion = MSP.constants.PROTOCOL_V2;
                 MSP.send_message(MSPCodes.MSP_API_VERSION, false, false, function () {
                 
@@ -1049,14 +1035,13 @@ var SerialBackend = (function () {
                                     : '0.0.0',
                             }).then(function(identity) {
                                 if (
-                                    reportedVariant === 'FCFW'
-                                    && (
+                                    (
                                         identity.family !== FIRMWARE_FAMILY_FLIGHT_COMMANDER
                                         || identity.protocolSupported !== true
                                     )
                                 ) {
                                     GUI.log(
-                                        '<span style="color: #d98f00">Flight Commander Firmware did not provide a supported FCFW identity contract.</span>',
+                                        '<span style="color: #d98f00">The controller did not provide a supported Flight Commander FCFW identity. Only Flight Commander Firmware is supported.</span>',
                                     );
                                     privateScope.onInvalidFirmwareVariant();
                                     return;
@@ -1078,21 +1063,11 @@ var SerialBackend = (function () {
                                     privateScope.onBleNotSupported();
                                     return;
                                 }
-
-                                if (identity.family === FIRMWARE_FAMILY_FLIGHT_COMMANDER) {
-                                    GUI.log(
-                                        `Flight Commander Firmware ${identity.firmwareVersion ?? 'unknown'} ` +
-                                        `(INAV ${identity.compatibleInavVersion} protocol compatibility, ` +
-                                        `capabilities 0x${identity.capabilities.toString(16).padStart(8, '0')}).`,
-                                    );
-                                } else if (identity.probeError) {
-                                    GUI.log(
-                                        `<span style="color: #d98f00">Flight Commander identity probe was invalid; ` +
-                                        `fork-only features remain disabled: ${$('<div>').text(identity.probeError).html()}</span>`,
-                                    );
-                                } else {
-                                    GUI.log('Official INAV firmware detected; Flight Commander firmware features are disabled.');
-                                }
+                                GUI.log(
+                                    `Flight Commander Firmware ${identity.firmwareVersion ?? 'unknown'} ` +
+                                    `(protocol baseline ${identity.compatibleInavVersion}, ` +
+                                    `capabilities 0x${identity.capabilities.toString(16).padStart(8, '0')}).`,
+                                );
                                 mspHelper.getCraftName(function(name) {
                                     if (name) {
                                         FC.CONFIG.name = name;
@@ -1299,7 +1274,7 @@ var SerialBackend = (function () {
         const detail = $('<div>').text(error?.message || String(error)).html();
         GUI.log(
             `<span style="color: #d98f00">MAVLink auto-detection could not start ` +
-            `(${detail}); MSP and LTM detection remain active.</span>`,
+            `(${detail}); MSP detection remains active.</span>`,
         );
     };
 
@@ -1345,7 +1320,7 @@ var SerialBackend = (function () {
         $('#sensor-status, #dataflash_wrapper_global, #profiles_wrapper_global').hide();
         $('#portsinput').hide();
         $('#quad-status_wrapper').show();
-        $('body').removeClass('fc-controller-inav-mavlink fc-controller-unsupported');
+        $('body').removeClass('fc-controller-flight-commander-mavlink fc-controller-unsupported');
         $('#logo .firmware_version').text('MAVLink / Waiting for vehicle heartbeat');
 
         GUI.log(
@@ -1364,7 +1339,7 @@ var SerialBackend = (function () {
         CONFIGURATOR.connectionValid = true;
         GUI.allowedTabs = GUI.defaultAllowedTabsWhenTelemetryConnected.slice();
         timeout.remove('connecting');
-        GUI.log('INAV LTM telemetry connected (read-only link).');
+        GUI.log('LTM telemetry is unsupported because it cannot verify the Flight Commander FCFW identity.');
         $('#connectbutton a.connect_state')
             .text(i18n.getMessage('disconnect'))
             .addClass('active');
@@ -1374,7 +1349,7 @@ var SerialBackend = (function () {
         $('#sensor-status, #dataflash_wrapper_global, #profiles_wrapper_global').hide();
         $('#portsinput').hide();
         $('#quad-status_wrapper').show();
-        $('#logo .firmware_version').text('INAV / LTM telemetry');
+        $('#logo .firmware_version').text('Unsupported LTM telemetry');
         $('#tabs ul.mode-telemetry .tab_flight_data a').trigger('click');
     };
 
@@ -1392,32 +1367,31 @@ var SerialBackend = (function () {
 
         privateScope.mavlinkStateUnsubscribe?.();
         const renderState = function (nextState) {
-            const firmwareName = nextState.firmwareFamily === 'inav'
-                ? 'INAV'
+            const firmwareName = nextState.firmwareFamily === 'flight-commander'
+                ? 'Flight Commander Firmware'
                 : nextState.firmwareFamily === 'unsupported'
                     ? 'Unsupported firmware'
-                    : 'MAVLink';
+                    : 'Detecting Flight Commander Firmware';
             $('#logo .firmware_version').text(`${firmwareName} / ${nextState.vehicleTypeName}`);
 
-            if (nextState.firmwareFamily === 'inav') {
+            if (nextState.firmwareFamily === 'flight-commander') {
                 $('body')
-                    .addClass('fc-controller-inav-mavlink')
+                    .addClass('fc-controller-flight-commander-mavlink')
                     .removeClass('fc-controller-unsupported');
                 mavlinkCommandRouter.clearCommandBlock();
             } else if (nextState.firmwareFamily === 'unsupported') {
                 const newlyUnsupported = !$('body').hasClass('fc-controller-unsupported');
                 $('body')
                     .addClass('fc-controller-unsupported')
-                    .removeClass('fc-controller-inav-mavlink');
+                    .removeClass('fc-controller-flight-commander-mavlink');
                 const message =
-                    'This vehicle is not running INAV or Flight Commander Firmware. ' +
-                    'ArduPilot support has been removed; configuration, missions, and commands are disabled.';
+                    'This vehicle did not provide a supported Flight Commander FCFW identity; configuration, missions, and commands are disabled.';
                 mavlinkCommandRouter.blockCommands(message);
                 if (newlyUnsupported) {
                     GUI.log(`<span style="color: #d42133">${message}</span>`);
                 }
             } else {
-                $('body').removeClass('fc-controller-inav-mavlink fc-controller-unsupported');
+                $('body').removeClass('fc-controller-flight-commander-mavlink fc-controller-unsupported');
             }
 
             const batteryRemaining = Number.isFinite(nextState.batteryRemaining)
@@ -1497,12 +1471,12 @@ var SerialBackend = (function () {
         inavMavlinkProfileStore.captureFromMsp()
             .then(function (profile) {
                 GUI.log(
-                    `INAV MAVLink command profile saved for system ${profile.systemId}` +
+                    `Flight Commander MAVLink command profile saved for system ${profile.systemId}` +
                     `${profile.name ? ` (${profile.name})` : ''}.`,
                 );
             })
             .catch(function (error) {
-                GUI.log(`INAV MAVLink command profile was not saved: ${error.message}`);
+                GUI.log(`Flight Commander MAVLink command profile was not saved: ${error.message}`);
             });
 
         MSP.send_message(MSPCodes.MSP_DATAFLASH_SUMMARY, false, false, function () {
@@ -1645,8 +1619,8 @@ var SerialBackend = (function () {
             $('.mode-connected, .mode-mavlink, .mode-telemetry').hide();
             $('.mode-disconnected').show();
             $('body').removeClass(
-                'fc-controller-inav-mavlink fc-controller-unsupported ' +
-                'fc-firmware-flight-commander fc-firmware-inav',
+                'fc-controller-flight-commander-mavlink fc-controller-unsupported ' +
+                'fc-firmware-flight-commander fc-firmware-unsupported',
             );
 
             $('#sensor-status').hide();

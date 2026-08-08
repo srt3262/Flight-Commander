@@ -59,7 +59,7 @@
                     </div>
                     <div id="plannerCameraCommandHelp" class="fc-provider-attribution">
                         Flight Commander Firmware can execute distance-camera command 206 through a
-                        MAVLink camera or companion. Official INAV missions remain navigation only.
+                        MAVLink camera or companion when the capability is advertised.
                     </div>
                 </section>
                 <section class="fc-panel">
@@ -79,7 +79,7 @@
                     </div>
                     <div id="plannerMissionBehaviorHelp" class="fc-provider-attribution"></div>
                     <div id="plannerInavMissionRestartPanel" class="fc-controller-setting">
-                        <h4>INAV controller mission-interruption behavior</h4>
+                        <h4>Flight Commander controller mission-interruption behavior</h4>
                         <div class="fc-form-grid">
                             <label for="plannerInavMissionRestart">
                                 When NAV WP is reselected after an interruption
@@ -92,20 +92,20 @@
                         </div>
                         <div class="fc-panel-actions">
                             <button id="plannerReadInavMissionRestart" type="button" disabled>
-                                Read policy from INAV
+                                Read policy from Flight Commander Firmware
                             </button>
                             <button id="plannerWriteInavMissionRestart" class="fc-button--primary" type="button" disabled>
-                                Save policy to INAV &amp; verify
+                                Save policy to Flight Commander Firmware &amp; verify
                             </button>
                         </div>
                         <div id="plannerInavMissionRestartStatus" class="fc-provider-attribution">
-                            Connect through the wired INAV/MSP setup link to read this controller setting.
+                            Connect through the wired Flight Commander MSP setup link to read this controller setting.
                         </div>
                         <p class="fc-provider-attribution">
-                            This is INAV's persistent <code>nav_wp_mission_restart</code> firmware setting.
+                            This is Flight Commander's persistent <code>nav_wp_mission_restart</code> firmware setting.
                             Native RESUME continues from the last active waypoint when NAV WP is reselected,
                             but only while the flight controller remains powered and the aircraft remains armed;
-                            disarming resets INAV's native active waypoint to the mission start. SWITCH permits
+                            disarming resets the firmware's active waypoint to the mission start. SWITCH permits
                             that native resume once, then restarts from the first waypoint on the next NAV WP
                             selection. This is separate from Flight Commander's estimated in-memory MAVLink
                             checkpoint, which can write a remaining active-RAM mission suffix after disarm during
@@ -120,7 +120,7 @@
                         A resume checkpoint records mission progress observed over MAVLink so a mission can continue
                         after an RTH/RTL interruption and battery swap while the flight controller remains powered.
                         This covers an RC-selected RTH even though MAVLink does not identify which source selected the mode.
-                        INAV progress is position-estimated and resumed by a verified active-RAM suffix.
+                        Flight Commander progress is position-estimated and resumed by a verified active-RAM suffix.
                         It does not configure radio, battery, or telemetry link-loss failsafes.
                     </div>
                 </section>
@@ -187,8 +187,8 @@
                 <div>
                     <h3 id="plannerSafehomeHeading">INAV safe homes &amp; fixed-wing landing approaches</h3>
                     <p>
-                        These are INAV controller configuration records, not global failsafe settings.
-                        Connect through the wired INAV/MSP setup link to read or save them.
+                        These are Flight Commander controller configuration records, not global failsafe settings.
+                        Connect through the wired Flight Commander MSP setup link to read or save them.
                     </p>
                 </div>
                 <div class="fc-panel-actions">

@@ -17,7 +17,7 @@ aircraft connection.
 
 ## Mission items
 
-Flight Commander preserves the native INAV-compatible mission representation.
+Flight Commander preserves its native MSP mission representation.
 Common map items include navigation waypoints, return/land actions, and
 supported photo-trigger actions. A command that cannot be represented without
 losing required information is rejected before transfer.
@@ -54,8 +54,9 @@ surface information, or service failures.
 5. Verify the resulting absolute and relative altitude ranges against aircraft
    limits and local airspace.
 
-Terrain-relative waypoint transfer is Flight Commander capability-gated.
-Official INAV compatibility receives only the lossless navigation subset.
+Terrain-relative waypoint transfer is Flight Commander capability-gated. Mission
+transfer is disabled for foreign or unidentified firmware; there is no
+navigation-only stock-firmware compatibility path.
 
 ## Read and write missions
 
@@ -66,7 +67,7 @@ Official INAV compatibility receives only the lossless navigation subset.
 - Wired MSP is the native persistent mission-storage path.
 - MAVLink transfer is limited to the representable, validated subset plus
   advertised Flight Commander extensions.
-- LTM cannot transfer missions.
+- Unsupported or identity-less transports cannot transfer missions.
 
 After upload, read the mission back and compare item count, order, coordinates,
 altitudes, and actions.

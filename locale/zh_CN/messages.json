@@ -439,7 +439,7 @@
         "message": "<span style=\"color: red\">不支持</span>此版本的固件， 本配置器支持从 $1 到 $2 (不包括)的固件"
     },
     "firmwareVariantNotSupported": {
-        "message": "非INAV固件，配置器<span style=\"color: red\">不支持</span>， 请升级为INAV固件. 升级前请使用CLI备份参数.  CLI备份/恢复过程在文档中可以查看到."
+        "message": "This controller firmware is not supported. Flash Flight Commander Firmware before using this application."
     },
 
     "tabSwitchConnectionRequired": {
@@ -2569,10 +2569,10 @@
         "message": "无重启序列"
     },
     "firmwareFlasherOnlineSelectBoardDescription": {
-        "message": "选择您的飞控板以便查看线上固件 - 选择适合您的飞控板固件。请注意<strong>自动选择目标</strong>仅适用于INAV 5.0及更高版本。"
+        "message": "Select the exact Flight Commander hardware target or use automatic target discovery from a controller already running Flight Commander Firmware."
     },
     "firmwareFlasherOnlineSelectFirmwareVersionDescription": {
-        "message": "选择您的飞控板固件版本。<br />注意:即使你可以使用这个配置器刷写不同版本的固件。在设置飞控时，您应该匹配固件和配置器的主版本号和次版本号。"
+        "message": "Select a published Flight Commander Firmware version for this board. The firmware and Configurator major versions must match."
     },
     "firmwareFlasherNoRebootDescription": {
         "message": "如果通电时已经将 BootLoader 脚位短路，或者已按下飞控板上的 Boot 键，请开启此选项"
@@ -2656,13 +2656,13 @@
         "message": "警告"
     },
     "firmwareFlasherWarningText": {
-        "message": "<span style=\"color: red\">不要</span> 尝试把固件烧写到不适用 INAV 的硬件上.<br /><span style=\"color: red\">不要</span> 在烧写时断开飞控板的连接或是关闭您的电脑.<br /><br /><strong>注意: </strong>STM32 BootLoader 固化在芯片内，它不会被覆写(也就是说，不管怎么搞都不会变砖，只要操作正确，都可以救回来)<br /><!--strong>注意: </strong>烧写固件时 <span style=\"color: red\">自动连接</span> 功能会关闭<br /--><strong>注意: </strong>确认您已做好备份，烧写固件时可能会清空您先前的配置<br /><strong>注意:</strong> 如果烧写有问题时，请先尝试断开和飞控的连接，尝试重启、更新 Chrome、更新驱动程序<br /><strong>注意:</strong> 当直接通过 USB 烧写时(Matek H743-SLIM, Holybro Kakute, etc)，请确保您已阅读 iNav 文档中有关于 USB 烧写的部分，并且确认已安装正确的软件和驱动程序"
+        "message": "Flash only Flight Commander Firmware built for the detected controller target. The selected HEX must contain the FCFW identity and match this exact board.<br />Do <span style=\"color: red\">not</span> <strong>disconnect</strong> the board or <strong>turn off</strong> your computer while flashing.<br /><br /><strong>Before flashing:</strong> make a backup because some upgrades or downgrades erase configuration.<br /><strong>Recovery:</strong> enter STM32 DFU/BOOT mode and follow the <a href=\"https://github.com/srt3262/Flight-Commander/blob/main/docs/FIRMWARE_FLASHING.md\" target=\"_blank\">Flight Commander USB flashing guide</a>."
     },
     "firmwareFlasherRecoveryHead": {
         "message": "<strong> 恢复/丢失通信 </strong>"
     },
     "firmwareFlasherRecoveryText": {
-        "message": "如果您和飞控板失去通信，请依照以下步骤恢复通信 :: <ul><li>关闭电源</li><li>开启选项 : 无重启序列 & 清空所有资料</li><li>将 Boot 脚位短路或是按住 Boot 键</li><li>开启电源(如果正确的话，LED 指示灯不会闪烁)</li><li>如果有需要请安装 STM32 驱动程序以及 Zadig 软件(在 iNav 文档中参阅<a href=\"https://github.com/srt3262/Flight-Commander/blob/main/docs/FIRMWARE_FLASHING.md\"target=\"_blank\">USB刷写</a> 的部分)</li><li>关闭 Flight Commander，关闭所有 Chrome，关闭所有 Chrome 外挂程序，重新启动 Flight Commander</li><li>松开 Boot 键，如果您的飞控板有Boot键的话</li><li>烧写正确的固件(手动选择波特率，如果您的飞控手册有指定)</li><li>关闭电源</li><li>移除 Boot 短路脚位</li><li>开启电源(LED 指示灯应该会闪烁)</li><li>正常连线</li></ul>"
+        "message": "If communication is lost, power off, enter STM32 DFU/BOOT mode, select the exact controller target, enable full-chip erase when required, and flash a valid Flight Commander FCFW image. Follow the <a href=\"https://github.com/srt3262/Flight-Commander/blob/main/docs/FIRMWARE_FLASHING.md\" target=\"_blank\">Flight Commander USB flashing guide</a>."
     },
     "firmwareFlasherButtonLeave": {
         "message": "关闭固件烧写"
@@ -6079,10 +6079,10 @@
         "message": "无法预载入目标: 飞控已进入DFU状态"
     },
     "targetPrefetchFailOld": {
-        "message": "无法预载入目标: INAV 固件太旧了！"
+        "message": "Cannot prefetch target: unsupported Flight Commander identity"
     },
     "targetPrefetchFailNonINAV": {
-        "message": "无法预载入目标: 非INAV固件"
+        "message": "Cannot prefetch target: Flight Commander Firmware identity was not verified"
     },
     "targetPrefetchFailNoPort": {
         "message": "无法预载入目标: 没有端口"

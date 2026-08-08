@@ -11,8 +11,8 @@ const publisher = readFileSync(
   "utf8",
 );
 
-test("4.1.1 is declared as a Configurator-only release reusing verified 4.0.8 firmware", () => {
-  assert.equal(packageJson.version, "4.1.1");
+test("4.1.2 is declared as a Configurator-only release reusing verified 4.0.8 firmware", () => {
+  assert.equal(packageJson.version, "4.1.2");
   assert.equal(packageJson.flightCommander.firmwareChangedInRelease, false);
   assert.equal(packageJson.flightCommander.firmwareReleaseVersion, "4.0.8");
   assert.equal(packageJson.flightCommander.firmwareSourceVersion, "4.0.8");
