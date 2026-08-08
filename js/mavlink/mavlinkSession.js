@@ -17,6 +17,7 @@ export const MAV_RESULT_ACCEPTED = 0;
 export const MAV_RESULT_IN_PROGRESS = 5;
 export const MAV_CMD_SET_MESSAGE_INTERVAL = 511;
 export const MAV_CMD_REQUEST_MESSAGE = 512;
+export const MAV_CMD_REQUEST_AUTOPILOT_CAPABILITIES = 520;
 export const MAVLINK_MSG_ID_AUTOPILOT_VERSION = 148;
 export const MAV_DATA_STREAM_ALL = 0;
 
@@ -288,8 +289,11 @@ export class MavlinkSession {
     this.gcsHeartbeat = null;
     this.gcsHeartbeatStartTimer = null;
     this.firmwareDetectionTimer = null;
+    this.firmwareDetectionRetryTimer = null;
     this.firmwareDetectionTimeoutMs =
-      options.firmwareDetectionTimeoutMs ?? 1500;
+      options.firmwareDetectionTimeoutMs ?? 6000;
+    this.firmwareDetectionRetryIntervalMs =
+      options.firmwareDetectionRetryIntervalMs ?? 750;
     this.heartbeatTimeoutMs = options.heartbeatTimeoutMs ?? 5000;
     this.discoveryDelayMs =
       options.discoveryDelayMs ?? DEFAULT_DISCOVERY_DELAY_MS;
@@ -1017,14 +1021,17 @@ export class MavlinkSession {
   }
 
   stopFirmwareDetection() {
+    if (this.firmwareDetectionRetryTimer != null) {
+      this.clearTimeoutFn(this.firmwareDetectionRetryTimer);
+      this.firmwareDetectionRetryTimer = null;
+    }
     if (this.firmwareDetectionTimer != null) {
       this.clearTimeoutFn(this.firmwareDetectionTimer);
       this.firmwareDetectionTimer = null;
     }
   }
 
-
-resolveFlightCommanderIdentity() {
+  resolveFlightCommanderIdentity() {
   if (typeof this.flightCommanderIdentityResolver !== "function") return null;
   try {
     const resolved = this.flightCommanderIdentityResolver(this.snapshot());
@@ -1078,23 +1085,38 @@ startFirmwareDetection() {
       FIRMWARE_FAMILY_FLIGHT_COMMANDER,
       cachedIdentity.source,
     );
-    // Keep probing so a signed AUTOPILOT_VERSION identity can replace the
-    // legacy cached proof and capability mask whenever firmware provides it.
-    this.requestAutopilotVersion().catch(() => {});
-    return;
+  } else {
+    this.setFirmwareFamily(FIRMWARE_FAMILY_UNKNOWN, "probing");
   }
 
-  this.setFirmwareFamily(FIRMWARE_FAMILY_UNKNOWN, "probing");
-  this.requestAutopilotVersion().catch(() => {});
-  if (this.state.autopilot === MAV_AUTOPILOT_ARDUPILOTMEGA) {
+  if (
+    !cachedIdentity &&
+    this.state.autopilot === MAV_AUTOPILOT_ARDUPILOTMEGA
+  ) {
     this.send("ParamRequestList", this.target()).catch(() => {});
   }
+
   const attachment = this.activeAttachment("firmware detection");
+  const probe = () => {
+    if (!this.attachmentIsCurrent(attachment)) return;
+    this.requestFlightCommanderIdentity().catch(() => {});
+    this.firmwareDetectionRetryTimer = timerUnref(
+      this.setTimeoutFn(probe, this.firmwareDetectionRetryIntervalMs),
+    );
+  };
+  probe();
+
   this.firmwareDetectionTimer = timerUnref(
     this.setTimeoutFn(() => {
       this.firmwareDetectionTimer = null;
+      if (this.firmwareDetectionRetryTimer != null) {
+        this.clearTimeoutFn(this.firmwareDetectionRetryTimer);
+        this.firmwareDetectionRetryTimer = null;
+      }
       if (!this.attachmentIsCurrent(attachment)) return;
-      this.setFirmwareFamily(FIRMWARE_FAMILY_UNSUPPORTED, "probe-timeout");
+      if (this.state.firmwareFamily === FIRMWARE_FAMILY_UNKNOWN) {
+        this.setFirmwareFamily(FIRMWARE_FAMILY_UNSUPPORTED, "probe-timeout");
+      }
     }, this.firmwareDetectionTimeoutMs),
   );
 }
@@ -1646,6 +1668,21 @@ startFirmwareDetection() {
     });
   }
 
+  requestAutopilotCapabilities() {
+    return this.send("CommandLong", {
+      ...this.target(),
+      command: MAV_CMD_REQUEST_AUTOPILOT_CAPABILITIES,
+      confirmation: 0,
+      param1: 1,
+      param2: 0,
+      param3: 0,
+      param4: 0,
+      param5: 0,
+      param6: 0,
+      param7: 0,
+    });
+  }
+
   requestAutopilotVersion() {
     return this.send("CommandLong", {
       ...this.target(),
@@ -1659,6 +1696,13 @@ startFirmwareDetection() {
       param6: 0,
       param7: 0,
     });
+  }
+
+  requestFlightCommanderIdentity() {
+    return Promise.allSettled([
+      this.requestAutopilotCapabilities(),
+      this.requestAutopilotVersion(),
+    ]);
   }
 
   waitFor(messageNames, predicate = () => true, timeoutMs = 3000) {

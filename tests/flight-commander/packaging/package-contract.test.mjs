@@ -332,7 +332,11 @@ test("Windows verification follows the active renderer graph and rejects leftove
   assert.doesNotMatch(packageVerifier, /ArduPilot support has been removed/);
   assert.match(
     packageVerifier,
-    /Flash only Flight Commander Firmware built for the detected controller target/,
+    /Online selections are verified official or beta Flight Commander releases for the selected target/,
+  );
+  assert.match(
+    packageVerifier,
+    /Local HEX files are flashed exactly as selected/,
   );
   for (const propInches of [10, 12, 15, 17]) {
     assert.match(
@@ -811,8 +815,14 @@ test("source-backed releases publish one complete bundle plus the online-flasher
     /\$releaseAssetPaths = @\(\$completeBundlePath, \$onlineFirmwarePath\)/,
   );
   assert.match(releaseWorkflow, /Published online-flasher firmware asset/);
-  assert.match(releaseOrchestrator, /The beta candidate does not contain exactly the four canonical components/);
-  assert.match(releaseOrchestrator, /Complete beta ZIP contains exactly four byte-matched components/);
+  assert.match(
+    releaseOrchestrator,
+    /Complete release bundle does not contain exactly the four canonical files/,
+  );
+  assert.match(
+    releaseOrchestrator,
+    /Published complete release asset does not match the verified bundle/,
+  );
   assert.match(releaseWorkflow, /must contain exactly the four canonical release files/);
   assert.doesNotMatch(releaseWorkflow, /Firmware-Package|firmwarePackageDirectory/);
 });
