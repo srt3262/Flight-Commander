@@ -56,13 +56,15 @@ Recommended sequence:
 
 MAVLink supplies live telemetry, mission transport, and supported Ground
 Control commands. A valid vehicle heartbeat establishes the transport and
-vehicle IDs, but it does not prove the firmware family. Flight Commander keeps
-the session in **detecting Flight Commander Firmware** until
-`AUTOPILOT_VERSION` contains the `FCFW` signature and capability bitmap.
+vehicle IDs, but it does not prove the firmware family. A signed
+`AUTOPILOT_VERSION` FCFW signature and capability bitmap are authoritative.
+Legacy Flight Commander Firmware 4.0.8, which predates that MAVLink payload,
+can instead be identified from exactly one controller-matched Flight Commander
+profile captured during a prior wired MSP setup connection.
 
-If the signature is missing or identification times out, the vehicle is marked
-unsupported and mission, command, configuration, and RTK-forwarding paths stay
-blocked.
+If neither identity path succeeds, or the cached system ID is missing or
+ambiguous, the vehicle is marked unsupported and mission, command,
+configuration, and RTK-forwarding paths stay blocked.
 
 For an ExpressLRS transmitter module exposed as a Windows COM port, select
 **Ground Control / MAVLink**. Flight Commander defaults that protocol to

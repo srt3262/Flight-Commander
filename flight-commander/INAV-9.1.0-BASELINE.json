@@ -1,0 +1,111 @@
+{
+  "schema": 1,
+  "upstream": {
+    "project": "INAV",
+    "release": "9.1.0",
+    "commit": "e519b69b02e27c8bdc03b4a0889f1baaae211a54",
+    "repository": "https://github.com/iNavFlight/inav"
+  },
+  "purpose": "Protected INAV 9.1.0 compass, target, bus, sensor, and configuration baseline with one hash-pinned AHRS integration extension.",
+  "protected_files": {
+    "src/main/drivers/bus.c": "00fed597296525316c8bca5ee19f5af321d540194a47dea13abe8abd63198827",
+    "src/main/drivers/bus.h": "9f5b0259f76729f0f395ce14a743eb8a5c58d622bc96c54890d4328a2afe5789",
+    "src/main/drivers/bus_busdev_i2c.c": "95a5c9337acdfa2355a7a0b0a6614c02ca794ebd93b4b1a98eaaacb8abf8950e",
+    "src/main/drivers/bus_i2c.h": "e9077cc8b332281c12de5f0aaa9ee9d433ee3d92b6475c1bebe2dd00ad163d33",
+    "src/main/drivers/bus_i2c_at32f43x.c": "62a2181cba9c82ca34a85b2ab5ade013bd5a6016bc240d1eff467b1a5e39bf18",
+    "src/main/drivers/bus_i2c_hal.c": "6e90f9ab43d3d9c88a9e286e6c7c7e6512c539ea90cd45679715ec599d4f4da3",
+    "src/main/drivers/bus_i2c_soft.c": "f499daf9cda7e38012c4bd1db7a2fd7b94afc2e066a9e38207f08bec9cf3b562",
+    "src/main/drivers/bus_i2c_stm32f40x.c": "7857567da7a7e1c0f2a77ad67e99a4ed29701baa1ff062f6ab8a06a45d157892",
+    "src/main/drivers/compass/compass.h": "9203e05fe3f2664b016220082428732ab021755fff94c97950afcc77f1fa4bae",
+    "src/main/drivers/compass/compass_ak8963.c": "2f0d20feed60f7594a638d7e5cbef3d104b8afe0413f98fe9c7d7fe75499d4ea",
+    "src/main/drivers/compass/compass_ak8963.h": "f85653e9c0a6d9a3c56ed9381a4862f90034ff1c07831b3edf6b4e7096803a9b",
+    "src/main/drivers/compass/compass_ak8975.c": "a0b53e9e1786abafced9d031db52ce1d0bf0719bd3543428e436ceaa4de617a7",
+    "src/main/drivers/compass/compass_ak8975.h": "d8525d619af7c8f2d3686d19b5fb402dd98b3066867924016c79b0f1e1ea2544",
+    "src/main/drivers/compass/compass_fake.c": "69db86370e6d621bbef3bdfe4455d6740976e1cf037eb6d4c4717d18bd1deae3",
+    "src/main/drivers/compass/compass_fake.h": "b60d33d820eee4e95399ed8dcec196a23ffbe33406d3abc6b67a2189be730cc5",
+    "src/main/drivers/compass/compass_hmc5883l.c": "b4cc9b092a49003ea112f962d60f4124fb6ceb92ce54379959d7c75bf6d44298",
+    "src/main/drivers/compass/compass_hmc5883l.h": "2159f235915d3c263379fce3ea948e9666f3953453f94fda41bed922733109b9",
+    "src/main/drivers/compass/compass_ist8308.c": "f6ff1c333c3e33ac47202216725e135b4fd88e5ee8267e883849b1dd5e97bd52",
+    "src/main/drivers/compass/compass_ist8308.h": "66393a6d9f702ed2dec238edc6a29f3ed9c34d0e91a05beb9189304472407165",
+    "src/main/drivers/compass/compass_ist8310.c": "d3cfacd5aef3035e1e9b4b0b3cd1d2851b576dd7ced7945b5b78a083f7c1bd66",
+    "src/main/drivers/compass/compass_ist8310.h": "6534a2fbcfb8f67b0423740bfd381d308d39fe457c38cc9659bd3acb2b80cbec",
+    "src/main/drivers/compass/compass_lis3mdl.c": "58f48ad42e0f9e17b51b85c12f97f24c06b37c9cbaf4aca8182e35c1aeadd2b4",
+    "src/main/drivers/compass/compass_lis3mdl.h": "c7e0c4d5204e5ada8c1da245be1cdfcdc47adc14333c090814351ce3a0c5f357",
+    "src/main/drivers/compass/compass_mag3110.c": "f5702ca43ac75c60a9354e1d756fa6faf05216490e6311c0f0094d7012f6b690",
+    "src/main/drivers/compass/compass_mag3110.h": "eed5b5a554ce8666119ed2293465763bad0af331798ac361042b64fa55a9d06c",
+    "src/main/drivers/compass/compass_mlx90393.c": "511df3f6919f5351bc2786a638d3067fffe5c954b3d688328e6d1b0b19a5a027",
+    "src/main/drivers/compass/compass_mlx90393.h": "5830360fe7f4dfc40e9fae20f5af58c5052aa44f311541f3b5fe1adad410e5b3",
+    "src/main/drivers/compass/compass_mpu9250.c": "4d45d6b22cf9b65c564eb1114ef3bad362389c0c10ef34c2087ce7987938cf06",
+    "src/main/drivers/compass/compass_mpu9250.h": "e15429530d454ab32fe034a98c448190ac9e0c08656e40aa2f73f8034aaeedb9",
+    "src/main/drivers/compass/compass_msp.c": "942a65623ab54a4bfa1194fde0662958cff0e327e277154827502eb99f8bbce2",
+    "src/main/drivers/compass/compass_msp.h": "ca4926769eda407b76cc5818659e078c274c4c6097d7682384b564a08a6ce53e",
+    "src/main/drivers/compass/compass_qmc5883l.c": "a60e5a123d210662b9093def523e21a42024ea706c35de490b9a8ccb3d100c9d",
+    "src/main/drivers/compass/compass_qmc5883l.h": "6a07b8177281bb432426b998fb30acae50035d0d045a958181dc55a44237aea1",
+    "src/main/drivers/compass/compass_qmc5883p.c": "52a870abbe8521e246c1b2bbb080ba5306dc43a6a23bc80a1ed937d80a78f554",
+    "src/main/drivers/compass/compass_qmc5883p.h": "464d732a3b90bd883d78d31ecab8237b850a9a01384a3d0f8683dc1f939a714f",
+    "src/main/drivers/compass/compass_rm3100.c": "97427d522f1eb34ce270f225e5fc1ce27764806d297d2aade1f9824b6dd8a1b2",
+    "src/main/drivers/compass/compass_rm3100.h": "dcb06453cbad7a9284d271d152dd5b4b261915d2b3ac26c021ac1cfac27865c4",
+    "src/main/drivers/compass/compass_vcm5883.c": "2eff3c1fc4723b4397fd5d79d83208cfea894a500ae4528083ea77774aabd9a5",
+    "src/main/drivers/compass/compass_vcm5883.h": "25aba352f399105309d7650259999b1f3640f38e65be8b6798d15d8f38151a31",
+    "src/main/drivers/i2c_application.c": "ca2f58246a5969de97b4c0813b86597a8b5553938bd048f3ca69424a4555f0ae",
+    "src/main/drivers/i2c_application.h": "3e44b7fc69773e3e1590480505665f7871ac88dd6335e6c9cde29f60cf4808d5",
+    "src/main/fc/config.c": "03e20c380896628ea22916ceee4692a95eb84a5a327f3480f6e091f876e66135",
+    "src/main/fc/config.h": "c207a3818558f892115420ded290508005eeedee3283dcda0b80bf932885effc",
+    "src/main/flight/imu.h": "08b6115f22e8c908d72f9e54b3c4f4a3833f991bbc4752b6256d4c74d98c9fae",
+    "src/main/sensors/boardalignment.c": "a411d2e6d4b83ffadeee85343011be0dccdd2fdcfe82432f0c51204e5062821c",
+    "src/main/sensors/boardalignment.h": "b808aeb0ac5423d59224d6d1b16a7060d9ce60d056d6293393e71e45d361337b",
+    "src/main/sensors/compass.c": "f01394f35eebdadd35e9b3e513f4ad253311f7c46177117c41f19fe141fd621f",
+    "src/main/sensors/compass.h": "81a45d607ac56b5ec33fdcbdfa1cdc2c68be6b853ac0d7cc51fec85f3f5ce93a",
+    "src/main/sensors/gyro.c": "fc28ed2ea104aabbbffaf6380b5c816b647aa7560ac09385c57628ac9b1efb80",
+    "src/main/sensors/initialisation.c": "ccf9d34274bf316357449cc658c9d79fceec4e87462b86b9af45f54497d4d37c",
+    "src/main/sensors/initialisation.h": "d9b78f5e5899ea370bca9672271be4dd08e12b0add82353e95516b9d7e6bfc94",
+    "src/main/sensors/sensors.c": "443f69373b76cee6300d6b0ad0b00fa54b75624678da0074d349b9c0cbdb9168",
+    "src/main/sensors/sensors.h": "a0b03d4c9019bd785612daf2b43cf7419bf9de485dc3caa1cae4bd834196a952",
+    "src/main/target/MICOAIR743/CMakeLists.txt": "dd9659d71e52a2fb40ac65239067242941118f6ee6c8842040b1fd68740cf6d9",
+    "src/main/target/MICOAIR743/config.c": "393d263cedc9161b34d0173b7b5d9d6ab46167b0cb2a1db6d391b8bca0c01ca2",
+    "src/main/target/MICOAIR743/target.c": "dd9716757d16addc7c712100bb11cb548ec3972c36f46a1a2a54ecdace77faa7",
+    "src/main/target/MICOAIR743/target.h": "8abf1f4d3a01f529d532fa3984d58fe56283ca92f51880a492fa93d953cf610a"
+  },
+  "intentional_extensions": {
+    "src/main/flight/imu.c": {
+      "upstream_sha256": "5108381a10dbe05a68ecf9a013fbd9168f47790755fe7ded2c48668d7c95d6a4",
+      "patched_sha256": "c86788e9feb5cd82f0ca2bc402faccf860d395b95d48ebde8ab8b96dc27828dc",
+      "purpose": "Inject weighted Flight Commander heading references and initialize yaw from four stable fresh fused samples using a dedicated startup state that cannot be preempted by gpsHeadingInitialized."
+    },
+    "src/main/common/maths.c": {
+      "upstream_sha256": "d2720ce794b2b6b7a67ef0b9e03ffa1583bb45db7da02918d5466f0b30ea62e5",
+      "patched_sha256": "7d94f626d631c380879421bb38d487b283ccafc043b9311b8bbecafc612fea3d",
+      "purpose": "Reject every non-finite calibration solver result instead of accepting NaN or infinity."
+    },
+    "src/main/drivers/compass/compass_ist8310.c": {
+      "upstream_sha256": "d3cfacd5aef3035e1e9b4b0b3cd1d2851b576dd7ced7945b5b78a083f7c1bd66",
+      "patched_sha256": "77343c047450fc943815d5f6247580faa705278818b209b50d5300dd808c9583",
+      "purpose": "Emit a canonical IST8310 frame and leave the physical sensor-to-board transform to the persistent learned-orientation layer while retaining reviewed timeout recovery."
+    },
+    "src/main/sensors/compass.c": {
+      "upstream_sha256": "f01394f35eebdadd35e9b3e513f4ad253311f7c46177117c41f19fe141fd621f",
+      "patched_sha256": "d730625f7c851d5aea98929383eb35be80178daba2f598dccdcc6c895cb43d60",
+      "purpose": "Apply and persist the learned sensor transform before conventional field calibration, gate heading on both calibrations, bind field calibration signatures to orientation generation, and retain sample-age diagnostics."
+    },
+    "src/main/target/MICOAIR743/target.h": {
+      "upstream_sha256": "8abf1f4d3a01f529d532fa3984d58fe56283ca92f51880a492fa93d953cf610a",
+      "patched_sha256": "517dbeb4f356d4d8dae3f46a46af38e38518ca6b72113e12390a4f9a4815c26d",
+      "purpose": "Declare CW0 only as the independent user-alignment default and advance the field-calibration contract for learned compass orientation."
+    },
+    "src/main/sensors/compass.h": {
+      "upstream_sha256": "81a45d607ac56b5ec33fdcbdfa1cdc2c68be6b853ac0d7cc51fec85f3f5ce93a",
+      "patched_sha256": "10f84565fe7006b188174bbb489de28f9ba9e1b8c06e17ffa96ecaaed50424cf",
+      "purpose": "Persist hidden compass calibration contract metadata and expose true onboard compass sample age for fusion diagnostics."
+    },
+    "src/main/fc/config.c": {
+      "upstream_sha256": "03e20c380896628ea22916ceee4692a95eb84a5a327f3480f6e091f876e66135",
+      "patched_sha256": "c5a62603df888328fb27db58eca1a87a58de60e6a7c406a155cca9f397511cc7",
+      "purpose": "Resolve ALIGN_DEFAULT to the target-specific compass default while preserving every explicit saved alignment and custom angle."
+    },
+    "src/main/sensors/gyro.c": {
+      "upstream_sha256": "fc28ed2ea104aabbbffaf6380b5c816b647aa7560ac09385c57628ac9b1efb80",
+      "patched_sha256": "0a7154b153390d7bd8a9362af755f9b5183c5f3e13ad8abf1f5cf68ef499dc5e",
+      "purpose": "Expose calibrated gyro rate in the flight-controller board frame on demand for compass-orientation validation without writing any parallel vector from the high-rate attitude path."
+    }
+  }
+}
