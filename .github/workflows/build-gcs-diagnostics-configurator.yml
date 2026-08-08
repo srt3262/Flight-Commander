@@ -61,14 +61,48 @@ jobs:
           python -m py_compile $patchScript
           python $patchScript
 
+          function Replace-ExactlyOnce {
+            param(
+              [Parameter(Mandatory = $true)][string]$Path,
+              [Parameter(Mandatory = $true)][string]$Old,
+              [Parameter(Mandatory = $true)][string]$New,
+              [Parameter(Mandatory = $true)][string]$Label
+            )
+            $text = Get-Content -LiteralPath $Path -Raw
+            $count = ([regex]::Matches($text, [regex]::Escape($Old))).Count
+            if ($count -ne 1) {
+              throw "$Path: expected exactly one $Label marker, found $count."
+            }
+            Set-Content -LiteralPath $Path -Value $text.Replace($Old, $New) -Encoding utf8NoBOM
+          }
+
           # Keep the release-surface assertion aligned with YAML output syntax.
           $publisherTest = Join-Path $PWD 'tests/flight-commander/release/software-only-beta-publisher.test.mjs'
-          $testText = Get-Content -LiteralPath $publisherTest -Raw
-          $testText = $testText.Replace(
-            '/firmware_version=\$\{\{ steps\.metadata\.outputs\.firmware_version \}\}/',
-            '/firmware_version:\s+\$\{\{ steps\.metadata\.outputs\.firmware_version \}\}/'
-          )
-          Set-Content -LiteralPath $publisherTest -Value $testText -Encoding utf8NoBOM
+          Replace-ExactlyOnce `
+            -Path $publisherTest `
+            -Old '/firmware_version=\$\{\{ steps\.metadata\.outputs\.firmware_version \}\}/' `
+            -New '/firmware_version:\s+\$\{\{ steps\.metadata\.outputs\.firmware_version \}\}/' `
+            -Label 'firmware-version output assertion'
+
+          # Complete the release-version conversion that the first assembly pass
+          # intentionally left for the final release validation layer.
+          Replace-ExactlyOnce `
+            -Path (Join-Path $PWD 'js/mavlink/ntripClient.js') `
+            -Old 'NTRIP FlightCommander/4.0.8' `
+            -New 'NTRIP FlightCommander/4.1.0' `
+            -Label 'NTRIP User-Agent version'
+
+          $packageContract = Join-Path $PWD 'tests/flight-commander/packaging/package-contract.test.mjs'
+          Replace-ExactlyOnce `
+            -Path $packageContract `
+            -Old 'assert.equal(packageManifest.flightCommander.firmwareChangedInRelease, true);' `
+            -New 'assert.equal(packageManifest.flightCommander.firmwareChangedInRelease, false);' `
+            -Label 'Configurator-only firmware-change contract'
+          Replace-ExactlyOnce `
+            -Path $packageContract `
+            -Old 'assert.equal(packageManifest.version, "4.0.8");' `
+            -New 'assert.equal(packageManifest.version, "4.1.0");' `
+            -Label 'landing-page release version contract'
 
       - name: Install dependencies and run all source tests
         shell: pwsh
