@@ -1,0 +1,117 @@
+name: CI
+
+"on":
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  firmware:
+    name: Build and verify MICOAIR743 firmware
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+
+      - name: Install pinned Arm GNU toolchain
+        run: bash flight-commander/install-toolchain.sh
+
+      - name: Build and package firmware from the repository source tree
+        run: >-
+          python3 flight-commander/package-release.py
+          --output "$RUNNER_TEMP/firmware-release"
+          --build-dir "$RUNNER_TEMP/firmware-build"
+
+      - name: Upload verified firmware outputs
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: flight-commander-firmware-${{ github.sha }}
+          path: ${{ runner.temp }}/firmware-release/
+          if-no-files-found: error
+          retention-days: 7
+
+  configurator-tests:
+    name: Test Configurator source
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: configurator
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: yarn
+          cache-dependency-path: configurator/yarn.lock
+
+      - name: Install dependencies
+        run: |
+          corepack enable
+          corepack prepare yarn@1.22.22 --activate
+          yarn install --frozen-lockfile --non-interactive
+
+      - name: Run source tests
+        run: yarn test
+
+  windows-package:
+    name: Package and verify Windows x64
+    needs:
+      - firmware
+      - configurator-tests
+    runs-on: windows-latest
+    timeout-minutes: 50
+    defaults:
+      run:
+        working-directory: configurator
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: yarn
+          cache-dependency-path: configurator/yarn.lock
+
+      - name: Install dependencies
+        shell: pwsh
+        run: |
+          corepack enable
+          corepack prepare yarn@1.22.22 --activate
+          yarn install --frozen-lockfile --non-interactive
+
+      - name: Package and verify Windows x64
+        run: |
+          yarn package:windows
+          yarn verify:windows
+
+      - name: Upload verified Windows package
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: flight-commander-windows-${{ github.sha }}
+          path: configurator/out/**
+          if-no-files-found: error
+          retention-days: 7

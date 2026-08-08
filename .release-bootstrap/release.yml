@@ -1,0 +1,274 @@
+name: Publish release
+
+"on":
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: Exact master commit to publish
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-flight-commander-4.1.3
+  cancel-in-progress: false
+
+env:
+  RELEASE_VERSION: 4.1.3
+  RELEASE_TAG: v4.1.3
+
+jobs:
+  authorize:
+    name: Authorize official release
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.head_commit.message == 'Publish Flight Commander 4.1.3 release'
+    runs-on: ubuntu-latest
+    outputs:
+      release_sha: ${{ steps.release.outputs.sha }}
+    steps:
+      - name: Resolve and guard the release commit
+        id: release
+        env:
+          DISPATCH_SHA: ${{ inputs.expected_sha }}
+        run: |
+          set -euo pipefail
+          sha="$GITHUB_SHA"
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            sha="$DISPATCH_SHA"
+          fi
+          if [[ ! "$sha" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "A full 40-character release commit is required." >&2
+            exit 1
+          fi
+          master_sha="$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" refs/heads/master | cut -f1)"
+          if [[ "$master_sha" != "$sha" ]]; then
+            echo "Release commit $sha is not the current master commit $master_sha." >&2
+            exit 1
+          fi
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+  firmware:
+    name: Build verified Firmware 4.1.3
+    needs: authorize
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Check out the authorized source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ needs.authorize.outputs.release_sha }}
+          persist-credentials: false
+
+      - name: Install pinned Arm GNU toolchain
+        run: bash flight-commander/install-toolchain.sh
+
+      - name: Build and package the firmware
+        run: >-
+          python3 flight-commander/package-release.py
+          --output "$RUNNER_TEMP/firmware"
+          --build-dir "$RUNNER_TEMP/firmware-build"
+
+      - name: Upload verified firmware
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: release-firmware-${{ needs.authorize.outputs.release_sha }}
+          path: ${{ runner.temp }}/firmware/
+          if-no-files-found: error
+          retention-days: 14
+
+  windows:
+    name: Build verified Windows Configurator 4.1.3
+    needs: authorize
+    runs-on: windows-latest
+    timeout-minutes: 50
+    defaults:
+      run:
+        working-directory: configurator
+    steps:
+      - name: Check out the authorized source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ needs.authorize.outputs.release_sha }}
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: yarn
+          cache-dependency-path: configurator/yarn.lock
+
+      - name: Install, test, package, and verify
+        shell: pwsh
+        run: |
+          corepack enable
+          corepack prepare yarn@1.22.22 --activate
+          yarn install --frozen-lockfile --non-interactive
+          yarn test
+          yarn package:windows
+          yarn verify:windows
+
+      - name: Create canonical Windows archive
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $package = Get-ChildItem out -Directory | Where-Object { $_.Name -match 'win32-x64$' }
+          if (@($package).Count -ne 1) {
+            throw 'Expected exactly one verified win32-x64 package directory.'
+          }
+          Compress-Archive -Path "$($package.FullName)\*" -DestinationPath "$env:RUNNER_TEMP\FC-Windows-v4.1.3.zip" -CompressionLevel Optimal
+
+      - name: Upload verified Windows archive
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: release-windows-${{ needs.authorize.outputs.release_sha }}
+          path: ${{ runner.temp }}/FC-Windows-v4.1.3.zip
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    name: Publish verified release
+    needs:
+      - authorize
+      - firmware
+      - windows
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - name: Check out the authorized source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ needs.authorize.outputs.release_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Download verified release candidates
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          pattern: release-*-${{ needs.authorize.outputs.release_sha }}
+          path: ${{ runner.temp }}/candidates
+          merge-multiple: true
+
+      - name: Assemble and validate the canonical bundle
+        id: bundle
+        env:
+          RELEASE_SHA: ${{ needs.authorize.outputs.release_sha }}
+        run: |
+          set -euo pipefail
+          candidate="$RUNNER_TEMP/candidates"
+          bundle_dir="$RUNNER_TEMP/bundle"
+          mkdir -p "$bundle_dir"
+
+          windows="$candidate/FC-Windows-v4.1.3.zip"
+          firmware="$candidate/Flight-Commander-Firmware-4.1.3-MICOAIR743.hex"
+          firmware_source="$candidate/FC-Firmware-Source-v4.1.3.zip"
+          metadata="$candidate/firmware-release-metadata.json"
+          configurator_source="$bundle_dir/FC-Configurator-Source-v4.1.3.zip"
+          online_firmware="$RUNNER_TEMP/Flight-Commander-Firmware-4.1.3-MICOAIR743.hex"
+          short_firmware="$bundle_dir/FC-Firmware-v4.1.3-MICOAIR743.hex"
+          complete_bundle="$RUNNER_TEMP/Flight-Commander-v4.1.3.zip"
+
+          for path in "$windows" "$firmware" "$firmware_source" "$metadata"; do
+            test -s "$path" || { echo "Missing release candidate: $path" >&2; exit 1; }
+          done
+          python3 - "$metadata" configurator/package.json "$firmware" "$firmware_source" <<'PY'
+          import hashlib, json, pathlib, sys
+          metadata = json.loads(pathlib.Path(sys.argv[1]).read_text())
+          package = json.loads(pathlib.Path(sys.argv[2]).read_text())
+          firmware = pathlib.Path(sys.argv[3])
+          source = pathlib.Path(sys.argv[4])
+          digest = lambda path: hashlib.sha256(path.read_bytes()).hexdigest()
+          declaration = package['flightCommander']
+          assert package['version'] == metadata['version'] == '4.1.3'
+          assert declaration['firmwareChangedInRelease'] is True
+          assert declaration['firmwareReleaseVersion'] == '4.1.3'
+          assert declaration['firmwareReleaseSha256'] == metadata['firmware']['sha256'] == digest(firmware)
+          assert declaration['firmwareSourceVersion'] == '4.1.3'
+          assert declaration['firmwareSourceArchive'] == 'FC-Firmware-Source-v4.1.3.zip'
+          assert declaration['firmwareSourceSha256'] == metadata['source']['sha256'] == digest(source)
+          assert declaration['firmwareSourceRevision'] == metadata['source']['revision']
+          assert declaration['firmwareSourceTree'] == metadata['source']['tree']
+          PY
+
+          git archive --format=zip \
+            --prefix="Flight-Commander-Configurator-Source-v4.1.3/" \
+            --output="$configurator_source" \
+            "$RELEASE_SHA:configurator"
+          cp "$windows" "$bundle_dir/FC-Windows-v4.1.3.zip"
+          cp "$firmware" "$short_firmware"
+          cp "$firmware" "$online_firmware"
+          cp "$firmware_source" "$bundle_dir/FC-Firmware-Source-v4.1.3.zip"
+
+          mapfile -t canonical < <(find "$bundle_dir" -maxdepth 1 -type f -printf '%f\n' | sort)
+          expected=(
+            FC-Configurator-Source-v4.1.3.zip
+            FC-Firmware-Source-v4.1.3.zip
+            FC-Firmware-v4.1.3-MICOAIR743.hex
+            FC-Windows-v4.1.3.zip
+          )
+          if [[ "${canonical[*]}" != "${expected[*]}" ]]; then
+            echo "Complete release bundle does not contain exactly the four canonical files." >&2
+            printf 'Received: %s\n' "${canonical[*]}" >&2
+            exit 1
+          fi
+          (cd "$bundle_dir" && zip -X -9 "$complete_bundle" "${expected[@]}")
+          test "$(unzip -Z1 "$complete_bundle" | wc -l)" -eq 4
+
+          (
+            cd "$RUNNER_TEMP"
+            sha256sum \
+              "$(basename "$complete_bundle")" \
+              "$(basename "$online_firmware")"
+          ) > "$RUNNER_TEMP/SHA256SUMS.txt"
+          {
+            cat docs/releases/v4.1.3.md
+            printf '\n## Verified release assets\n\n```text\n'
+            cat "$RUNNER_TEMP/SHA256SUMS.txt"
+            printf '```\n'
+          } > "$RUNNER_TEMP/release-notes.md"
+          echo "complete_bundle=$complete_bundle" >> "$GITHUB_OUTPUT"
+          echo "online_firmware=$online_firmware" >> "$GITHUB_OUTPUT"
+          echo "notes=$RUNNER_TEMP/release-notes.md" >> "$GITHUB_OUTPUT"
+
+      - name: Publish the official GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_SHA: ${{ needs.authorize.outputs.release_sha }}
+          COMPLETE_BUNDLE: ${{ steps.bundle.outputs.complete_bundle }}
+          ONLINE_FIRMWARE: ${{ steps.bundle.outputs.online_firmware }}
+          NOTES: ${{ steps.bundle.outputs.notes }}
+        run: |
+          set -euo pipefail
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $RELEASE_TAG already exists; refusing to overwrite it." >&2
+            exit 1
+          fi
+          gh release create "$RELEASE_TAG" \
+            "$COMPLETE_BUNDLE#Flight Commander 4.1.3 complete release bundle" \
+            "$ONLINE_FIRMWARE#Flight Commander Firmware 4.1.3 for MICOAIR743" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$RELEASE_SHA" \
+            --title "Flight Commander 4.1.3" \
+            --notes-file "$NOTES" \
+            --latest
+
+          mapfile -t assets < <(gh api \
+            "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG" \
+            --jq '.assets[].name' | sort)
+          expected=(
+            Flight-Commander-Firmware-4.1.3-MICOAIR743.hex
+            Flight-Commander-v4.1.3.zip
+          )
+          if [[ "${assets[*]}" != "${expected[*]}" ]]; then
+            echo "Published release does not contain exactly the two public assets." >&2
+            printf 'Received: %s\n' "${assets[*]}" >&2
+            exit 1
+          fi
