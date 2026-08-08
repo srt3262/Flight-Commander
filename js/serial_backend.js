@@ -1021,6 +1021,38 @@ var SerialBackend = (function () {
                     `${diagnostic.messageName} frame decoded.`,
                 );
                 break;
+            case 'vehicle-heartbeat-timeout': {
+                const serialAge = diagnostic.millisecondsSinceSerialByte;
+                const frameAge = diagnostic.millisecondsSinceValidFrame;
+                const serialStatus = serialAge == null
+                    ? 'no inbound serial bytes were received'
+                    : serialAge <= 1500
+                        ? `inbound serial bytes are still arriving (${serialAge} ms ago)`
+                        : `last inbound serial bytes arrived ${serialAge} ms ago`;
+                const frameStatus = frameAge == null
+                    ? 'no valid MAVLink frame was decoded'
+                    : frameAge <= 1500
+                        ? `valid frames are still decoding (${frameAge} ms ago)`
+                        : `last valid frame decoded ${frameAge} ms ago`;
+                const lastMessage = $('<div>')
+                    .text(diagnostic.lastMessageName || 'none')
+                    .html();
+                GUI.log(
+                    `<span style="color: #d98f00">Vehicle heartbeat timed out ` +
+                    `after ${diagnostic.millisecondsSinceHeartbeat} ms; ${serialStatus}; ` +
+                    `${frameStatus}; ${diagnostic.receivedByteCount} inbound bytes, ` +
+                    `${diagnostic.decodedFrameCount} decoded frames, last message ` +
+                    `${lastMessage}.</span>`,
+                );
+                break;
+            }
+            case 'vehicle-heartbeat-restored':
+                GUI.log(
+                    `MAVLink vehicle heartbeat restored after link loss ` +
+                    `(${diagnostic.receivedByteCount} inbound bytes, ` +
+                    `${diagnostic.decodedFrameCount} decoded frames).`,
+                );
+                break;
             default:
                 break;
         }

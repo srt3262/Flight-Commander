@@ -321,6 +321,11 @@ export class MavlinkSession {
     this.reportedValidFrame = false;
     this.lastDiscoveryErrors = new Map();
     this.discoveryHeartbeatInFlight = false;
+    this.receivedByteCount = 0;
+    this.decodedFrameCount = 0;
+    this.lastSerialByteAt = 0;
+    this.lastDecodedFrameAt = 0;
+    this.lastDecodedMessageName = null;
 
     if (this.firmwareFamilyOverride != null) {
       this.validateFirmwareFamily(this.firmwareFamilyOverride);
@@ -388,6 +393,11 @@ export class MavlinkSession {
     this.reportedValidFrame = false;
     this.lastDiscoveryErrors.clear();
     this.discoveryHeartbeatInFlight = false;
+    this.receivedByteCount = 0;
+    this.decodedFrameCount = 0;
+    this.lastSerialByteAt = 0;
+    this.lastDecodedFrameAt = 0;
+    this.lastDecodedMessageName = null;
     const attachment = this.activeAttachment("receiving MAVLink data");
     this.readHandler = (event) => this.read(event, attachment);
     try {
@@ -459,11 +469,13 @@ export class MavlinkSession {
           }
         : null);
     if (event?.data != null && this.attachmentIsCurrent(activeAttachment)) {
+      const byteLength =
+        Number(event.data?.byteLength) ||
+        Number(event.data?.length) ||
+        0;
+      this.receivedByteCount += byteLength;
+      this.lastSerialByteAt = this.now();
       if (!this.reportedReceiveBytes) {
-        const byteLength =
-          Number(event.data?.byteLength) ||
-          Number(event.data?.length) ||
-          0;
         this.reportedReceiveBytes = true;
         this.emit("transportDiagnostic", {
           stage: "serial-bytes-received",
@@ -578,6 +590,9 @@ export class MavlinkSession {
     }
     const envelope = normalizeMavlinkEnvelope(frame);
     const { messageName, data, header } = envelope;
+    this.decodedFrameCount += 1;
+    this.lastDecodedFrameAt = this.now();
+    this.lastDecodedMessageName = messageName;
     if (!this.reportedValidFrame) {
       this.reportedValidFrame = true;
       this.emit("transportDiagnostic", {
@@ -891,6 +906,7 @@ export class MavlinkSession {
     }
 
     const firstConnection = !this.state.connected;
+    const linkWasLost = this.state.linkLost;
     if (firstConnection) {
       this.state.systemId = systemId;
       this.state.componentId = componentId;
@@ -914,6 +930,16 @@ export class MavlinkSession {
     this.state.modeName = modeName(this.state.vehicleType, customMode);
     this.state.systemStatus =
       numeric(field(data, "systemStatus", "system_status")) ?? 0;
+
+    if (linkWasLost) {
+      this.emit("transportDiagnostic", {
+        stage: "vehicle-heartbeat-restored",
+        generation: this.attachmentGeneration,
+        receivedByteCount: this.receivedByteCount,
+        decodedFrameCount: this.decodedFrameCount,
+        lastMessageName: this.lastDecodedMessageName,
+      });
+    }
 
     if (firstConnection) {
       // Publish the validated vehicle attachment before firmware detection can
@@ -1151,12 +1177,25 @@ export class MavlinkSession {
 
   checkHeartbeat() {
     if (!this.state.connected || !this.state.lastHeartbeatAt) return;
+    const now = this.now();
     if (
-      this.now() - this.state.lastHeartbeatAt <= this.heartbeatTimeoutMs ||
+      now - this.state.lastHeartbeatAt <= this.heartbeatTimeoutMs ||
       this.state.linkLost
     )
       return;
     this.state.linkLost = true;
+    this.emit("transportDiagnostic", {
+      stage: "vehicle-heartbeat-timeout",
+      generation: this.attachmentGeneration,
+      millisecondsSinceHeartbeat: now - this.state.lastHeartbeatAt,
+      millisecondsSinceSerialByte:
+        this.lastSerialByteAt > 0 ? now - this.lastSerialByteAt : null,
+      millisecondsSinceValidFrame:
+        this.lastDecodedFrameAt > 0 ? now - this.lastDecodedFrameAt : null,
+      receivedByteCount: this.receivedByteCount,
+      decodedFrameCount: this.decodedFrameCount,
+      lastMessageName: this.lastDecodedMessageName,
+    });
     this.emit("linkLost", this.snapshot());
     this.emit("state", this.snapshot());
   }
