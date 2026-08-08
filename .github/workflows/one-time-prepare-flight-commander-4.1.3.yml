@@ -8,6 +8,12 @@ name: One-time prepare Flight Commander 4.1.3
       - .github/workflows/one-time-prepare-flight-commander-4.1.3.yml
       - scripts/internal/flight-commander-4.1.3-transform.b64.part00
       - scripts/internal/flight-commander-4.1.3-transform.b64.part01
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - reopened
   workflow_dispatch:
 
 permissions:
@@ -35,6 +41,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          if grep -q '"version": "4.1.3"' package.json; then
+            echo 'Flight Commander 4.1.3 transformation is already present.'
+            exit 0
+          fi
           cat \
             scripts/internal/flight-commander-4.1.3-transform.b64.part00 \
             scripts/internal/flight-commander-4.1.3-transform.b64.part01 \
@@ -67,10 +77,10 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A -- ':!.github/workflows/one-time-prepare-flight-commander-4.1.3.yml' ':!scripts/internal/flight-commander-4.1.3-transform.b64.part00' ':!scripts/internal/flight-commander-4.1.3-transform.b64.part01'
+          git add -A -- ':!.github/workflows/one-time-prepare-flight-commander-4.1.3.yml' ':!.github/workflows/one-time-inspect-flight-commander-4.0.8-mavlink.yml' ':!scripts/internal/flight-commander-4.1.3-transform.b64.part00' ':!scripts/internal/flight-commander-4.1.3-transform.b64.part01'
           if git diff --cached --quiet; then
-            echo 'Transformation produced no source changes.'
-            exit 1
+            echo 'No uncommitted source transformation remains.'
+            exit 0
           fi
           git commit -m "Prepare Flight Commander 4.1.3 GCS and flasher fixes"
           git push origin HEAD:fix/flight-commander-4.1.3-gcs-flasher
