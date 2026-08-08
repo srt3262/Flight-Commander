@@ -71,7 +71,7 @@ jobs:
             $text = Get-Content -LiteralPath $Path -Raw
             $count = ([regex]::Matches($text, [regex]::Escape($Old))).Count
             if ($count -ne 1) {
-              throw "$Path: expected exactly one $Label marker, found $count."
+              throw ('{0}: expected exactly one {1} marker, found {2}.' -f $Path, $Label, $count)
             }
             Set-Content -LiteralPath $Path -Value $text.Replace($Old, $New) -Encoding utf8NoBOM
           }
