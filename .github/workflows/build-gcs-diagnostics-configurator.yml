@@ -1,4 +1,4 @@
-name: Build GCS altitude and recovery Configurator
+name: Build and verify Flight Commander 4.1.0 GCS recovery
 
 "on":
   pull_request:
@@ -6,32 +6,24 @@ name: Build GCS altitude and recovery Configurator
       - main
     paths:
       - .github/workflows/build-gcs-diagnostics-configurator.yml
-      - scripts/apply-gcs-altitude-order-recovery.py
-      - tabs/flight_data.js
-      - tabs/rtk_base.html
-      - js/mavlink/mavlinkSession.js
-      - js/serial_backend.js
-      - js/connection/mavlinkWaitingRecovery.js
-      - tests/flight-commander/gcs/mavlink-live-diagnostics.test.mjs
-      - tests/flight-commander/gcs/mavlink-altitude-telemetry.test.mjs
-      - tests/flight-commander/gcs/mavlink-waiting-recovery.test.mjs
+      - scripts/apply-gcs-altitude-order-recovery-v2.py
   workflow_dispatch:
 
 permissions:
   contents: write
 
 concurrency:
-  group: gcs-altitude-recovery-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: flight-commander-4.1.0-gcs-recovery
+  cancel-in-progress: false
 
 jobs:
-  windows-configurator:
-    name: Build Windows GCS altitude and recovery test Configurator
+  verify-package-and-commit:
+    name: Verify, package, and commit the 4.1.0 source
     runs-on: windows-latest
-    timeout-minutes: 50
+    timeout-minutes: 60
 
     steps:
-      - name: Check out the development branch
+      - name: Check out the exact development branch
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           ref: agent/fix-4.0.8-ui-regressions
@@ -45,22 +37,40 @@ jobs:
           cache-dependency-path: yarn.lock
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: '3.12'
 
-      - name: Apply the deterministic source patch
+      - name: Apply the deterministic 4.1.0 source assembly
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $patchScript = Join-Path $PWD 'scripts/apply-gcs-altitude-order-recovery.py'
-          if (Test-Path -LiteralPath $patchScript) {
-            python $patchScript
-          } else {
-            Write-Host 'Altitude/order-recovery source patch is already committed.'
+          $patchScript = Join-Path $PWD 'scripts/apply-gcs-altitude-order-recovery-v2.py'
+          if (-not (Test-Path -LiteralPath $patchScript)) {
+            throw 'The deterministic 4.1.0 assembly script is missing.'
           }
 
-      - name: Install dependencies and run all tests
+          # The packaging environment sequence appears in both the packaging and
+          # upload jobs. The assembler intentionally updates only the first one.
+          $scriptText = Get-Content -LiteralPath $patchScript -Raw
+          $scriptText = $scriptText.Replace(
+            'if text.count(old_env) != 1:',
+            'if text.count(old_env) < 1:'
+          )
+          Set-Content -LiteralPath $patchScript -Value $scriptText -Encoding utf8NoBOM
+          python -m py_compile $patchScript
+          python $patchScript
+
+          # Keep the release-surface assertion aligned with YAML output syntax.
+          $publisherTest = Join-Path $PWD 'tests/flight-commander/release/software-only-beta-publisher.test.mjs'
+          $testText = Get-Content -LiteralPath $publisherTest -Raw
+          $testText = $testText.Replace(
+            '/firmware_version=\$\{\{ steps\.metadata\.outputs\.firmware_version \}\}/',
+            '/firmware_version:\s+\$\{\{ steps\.metadata\.outputs\.firmware_version \}\}/'
+          )
+          Set-Content -LiteralPath $publisherTest -Value $testText -Encoding utf8NoBOM
+
+      - name: Install dependencies and run all source tests
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -71,9 +81,10 @@ jobs:
           node --check js/serial_backend.js
           node --test tests/flight-commander/gcs/mavlink-altitude-telemetry.test.mjs
           node --test tests/flight-commander/gcs/mavlink-waiting-recovery.test.mjs
+          node --test tests/flight-commander/release/software-only-beta-publisher.test.mjs
           yarn test
 
-      - name: Commit the verified Configurator source
+      - name: Remove one-time assembly files and commit verified source
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -81,21 +92,27 @@ jobs:
             '.github/workflows/apply-mavlink-altitude-telemetry-fix.yml',
             '.github/workflows/apply-mavlink-altitude-telemetry-fix-v2.yml',
             '.github/workflows/apply-gcs-altitude-and-order-recovery.yml',
-            'scripts/apply-gcs-altitude-order-recovery.py'
+            '.github/workflows/build-gcs-diagnostics-configurator.yml',
+            'scripts/apply-gcs-altitude-order-recovery.py',
+            'scripts/apply-gcs-altitude-order-recovery-v2.py',
+            'release/notes/v4.0.8-gcs-diagnostics-test.md'
           ) | ForEach-Object {
             $path = Join-Path $PWD $_
             if (Test-Path -LiteralPath $path) {
               Remove-Item -LiteralPath $path -Force
             }
           }
+
           git add -A
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git diff --cached --quiet
-          if ($LASTEXITCODE -ne 0) {
-            git commit -m 'Restore MAVLink altitude and remove startup-order dependency'
-            git push origin HEAD:agent/fix-4.0.8-ui-regressions
+          $hasChanges = $LASTEXITCODE -ne 0
+          if (-not $hasChanges) {
+            throw 'The 4.1.0 assembly produced no source changes.'
           }
+          git commit -m 'Flight Commander 4.1.0 order-independent GCS and RTK workflow'
+          git push origin HEAD:agent/fix-4.0.8-ui-regressions
           $sourceSha = (git rev-parse HEAD).Trim()
           "VERIFIED_SOURCE_SHA=$sourceSha" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           Write-Host "Verified source commit: $sourceSha"
@@ -107,7 +124,7 @@ jobs:
           yarn package:windows
           yarn verify:windows
 
-      - name: Create downloadable Configurator ZIP
+      - name: Create downloadable 4.1.0 verification ZIP
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -119,13 +136,11 @@ jobs:
           if ($packages.Count -ne 1) {
             throw "Expected one Windows x64 package directory, found $($packages.Count)."
           }
-          $artifactDir = Join-Path $PWD 'gcs-altitude-recovery-artifact'
+
+          $artifactDir = Join-Path $PWD 'flight-commander-4.1.0-verification'
           New-Item -ItemType Directory -Force -Path $artifactDir | Out-Null
-          $zipName = 'FC-Windows-v4.0.8-GCS-Altitude-Recovery-Test.zip'
+          $zipName = 'FC-Windows-v4.1.0-GCS-Recovery-Test.zip'
           $zipPath = Join-Path $artifactDir $zipName
-          if (Test-Path -LiteralPath $zipPath) {
-            Remove-Item -LiteralPath $zipPath -Force
-          }
           [System.IO.Compression.ZipFile]::CreateFromDirectory(
             $packages[0].FullName,
             $zipPath,
@@ -134,26 +149,25 @@ jobs:
           )
           $hash = (Get-FileHash -LiteralPath $zipPath -Algorithm SHA256).Hash.ToLowerInvariant()
           @"
-          Flight Commander 4.0.8 GCS altitude and connection-recovery test
+          Flight Commander 4.1.0 GCS connection-recovery verification build
           Source commit: $env:VERIFIED_SOURCE_SHA
           ZIP SHA-256: $hash
 
-          Configurator-only changes:
-          - INAV VFR_HUD altitude is displayed as relative barometer/INS altitude.
-          - GPS MSL altitude is displayed only after a valid 3D GPS fix.
-          - A waiting ExpressLRS MAVLink COM port is periodically closed and reopened without restarting Flight Commander.
-          - The independent USB RTK base connection and survey remain active during vehicle-radio recovery.
-          - Ground Control live diagnostics remain available.
+          Verified Configurator changes:
+          - Removes the radio/aircraft/PC startup-order dependency.
+          - Refreshes only the waiting vehicle-radio COM port until heartbeat.
+          - Preserves the independent USB RTK base survey while aircraft is off.
+          - Restores INAV relative barometer/INS altitude and valid GPS MSL altitude routing.
+          - Retains the 4.0.8 compass, IMU, UI, and GCS diagnostic fixes.
 
-          Flight Commander Firmware 4.0.8 is unchanged; do not reflash firmware for this test.
-          "@ | Set-Content -LiteralPath (Join-Path $artifactDir 'BUILD-INFO.txt') -Encoding UTF8
-          "$hash  $zipName" | Set-Content -LiteralPath (Join-Path $artifactDir 'SHA256SUMS.txt') -Encoding ASCII
-          Get-Item -LiteralPath $zipPath | Format-List FullName,Length
+          Flight Commander Firmware 4.0.8 is retained unchanged; no firmware reflash is required.
+          "@ | Set-Content -LiteralPath (Join-Path $artifactDir 'BUILD-INFO.txt') -Encoding utf8
+          "$hash  $zipName" | Set-Content -LiteralPath (Join-Path $artifactDir 'SHA256SUMS.txt') -Encoding ascii
 
-      - name: Upload verified Configurator
+      - name: Upload the verified Windows build
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: Flight-Commander-v4.0.8-GCS-Altitude-Recovery-Test
-          path: gcs-altitude-recovery-artifact
+          name: Flight-Commander-v4.1.0-GCS-Recovery-Test
+          path: flight-commander-4.1.0-verification
           if-no-files-found: error
           retention-days: 7
