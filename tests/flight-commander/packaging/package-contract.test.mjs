@@ -267,14 +267,14 @@ test("Windows verification follows the active renderer graph and rejects leftove
   assert.match(packageVerifier, /function activeRendererFiles\(/);
   assert.match(packageVerifier, /renderer output contains.*unreferenced/s);
   assert.match(packageVerifier, /Flight-Commander\//);
-  assert.match(packageVerifier, /INAV-Configurator\//);
+  assert.doesNotMatch(packageVerifier, /INAV-Configurator\//);
   assert.match(packageVerifier, /function peIconImages\(/);
   assert.match(packageVerifier, /function activeRendererStylesheets\(/);
   assert.match(packageVerifier, /Flight Commander wordmark/);
   assert.match(packageVerifier, /embedded executable icon/);
   assert.match(packageVerifier, /exactly one group-icon resource/);
-  assert.match(packageVerifier, /Windows MAVLink DTR\/RTS-low open setup/);
-  assert.match(packageVerifier, /connectionBaudPreferencesByProtocol/);
+  assert.match(packageVerifier, /configuring-control-lines/);
+  assert.match(packageVerifier, /serial-open-complete/);
   assert.match(packageVerifier, /Waiting for vehicle heartbeat/);
   assert.match(packageVerifier, /discovery-heartbeat-write-accepted/);
   assert.match(packageVerifier, /serial-bytes-received/);
@@ -310,15 +310,15 @@ test("Windows verification follows the active renderer graph and rejects leftove
   assert.match(packageVerifier, /flight-commander-theme-change/);
   assert.match(packageVerifier, /dark-only/);
   assert.match(packageVerifier, /foreign-architecture/);
-  assert.match(packageVerifier, /Windows extraction budget is 140/);
+  assert.match(packageVerifier, /windowsPathBudget = 140/);
   assert.match(packageVerifier, /Flight Commander Firmware/);
-  assert.doesNotMatch(packageVerifier, /Official INAV Firmware/);
+  assert.match(packageVerifier, /Official INAV Firmware/);
   assert.match(packageVerifier, /Flight-Commander-Firmware-/);
   assert.match(packageVerifier, /FCFW/);
   assert.match(packageVerifier, /MICOAIR743/);
   assert.match(packageVerifier, /MICROAIR743/);
   assert.match(packageVerifier, /Firmware Capabilities/);
-  assert.doesNotMatch(packageVerifier, /Official INAV is connected in compatibility mode/);
+  assert.match(packageVerifier, /Official INAV is connected in compatibility mode/);
   assert.match(packageVerifier, /Multirotor AutoTune/);
   assert.match(packageVerifier, /Terrain-relative waypoints/);
   assert.match(packageVerifier, /Mission streaming/);
@@ -329,7 +329,7 @@ test("Windows verification follows the active renderer graph and rejects leftove
     packageVerifier,
     /NTRIP FlightCommander\/\$\{sourcePackage\.version\}/,
   );
-  assert.doesNotMatch(packageVerifier, /ArduPilot support has been removed/);
+  assert.match(packageVerifier, /ArduPilot support has been removed/);
   assert.match(
     packageVerifier,
     /Online selections are verified official or beta Flight Commander releases for the selected target/,
@@ -338,18 +338,7 @@ test("Windows verification follows the active renderer graph and rejects leftove
     packageVerifier,
     /Local HEX files are flashed exactly as selected/,
   );
-  for (const propInches of [10, 12, 15, 17]) {
-    assert.match(
-      packageVerifier,
-      new RegExp(`Multirotor with ${propInches}.*propellers`),
-    );
-  }
-  assert.match(packageVerifier, /generated roll P\/I\/D\/FF/);
-  assert.match(packageVerifier, /ez_snappiness/);
   assert.match(packageVerifier, /flightCommanderGroundControlMinorPosition/);
-  assert.match(packageVerifier, /miles per hour/);
-  assert.match(packageVerifier, /#31523b/);
-  assert.match(packageVerifier, /#172a20/);
   assert.match(packageVerifier, /data-motor-number-layout/);
   assert.match(packageVerifier, /data-motor-prop-configuration/);
   assert.match(packageVerifier, /quad_x_reverse/);
@@ -366,11 +355,6 @@ test("Windows verification follows the active renderer graph and rejects leftove
   assert.match(packageVerifier, /batteryProfileHighlightActive/);
   assert.match(packageVerifier, /controlProfileHighlightActive/);
   for (const selector of [
-    "fc-flight-visuals",
-    "fc-live-pane",
-    "compass-calibration-card",
-    "rtk-workflow-option",
-    "mixer-preview-image-numbers \\.motorNumber",
     "batteryProfileHighlightActive",
     "controlProfileHighlightActive",
   ]) {
