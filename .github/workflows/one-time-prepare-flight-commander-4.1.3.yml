@@ -27,7 +27,7 @@ jobs:
   transform:
     name: Transform and test 4.1.3 branch
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 45
 
     steps:
       - name: Check out transformation branch
@@ -67,6 +67,25 @@ jobs:
           python3 "$transform_path"
           rm -f "$transform_path"
 
+      - name: Inspect retained Flight Commander Firmware 4.0.8 MAVLink identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/fc-fw-4.0.8"
+          rm -rf "$work"
+          mkdir -p "$work" docs/internal
+          unzip -q release/firmware/Flight-Commander-Firmware-Source-v4.0.8.zip -d "$work"
+          output=docs/internal/flight-commander-4.0.8-mavlink-identity-inspection.txt
+          {
+            echo 'Flight Commander Firmware 4.0.8 MAVLink identity inspection'
+            echo
+            echo '--- identity and AUTOPILOT_VERSION references ---'
+            grep -RInE --include='*.c' --include='*.h' --include='*.cpp' \
+              'AUTOPILOT_VERSION|flight_custom_version|mavlink_msg_autopilot_version|MAV_CMD_REQUEST_AUTOPILOT_CAPABILITIES|MAV_CMD_REQUEST_MESSAGE|FLIGHT_COMMANDER_INFO_SIGNATURE|FLIGHT_COMMANDER_CAPABILITIES' \
+              "$work" | sed "s#^$work/##" | head -n 2000 || true
+          } > "$output"
+          test -s "$output"
+
       - name: Set up Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
@@ -74,25 +93,60 @@ jobs:
           cache: yarn
           cache-dependency-path: yarn.lock
 
-      - name: Install and run source tests
+      - name: Install dependencies
         shell: bash
         run: |
           set -euo pipefail
           corepack enable
           corepack prepare yarn@1.22.22 --activate
           yarn install --frozen-lockfile --non-interactive
-          yarn test
 
-      - name: Commit the tested transformation
+      - name: Run source tests and preserve complete diagnostics
+        id: tests
         shell: bash
+        run: |
+          set +e
+          yarn test > /tmp/flight-commander-4.1.3-test.log 2>&1
+          status=$?
+          set -e
+          mkdir -p docs/internal
+          cp /tmp/flight-commander-4.1.3-test.log \
+            docs/internal/flight-commander-4.1.3-test.log
+          printf 'test_status=%s\n' "$status" > \
+            docs/internal/flight-commander-4.1.3-test-status.txt
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          tail -n 300 /tmp/flight-commander-4.1.3-test.log || true
+          exit 0
+
+      - name: Commit transformed source and diagnostics
+        shell: bash
+        env:
+          TEST_STATUS: ${{ steps.tests.outputs.status }}
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A -- ':!.github/workflows/one-time-prepare-flight-commander-4.1.3.yml' ':!.github/workflows/one-time-inspect-flight-commander-4.0.8-mavlink.yml' ':!scripts/internal/flight-commander-4.1.3-transform.b64.part00' ':!scripts/internal/flight-commander-4.1.3-transform.b64.part01'
-          if git diff --cached --quiet; then
-            echo 'No uncommitted source transformation remains.'
-            exit 0
+          git add -A -- \
+            ':!.github/workflows/one-time-prepare-flight-commander-4.1.3.yml' \
+            ':!.github/workflows/one-time-inspect-flight-commander-4.0.8-mavlink.yml' \
+            ':!scripts/internal/flight-commander-4.1.3-transform.b64.part00' \
+            ':!scripts/internal/flight-commander-4.1.3-transform.b64.part01'
+          if ! git diff --cached --quiet; then
+            if [ "$TEST_STATUS" = '0' ]; then
+              git commit -m "Prepare Flight Commander 4.1.3 GCS and flasher fixes"
+            else
+              git commit -m "Preserve Flight Commander 4.1.3 transformation diagnostics"
+            fi
+            git push origin HEAD:fix/flight-commander-4.1.3-gcs-flasher
           fi
-          git commit -m "Prepare Flight Commander 4.1.3 GCS and flasher fixes"
-          git push origin HEAD:fix/flight-commander-4.1.3-gcs-flasher
+
+      - name: Require passing source tests
+        shell: bash
+        env:
+          TEST_STATUS: ${{ steps.tests.outputs.status }}
+        run: |
+          set -euo pipefail
+          if [ "$TEST_STATUS" != '0' ]; then
+            echo "Flight Commander 4.1.3 source tests failed with status $TEST_STATUS."
+            exit "$TEST_STATUS"
+          fi
