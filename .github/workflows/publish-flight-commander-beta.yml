@@ -29,6 +29,8 @@ jobs:
       contents: read
     outputs:
       version: ${{ steps.metadata.outputs.version }}
+      firmware_version: ${{ steps.metadata.outputs.firmware_version }}
+      firmware_changed_in_release: ${{ steps.metadata.outputs.firmware_changed_in_release }}
       tag: ${{ steps.metadata.outputs.tag }}
       release_sha: ${{ steps.metadata.outputs.release_sha }}
       firmware_file: ${{ steps.metadata.outputs.firmware_file }}
@@ -69,14 +71,18 @@ jobs:
           assert manifest['version'] == version, (manifest['version'], version)
 
           fc = package['flightCommander']
-          assert fc['firmwareChangedInRelease'] is True
+          firmware_version = fc['firmwareReleaseVersion']
+          firmware_changed = fc['firmwareChangedInRelease']
+          assert isinstance(firmware_changed, bool)
           assert fc['firmwareSourceAvailable'] is True
-          assert fc['firmwareReleaseVersion'] == version
-          assert fc['firmwareSourceVersion'] == version
+          assert fc['firmwareSourceVersion'] == firmware_version
           assert fc['firmwareMajor'] == int(version.split('.', 1)[0])
+          assert int(firmware_version.split('.', 1)[0]) == fc['firmwareMajor']
+          if firmware_changed:
+              assert firmware_version == version
 
-          firmware_name = f'Flight-Commander-Firmware-{version}-MICOAIR743.hex'
-          source_name = f'Flight-Commander-Firmware-Source-v{version}.zip'
+          firmware_name = f'Flight-Commander-Firmware-{firmware_version}-MICOAIR743.hex'
+          source_name = f'Flight-Commander-Firmware-Source-v{firmware_version}.zip'
           firmware = Path('release/firmware') / firmware_name
           source = Path('release/firmware') / source_name
           assert firmware.is_file(), firmware
@@ -93,13 +99,13 @@ jobs:
           with zipfile.ZipFile(source) as archive:
               assert archive.testzip() is None
               roots = {name.split('/', 1)[0] for name in archive.namelist() if name}
-              assert roots == {f'Flight-Commander-Firmware-Source-v{version}'}
+              assert roots == {f'Flight-Commander-Firmware-Source-v{firmware_version}'}
               manifest_name = next(
                   name for name in archive.namelist()
                   if name.endswith('/RELEASE-MANIFEST.json')
               )
               source_manifest = json.loads(archive.read(manifest_name))
-          assert source_manifest['version'] == version
+          assert source_manifest['version'] == firmware_version
           assert source_manifest['target'] == 'MICOAIR743'
           assert source_manifest['artifact']['sha256'] == firmware_hash
           assert source_manifest['source_revision'] == fc['firmwareSourceRevision']
@@ -111,13 +117,17 @@ jobs:
           output = Path(os.environ['GITHUB_OUTPUT'])
           with output.open('a', encoding='utf-8') as stream:
               stream.write(f'version={version}\n')
+              stream.write(f'firmware_version={firmware_version}\n')
+              stream.write(f'firmware_changed_in_release={str(firmware_changed).lower()}\n')
               stream.write(f'tag=v{version}-beta\n')
               stream.write(f'release_sha={os.environ["GITHUB_SHA"]}\n')
               stream.write(f'firmware_file={firmware_name}\n')
               stream.write(f'firmware_source_file={source_name}\n')
               stream.write(f'notes_file={notes.as_posix()}\n')
 
-          print(f'Flight Commander {version} retained release inputs: PASS')
+          release_kind = 'firmware-changing' if firmware_changed else 'Configurator-only'
+          print(f'Flight Commander {version} {release_kind} retained inputs: PASS')
+          print(f'Published firmware version: {firmware_version}')
           print(f'Firmware SHA-256: {firmware_hash}')
           print(f'Source SHA-256:   {source_hash}')
           PY
@@ -166,6 +176,8 @@ jobs:
         shell: pwsh
         env:
           VERSION: ${{ needs.validate-release.outputs.version }}
+          FIRMWARE_VERSION: ${{ needs.validate-release.outputs.firmware_version }}
+          FIRMWARE_CHANGED_IN_RELEASE: ${{ needs.validate-release.outputs.firmware_changed_in_release }}
           RELEASE_SHA: ${{ needs.validate-release.outputs.release_sha }}
           FIRMWARE_FILE: ${{ needs.validate-release.outputs.firmware_file }}
           FIRMWARE_SOURCE_FILE: ${{ needs.validate-release.outputs.firmware_source_file }}
@@ -218,15 +230,15 @@ jobs:
             $false
           )
 
-          $firmwareComponent = Join-Path $components "FC-Firmware-v$env:VERSION-MICOAIR743.hex"
-          $firmwareSourceComponent = Join-Path $components "FC-Firmware-Source-v$env:VERSION.zip"
+          $firmwareComponent = Join-Path $components "FC-Firmware-v$env:FIRMWARE_VERSION-MICOAIR743.hex"
+          $firmwareSourceComponent = Join-Path $components "FC-Firmware-Source-v$env:FIRMWARE_VERSION.zip"
           Copy-Item -LiteralPath (Join-Path $PWD "release/firmware/$env:FIRMWARE_FILE") -Destination $firmwareComponent
           Copy-Item -LiteralPath (Join-Path $PWD "release/firmware/$env:FIRMWARE_SOURCE_FILE") -Destination $firmwareSourceComponent
 
           $expected = @(
             "FC-Configurator-Source-v$env:VERSION.zip",
-            "FC-Firmware-Source-v$env:VERSION.zip",
-            "FC-Firmware-v$env:VERSION-MICOAIR743.hex",
+            "FC-Firmware-Source-v$env:FIRMWARE_VERSION.zip",
+            "FC-Firmware-v$env:FIRMWARE_VERSION-MICOAIR743.hex",
             "FC-Windows-v$env:VERSION.zip"
           ) | Sort-Object
           $componentFiles = @(Get-ChildItem -LiteralPath $components -File | Sort-Object Name)
@@ -276,6 +288,8 @@ jobs:
             commitSha = $env:RELEASE_SHA
             componentCount = 4
             completeBundle = [IO.Path]::GetFileName($completeZip)
+            firmwareVersion = $env:FIRMWARE_VERSION
+            firmwareChangedInRelease = [System.Convert]::ToBoolean($env:FIRMWARE_CHANGED_IN_RELEASE)
           }
           $releaseManifest | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $stage 'release-manifest.json') -Encoding utf8
 
