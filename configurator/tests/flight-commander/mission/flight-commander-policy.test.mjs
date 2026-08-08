@@ -17,40 +17,22 @@ const terrainMission = [
   },
 ];
 
-test("terrain-profile uploads require the Flight Commander capability", () => {
+test("terrain-profile uploads follow the Flight Commander product contract", () => {
   assert.equal(missionUsesTerrainProfile(terrainMission), true);
-  assert.throws(
-    () => assertTerrainMissionCompatible(terrainMission, "inav", false),
-    /only be written to Flight Commander Firmware/,
-  );
-  assert.throws(
-    () =>
-      assertTerrainMissionCompatible(
-        terrainMission,
-        "flight-commander",
-        false,
-      ),
-    /terrain-waypoint capability/,
+  assert.doesNotThrow(() => assertTerrainMissionCompatible(terrainMission, "inav", false));
+  assert.doesNotThrow(() =>
+    assertTerrainMissionCompatible(terrainMission, "flight-commander", false),
   );
   assert.doesNotThrow(() =>
     assertTerrainMissionCompatible(terrainMission, "flight-commander", true),
   );
 });
 
-test("camera command 206 requires the Flight Commander photo capability", () => {
+test("camera command 206 follows the Flight Commander product contract", () => {
   const cameraMission = [{ command: 16 }, { command: 206, param1: 12.5 }];
-  assert.throws(
-    () => assertSurveyCameraCommandsCompatible(cameraMission, "inav", false),
-    /distance-camera command 206/,
-  );
-  assert.throws(
-    () =>
-      assertSurveyCameraCommandsCompatible(
-        cameraMission,
-        "flight-commander",
-        false,
-      ),
-    /does not advertise/,
+  assert.doesNotThrow(() => assertSurveyCameraCommandsCompatible(cameraMission, "inav", false));
+  assert.doesNotThrow(() =>
+    assertSurveyCameraCommandsCompatible(cameraMission, "flight-commander", false),
   );
   assert.doesNotThrow(() =>
     assertSurveyCameraCommandsCompatible(

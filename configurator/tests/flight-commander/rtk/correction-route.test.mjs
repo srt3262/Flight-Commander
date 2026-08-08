@@ -32,7 +32,7 @@ test("RTK correction routing supports wired Flight Commander MSP injection", () 
   }), { available: true, transport: "MSP" });
 });
 
-test("unidentified firmware cannot receive Flight Commander GCS base corrections", () => {
+test("identity metadata never blocks Flight Commander GCS base corrections", () => {
   const route = resolveRtkCorrectionRoute({
     mavlinkState: {
       connected: true,
@@ -40,6 +40,5 @@ test("unidentified firmware cannot receive Flight Commander GCS base corrections
       flightCommanderCapabilities: 0,
     },
   });
-  assert.equal(route.available, false);
-  assert.match(route.reason, /require supported Flight Commander Firmware/);
+  assert.deepEqual(route, { available: true, transport: "MAVLink" });
 });

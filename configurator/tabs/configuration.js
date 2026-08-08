@@ -11,7 +11,6 @@ import VTX from './../js/vtx';
 import i18n from './../js/localization';
 import Settings from './../js/settings';
 import features from './../js/feature_framework';
-import { firmwareFeatureSupport } from './../js/flightCommander/firmwareIdentity';
 import {
     EXTERNAL_COMPASS_SELECTION_DISABLED,
     EXTERNAL_COMPASS_SELECTION_DRONECAN,
@@ -25,15 +24,8 @@ import { DRONECAN_NODE_ID_DISABLED } from './../js/flightCommander/dualGps';
 const configurationTab = {};
 
 configurationTab.initialize = function (callback, scrollPosition) {
-    const firmwareIdentity = FC.CONFIG.firmwareIdentity;
-    const supportsHeadingFusion = firmwareFeatureSupport(
-        firmwareIdentity,
-        'headingFusion',
-    ).enabled;
-    const supportsDronecanConfig = firmwareFeatureSupport(
-        firmwareIdentity,
-        'dronecanNodeConfig',
-    ).enabled;
+    const supportsHeadingFusion = true;
+    const supportsDronecanConfig = true;
 
     if (GUI.active_tab !== this) {
         GUI.active_tab = this;

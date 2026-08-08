@@ -473,19 +473,19 @@ if (packageManifest.version !== sourcePackage.version) {
 if (packageManifest.main !== ".vite/build/main.js") {
   fail(`packaged main entry is ${packageManifest.main}`);
 }
-if (sourcePackage.version !== "4.1.3") {
-  fail(`source version is ${sourcePackage.version}; expected 4.1.3`);
+if (sourcePackage.version !== "4.1.4") {
+  fail(`source version is ${sourcePackage.version}; expected 4.1.4`);
 }
-if (sourcePackage.flightCommander?.firmwareReleaseVersion !== "4.1.3") {
+if (sourcePackage.flightCommander?.firmwareReleaseVersion !== "4.1.4") {
   fail(
-    `published firmware version is ${sourcePackage.flightCommander?.firmwareReleaseVersion}; expected 4.1.3`,
+    `published firmware version is ${sourcePackage.flightCommander?.firmwareReleaseVersion}; expected 4.1.4`,
   );
 }
 if (sourcePackage.flightCommander?.firmwareChangedInRelease !== true) {
-  fail("Flight Commander 4.1.3 must publish coordinated Firmware 4.1.3");
+  fail("Flight Commander 4.1.4 must publish coordinated Firmware 4.1.4");
 }
-if (sourcePackage.flightCommander?.firmwareSourceVersion !== "4.1.3") {
-  fail("Flight Commander 4.1.3 must publish the Firmware 4.1.3 source archive");
+if (sourcePackage.flightCommander?.firmwareSourceVersion !== "4.1.4") {
+  fail("Flight Commander 4.1.4 must publish the Firmware 4.1.4 source archive");
 }
 if (!sourcePackage.description.includes("flight controller")) {
   fail(`package description is ${sourcePackage.description}`);
@@ -699,7 +699,7 @@ for (const marker of [
   "MAVLINK_SESSION_DETACHED",
   "MAVLink host timer",
   "MAV_CMD_REQUEST_AUTOPILOT_CAPABILITIES",
-  "legacy-msp-profile",
+  "flight-commander-product-policy",
   "Auto protocol (selected baud)",
   "flightDataMapPane",
   "Make HUD major",
@@ -765,6 +765,7 @@ for (const marker of [
   }
 }
 for (const retiredRuntime of [
+  "legacy-msp-profile",
   "Load included Flight Commander Firmware",
   "Use Bundled Firmware",
   "is available online and bundled",

@@ -374,7 +374,7 @@ test("Ground Control mission reads are scoped to one MAVLink attachment", () => 
   );
   assert.match(
     flightData,
-    /withAbortSignal\([\s\S]*?waitForFirmwareFamily\(\)[\s\S]*?abortController\.signal/,
+    /const state = mavlinkSession\.snapshot\(\)[\s\S]*?!state\.connected \|\| state\.linkLost/,
   );
   assert.match(
     flightData,
@@ -393,7 +393,7 @@ test("Ground Control mission reads are scoped to one MAVLink attachment", () => 
 test("first heartbeat distinguishes live telemetry from control readiness", () => {
   assert.match(
     flightData,
-    /live telemetry is active; '\s*\+\s*'supported controls unlock after identification and safety checks\./,
+    /live telemetry is active; '\s*\+\s*'Flight Commander controls are available after link and aircraft-profile safety checks\./,
   );
   assert.doesNotMatch(
     flightData,

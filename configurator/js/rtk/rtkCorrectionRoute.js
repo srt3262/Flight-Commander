@@ -1,33 +1,14 @@
 "use strict";
 
-import {
-  FLIGHT_COMMANDER_CAPABILITIES,
-  FIRMWARE_FAMILY_FLIGHT_COMMANDER,
-} from "../flightCommander/firmwareIdentity.js";
-
-const CAPABILITY = FLIGHT_COMMANDER_CAPABILITIES.GCS_RTK_BASE;
-
-function capabilityEnabled(mask) {
-  return (Number(mask) & CAPABILITY) === CAPABILITY;
-}
-
 export function resolveRtkCorrectionRoute(context = {}) {
   const mavlinkState = context.mavlinkState ?? {};
-  if (
-    mavlinkState.connected === true &&
-    mavlinkState.firmwareFamily === FIRMWARE_FAMILY_FLIGHT_COMMANDER &&
-    capabilityEnabled(mavlinkState.flightCommanderCapabilities)
-  ) {
+  if (mavlinkState.connected === true) {
     return { available: true, transport: "MAVLink" };
   }
 
-  const identity = context.firmwareIdentity;
   if (
     context.connectionValid === true &&
-    context.connectionProtocol === "msp" &&
-    identity?.family === FIRMWARE_FAMILY_FLIGHT_COMMANDER &&
-    identity?.protocolSupported === true &&
-    capabilityEnabled(identity.capabilities)
+    context.connectionProtocol === "msp"
   ) {
     return { available: true, transport: "MSP" };
   }
@@ -38,7 +19,7 @@ export function resolveRtkCorrectionRoute(context = {}) {
     available: false,
     transport: null,
     reason: unsupportedConnection
-      ? "USB RTK base corrections require supported Flight Commander Firmware with the advertised GCS_RTK_BASE capability."
+      ? "RTK correction forwarding requires an active Flight Commander MSP or MAVLink transport."
       : "Connect Flight Commander Firmware over MSP or MAVLink to forward corrections.",
   };
 }

@@ -83,8 +83,8 @@ Ports assigns functions to physical UARTs and the DroneCAN bus.
 - Keep at least one known MSP setup path.
 - A UART RTK rover still uses the normal **GPS** serial function; RTK describes
   its correction capability, not a separate electrical protocol.
-- DroneCAN GPS/RTK requires the advertised DroneCAN capabilities, a valid bus
-  bitrate, correct termination, and node discovery/selection.
+- DroneCAN GPS/RTK requires a valid bus bitrate, correct termination, and node
+  discovery/selection; it is part of the Flight Commander feature contract.
 
 Save/reboot after port changes. If the setup link disappears, reconnect through
 a different known MSP port or use a controlled recovery procedure.
@@ -143,12 +143,10 @@ changes backed by logs.
 
 ## Firmware Features
 
-Firmware Features displays the Flight Commander identity schema, protocol-baseline
-version, target, capability bitmap, and one card per optional feature. These
-cards are protocol gates. A disabled card means the Configurator will not infer
-support from a version number or UI selection. Controllers without a supported
-FCFW identity are rejected before configuration tabs unlock; there is no
-stock-firmware compatibility mode.
+Firmware Features displays the optional Flight Commander identity schema,
+protocol-baseline version, target, capability bitmap, and one card per product
+feature. The cards describe the Flight Commander contract; identity metadata is
+informational and never gates configuration tabs or features.
 
 ## GPS and RTK
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify the Flight Commander 4.1.3 MICOAIR743 source and HEX contract."""
+"""Verify the Flight Commander 4.1.4 MICOAIR743 source and HEX contract."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ import re
 import subprocess
 import sys
 
-VERSION = "4.1.3"
+VERSION = "4.1.4"
 TARGET = "MICOAIR743"
 UPSTREAM_RELEASE = "9.1.0"
 UPSTREAM_COMMIT = "e519b69b02e27c8bdc03b4a0889f1baaae211a54"
@@ -64,7 +64,7 @@ def require_text(path: Path, patterns: list[str]) -> None:
     text = path.read_text(encoding="utf-8")
     for pattern in patterns:
         if not re.search(pattern, text, re.MULTILINE | re.DOTALL):
-            fail(f"{path}: required 4.1.3 source contract is missing: {pattern}")
+            fail(f"{path}: required 4.1.4 source contract is missing: {pattern}")
 
 
 def verify_upstream_baseline(root: Path) -> None:
@@ -111,13 +111,13 @@ def verify_upstream_baseline(root: Path) -> None:
 def verify_source(root: Path) -> None:
     verify_upstream_baseline(root)
     require_text(root / "CMakeLists.txt", [
-        r"set\(FLIGHT_COMMANDER_FIRMWARE_VERSION 4\.1\.3\)",
+        r"set\(FLIGHT_COMMANDER_FIRMWARE_VERSION 4\.1\.4\)",
         r"FLIGHT_COMMANDER_SOURCE_REVISION",
     ])
     require_text(root / "src/main/build/flight_commander.h", [
         r"FLIGHT_COMMANDER_VERSION_MAJOR 4",
         r"FLIGHT_COMMANDER_VERSION_MINOR 1",
-        r"FLIGHT_COMMANDER_VERSION_PATCH 3",
+        r"FLIGHT_COMMANDER_VERSION_PATCH 4",
         r"FLIGHT_COMMANDER_CAPABILITY_INDIVIDUAL_COMPASS_CALIBRATION = \(1U << 15\)",
         r"FLIGHT_COMMANDER_CAPABILITIES \(\(uint32_t\)0xFFFFU\)",
     ])

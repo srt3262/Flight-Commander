@@ -1,4 +1,18 @@
-# Flight Commander 4.0.0
+# Flight Commander
+
+## 4.1.4
+
+- Remove the connected-firmware `FCFW` authorization gate from MSP, MAVLink,
+  Ground Control, Flight Planner, RTK correction routing, and target prefetch.
+- Treat identity, version, schema, and capability payloads as optional
+  diagnostics; missing or older metadata no longer disables Flight Commander
+  configuration, missions, or commands.
+- Enable the complete Flight Commander feature contract for every connected
+  release while preserving link, arming, aircraft-profile, mission, and target
+  safety checks.
+- Describe LTM as a telemetry-only transport instead of unsupported firmware.
+- Replace the withdrawn 4.1.3 official package with coordinated Configurator
+  and MICOAIR743 Firmware 4.1.4 assets.
 
 
 ## 4.1.3

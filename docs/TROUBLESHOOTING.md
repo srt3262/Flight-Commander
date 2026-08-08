@@ -23,8 +23,8 @@ boot-loop problem.
 
 ## Firmware target cannot be fetched
 
-- Verify the family is **Flight Commander Firmware** when the connected board
-  reports `FCFW`.
+- Verify the expected Flight Commander target and connection protocol. An
+  optional `FCFW` version payload may be absent without blocking target prefetch.
 - Wait for online and bundled catalogs to finish loading before auto-target.
 - Confirm the detected target/alias exists in the selected release.
 - Use **Download Online Firmware** for GitHub, **Use Bundled Firmware** for the
@@ -77,11 +77,10 @@ error with magnetic declination.
 ## Ground Control command is visible but disabled
 
 Hover/read the disabled reason. Common causes are MSP instead of MAVLink, no
-heartbeat, FCFW identity still detecting or rejected, no unique wired MSP
-profile for legacy Firmware 4.0.8, missing firmware capability, multiple systems
-on the link, no cached MSP command profile, missing AUX
-mapping, or an unconfirmable target mode. Do not bypass a disabled state with a
-raw command.
+heartbeat, multiple systems on the link, no unique cached MSP aircraft profile,
+missing AUX mapping, link loss, or an unconfirmable target mode. Firmware
+identity metadata is not a command gate. Do not bypass an operational safety
+check with a raw command.
 
 ## Units are inconsistent
 

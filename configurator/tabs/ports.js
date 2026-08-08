@@ -8,7 +8,6 @@ import FC from './../js/fc';
 import i18n from './../js/localization';
 import serialPortHelper from './../js/serialPortHelper';
 import jBox from 'jbox';
-import { firmwareFeatureSupport } from './../js/flightCommander/firmwareIdentity';
 import { encodeDronecanConfig } from './../js/flightCommander/dualGps';
 
 const portsTab = {};
@@ -32,9 +31,8 @@ portsTab.initialize = function (callback) {
 
     var columns = ['data', 'logging', 'sensors', 'telemetry', 'rx', 'peripherals'];
     var mspWarningModal;
-    const firmwareIdentity = FC.CONFIG.firmwareIdentity;
-    const supportsRtkUart = firmwareFeatureSupport(firmwareIdentity, 'rtkGpsUart').enabled;
-    const supportsDronecanConfig = firmwareFeatureSupport(firmwareIdentity, 'dronecanNodeConfig').enabled;
+    const supportsRtkUart = true;
+    const supportsDronecanConfig = true;
 
     if (GUI.active_tab !== this) {
         GUI.active_tab = this;

@@ -116,35 +116,49 @@ function inavProfile() {
   };
 }
 
-describe("unsupported firmware command gates", () => {
-  test("blocks every command for a vehicle without Flight Commander identity", () => {
-    const session = fakeUnsupportedSession();
-    const router = new MavlinkCommandRouter(session);
-    const capabilities = router.capabilities();
+describe("Flight Commander product-policy command access", () => {
+  function policyRouter(firmwareFamily = "unsupported") {
+    const session = fakeUnsupportedSession({
+      state: { firmwareFamily, systemId: 9 },
+    });
+    const adapter = {
+      capabilities: () => ({
+        canSetMode: true,
+        canArm: true,
+        canStartMission: true,
+        canResumeMission: true,
+      }),
+      availableModes: () => ["NAV WP"],
+      setMode: () => "mode-routed",
+      setArmed: () => "arm-routed",
+      stop() {},
+    };
+    return {
+      session,
+      router: new MavlinkCommandRouter(session, {
+        profileStore: {
+          resolve() {
+            return {
+              status: "resolved",
+              profile: inavProfile(),
+              profiles: [inavProfile()],
+              reason: "",
+            };
+          },
+        },
+        adapterFactory: () => adapter,
+      }),
+    };
+  }
 
-    for (const capability of [
-      "canSetMode",
-      "canArm",
-      "canStartMission",
-      "canAbortMission",
-      "canTakeoff",
-      "canRtl",
-      "canLand",
-      "canHoldMission",
-    ]) {
-      assert.equal(capabilities[capability], false, capability);
+  test("firmware-family metadata never disables commands", () => {
+    for (const family of ["unsupported", "unknown", "inav", "flight-commander"]) {
+      const { router } = policyRouter(family);
+      assert.equal(router.capabilities().canArm, true, family);
+      assert.deepEqual(router.availableModes(), ["NAV WP"]);
+      assert.equal(router.setMode("NAV WP"), "mode-routed");
+      assert.equal(router.setArmed(true), "arm-routed");
     }
-    assert.match(capabilities.reason, /not running supported Flight Commander Firmware/);
-    assert.deepEqual(router.availableModes(), []);
-    assert.throws(() => router.setMode("GUIDED"), /supported Flight Commander Firmware/);
-    assert.throws(() => router.setArmed(true), /supported Flight Commander Firmware/);
-    assert.throws(() => router.startMission(), /supported Flight Commander Firmware/);
-    assert.throws(() => router.abortMission(), /supported Flight Commander Firmware/);
-    assert.throws(() => router.takeoff(12), /supported Flight Commander Firmware/);
-    assert.throws(() => router.returnToLaunch(), /supported Flight Commander Firmware/);
-    assert.throws(() => router.land(), /supported Flight Commander Firmware/);
-    assert.throws(() => router.holdMission(), /supported Flight Commander Firmware/);
-    assert.deepEqual(session.calls, []);
   });
 
   test("link loss remains the first failure for every firmware family", () => {
@@ -155,47 +169,8 @@ describe("unsupported firmware command gates", () => {
     assert.throws(() => router.returnToLaunch(), /link is lost/);
   });
 
-  test("does not route commands until firmware family is known", () => {
-    const session = fakeUnsupportedSession({
-      state: { firmwareFamily: "unknown" },
-    });
-    const router = new MavlinkCommandRouter(session);
-    assert.equal(router.capabilities().canSetMode, false);
-    assert.throws(
-      () => router.setMode("AUTO"),
-      /Flight Commander Firmware is identified/,
-    );
-  });
-
-  test("rejects an inherited stock-firmware family as unsupported", () => {
-    const session = fakeUnsupportedSession({
-      state: {
-        firmwareFamily: "inav",
-        systemId: 9,
-      },
-    });
-    const router = new MavlinkCommandRouter(session, {
-      profileStore: {
-        resolve() {
-          return {
-            status: "resolved",
-            profile: inavProfile(),
-            profiles: [inavProfile()],
-            reason: "",
-          };
-        },
-      },
-    });
-    assert.equal(router.capabilities().canArm, false);
-    assert.match(router.capabilities().reason, /not running supported Flight Commander Firmware/);
-    assert.throws(() => router.setMode("NAV WP"), /require supported Flight Commander Firmware/);
-    assert.throws(() => router.setArmed(true), /require supported Flight Commander Firmware/);
-    assert.deepEqual(session.calls, []);
-  });
-
   test("an application transition failure remains blocked after the transient block clears", () => {
-    const session = fakeUnsupportedSession();
-    const router = new MavlinkCommandRouter(session);
+    const { session, router } = policyRouter();
 
     router.blockCommands(
       "Ground Control transition failed; commands are disabled.",
@@ -210,8 +185,7 @@ describe("unsupported firmware command gates", () => {
     assert.deepEqual(session.calls, []);
 
     router.clearCommandBlock();
-    assert.equal(router.capabilities().canArm, false);
-    assert.match(router.capabilities().reason, /supported Flight Commander Firmware/);
+    assert.equal(router.capabilities().canArm, true);
   });
 });
 

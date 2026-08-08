@@ -11,7 +11,6 @@ import FC from './../js/fc';
 import timeout from './../js/timeouts';
 import interval from './../js/intervals';
 import i18n from './../js/localization';
-import { firmwareFeatureSupport } from './../js/flightCommander/firmwareIdentity';
 import {
     compassCalibrationState,
     enumerateCompassCalibrationTargets,
@@ -66,26 +65,10 @@ calibrationTab.model = (function () {
 }());
 
 calibrationTab.initialize = function (callback) {
-    const firmwareIdentity = FC.CONFIG.firmwareIdentity;
-    const supportsHeadingFusion = firmwareFeatureSupport(
-        firmwareIdentity,
-        'headingFusion',
-    ).enabled;
-    const supportsDronecanConfig = firmwareFeatureSupport(
-        firmwareIdentity,
-        'dronecanNodeConfig',
-    ).enabled;
-    const advertisesCompassOrientation = firmwareFeatureSupport(
-        firmwareIdentity,
-        'compassOrientationLearning',
-    ).enabled;
-    const supportsIndividualCompassCalibration = firmwareFeatureSupport(
-        firmwareIdentity,
-        'individualCompassCalibration',
-    ).enabled;
-    const supportsCompassOrientation = Boolean(
-        advertisesCompassOrientation && supportsIndividualCompassCalibration,
-    );
+    const supportsHeadingFusion = true;
+    const supportsDronecanConfig = true;
+    const supportsCompassOrientation = true;
+    const supportsIndividualCompassCalibration = true;
 
     this.supportsHeadingFusion = supportsHeadingFusion;
     this.supportsDronecanConfig = supportsDronecanConfig;

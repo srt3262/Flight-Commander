@@ -310,6 +310,11 @@ test("Windows verification follows the active renderer graph and rejects leftove
   assert.match(packageVerifier, /validated MAVLink telemetry connection/);
   assert.match(packageVerifier, /MAVLINK_SESSION_DETACHED/);
   assert.match(packageVerifier, /MAVLink host timer/);
+  assert.match(packageVerifier, /flight-commander-product-policy/);
+  assert.match(
+    packageVerifier,
+    /retiredRuntime[\s\S]*?legacy-msp-profile/,
+  );
   assert.match(packageVerifier, /Auto protocol \(selected baud\)/);
   assert.match(packageVerifier, /flightDataMapPane/);
   assert.match(packageVerifier, /Make HUD major/);
@@ -485,7 +490,8 @@ test("weighted heading fusion and moving-baseline setup are release surfaces", (
   assert.match(calibrationSource, /MSP_MAG_CALIBRATION/);
   assert.match(calibrationSource, /COMPASS_ORIENTATION_COMMAND\.SELECT/);
   assert.match(calibrationSource, /sendCompassCalibrationCommand\(target\.index/);
-  assert.match(calibrationSource, /individualCompassCalibration/);
+  assert.match(calibrationSource, /supportsIndividualCompassCalibration = true/);
+  assert.doesNotMatch(calibrationSource, /firmwareFeatureSupport/);
   assert.match(calibrationSource, /loadFlightCommanderHeadingConfig/);
   assert.match(calibrationSource, /loadFlightCommanderHeadingStatus/);
   assert.match(compassCalibrationSource, /HEADING_SOURCE_DRONECAN_MAG/);
@@ -590,13 +596,13 @@ test("application remains dark-only", () => {
 });
 
 test("firmware is release-only and the flasher exposes local, online, then flash", () => {
-  assert.equal(packageManifest.flightCommander.firmwareReleaseVersion, "4.1.3");
+  assert.equal(packageManifest.flightCommander.firmwareReleaseVersion, "4.1.4");
   assert.equal(packageManifest.flightCommander.firmwareChangedInRelease, true);
   assert.equal(packageManifest.flightCommander.firmwareSourceAvailable, true);
-  assert.equal(packageManifest.flightCommander.firmwareSourceVersion, "4.1.3");
+  assert.equal(packageManifest.flightCommander.firmwareSourceVersion, "4.1.4");
   assert.equal(
     packageManifest.flightCommander.firmwareSourceArchive,
-    "FC-Firmware-Source-v4.1.3.zip",
+    "FC-Firmware-Source-v4.1.4.zip",
   );
   const releaseFirmwareIsPresent = existsSync(firmwareReleasePath);
   const releaseSourceIsPresent = existsSync(firmwareSourcePath);
@@ -700,7 +706,7 @@ test("all requested large-prop INAV presets are wired into the release source", 
 });
 
 test("landing page describes Flight Commander capabilities without retirement copy", () => {
-  assert.equal(packageManifest.version, "4.1.3");
+  assert.equal(packageManifest.version, "4.1.4");
   assert.equal(manifest.version, packageManifest.version);
   assert.match(landingHtml, /Flight Commander capabilities/);
   assert.match(landingHtml, /same-session mission resume/);
@@ -718,13 +724,13 @@ test("guarded official publication uses the verified release workflow", () => {
   assert.doesNotMatch(releaseOrchestrator, /--prerelease/);
 });
 
-test("release policy requires a coordinated reproducible Firmware 4.1.3 build", () => {
+test("release policy requires a coordinated reproducible Firmware 4.1.4 build", () => {
   assert.equal(packageManifest.flightCommander.firmwareChangedInRelease, true);
   assert.equal(packageManifest.flightCommander.firmwareReleaseVersion, packageManifest.version);
   assert.equal(packageManifest.flightCommander.firmwareSourceVersion, packageManifest.version);
   assert.match(releaseWorkflow, /branches:/);
   assert.match(releaseWorkflow, /- master/);
-  assert.match(releaseWorkflow, /Build verified Firmware 4\.1\.3/);
+  assert.match(releaseWorkflow, /Build verified Firmware 4\.1\.4/);
   assert.match(releaseWorkflow, /flight-commander\/package-release\.py/);
   assert.match(releaseWorkflow, /flight-commander\/install-toolchain\.sh/);
   assert.match(firmwareRebuildScript, /arm-gnu-toolchain-13\.2\.rel1/);
@@ -736,12 +742,12 @@ test("release policy requires a coordinated reproducible Firmware 4.1.3 build", 
 
 test("official release publishes one complete bundle plus the online-flasher HEX", () => {
   for (const filename of [
-    "Flight-Commander-v4.1.3.zip",
-    "FC-Windows-v4.1.3.zip",
-    "FC-Configurator-Source-v4.1.3.zip",
-    "FC-Firmware-v4.1.3-MICOAIR743.hex",
-    "FC-Firmware-Source-v4.1.3.zip",
-    "Flight-Commander-Firmware-4.1.3-MICOAIR743.hex",
+    "Flight-Commander-v4.1.4.zip",
+    "FC-Windows-v4.1.4.zip",
+    "FC-Configurator-Source-v4.1.4.zip",
+    "FC-Firmware-v4.1.4-MICOAIR743.hex",
+    "FC-Firmware-Source-v4.1.4.zip",
+    "Flight-Commander-Firmware-4.1.4-MICOAIR743.hex",
   ]) {
     assert.match(releaseWorkflow, new RegExp(filename.replaceAll(".", "\\.")));
   }

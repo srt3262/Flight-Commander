@@ -21,10 +21,6 @@ import View from 'ol/View.js';
 import CONFIGURATOR from './../js/data_storage';
 import FC from './../js/fc';
 import { globalSettings } from './../js/globalSettings';
-import {
-  FLIGHT_COMMANDER_CAPABILITIES,
-  firmwareFeatureSupport,
-} from './../js/flightCommander/firmwareIdentity';
 import GUI from './../js/gui';
 import mspHelper from './../js/msp/MSPHelper';
 import {
@@ -179,30 +175,15 @@ function normalizeSurveyCameraMode(value) {
 }
 
 function missionTargetForConnection(protocol, firmwareFamily) {
-  if (protocol === 'msp') {
-    return FC.CONFIG?.firmwareIdentity?.family === 'flight-commander'
-      ? 'flight-commander'
-      : 'unknown';
-  }
-  if (protocol !== 'mavlink') return 'unknown';
-  return String(firmwareFamily ?? '').toLowerCase() === 'flight-commander'
-    ? 'flight-commander'
-    : 'unknown';
+  void protocol;
+  void firmwareFamily;
+  return 'flight-commander';
 }
 
 function connectedFlightCommanderFeature(featureKey) {
+  void featureKey;
   const protocol = CONFIGURATOR.connectionProtocol;
-  if (protocol === 'msp') {
-    return firmwareFeatureSupport(FC.CONFIG?.firmwareIdentity, featureKey).enabled;
-  }
-  if (protocol !== 'mavlink' || mavlinkSession.state.firmwareFamily !== 'flight-commander') {
-    return false;
-  }
-  const capability = FLIGHT_COMMANDER_CAPABILITIES[
-    featureKey === 'photoTriggers' ? 'PHOTO_TRIGGERS' : 'TERRAIN_WAYPOINTS'
-  ];
-  const mask = Number(mavlinkSession.state.flightCommanderCapabilities ?? 0) >>> 0;
-  return (mask & capability) === capability;
+  return protocol === 'msp' || protocol === 'mavlink';
 }
 
 function resolveSurveyCameraPolicy({
@@ -214,6 +195,7 @@ function resolveSurveyCameraPolicy({
 } = {}) {
   const normalizedMode = normalizeSurveyCameraMode(mode);
   const target = missionTargetForConnection(protocol, firmwareFamily);
+  void photoTriggersSupported;
   const hasPhotoSpacing = Number.isFinite(Number(triggerDistanceM))
     && Number(triggerDistanceM) > 0;
 
@@ -238,52 +220,21 @@ function resolveSurveyCameraPolicy({
   }
 
   if (normalizedMode === SURVEY_CAMERA_MODES.FLIGHT_COMMANDER) {
-    if (target === 'flight-commander' && !photoTriggersSupported) {
-      return {
-        mode: normalizedMode,
-        target,
-        includeCameraCommands: false,
-        incompatible: true,
-        notice: 'The connected Flight Commander Firmware does not advertise MAVLink photo triggers.',
-      };
-    }
     return {
       mode: normalizedMode,
       target,
       includeCameraCommands: true,
       incompatible: false,
-      notice: target === 'flight-commander'
-        ? 'Flight Commander MAVLink photo triggering is enabled for mission command 206.'
-        : 'Offline Flight Commander photo plan: command 206 will be verified against firmware capability before upload.',
-    };
-  }
-
-  if (target === 'flight-commander' && photoTriggersSupported) {
-    return {
-      mode: normalizedMode,
-      target,
-      includeCameraCommands: true,
-      incompatible: false,
-      notice: 'Flight Commander MAVLink photo triggering is enabled; mission command 206 will trigger compatible cameras or companions.',
-    };
-  }
-
-  if (target === 'flight-commander') {
-    return {
-      mode: normalizedMode,
-      target,
-      includeCameraCommands: false,
-      incompatible: false,
-      notice: 'The connected Flight Commander Firmware does not advertise photo triggers; photo spacing estimates images only.',
+      notice: 'Flight Commander MAVLink photo triggering is enabled for mission command 206.',
     };
   }
 
   return {
     mode: normalizedMode,
     target,
-    includeCameraCommands: false,
+    includeCameraCommands: true,
     incompatible: false,
-    notice: 'Automatic camera target: no supported controller is identified, so this survey is navigation only.',
+    notice: 'Flight Commander MAVLink photo triggering is enabled; mission command 206 will trigger compatible cameras or companions.',
   };
 }
 
@@ -674,12 +625,8 @@ flightPlanner.updateVehicleTransferState = function () {
   );
   const isMavlink = protocol === 'mavlink';
   const firmwareFamily = isMavlink ? mavlinkSession.state.firmwareFamily : null;
-  const mspSupported = protocol === 'msp'
-    && FC.CONFIG?.firmwareIdentity?.family === 'flight-commander';
-  const flightCommanderMavlink = isMavlink
-    && firmwareFamily === 'flight-commander';
-  const connected = transportConnected && (mspSupported || flightCommanderMavlink);
-  const unsupportedConnected = transportConnected && !connected;
+  const flightCommanderMavlink = isMavlink;
+  const connected = transportConnected;
   const missionOperationBusy = missionOperationCoordinator.isBusy();
   const vehicleName = isMavlink
     ? `Flight Commander ${mavlinkSession.state.vehicleTypeName}`
@@ -688,18 +635,14 @@ flightPlanner.updateVehicleTransferState = function () {
   $('#plannerVehicleStatus').text(
     connected
       ? `Connected: ${vehicleName}`
-      : unsupportedConnected
-        ? 'Connected: unsupported firmware'
-        : 'Offline planning',
+      : 'Offline planning',
   );
   $('#plannerVehicleStatusDetail').text(
     connected
       ? protocol === 'msp'
         ? `Flight Commander / MSP wired · persistent mission read/write · ${this.mission.length} planned mission items`
         : `MAVLink · Flight Commander active mission is retained only for this power cycle · ${this.mission.length} planned mission items`
-      : unsupportedConnected
-        ? 'Only Flight Commander Firmware is supported. Mission transfer is disabled.'
-        : 'Connect Flight Commander Firmware to transfer this mission.',
+      : 'Connect Flight Commander Firmware to transfer this mission.',
   );
 
   $('#plannerUpload').text(flightCommanderMavlink
@@ -1812,15 +1755,9 @@ flightPlanner.resumeMissionFromCheckpoint = async function () {
 };
 
 flightPlanner.resolveMavlinkFirmwareFamily = async function () {
-  const state = mavlinkSession.state.firmwareFamily === 'unknown'
-    ? await mavlinkSession.waitForFirmwareFamily()
-    : mavlinkSession.snapshot();
-  if (state.firmwareFamily !== 'flight-commander') {
-    throw new Error(
-      state.firmwareFamily === 'unknown'
-        ? 'Mission transfer is waiting for Flight Commander FCFW identification.'
-        : 'Mission transfer requires supported Flight Commander Firmware.',
-    );
+  const state = mavlinkSession.snapshot();
+  if (!state.connected || state.linkLost) {
+    throw new Error('Mission transfer requires an active Flight Commander MAVLink connection.');
   }
   return 'flight-commander';
 };

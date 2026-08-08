@@ -1,7 +1,10 @@
 "use strict";
 
 import { bindHostTimer } from "../mavlink/hostTimers.js";
-import { FLIGHT_COMMANDER_CAPABILITIES } from "../flightCommander/firmwareIdentity.js";
+import {
+  FLIGHT_COMMANDER_CAPABILITIES,
+  FLIGHT_COMMANDER_KNOWN_CAPABILITY_MASK,
+} from "../flightCommander/firmwareIdentity.js";
 
 export const INAV_MODE_IDS = Object.freeze({
   ARM: 0,
@@ -93,9 +96,7 @@ function integerOrNull(value) {
   return Number.isInteger(number) ? number : null;
 }
 
-export const FLIGHT_COMMANDER_KNOWN_CAPABILITY_MASK = Object.values(
-  FLIGHT_COMMANDER_CAPABILITIES,
-).reduce((mask, capability) => (mask | capability) >>> 0, 0);
+export { FLIGHT_COMMANDER_KNOWN_CAPABILITY_MASK };
 
 export function resolveCachedFlightCommanderIdentity(profileStore, state = {}) {
   // Firmware 4.0.8 predates the MAVLink AUTOPILOT_VERSION FCFW payload.
@@ -1174,19 +1175,11 @@ export class MavlinkCommandRouter {
   }
 
   flightCommanderCommandCapability() {
-    const mask = Number(this.session.state.flightCommanderCapabilities ?? 0) >>> 0;
-    const required = FLIGHT_COMMANDER_CAPABILITIES.NATIVE_GCS_COMMANDS;
-    return (mask & required) === required
-      ? {
-          available: true,
-          reason:
-            "Flight Commander target-isolated Ground Control commands are advertised by the connected firmware.",
-        }
-      : {
-          available: false,
-          reason:
-            "The connected Flight Commander Firmware does not advertise Ground Control command support.",
-        };
+    return {
+      available: true,
+      reason:
+        "Ground Control commands are enabled by the Flight Commander product contract; firmware identity metadata is informational.",
+    };
   }
 
   linkCapability() {
@@ -1298,34 +1291,18 @@ export class MavlinkCommandRouter {
       this.releaseInavAdapter();
       return unavailable(link.reason);
     }
-    const family = this.firmwareFamily();
-    if (family === "flight-commander") {
-      const commandCapability = this.flightCommanderCommandCapability();
-      if (!commandCapability.available) return unavailable(commandCapability.reason);
-      const { resolution, adapter } = this.resolveInavAdapter();
-      if (!adapter) return unavailable(resolution.reason);
-      const adapterCapabilities = adapter.capabilities();
-      const mask = Number(this.session.state.flightCommanderCapabilities ?? 0) >>> 0;
-      const nativeResume = (
-        mask & FLIGHT_COMMANDER_CAPABILITIES.MISSION_RESUME
-      ) === FLIGHT_COMMANDER_CAPABILITIES.MISSION_RESUME;
-      return {
-        ...UNAVAILABLE_CAPABILITIES,
-        ...adapterCapabilities,
-        canSetMissionCurrent: nativeResume,
-        canResumeMission: nativeResume && adapterCapabilities.canResumeMission,
-        missionResumeReason: nativeResume
-          ? adapterCapabilities.missionResumeReason
-          : 'The connected Flight Commander Firmware does not advertise native mission resume.',
-        reason: commandCapability.reason,
-      };
-    }
-    this.releaseInavAdapter();
-    return unavailable(
-      family === "unsupported" || family === "inav"
-        ? "This MAVLink vehicle is not running supported Flight Commander Firmware."
-        : "Command controls are disabled until Flight Commander Firmware is identified.",
-    );
+    const commandCapability = this.flightCommanderCommandCapability();
+    const { resolution, adapter } = this.resolveInavAdapter();
+    if (!adapter) return unavailable(resolution.reason);
+    const adapterCapabilities = adapter.capabilities();
+    return {
+      ...UNAVAILABLE_CAPABILITIES,
+      ...adapterCapabilities,
+      canSetMissionCurrent: true,
+      canResumeMission: adapterCapabilities.canResumeMission,
+      missionResumeReason: adapterCapabilities.missionResumeReason,
+      reason: commandCapability.reason,
+    };
   }
 
   availableModes() {
@@ -1333,10 +1310,7 @@ export class MavlinkCommandRouter {
       this.releaseInavAdapter();
       return [];
     }
-    return this.firmwareFamily() === "flight-commander" &&
-      this.flightCommanderCommandCapability().available
-      ? (this.resolveInavAdapter().adapter?.availableModes() ?? [])
-      : [];
+    return this.resolveInavAdapter().adapter?.availableModes() ?? [];
   }
 
   commandTarget(methodName) {
@@ -1345,23 +1319,12 @@ export class MavlinkCommandRouter {
       this.releaseInavAdapter();
       throw new Error(link.reason);
     }
-    const family = this.firmwareFamily();
-    if (family === "flight-commander") {
-      const commandCapability = this.flightCommanderCommandCapability();
-      if (!commandCapability.available) throw new Error(commandCapability.reason);
-      const { resolution, adapter } = this.resolveInavAdapter();
-      if (!adapter) throw new Error(resolution.reason);
-      if (typeof adapter[methodName] !== "function") {
-        throw new Error(`Flight Commander command ${methodName} is unavailable.`);
-      }
-      return adapter;
+    const { resolution, adapter } = this.resolveInavAdapter();
+    if (!adapter) throw new Error(resolution.reason);
+    if (typeof adapter[methodName] !== "function") {
+      throw new Error(`Flight Commander command ${methodName} is unavailable.`);
     }
-    this.releaseInavAdapter();
-    throw new Error(
-      family === "unsupported" || family === "inav"
-        ? "Commands require supported Flight Commander Firmware."
-        : "Cannot send a command until Flight Commander Firmware is identified.",
-    );
+    return adapter;
   }
 
   setMode(mode, options = {}) {
@@ -1383,11 +1346,6 @@ export class MavlinkCommandRouter {
   abortMissionResume(options = {}) {
     const link = this.linkCapability();
     if (!link.available) throw new Error(link.reason);
-    if (this.firmwareFamily() !== "flight-commander") {
-      throw new Error(
-        "Replacing a failed sustained NAV WP override is supported only for Flight Commander Firmware.",
-      );
-    }
     return this.commandTarget("abortMissionResume").abortMissionResume(options);
   }
 

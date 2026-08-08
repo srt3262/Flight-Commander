@@ -40,8 +40,8 @@ the EXE out of the extracted folder will break native serial support.
    the configured value avoids ambiguity on UART adapters.
 5. Select **Connect** and wait for the firmware family, version, and hardware
    target to appear below the Flight Commander logo.
-6. Open **Firmware Features**. Flight Commander-only pages must remain gated
-   unless the connected firmware advertises the corresponding capability.
+6. Open **Firmware Features**. Confirm the product features and review any
+   optional version or capability metadata reported by the controller.
 7. Open **Setup**, confirm that the model orientation follows the real airframe,
    and inspect sensor and arming warnings.
 8. Use the **Firmware Flasher** backup controls or CLI `diff all` to preserve the
@@ -52,8 +52,8 @@ If auto protocol cannot identify the controller, use
 
 ## Recommended initial setup order
 
-1. **Firmware Features** — verify identity and supported Flight Commander
-   extensions.
+1. **Firmware Features** — review the Flight Commander feature contract and
+   optional diagnostic metadata.
 2. **Calibration** — calibrate accelerometer and every detected enabled
    physical compass.
 3. **Alignment Tool** — define flight-controller and sensor mounting rotations.

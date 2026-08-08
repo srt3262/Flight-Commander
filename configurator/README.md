@@ -52,7 +52,7 @@ uses those formats; they do not provide a stock-firmware compatibility mode.
 - DroneCAN node discovery and typed configuration for GNSS/RTK, compass,
   relative-heading, and battery services, with explicit
   disabled/automatic/fixed-node choices and CAN bitrate controls in Ports.
-- Capability-gated terrain-following mission upload and distance-based MAVLink
+- Flight Commander terrain-following mission upload and distance-based MAVLink
   camera triggering for Flight Commander Firmware.
 - One application-wide high-contrast dark theme, with synchronized metric or
   imperial Ground Control displays.
@@ -63,7 +63,10 @@ uses those formats; they do not provide a stock-firmware compatibility mode.
   SHA-256 verified. A local Intel HEX is an explicit operator-controlled source
   and is written as selected without firmware-family or target classification.
 
-Every controller firmware other than Flight Commander Firmware is unsupported. Wired setup requires the versioned MSP FCFW identity. MAVLink accepts either the signed FCFW payload or, for legacy Firmware 4.0.8, exactly one controller-matched Flight Commander profile captured through wired MSP setup; unidentified vehicles remain blocked from mission, command, configuration, and RTK routes.
+Flight Commander is a single-firmware product. Successful MSP and MAVLink
+connections are treated as Flight Commander connections; optional `FCFW`
+version and capability payloads are diagnostic metadata and never authorize or
+disable configuration, mission, command, or RTK routes.
 
 ## Controller and transport boundaries
 
@@ -72,9 +75,8 @@ assumed to exist on another.
 
 | Controller and link | Configuration | Missions and planning | Live Ground Control |
 | --- | --- | --- | --- |
-| **Flight Commander Firmware over MSP** | Full persistent configuration, including UART GPS, DroneCAN nodes, primary-GPS selection, and advertised capability status | Native mission and planning-data read/write, including safe homes, approaches, geozones, terrain profiles, and supported photo actions | Wired telemetry is available; airborne commands require a MAVLink link |
-| **Flight Commander Firmware over MAVLink** | Not a replacement for the wired MSP setup link | Active mission transfer plus advertised terrain and photo extensions | Telemetry and Ground Control commands after signed FCFW verification or a unique wired profile match for legacy Firmware 4.0.8 |
-| **Other firmware or unidentified MAVLink vehicles** | Unsupported | Disabled | Connection remains locked or is shown as unsupported |
+| **Flight Commander Firmware over MSP** | Full persistent configuration, including UART GPS, DroneCAN nodes, and primary-GPS selection | Native mission and planning-data read/write, including safe homes, approaches, geozones, terrain profiles, and photo actions | Wired telemetry is available; airborne commands require a MAVLink link |
+| **Flight Commander Firmware over MAVLink** | Not a replacement for the wired MSP setup link | Active mission transfer plus terrain and photo extensions | Telemetry and Ground Control commands after link and aircraft-profile checks |
 
 Flight Commander interruption checkpoints are position-estimated, and the
 persistent `nav_wp_mission_restart` policy is managed over MSP. Resume is
@@ -100,11 +102,10 @@ ELRS module. Internal modules must use TX Backpack Wi-Fi/UDP; connect the USB
 cable directly to the external TX module when using the serial method.
 
 Ground Control opens immediately after the COM port is ready and reports that
-it is waiting for a vehicle heartbeat. This means the serial transport is open,
-not that the aircraft or firmware identity has been validated. A signed FCFW
-payload is preferred; legacy Firmware 4.0.8 may instead match one unique wired
-Flight Commander profile. Commands stay locked without identity and capability
-proof.
+it is waiting for a vehicle heartbeat. The heartbeat establishes the active
+aircraft link. Commands may still require one aircraft-specific wired profile
+because its AUX ranges and RC mapping are operational inputs, not firmware
+identity proof.
 
 ## Documentation and support
 

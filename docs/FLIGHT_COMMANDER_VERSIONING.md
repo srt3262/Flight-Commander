@@ -24,6 +24,7 @@ has exactly two public assets: the complete four-file bundle and that standalone
 HEX. Publication fails on a version, source identity, checksum, filename, or
 asset-count mismatch.
 
-For 4.1.3, both Configurator and Firmware are 4.1.3 and
-`firmwareChangedInRelease` is `true`; only the firmware version identity changed
-from the reviewed 4.0.8 implementation.
+For 4.1.4, both Configurator and Firmware are 4.1.4 and
+`firmwareChangedInRelease` is `true`. The Configurator removes runtime identity
+and capability authorization gates; the firmware receives the matching release
+identity while retaining the reviewed flight implementation.

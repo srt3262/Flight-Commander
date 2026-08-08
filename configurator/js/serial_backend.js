@@ -830,8 +830,7 @@ var SerialBackend = (function () {
             return;
         }
         GUI.log(
-            '<span style="color: red">Unsupported controller firmware detected. ' +
-            'Only Flight Commander Firmware with a valid FCFW identity is supported. ' +
+            '<span style="color: red">The controller did not provide the MSP protocol variant required by Flight Commander. ' +
             'CLI recovery remains available so the controller can be reflashed.</span>',
         );
         CONFIGURATOR.connectionValid = true;
@@ -1034,20 +1033,7 @@ var SerialBackend = (function () {
                                     ? reportedVersion
                                     : '0.0.0',
                             }).then(function(identity) {
-                                if (
-                                    (
-                                        identity.family !== FIRMWARE_FAMILY_FLIGHT_COMMANDER
-                                        || identity.protocolSupported !== true
-                                    )
-                                ) {
-                                    GUI.log(
-                                        '<span style="color: #d98f00">The controller did not provide a supported Flight Commander FCFW identity. Only Flight Commander Firmware is supported.</span>',
-                                    );
-                                    privateScope.onInvalidFirmwareVariant();
-                                    return;
-                                }
-
-                                applyFirmwareIdentity(FC, identity);
+                                const runtimeIdentity = applyFirmwareIdentity(FC, identity);
                                 const compatibilityVersion = FC.CONFIG.flightControllerVersion;
                                 if (
                                     !semver.gte(compatibilityVersion, CONFIGURATOR.minfirmwareVersionAccepted)
@@ -1064,9 +1050,9 @@ var SerialBackend = (function () {
                                     return;
                                 }
                                 GUI.log(
-                                    `Flight Commander Firmware ${identity.firmwareVersion ?? 'unknown'} ` +
-                                    `(protocol baseline ${identity.compatibleInavVersion}, ` +
-                                    `capabilities 0x${identity.capabilities.toString(16).padStart(8, '0')}).`,
+                                    `Flight Commander Firmware ${runtimeIdentity.firmwareVersion ?? 'version not advertised'} ` +
+                                    `(protocol baseline ${runtimeIdentity.compatibleInavVersion}; ` +
+                                    `identity metadata ${runtimeIdentity.detected ? 'received' : 'not advertised'}).`,
                                 );
                                 mspHelper.getCraftName(function(name) {
                                     if (name) {
@@ -1339,7 +1325,7 @@ var SerialBackend = (function () {
         CONFIGURATOR.connectionValid = true;
         GUI.allowedTabs = GUI.defaultAllowedTabsWhenTelemetryConnected.slice();
         timeout.remove('connecting');
-        GUI.log('LTM telemetry is unsupported because it cannot verify the Flight Commander FCFW identity.');
+        GUI.log('LTM is telemetry-only. Reconnect through MAVLink for missions and Ground Control commands.');
         $('#connectbutton a.connect_state')
             .text(i18n.getMessage('disconnect'))
             .addClass('active');
@@ -1349,7 +1335,7 @@ var SerialBackend = (function () {
         $('#sensor-status, #dataflash_wrapper_global, #profiles_wrapper_global').hide();
         $('#portsinput').hide();
         $('#quad-status_wrapper').show();
-        $('#logo .firmware_version').text('Unsupported LTM telemetry');
+        $('#logo .firmware_version').text('Flight Commander / LTM telemetry-only');
         $('#tabs ul.mode-telemetry .tab_flight_data a').trigger('click');
     };
 
@@ -1367,32 +1353,11 @@ var SerialBackend = (function () {
 
         privateScope.mavlinkStateUnsubscribe?.();
         const renderState = function (nextState) {
-            const firmwareName = nextState.firmwareFamily === 'flight-commander'
-                ? 'Flight Commander Firmware'
-                : nextState.firmwareFamily === 'unsupported'
-                    ? 'Unsupported firmware'
-                    : 'Detecting Flight Commander Firmware';
-            $('#logo .firmware_version').text(`${firmwareName} / ${nextState.vehicleTypeName}`);
-
-            if (nextState.firmwareFamily === 'flight-commander') {
-                $('body')
-                    .addClass('fc-controller-flight-commander-mavlink')
-                    .removeClass('fc-controller-unsupported');
-                mavlinkCommandRouter.clearCommandBlock();
-            } else if (nextState.firmwareFamily === 'unsupported') {
-                const newlyUnsupported = !$('body').hasClass('fc-controller-unsupported');
-                $('body')
-                    .addClass('fc-controller-unsupported')
-                    .removeClass('fc-controller-flight-commander-mavlink');
-                const message =
-                    'This vehicle did not provide a supported Flight Commander FCFW identity; configuration, missions, and commands are disabled.';
-                mavlinkCommandRouter.blockCommands(message);
-                if (newlyUnsupported) {
-                    GUI.log(`<span style="color: #d42133">${message}</span>`);
-                }
-            } else {
-                $('body').removeClass('fc-controller-flight-commander-mavlink fc-controller-unsupported');
-            }
+            $('#logo .firmware_version').text(`Flight Commander Firmware / ${nextState.vehicleTypeName}`);
+            $('body')
+                .addClass('fc-controller-flight-commander-mavlink')
+                .removeClass('fc-controller-unsupported');
+            mavlinkCommandRouter.clearCommandBlock();
 
             const batteryRemaining = Number.isFinite(nextState.batteryRemaining)
                 ? Math.max(0, Math.min(100, nextState.batteryRemaining))

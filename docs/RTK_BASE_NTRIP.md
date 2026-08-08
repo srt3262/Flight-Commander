@@ -133,9 +133,8 @@ RTCM observations for the aircraft rover.
 - Without TLS, Basic-auth credentials and correction data are unencrypted.
 - TLS uses normal certificate and host-name verification; there is no
   insecure-certificate bypass.
-- A controller without a verified Flight Commander FCFW identity cannot use the
-  GCS RTK-base bridge. The connected firmware must also advertise the
-  `GCS_RTK_BASE` capability.
+- The GCS RTK-base bridge requires an active Flight Commander MSP or MAVLink
+  aircraft transport. Optional firmware identity metadata does not gate it.
 - The MICOAIR743 firmware fans a completed RTCM message out to every enabled
   u-blox UART GPS and DroneCAN GPS. Selecting the navigation primary does not
   disable corrections or RTK status on the other receiver.

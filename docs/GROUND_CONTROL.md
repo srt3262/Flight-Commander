@@ -6,25 +6,19 @@ aircraft connected so a mission or USB RTK base can be prepared first.
 
 ## Link and vehicle header
 
-The header identifies the active transport and detected firmware family.
+The header identifies the active Flight Commander transport and vehicle.
 
 - **Flight Commander MSP wired** is the bench setup link. It supplies live
   telemetry, but airborne command buttons require a validated MAVLink link.
-- **MAVLink · detecting Flight Commander Firmware** means a valid vehicle
-  heartbeat has arrived while signed identity or a unique wired profile match is
-  being resolved. Operational paths remain locked.
-- **MAVLink · Flight Commander** supplies live telemetry, mission transport, and
-  capability-gated commands after signed FCFW verification or a unique legacy
-  Firmware 4.0.8 profile match.
-- **MAVLink · unsupported firmware** means neither identity path was valid.
-  Mission transfer, commands, configuration, and RTK forwarding are blocked;
-  any visible telemetry is diagnostic only.
+- **MAVLink · Flight Commander** supplies live telemetry and mission transport
+  as soon as a valid aircraft heartbeat establishes the link. Commands that use
+  configured AUX ranges additionally require one unambiguous wired aircraft
+  profile.
 - **Offline RTK setup** means the aircraft is disconnected but the lower RTK
   workspace can still operate an independent USB base.
 
 The link, armed state, selected flight mode, and command explanation are always
-visible. Unsupported firmware never enters a reduced-functionality operating
-mode; command and mission paths stay blocked.
+visible. Optional firmware identity metadata never disables these paths.
 
 ## Map and HUD
 
@@ -88,13 +82,13 @@ The command deck includes:
 - **Launch / Takeoff** — uses the entered altitude after converting it to the
   protocol's canonical units.
 - **Return Home (RTH / RTL)** — requests the configured return mode.
-- **Land** — appears even when disabled; the connected firmware must advertise
-  a safe, confirmable landing command path.
+- **Land** — appears even when disabled; the configured aircraft must expose a
+  safe, confirmable landing command path.
 
-Flight Commander does not infer permission from a visible button. A command can
-require a live MAVLink heartbeat, Flight Commander firmware identity, matching
-capability, known system/component ID, exactly one intended aircraft, a cached
-MSP command profile, valid AUX mappings, and a confirmable resulting state.
+Flight Commander does not infer operational safety from a visible button. A
+command can require a live MAVLink heartbeat, known system/component ID,
+exactly one intended aircraft, a cached MSP command profile, valid AUX mappings,
+and a confirmable resulting state. Firmware identity is not one of those gates.
 
 Never use Ground Control commands as the first test of arm, launch, mission,
 return, or land behavior. Verify equivalent RC/AUX behavior on the bench and

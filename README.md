@@ -1,8 +1,8 @@
 # Flight Commander
 
 Flight Commander is an integrated autopilot project for the MICOAIR743 target.
-The official 4.1.3 release pairs **Flight Commander Firmware 4.1.3** with
-**Flight Commander Configurator 4.1.3**.
+The official 4.1.4 release pairs **Flight Commander Firmware 4.1.4** with
+**Flight Commander Configurator 4.1.4**.
 
 ## Repository layout
 
@@ -36,7 +36,7 @@ yarn test
 
 See the [documentation hub](docs/README.md), the
 [firmware flashing guide](docs/FIRMWARE_FLASHING.md), and the
-[4.1.3 release notes](docs/releases/v4.1.3.md).
+[4.1.4 release notes](docs/releases/v4.1.4.md).
 
 ## Upstream and licensing
 

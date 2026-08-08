@@ -54,9 +54,9 @@ surface information, or service failures.
 5. Verify the resulting absolute and relative altitude ranges against aircraft
    limits and local airspace.
 
-Terrain-relative waypoint transfer is Flight Commander capability-gated. Mission
-transfer is disabled for foreign or unidentified firmware; there is no
-navigation-only stock-firmware compatibility path.
+Terrain-relative waypoint transfer is part of the Flight Commander product
+contract. Optional firmware identity and capability payloads do not gate
+mission transfer.
 
 ## Read and write missions
 
@@ -65,9 +65,9 @@ navigation-only stock-firmware compatibility path.
 - **Write to aircraft** validates every item and then reads back/verifies where
   the transport supports confirmation.
 - Wired MSP is the native persistent mission-storage path.
-- MAVLink transfer is limited to the representable, validated subset plus
-  advertised Flight Commander extensions.
-- Unsupported or identity-less transports cannot transfer missions.
+- MAVLink transfer is limited to the representable, validated Flight Commander
+  subset and extensions.
+- LTM is telemetry-only and cannot transfer missions.
 
 After upload, read the mission back and compare item count, order, coordinates,
 altitudes, and actions.

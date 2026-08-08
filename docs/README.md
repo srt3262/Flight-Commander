@@ -3,14 +3,14 @@
 This is the maintained manual for Flight Commander Configurator, Flight
 Commander Firmware integration, Ground Control, mission planning, and RTK
 operation. In-application help links point to these pages so the instructions
-match the installed Flight Commander interface and its safety gates.
+match the installed Flight Commander interface and its operational checks.
 
 ## Operator manual
 
 | Area | Guide | Use it for |
 | --- | --- | --- |
 | First use | [Getting started](GETTING_STARTED.md) | Installation, application options, first connection, backup, and initial bench setup |
-| Links | [Connection modes](CONNECTIONS.md) | MSP, MAVLink, USB radios, FCFW identity checks, baud rates, and transport limitations |
+| Links | [Connection modes](CONNECTIONS.md) | MSP, MAVLink, USB radios, optional identity metadata, baud rates, and transport limitations |
 | Firmware | [Firmware flashing](FIRMWARE_FLASHING.md) | Online, bundled, and local firmware sources; target checks; DFU recovery |
 | Aircraft setup | [Configuration reference](CONFIGURATION_REFERENCE.md) | Every connected-aircraft configuration tab and save/reboot behavior |
 | Navigation | [GPS and RTK](GPS_AND_RTK.md) | UART F9 RTK rovers, DroneCAN GPS, primary receivers, corrections, and alignment |
@@ -30,17 +30,15 @@ match the installed Flight Commander interface and its safety gates.
 - [Heading fusion, compass sources, calibration, and moving-baseline yaw](HEADING_FUSION.md)
 - [Configurator and firmware versioning](FLIGHT_COMMANDER_VERSIONING.md)
 - [Source reconstruction and upstream provenance](RECONSTRUCTION.md)
-- [Flight Commander 4.1.3 release notes](releases/v4.1.3.md)
+- [Flight Commander 4.1.4 release notes](releases/v4.1.4.md)
 - [Verified Windows, Configurator source, firmware HEX, and firmware source downloads](https://github.com/srt3262/Flight-Commander/releases)
 
 ## Documentation boundaries
 
-The connected firmware is authoritative for the commands, settings, ranges,
-and capabilities available on a particular hardware target. Flight Commander
-queries that metadata at runtime and hides or disables unsupported controls.
-The manual explains the complete Configurator workflow and how to query the
-controller for target-specific details; it never assumes that every optional
-feature exists on every board.
+Flight Commander Firmware defines one supported feature contract. Runtime
+identity and capability metadata are diagnostic only and never hide or disable
+product controls. Link state, controller target, arming state, aircraft-specific
+mode mapping, and transport limitations remain authoritative operational checks.
 
 Flight Commander Firmware is the only supported controller firmware. The
 repository retains GPL-licensed INAV-derived source and inherited protocol names
@@ -65,5 +63,5 @@ Include:
 
 Source and documentation improvements are welcome. Follow the
 [repository contribution workflow](../README.md#contributing), preserve the
-Flight Commander Firmware-only identity boundary, and add regression coverage for
+Flight Commander Firmware-only product boundary, and add regression coverage for
 runtime or packaging changes.

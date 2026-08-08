@@ -114,7 +114,7 @@ export const FLIGHT_COMMANDER_FEATURES = Object.freeze({
   }),
 });
 
-const KNOWN_CAPABILITY_MASK = Object.values(FLIGHT_COMMANDER_CAPABILITIES)
+export const FLIGHT_COMMANDER_KNOWN_CAPABILITY_MASK = Object.values(FLIGHT_COMMANDER_CAPABILITIES)
   .reduce((mask, capability) => mask | capability, 0) >>> 0;
 
 export class FlightCommanderIdentityError extends Error {
@@ -163,6 +163,28 @@ function immutableIdentity(identity) {
   });
 }
 
+export function createAssumedFlightCommanderIdentity(
+  compatibleInavVersion = "0.0.0",
+  probe = {},
+) {
+  return immutableIdentity({
+    family: FIRMWARE_FAMILY_FLIGHT_COMMANDER,
+    displayName: "Flight Commander Firmware",
+    detected: false,
+    protocolSupported: true,
+    schemaVersion: null,
+    firmwareVersion: null,
+    compatibleInavVersion,
+    capabilities: FLIGHT_COMMANDER_KNOWN_CAPABILITY_MASK,
+    advertisedCapabilities: null,
+    capabilityNames: capabilityNames(FLIGHT_COMMANDER_KNOWN_CAPABILITY_MASK),
+    unknownCapabilities: 0,
+    probeStatus: probe.probeStatus ?? "not-required",
+    probeError: probe.probeError ?? null,
+    authorizationSource: "flight-commander-product-policy",
+  });
+}
+
 export function createInavFirmwareIdentity(
   compatibleInavVersion = "0.0.0",
   probe = {},
@@ -193,7 +215,9 @@ export function inspectFlightCommanderInfo(
 ) {
   const view = payloadView(response);
   if (view.byteLength === 0) {
-    return createInavFirmwareIdentity(compatibleInavVersion);
+    return createAssumedFlightCommanderIdentity(compatibleInavVersion, {
+      probeStatus: "not-advertised",
+    });
   }
   if (view.byteLength < 5) {
     throw new FlightCommanderIdentityError(
@@ -244,8 +268,10 @@ export function inspectFlightCommanderInfo(
     firmwareVersion: version(view, 5),
     compatibleInavVersion: version(view, 8),
     capabilities,
+    advertisedCapabilities: capabilities,
     capabilityNames: capabilityNames(capabilities),
-    unknownCapabilities: (capabilities & ~KNOWN_CAPABILITY_MASK) >>> 0,
+    unknownCapabilities:
+      (capabilities & ~FLIGHT_COMMANDER_KNOWN_CAPABILITY_MASK) >>> 0,
     probeStatus: "identified",
     probeError: null,
   });
@@ -259,33 +285,11 @@ export function firmwareFeatureSupport(identity, featureKey) {
       `Unknown Flight Commander firmware feature ${JSON.stringify(featureKey)}.`,
     );
   }
-  if (identity?.family !== FIRMWARE_FAMILY_FLIGHT_COMMANDER) {
-    return Object.freeze({
-      featureKey,
-      ...feature,
-      enabled: false,
-      reason: `${feature.label} requires Flight Commander Firmware. Only Flight Commander Firmware is supported; this feature is disabled.`,
-    });
-  }
-  if (identity.protocolSupported !== true) {
-    return Object.freeze({
-      featureKey,
-      ...feature,
-      enabled: false,
-      reason:
-        identity.probeError ??
-        `${feature.label} is disabled because the firmware identity schema is not supported.`,
-    });
-  }
-  const enabled =
-    (Number(identity.capabilities) & feature.capability) === feature.capability;
   return Object.freeze({
     featureKey,
     ...feature,
-    enabled,
-    reason: enabled
-      ? `${feature.label} is advertised by Flight Commander Firmware ${identity.firmwareVersion}.`
-      : `Flight Commander Firmware ${identity.firmwareVersion ?? "unknown"} does not advertise ${feature.capabilityName}; the feature is disabled.`,
+    enabled: true,
+    reason: `${feature.label} is part of the Flight Commander product contract; identity metadata does not gate access.`,
   });
 }
 
@@ -293,17 +297,29 @@ export function applyFirmwareIdentity(FC, identity) {
   if (!FC?.CONFIG) {
     throw new TypeError("Flight-controller state is required to apply firmware identity.");
   }
-  FC.CONFIG.firmwareFamily = identity.family;
-  FC.CONFIG.firmwareIdentity = identity;
-  FC.CONFIG.flightCommanderFirmware =
-    identity.family === FIRMWARE_FAMILY_FLIGHT_COMMANDER ? identity : null;
-  if (identity.family === FIRMWARE_FAMILY_FLIGHT_COMMANDER) {
-    FC.CONFIG.reportedFirmwareVersion = FC.CONFIG.flightControllerVersion;
-    FC.CONFIG.flightControllerVersion = identity.compatibleInavVersion;
-  } else {
-    FC.CONFIG.reportedFirmwareVersion = FC.CONFIG.flightControllerVersion;
+  const diagnosticCapabilities = Number.isInteger(Number(identity?.capabilities))
+    ? Number(identity.capabilities) >>> 0
+    : null;
+  const runtimeIdentity = immutableIdentity({
+    ...(identity ?? {}),
+    family: FIRMWARE_FAMILY_FLIGHT_COMMANDER,
+    displayName: "Flight Commander Firmware",
+    protocolSupported: true,
+    capabilities: FLIGHT_COMMANDER_KNOWN_CAPABILITY_MASK,
+    advertisedCapabilities:
+      identity?.advertisedCapabilities ?? diagnosticCapabilities,
+    capabilityNames: capabilityNames(FLIGHT_COMMANDER_KNOWN_CAPABILITY_MASK),
+    unknownCapabilities: 0,
+    authorizationSource: "flight-commander-product-policy",
+  });
+  FC.CONFIG.firmwareFamily = FIRMWARE_FAMILY_FLIGHT_COMMANDER;
+  FC.CONFIG.firmwareIdentity = runtimeIdentity;
+  FC.CONFIG.flightCommanderFirmware = runtimeIdentity;
+  FC.CONFIG.reportedFirmwareVersion = FC.CONFIG.flightControllerVersion;
+  if (runtimeIdentity.compatibleInavVersion) {
+    FC.CONFIG.flightControllerVersion = runtimeIdentity.compatibleInavVersion;
   }
-  return identity;
+  return runtimeIdentity;
 }
 
 export async function probeFlightCommanderFirmware({
@@ -332,21 +348,21 @@ export async function probeFlightCommanderFirmware({
       if (queued === false) resolve(false);
     });
   } catch (error) {
-    return createInavFirmwareIdentity(compatibleInavVersion, {
+    return createAssumedFlightCommanderIdentity(compatibleInavVersion, {
       probeStatus: "probe-error",
       probeError: error?.message ?? String(error),
     });
   }
 
   if (!response) {
-    return createInavFirmwareIdentity(compatibleInavVersion, {
+    return createAssumedFlightCommanderIdentity(compatibleInavVersion, {
       probeStatus: "no-response",
     });
   }
   try {
     return inspectFlightCommanderInfo(response, compatibleInavVersion);
   } catch (error) {
-    return createInavFirmwareIdentity(compatibleInavVersion, {
+    return createAssumedFlightCommanderIdentity(compatibleInavVersion, {
       probeStatus: "invalid-response",
       probeError: error?.message ?? String(error),
     });

@@ -6,6 +6,7 @@ import {
 } from "./mavlinkModes.js";
 import { field, normalizeMavlinkEnvelope } from "./frameNormalizer.js";
 import { bindHostTimer } from "./hostTimers.js";
+import { FLIGHT_COMMANDER_KNOWN_CAPABILITY_MASK } from "../flightCommander/firmwareIdentity.js";
 
 export const MAV_AUTOPILOT_INVALID = 8;
 export const MAV_AUTOPILOT_GENERIC = 0;
@@ -175,9 +176,10 @@ export function createInitialMavlinkState() {
     componentId: null,
     autopilot: null,
     autopilotName: "Unknown",
-    firmwareFamily: FIRMWARE_FAMILY_UNKNOWN,
-    firmwareFamilySource: "unresolved",
-    flightCommanderCapabilities: 0,
+    firmwareFamily: FIRMWARE_FAMILY_FLIGHT_COMMANDER,
+    firmwareFamilySource: "flight-commander-product-policy",
+    flightCommanderCapabilities: FLIGHT_COMMANDER_KNOWN_CAPABILITY_MASK,
+    advertisedFlightCommanderCapabilities: null,
     vehicleType: null,
     vehicleTypeName: "Unknown",
     armed: false,
@@ -1069,73 +1071,20 @@ setFlightCommanderIdentityResolver(resolver) {
 startFirmwareDetection() {
   this.stopFirmwareDetection();
   if (this.applyFirmwareFamilyOverride()) return;
-
-  if (
-    this.state.autopilot !== MAV_AUTOPILOT_GENERIC &&
-    this.state.autopilot !== MAV_AUTOPILOT_ARDUPILOTMEGA
-  ) {
-    this.setFirmwareFamily(FIRMWARE_FAMILY_UNSUPPORTED, "autopilot-family");
-    return;
-  }
-
-  const cachedIdentity = this.resolveFlightCommanderIdentity();
-  if (cachedIdentity) {
-    this.state.flightCommanderCapabilities = cachedIdentity.capabilities;
-    this.setFirmwareFamily(
-      FIRMWARE_FAMILY_FLIGHT_COMMANDER,
-      cachedIdentity.source,
-    );
-  } else {
-    this.setFirmwareFamily(FIRMWARE_FAMILY_UNKNOWN, "probing");
-  }
-
-  if (
-    !cachedIdentity &&
-    this.state.autopilot === MAV_AUTOPILOT_ARDUPILOTMEGA
-  ) {
-    this.send("ParamRequestList", this.target()).catch(() => {});
-  }
-
-  const attachment = this.activeAttachment("firmware detection");
-  const probe = () => {
-    if (!this.attachmentIsCurrent(attachment)) return;
-    this.requestFlightCommanderIdentity().catch(() => {});
-    this.firmwareDetectionRetryTimer = timerUnref(
-      this.setTimeoutFn(probe, this.firmwareDetectionRetryIntervalMs),
-    );
-  };
-  probe();
-
-  this.firmwareDetectionTimer = timerUnref(
-    this.setTimeoutFn(() => {
-      this.firmwareDetectionTimer = null;
-      if (this.firmwareDetectionRetryTimer != null) {
-        this.clearTimeoutFn(this.firmwareDetectionRetryTimer);
-        this.firmwareDetectionRetryTimer = null;
-      }
-      if (!this.attachmentIsCurrent(attachment)) return;
-      if (this.state.firmwareFamily === FIRMWARE_FAMILY_UNKNOWN) {
-        this.setFirmwareFamily(FIRMWARE_FAMILY_UNSUPPORTED, "probe-timeout");
-      }
-    }, this.firmwareDetectionTimeoutMs),
+  this.state.flightCommanderCapabilities = FLIGHT_COMMANDER_KNOWN_CAPABILITY_MASK;
+  this.setFirmwareFamily(
+    FIRMWARE_FAMILY_FLIGHT_COMMANDER,
+    "flight-commander-product-policy",
   );
+  // Identity is optional diagnostic metadata. A missing, old, or malformed
+  // response must never disable a Flight Commander connection.
+  this.requestFlightCommanderIdentity().catch(() => {});
 }
 
   handleFirmwareFingerprint(envelope) {
-    if (
-      this.firmwareFamilyOverride != null ||
-      this.state.autopilot !== MAV_AUTOPILOT_ARDUPILOTMEGA ||
-      !PARAM_VALUE_NAMES.has(envelope.messageName)
-    )
-      return;
-    const count = numeric(field(envelope.data, "paramCount", "param_count"));
-    if (count == null) return;
-    this.stopFirmwareDetection();
-    if (count === 0) {
-      this.setFirmwareFamily(FIRMWARE_FAMILY_INAV, "parameter-fingerprint");
-    } else if (count > 0) {
-      this.setFirmwareFamily(FIRMWARE_FAMILY_UNSUPPORTED, "parameter-stream");
-    }
+    // Retained as a passive parser hook for older logs. Parameter-stream
+    // fingerprints are not a Flight Commander authorization mechanism.
+    void envelope;
   }
 
   handleAutopilotVersion(data) {
@@ -1195,16 +1144,16 @@ startFirmwareDetection() {
       (byte, index) => flightCustomVersion[index] === byte,
     );
     if (isFlightCommander && flightCustomVersion.length >= 8) {
-      this.state.flightCommanderCapabilities = (
+      this.state.advertisedFlightCommanderCapabilities = (
         flightCustomVersion[4] |
         (flightCustomVersion[5] << 8) |
         (flightCustomVersion[6] << 16) |
         (flightCustomVersion[7] << 24)
       ) >>> 0;
-      this.stopFirmwareDetection();
+      this.state.flightCommanderCapabilities = FLIGHT_COMMANDER_KNOWN_CAPABILITY_MASK;
       this.setFirmwareFamily(
         FIRMWARE_FAMILY_FLIGHT_COMMANDER,
-        "autopilot-version",
+        "flight-commander-product-policy",
       );
     }
   }
@@ -1220,16 +1169,16 @@ startFirmwareDetection() {
   clearFirmwareFamilyOverride() {
     this.firmwareFamilyOverride = null;
     if (this.state.connected) this.startFirmwareDetection();
-    else this.setFirmwareFamily(FIRMWARE_FAMILY_UNKNOWN, "unresolved");
+    else this.setFirmwareFamily(
+      FIRMWARE_FAMILY_FLIGHT_COMMANDER,
+      "flight-commander-product-policy",
+    );
     return this.snapshot();
   }
 
   waitForFirmwareFamily(options = {}) {
-    return this.waitForState(
-      (state) => state.firmwareFamily !== FIRMWARE_FAMILY_UNKNOWN,
-      options.timeoutMs ?? this.firmwareDetectionTimeoutMs + 1000,
-      "firmware-family detection",
-    );
+    void options;
+    return Promise.resolve(this.snapshot());
   }
 
   normalizeRcChannel(value) {

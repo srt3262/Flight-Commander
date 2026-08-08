@@ -1,8 +1,8 @@
 # GPS and RTK
 
 Flight Commander supports a normal serial u-blox receiver, an explicit UART
-F9-series RTK rover, supported DroneCAN GPS/RTK nodes, and dual-receiver
-moving-baseline heading when the connected firmware advertises each capability.
+F9-series RTK rover, DroneCAN GPS/RTK nodes, and dual-receiver moving-baseline
+heading as one firmware feature contract.
 
 ## Terms
 
@@ -132,8 +132,8 @@ failover, and disagreement rejection.
 
 - No F9 choice: install Configurator 2.0.5 or newer and select the explicit
   F9-series RTK rover preset.
-- No RTK alignment target: verify Flight Commander firmware identity and the
-  UART RTK, DroneCAN, heading-fusion, or moving-baseline capability card.
+- No RTK alignment target: verify the UART RTK or DroneCAN device is enabled,
+  detected, and assigned to the intended heading/GPS role.
 - GPS absent after reboot: recheck the Ports function, baud, RX/TX crossover,
   voltage level, and module power.
 - Corrections count but no Float/Fixed: verify RTCM compatibility, base distance,

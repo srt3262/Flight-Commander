@@ -3,8 +3,8 @@ import { describe, test } from "node:test";
 
 import {
   FIRMWARE_FAMILY_FLIGHT_COMMANDER,
-  FIRMWARE_FAMILY_INAV,
   FLIGHT_COMMANDER_CAPABILITIES,
+  FLIGHT_COMMANDER_KNOWN_CAPABILITY_MASK,
   MSP2_FLIGHT_COMMANDER_INFO,
   applyFirmwareIdentity,
   createInavFirmwareIdentity,
@@ -29,7 +29,7 @@ function identityPayload({
 }
 
 describe("Flight Commander firmware identity", () => {
-  test("recognizes inherited transport variants but authorizes only the FCFW identity", () => {
+  test("recognizes inherited transport variants while keeping FCFW metadata optional", () => {
     assert.equal(isInavCompatibleFirmwareVariant("INAV"), true);
     assert.equal(isInavCompatibleFirmwareVariant("FCFW"), true);
     assert.equal(isInavCompatibleFirmwareVariant("ARDU"), false);
@@ -59,15 +59,17 @@ describe("Flight Commander firmware identity", () => {
     ]);
   });
 
-  test("treats a missing FCFW response as unsupported firmware", () => {
+  test("treats a missing FCFW response as optional diagnostic metadata", () => {
     const identity = inspectFlightCommanderInfo(new Uint8Array(), "9.1.0");
-    assert.equal(identity.family, FIRMWARE_FAMILY_INAV);
+    assert.equal(identity.family, FIRMWARE_FAMILY_FLIGHT_COMMANDER);
     assert.equal(identity.compatibleInavVersion, "9.1.0");
-    assert.equal(identity.capabilities, 0);
-    assert.equal(identity.displayName, "Unsupported firmware");
+    assert.equal(identity.capabilities, FLIGHT_COMMANDER_KNOWN_CAPABILITY_MASK);
+    assert.equal(identity.displayName, "Flight Commander Firmware");
+    assert.equal(identity.protocolSupported, true);
+    assert.equal(identity.detected, false);
   });
 
-  test("identifies a newer Flight Commander schema but disables its features", () => {
+  test("reports a newer Flight Commander schema without using it as a feature gate", () => {
     const identity = inspectFlightCommanderInfo(
       identityPayload({ schema: 2 }),
       "9.1.0",
@@ -78,6 +80,7 @@ describe("Flight Commander firmware identity", () => {
     assert.equal(identity.capabilities, 0);
     assert.equal(identity.displayName, "Flight Commander Firmware");
     assert.match(identity.probeError, /schema 2/);
+    assert.equal(firmwareFeatureSupport(identity, "missionStreaming").enabled, true);
   });
 
   test("rejects malformed nonempty payloads instead of granting capabilities", () => {
@@ -91,15 +94,15 @@ describe("Flight Commander firmware identity", () => {
     );
   });
 
-  test("feature gates require both Flight Commander identity and the exact bit", () => {
+  test("feature availability follows the product contract, not identity bits", () => {
     const stock = createInavFirmwareIdentity("9.1.0");
     assert.equal(
       firmwareFeatureSupport(stock, "multirotorAutotune").enabled,
-      false,
+      true,
     );
     assert.match(
       firmwareFeatureSupport(stock, "multirotorAutotune").reason,
-      /requires Flight Commander Firmware/,
+      /product contract/,
     );
 
     const fork = inspectFlightCommanderInfo(
@@ -113,7 +116,7 @@ describe("Flight Commander firmware identity", () => {
     );
     assert.equal(
       firmwareFeatureSupport(fork, "missionStreaming").enabled,
-      false,
+      true,
     );
   });
 
@@ -148,7 +151,8 @@ describe("Flight Commander firmware identity", () => {
       },
       compatibleInavVersion: "9.1.0",
     });
-    assert.equal(unsupported.family, FIRMWARE_FAMILY_INAV);
+    assert.equal(unsupported.family, FIRMWARE_FAMILY_FLIGHT_COMMANDER);
+    assert.equal(unsupported.capabilities, FLIGHT_COMMANDER_KNOWN_CAPABILITY_MASK);
   });
 
   test("applies Flight Commander identity without replacing the inherited protocol version", () => {
@@ -159,10 +163,12 @@ describe("Flight Commander firmware identity", () => {
       },
     };
     const identity = inspectFlightCommanderInfo(identityPayload());
-    applyFirmwareIdentity(FC, identity);
+    const applied = applyFirmwareIdentity(FC, identity);
     assert.equal(FC.CONFIG.firmwareFamily, FIRMWARE_FAMILY_FLIGHT_COMMANDER);
     assert.equal(FC.CONFIG.flightCommanderFirmware.firmwareVersion, "0.1.0");
     assert.equal(FC.CONFIG.flightControllerIdentifier, "INAV");
     assert.equal(FC.CONFIG.flightControllerVersion, "9.1.0");
+    assert.equal(applied.capabilities, FLIGHT_COMMANDER_KNOWN_CAPABILITY_MASK);
+    assert.equal(applied.advertisedCapabilities, 0);
   });
 });

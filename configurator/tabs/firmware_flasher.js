@@ -1436,27 +1436,16 @@ firmwareFlasherTab.onOpen = async function(openInfo) {
                                 ? reportedVersion
                                 : '0.0.0',
                         }).then(function(identity) {
-                            if (
-                                (
-                                    identity.family !== FIRMWARE_FAMILY_FLIGHT_COMMANDER
-                                    || identity.protocolSupported !== true
-                                )
-                            ) {
-                                GUI.log(
-                                    'Cannot prefetch target: the controller did not provide a supported Flight Commander FCFW identity.',
-                                );
-                                firmwareFlasherTab.closeTempConnection();
-                                return;
-                            }
-                            applyFirmwareIdentity(FC, identity);
+                            const runtimeIdentity = applyFirmwareIdentity(FC, identity);
                             if (semver.lt(FC.CONFIG.flightControllerVersion, "5.0.0")) {
                                 GUI.log(i18n.getMessage('targetPrefetchFailOld'));
                                 firmwareFlasherTab.closeTempConnection();
                                 return;
                             }
                             GUI.log(
-                                `Detected Flight Commander Firmware ${identity.firmwareVersion || 'unknown'} ` +
-                                `(protocol baseline ${identity.compatibleInavVersion}).`,
+                                `Connected Flight Commander controller ` +
+                                `(firmware ${runtimeIdentity.firmwareVersion || 'version not advertised'}, ` +
+                                `protocol baseline ${runtimeIdentity.compatibleInavVersion}).`,
                             );
                             mspHelper.getCraftName(function(name) {
                                 if (name) {

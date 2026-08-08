@@ -33,7 +33,6 @@ import jBox from 'jbox';
 import SerialBackend from '../js/serial_backend';
 import ublox from '../js/ublox/UBLOX';
 import dialog from '../js/dialog';
-import { firmwareFeatureSupport } from '../js/flightCommander/firmwareIdentity';
 import {
     DRONECAN_NODE_ID_DISABLED,
     DRONECAN_TERMINATION_DISABLED,
@@ -69,13 +68,12 @@ import {
 const gpsTab = {};
 gpsTab.initialize = function (callback) {
 
-    const firmwareIdentity = FC.CONFIG.firmwareIdentity;
-    const supportsRtkUart = firmwareFeatureSupport(firmwareIdentity, 'rtkGpsUart').enabled;
-    const supportsDronecanGps = firmwareFeatureSupport(firmwareIdentity, 'dronecanGps').enabled;
-    const supportsDronecanConfig = firmwareFeatureSupport(firmwareIdentity, 'dronecanNodeConfig').enabled;
-    const supportsHeadingFusion = firmwareFeatureSupport(firmwareIdentity, 'headingFusion').enabled;
-    const supportsMovingBaseline = firmwareFeatureSupport(firmwareIdentity, 'movingBaselineYaw').enabled;
-    const supportsDronecanPairManager = firmwareFeatureSupport(firmwareIdentity, 'dronecanMovingBaselineManager').enabled;
+    const supportsRtkUart = true;
+    const supportsDronecanGps = true;
+    const supportsDronecanConfig = true;
+    const supportsHeadingFusion = true;
+    const supportsMovingBaseline = true;
+    const supportsDronecanPairManager = true;
 
     if (GUI.active_tab !== this) {
         GUI.active_tab = this;

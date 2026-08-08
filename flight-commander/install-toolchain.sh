@@ -16,7 +16,7 @@ if [[ ! -x "${toolchain_root}/bin/arm-none-eabi-gcc" ]]; then
     printf '%s  %s\n' "${archive_sha256}" "${archive_path}.partial" |
         sha256sum --check --strict
     mv "${archive_path}.partial" "${archive_path}"
-    tar -xJf "${archive_path}" -C "${cache_root}"
+    tar --no-same-owner -xJf "${archive_path}" -C "${cache_root}"
 fi
 
 if [[ "$("${toolchain_root}/bin/arm-none-eabi-gcc" -dumpfullversion -dumpversion)" != "13.2.1" ]]; then

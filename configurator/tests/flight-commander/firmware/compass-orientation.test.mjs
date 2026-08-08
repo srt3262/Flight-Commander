@@ -128,7 +128,8 @@ describe('source-selective learned compass orientation protocol', () => {
     assert.match(html, /Six-Side Compass Orientation \/ Alignment/);
     assert.match(html, /compassFieldCalibrationStart/);
     assert.doesNotMatch(html, /All enabled compasses are being calibrated together/);
-    assert.match(js, /individualCompassCalibration/);
+    assert.match(js, /supportsIndividualCompassCalibration = true/);
+    assert.doesNotMatch(js, /firmwareFeatureSupport/);
     assert.match(js, /COMPASS_ORIENTATION_COMMAND\.SELECT/);
     assert.match(js, /sendCompassCalibrationCommand\(target\.index/);
     assert.match(js, /orientationBlocksFieldCalibration/);

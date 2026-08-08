@@ -81,17 +81,14 @@ supported controller firmware family:
 
 - **Flight Commander Firmware over MSP** uses the inherited wired handshake and
   native persistent mission/settings formats. The versioned FCFW identity is
-  mandatory before normal setup tabs unlock.
+  optional diagnostic metadata.
 - **Flight Commander Firmware over MAVLink** supplies telemetry, active mission
-  transfer, and capability-gated commands after the FCFW signature is verified.
-- A generic heartbeat, an inherited MSP variant field, or parameter behavior is
-  not accepted as firmware authorization.
-- LTM is not exposed as a supported aircraft connection because it cannot carry
-  the FCFW identity and capability contract.
-- Other or unidentified firmware is classified as unsupported. Configuration,
-  mission transfer, commands, and aircraft RTK forwarding remain blocked; wired
-  CLI recovery may remain available for reflashing.
-- The Firmware Flasher accepts only target-matched Flight Commander FCFW images.
+  transfer, and commands after link and aircraft-profile checks.
+- Runtime firmware authorization is intentionally absent because Flight
+  Commander provides one firmware product and one feature contract.
+- LTM remains telemetry-only because it cannot carry mission or command traffic.
+- The online Firmware Flasher verifies official release assets; operator-chosen
+  local HEX files are flashed as supplied.
 
 Inherited INAV names remain in source identifiers, setting names, wire-format
 code, licensing notices, and provenance where Flight Commander Firmware still

@@ -14,7 +14,6 @@ import GUI from './../js/gui';
 import i18n from './../js/localization';
 import { mixer } from './../js/model';
 import interval from './../js/intervals';
-import { firmwareFeatureSupport } from './../js/flightCommander/firmwareIdentity';
 import {
     ALIGNMENT_TARGET_LEGACY_MAG,
     applyAlignmentDrafts,
@@ -34,12 +33,11 @@ const magnetometerTab = {};
 
 magnetometerTab.initialize = function (callback) {
     var self = this;
-    const firmwareIdentity = FC.CONFIG.firmwareIdentity;
-    const supportsRtkUart = firmwareFeatureSupport(firmwareIdentity, 'rtkGpsUart').enabled;
-    const supportsDronecanGps = firmwareFeatureSupport(firmwareIdentity, 'dronecanGps').enabled;
-    const supportsDronecanConfig = firmwareFeatureSupport(firmwareIdentity, 'dronecanNodeConfig').enabled;
-    const supportsHeadingFusion = firmwareFeatureSupport(firmwareIdentity, 'headingFusion').enabled;
-    const supportsMovingBaseline = firmwareFeatureSupport(firmwareIdentity, 'movingBaselineYaw').enabled;
+    const supportsRtkUart = true;
+    const supportsDronecanGps = true;
+    const supportsDronecanConfig = true;
+    const supportsHeadingFusion = true;
+    const supportsMovingBaseline = true;
 
     if (GUI.active_tab !== this) {
         GUI.active_tab = this;

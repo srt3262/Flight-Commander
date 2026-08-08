@@ -4,13 +4,15 @@ import { afterEach, describe, test } from "node:test";
 import {
   FIRMWARE_FAMILY_FLIGHT_COMMANDER,
   FIRMWARE_FAMILY_INAV,
-  FIRMWARE_FAMILY_UNSUPPORTED,
   MAV_CMD_REQUEST_AUTOPILOT_CAPABILITIES,
   MAV_CMD_REQUEST_MESSAGE,
   MAV_MODE_FLAG_SAFETY_ARMED,
   MavlinkSession,
 } from "../../../js/mavlink/mavlinkSession.js";
-import { FLIGHT_COMMANDER_CAPABILITIES } from "../../../js/flightCommander/firmwareIdentity.js";
+import {
+  FLIGHT_COMMANDER_CAPABILITIES,
+  FLIGHT_COMMANDER_KNOWN_CAPABILITY_MASK,
+} from "../../../js/flightCommander/firmwareIdentity.js";
 import { MavlinkIpcCodec } from "../../../js/main/mavlink.js";
 import {
   canonicalMessageName,
@@ -383,14 +385,18 @@ describe("MAVLink state normalization and firmware detection", () => {
     assert.equal(state.hdop, null);
   });
 
-  test("keeps a generic-autopilot heartbeat locked while FCFW identity is pending", () => {
+  test("accepts a generic-autopilot heartbeat immediately under product policy", () => {
     const { session } = createAttachedSession();
     session.handleMessage(heartbeat({ autopilot: 0 }));
-    assert.equal(session.state.firmwareFamily, "unknown");
-    assert.equal(session.state.firmwareFamilySource, "probing");
+    assert.equal(session.state.firmwareFamily, FIRMWARE_FAMILY_FLIGHT_COMMANDER);
+    assert.equal(session.state.firmwareFamilySource, "flight-commander-product-policy");
+    assert.equal(
+      session.state.flightCommanderCapabilities,
+      FLIGHT_COMMANDER_KNOWN_CAPABILITY_MASK,
+    );
   });
 
-  test("recognizes legacy Firmware 4.0.8 from one cached wired Flight Commander profile", () => {
+  test("does not let cached identity metadata reduce product capabilities", () => {
     const capabilities = FLIGHT_COMMANDER_CAPABILITIES.NATIVE_GCS_COMMANDS |
       FLIGHT_COMMANDER_CAPABILITIES.MISSION_RESUME;
     const { session } = createAttachedSession({
@@ -404,8 +410,11 @@ describe("MAVLink state normalization and firmware detection", () => {
     session.handleMessage(heartbeat({ autopilot: 0, sysid: 23 }));
 
     assert.equal(session.state.firmwareFamily, FIRMWARE_FAMILY_FLIGHT_COMMANDER);
-    assert.equal(session.state.firmwareFamilySource, "legacy-msp-profile");
-    assert.equal(session.state.flightCommanderCapabilities, capabilities);
+    assert.equal(session.state.firmwareFamilySource, "flight-commander-product-policy");
+    assert.equal(
+      session.state.flightCommanderCapabilities,
+      FLIGHT_COMMANDER_KNOWN_CAPABILITY_MASK,
+    );
   });
 
   test("requests Flight Commander identity through both standard MAVLink commands", async () => {
@@ -424,7 +433,7 @@ describe("MAVLink state normalization and firmware detection", () => {
     assert.ok(commands.includes(MAV_CMD_REQUEST_MESSAGE));
   });
 
-  test("does not downgrade a cached Firmware 4.0.8 identity when probing ends", async () => {
+  test("does not downgrade product access when optional probing is silent", async () => {
     const capabilities = FLIGHT_COMMANDER_CAPABILITIES.NATIVE_GCS_COMMANDS;
     const { session } = createAttachedSession({
       firmwareDetectionTimeoutMs: 10,
@@ -438,14 +447,16 @@ describe("MAVLink state normalization and firmware detection", () => {
     await new Promise((resolve) => setTimeout(resolve, 20));
 
     assert.equal(session.state.firmwareFamily, FIRMWARE_FAMILY_FLIGHT_COMMANDER);
-    assert.equal(session.state.firmwareFamilySource, "legacy-msp-profile");
-    assert.equal(session.state.flightCommanderCapabilities, capabilities);
+    assert.equal(session.state.firmwareFamilySource, "flight-commander-product-policy");
+    assert.equal(
+      session.state.flightCommanderCapabilities,
+      FLIGHT_COMMANDER_KNOWN_CAPABILITY_MASK,
+    );
   });
-  test("promotes an INAV-compatible heartbeat to Flight Commander only after FCFW capability identity", () => {
+  test("records FCFW capabilities as metadata without using them as a gate", () => {
     const { session } = createAttachedSession();
     session.handleMessage(heartbeat({ autopilot: 0 }));
-    assert.equal(session.state.firmwareFamily, "unknown");
-    assert.equal(session.state.firmwareFamilySource, "probing");
+    assert.equal(session.state.firmwareFamily, FIRMWARE_FAMILY_FLIGHT_COMMANDER);
 
     const capabilities =
       FLIGHT_COMMANDER_CAPABILITIES.NATIVE_GCS_COMMANDS |
@@ -474,8 +485,15 @@ describe("MAVLink state normalization and firmware detection", () => {
       session.state.firmwareFamily,
       FIRMWARE_FAMILY_FLIGHT_COMMANDER,
     );
-    assert.equal(session.state.firmwareFamilySource, "autopilot-version");
-    assert.equal(session.state.flightCommanderCapabilities, capabilities);
+    assert.equal(session.state.firmwareFamilySource, "flight-commander-product-policy");
+    assert.equal(
+      session.state.flightCommanderCapabilities,
+      FLIGHT_COMMANDER_KNOWN_CAPABILITY_MASK,
+    );
+    assert.equal(
+      session.state.advertisedFlightCommanderCapabilities,
+      capabilities,
+    );
   });
 
   test("publishes the validated connection before firmware state updates", () => {
@@ -534,18 +552,17 @@ describe("MAVLink state normalization and firmware detection", () => {
     assert.equal(connectedEvents, 1);
   });
 
-  test("uses parameter stream fingerprint to distinguish INAV from unsupported firmware", () => {
+  test("ignores parameter-stream fingerprints for authorization", () => {
     const inav = createAttachedSession().session;
     inav.handleMessage(heartbeat({ autopilot: 3, sysid: 11 }));
-    assert.equal(inav.state.firmwareFamily, "unknown");
-    assert.equal(inav.state.firmwareFamilySource, "probing");
+    assert.equal(inav.state.firmwareFamily, FIRMWARE_FAMILY_FLIGHT_COMMANDER);
     inav.handleMessage({
       name: "PARAM_VALUE",
       message: { param_count: 0, param_id: "", param_value: 0 },
       header: { systemId: 11, componentId: 1 },
     });
-    assert.equal(inav.state.firmwareFamily, FIRMWARE_FAMILY_INAV);
-    assert.equal(inav.state.firmwareFamilySource, "parameter-fingerprint");
+    assert.equal(inav.state.firmwareFamily, FIRMWARE_FAMILY_FLIGHT_COMMANDER);
+    assert.equal(inav.state.firmwareFamilySource, "flight-commander-product-policy");
 
     const unsupported = createAttachedSession().session;
     unsupported.handleMessage(heartbeat({ autopilot: 3, sysid: 12 }));
@@ -554,21 +571,21 @@ describe("MAVLink state normalization and firmware detection", () => {
       message: { param_count: 900, param_id: "SYSID_THISMAV", param_value: 1 },
       header: { systemId: 12, componentId: 1 },
     });
-    assert.equal(unsupported.state.firmwareFamily, FIRMWARE_FAMILY_UNSUPPORTED);
-    assert.equal(unsupported.state.firmwareFamilySource, "parameter-stream");
+    assert.equal(unsupported.state.firmwareFamily, FIRMWARE_FAMILY_FLIGHT_COMMANDER);
+    assert.equal(unsupported.state.firmwareFamilySource, "flight-commander-product-policy");
   });
 
-  test("fails closed when the INAV compatibility fingerprint probe is silent", async () => {
+  test("keeps product access open when optional identity probing is silent", async () => {
     const { session } = createAttachedSession({
       firmwareDetectionTimeoutMs: 10,
     });
     session.handleMessage(heartbeat({ autopilot: 3, sysid: 21 }));
-    assert.equal(session.state.firmwareFamilySource, "probing");
+    assert.equal(session.state.firmwareFamilySource, "flight-commander-product-policy");
 
     await new Promise((resolve) => setTimeout(resolve, 20));
 
-    assert.equal(session.state.firmwareFamily, FIRMWARE_FAMILY_UNSUPPORTED);
-    assert.equal(session.state.firmwareFamilySource, "probe-timeout");
+    assert.equal(session.state.firmwareFamily, FIRMWARE_FAMILY_FLIGHT_COMMANDER);
+    assert.equal(session.state.firmwareFamilySource, "flight-commander-product-policy");
   });
 });
 
@@ -961,8 +978,8 @@ describe("commands, acknowledgements and cleanup", () => {
 
     assert.equal(session.state.connected, true);
     assert.equal(session.state.protocolVersion, 2);
-    assert.equal(session.state.firmwareFamily, "unknown");
-    assert.equal(session.state.firmwareFamilySource, "probing");
+    assert.equal(session.state.firmwareFamily, FIRMWARE_FAMILY_FLIGHT_COMMANDER);
+    assert.equal(session.state.firmwareFamilySource, "flight-commander-product-policy");
     assert.equal(session.state.systemId, 1);
     const heartbeatsBeforeProtocolLock = bridge.encoded.filter(
       ({ messageName }) => messageName === "Heartbeat",
@@ -996,7 +1013,7 @@ describe("commands, acknowledgements and cleanup", () => {
     }
   });
 
-  test("detaching rejects state, ACK, firmware, and mission waits", async () => {
+  test("detaching rejects state, ACK, and mission waits while product identity remains available", async () => {
     const { session } = createAttachedSession();
     session.handleMessage(heartbeat({ customMode: 0 }));
     session.state.missionTotal = 3;
@@ -1009,9 +1026,12 @@ describe("commands, acknowledgements and cleanup", () => {
         session.waitForState((state) => state.armed, 1000, "armed state"),
       ],
       ["ACK", session.waitForCommandAck(300, { timeoutMs: 1000 })],
-      ["firmware", session.waitForFirmwareFamily({ timeoutMs: 1000 })],
       ["mission message", session.waitFor("MissionCount", () => true, 1000)],
     ];
+    assert.equal(
+      (await session.waitForFirmwareFamily({ timeoutMs: 1000 })).firmwareFamily,
+      FIRMWARE_FAMILY_FLIGHT_COMMANDER,
+    );
     const results = operations.map(([name, operation]) =>
       operation.then(
         () => ({ name, resolved: true }),
