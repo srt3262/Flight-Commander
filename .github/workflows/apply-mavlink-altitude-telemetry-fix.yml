@@ -1,0 +1,283 @@
+name: Apply MAVLink altitude telemetry fix
+
+"on":
+  push:
+    branches:
+      - agent/fix-4.0.8-ui-regressions
+    paths:
+      - .github/workflows/apply-mavlink-altitude-telemetry-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch-test-and-commit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out the regression-fix branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: agent/fix-4.0.8-ui-regressions
+          fetch-depth: 0
+
+      - name: Apply source and regression-test changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: Path, old: str, new: str, label: str) -> None:
+              text = path.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected one {label} block, found {count}')
+              path.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          session = Path('js/mavlink/mavlinkSession.js')
+
+          replace_once(
+              session,
+              '''        this.state.altitudeMsl = altitude == null ? null : altitude / 1000;
+          this.state.relativeAltitude =
+            relativeAltitude == null ? null : relativeAltitude / 1000;''',
+              '''        this.state.altitudeMsl =
+            altitude == null || this.state.gpsFix < 3
+              ? null
+              : altitude / 1000;
+          this.state.relativeAltitude =
+            relativeAltitude == null ? null : relativeAltitude / 1000;''',
+              'GLOBAL_POSITION_INT altitude validity',
+          )
+
+          replace_once(
+              session,
+              '''      case "GpsRawInt": {
+            this.state.gpsFix = numeric(field(data, "fixType", "fix_type")) ?? 0;
+            const satellites = numeric(
+              field(data, "satellitesVisible", "satellites_visible"),
+            );
+            this.state.satellites =
+              satellites == null || satellites === 255 ? null : satellites;
+            const eph = numeric(field(data, "eph"));
+            this.state.hdop = eph == null || eph === 65535 ? null : eph / 100;
+            break;
+          }''',
+              '''      case "GpsRawInt": {
+            const fixType = numeric(field(data, "fixType", "fix_type")) ?? 0;
+            this.state.gpsFix = fixType;
+            const satellites = numeric(
+              field(data, "satellitesVisible", "satellites_visible"),
+            );
+            this.state.satellites =
+              satellites == null || satellites === 255 ? null : satellites;
+            const eph = numeric(field(data, "eph"));
+            this.state.hdop = eph == null || eph === 65535 ? null : eph / 100;
+            const altitude = numeric(field(data, "alt"));
+            this.state.altitudeMsl =
+              fixType >= 3 && altitude != null ? altitude / 1000 : null;
+            break;
+          }''',
+              'GPS_RAW_INT MSL altitude',
+          )
+
+          replace_once(
+              session,
+              '''      case "VfrHud":
+            this.state.airSpeed = numeric(field(data, "airspeed"));
+            this.state.groundSpeed = numeric(field(data, "groundspeed"));
+            this.state.climbRate = numeric(field(data, "climb"));
+            this.state.heading = numeric(field(data, "heading"));
+            break;''',
+              '''      case "VfrHud": {
+            this.state.airSpeed = numeric(field(data, "airspeed"));
+            this.state.groundSpeed = numeric(field(data, "groundspeed"));
+            this.state.climbRate = numeric(field(data, "climb"));
+            this.state.heading = numeric(field(data, "heading"));
+            const altitude = numeric(field(data, "alt"));
+            const inavRelativeAltitude =
+              this.state.firmwareFamily === FIRMWARE_FAMILY_INAV ||
+              this.state.firmwareFamily === FIRMWARE_FAMILY_FLIGHT_COMMANDER ||
+              this.state.autopilot === MAV_AUTOPILOT_GENERIC;
+            if (altitude != null && inavRelativeAltitude) {
+              // INAV populates VFR_HUD.alt from getEstimatedActualPosition(Z),
+              // which is the barometer/INS relative-altitude estimate even
+              // though the MAVLink field's generic description says MSL.
+              this.state.relativeAltitude = altitude;
+            } else if (
+              altitude != null &&
+              this.state.firmwareFamily === FIRMWARE_FAMILY_UNSUPPORTED
+            ) {
+              // Preserve standard MAVLink semantics for non-INAV telemetry.
+              this.state.altitudeMsl = altitude;
+            }
+            break;
+          }''',
+              'VFR_HUD altitude routing',
+          )
+
+          test_path = Path('tests/flight-commander/gcs/mavlink-altitude-telemetry.test.mjs')
+          test_path.write_text('''import assert from "node:assert/strict";
+          import test from "node:test";
+          import {
+            FIRMWARE_FAMILY_INAV,
+            FIRMWARE_FAMILY_UNSUPPORTED,
+            MAV_AUTOPILOT_GENERIC,
+            MavlinkSession,
+          } from "../../../js/mavlink/mavlinkSession.js";
+
+          function sessionForTelemetry(overrides = {}) {
+            const session = new MavlinkSession({
+              bridge: {},
+              setTimeoutFn: () => 1,
+              clearTimeoutFn: () => {},
+              setIntervalFn: () => 1,
+              clearIntervalFn: () => {},
+            });
+            session.connection = {};
+            Object.assign(session.state, overrides);
+            return session;
+          }
+
+          function frame(messageName, data) {
+            return {
+              messageName,
+              data,
+              header: { sysid: 1, compid: 1 },
+              protocol: "MAV_V2",
+            };
+          }
+
+          test("INAV VFR_HUD altitude feeds relative altitude without a GPS fix", () => {
+            const session = sessionForTelemetry({
+              firmwareFamily: FIRMWARE_FAMILY_INAV,
+              autopilot: MAV_AUTOPILOT_GENERIC,
+            });
+            session.handleMessage(frame("VfrHud", {
+              alt: 12.75,
+              airspeed: 0,
+              groundspeed: 0,
+              climb: -0.2,
+              heading: 275,
+            }));
+            assert.equal(session.state.relativeAltitude, 12.75);
+            assert.equal(session.state.altitudeMsl, null);
+          });
+
+          test("GPS_RAW_INT supplies MSL altitude only with a 3D fix", () => {
+            const session = sessionForTelemetry({
+              firmwareFamily: FIRMWARE_FAMILY_INAV,
+              autopilot: MAV_AUTOPILOT_GENERIC,
+            });
+            session.handleMessage(frame("GpsRawInt", {
+              fixType: 1,
+              alt: 123450,
+              satellitesVisible: 0,
+              eph: 65535,
+            }));
+            assert.equal(session.state.altitudeMsl, null);
+
+            session.handleMessage(frame("GpsRawInt", {
+              fixType: 3,
+              alt: 123450,
+              satellitesVisible: 12,
+              eph: 95,
+            }));
+            assert.equal(session.state.altitudeMsl, 123.45);
+          });
+
+          test("non-INAV VFR_HUD keeps standard MSL semantics", () => {
+            const session = sessionForTelemetry({
+              firmwareFamily: FIRMWARE_FAMILY_UNSUPPORTED,
+              autopilot: 12,
+            });
+            session.handleMessage(frame("VfrHud", {
+              alt: 85.5,
+              airspeed: 0,
+              groundspeed: 0,
+              climb: 0,
+              heading: 0,
+            }));
+            assert.equal(session.state.altitudeMsl, 85.5);
+            assert.equal(session.state.relativeAltitude, null);
+          });
+          ''', encoding='utf-8')
+
+          workflow = Path('.github/workflows/build-gcs-diagnostics-configurator.yml')
+          workflow_text = workflow.read_text(encoding='utf-8')
+          workflow_text = workflow_text.replace(
+              'name: Build GCS diagnostics Configurator',
+              'name: Build GCS altitude Configurator',
+              1,
+          )
+          workflow_text = workflow_text.replace(
+              '      - tests/flight-commander/gcs/mavlink-live-diagnostics.test.mjs\n',
+              '      - tests/flight-commander/gcs/mavlink-live-diagnostics.test.mjs\n'
+              '      - tests/flight-commander/gcs/mavlink-altitude-telemetry.test.mjs\n',
+              1,
+          )
+          workflow_text = workflow_text.replace(
+              'Build Windows GCS diagnostics test Configurator',
+              'Build Windows GCS altitude test Configurator',
+          )
+          workflow_text = workflow_text.replace(
+              "FC-Windows-v4.0.8-GCS-Diagnostics-Test.zip",
+              "FC-Windows-v4.0.8-GCS-Altitude-Fix-Test.zip",
+          )
+          workflow_text = workflow_text.replace(
+              'Flight Commander 4.0.8 GCS diagnostics test Configurator',
+              'Flight Commander 4.0.8 GCS altitude-fix test Configurator',
+          )
+          workflow_text = workflow_text.replace(
+              'This is a Configurator-only diagnostic build. It keeps Show Log available in Ground Control and reports whether inbound serial bytes, valid MAVLink frames, and vehicle heartbeats are still arriving. Flight Commander Firmware 4.0.8 is unchanged.',
+              'This is a Configurator-only test build. It keeps Show Log available, preserves MAVLink link diagnostics, reads INAV barometer/INS relative altitude from VFR_HUD, and reads GPS MSL altitude only after a valid 3D fix. Flight Commander Firmware 4.0.8 is unchanged.',
+          )
+          workflow_text = workflow_text.replace(
+              'Flight-Commander-v4.0.8-GCS-Diagnostics-Test',
+              'Flight-Commander-v4.0.8-GCS-Altitude-Fix-Test',
+          )
+          workflow_text = workflow_text.replace(
+              'Flight-Commander-v4.0.8-GCS-Diagnostics-Verification',
+              'Flight-Commander-v4.0.8-GCS-Altitude-Fix-Verification',
+          )
+          workflow.write_text(workflow_text, encoding='utf-8')
+          PY
+
+      - name: Run focused syntax and behavioral tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check js/mavlink/mavlinkSession.js
+          node --test tests/flight-commander/gcs/mavlink-altitude-telemetry.test.mjs
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: yarn
+          cache-dependency-path: yarn.lock
+
+      - name: Install dependencies and run the complete test suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          corepack enable
+          corepack prepare yarn@1.22.22 --activate
+          yarn install --frozen-lockfile --non-interactive
+          yarn test
+
+      - name: Commit the verified altitude fix and remove this one-time workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/apply-mavlink-altitude-telemetry-fix.yml
+          git add \
+            js/mavlink/mavlinkSession.js \
+            tests/flight-commander/gcs/mavlink-altitude-telemetry.test.mjs \
+            .github/workflows/build-gcs-diagnostics-configurator.yml \
+            .github/workflows/apply-mavlink-altitude-telemetry-fix.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Restore INAV altitude telemetry in Ground Control'
+          git push origin HEAD:agent/fix-4.0.8-ui-regressions
