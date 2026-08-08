@@ -1,0 +1,111 @@
+name: Dispatch verified Flight Commander release
+run-name: Dispatch Flight Commander release from ${{ github.sha }}
+
+"on":
+  push:
+    branches:
+      - main
+    paths:
+      - package.json
+      - manifest.json
+      - release/firmware/**
+      - release/notes/**
+      - .github/workflows/release.yml
+      - .github/workflows/dispatch-flight-commander-release.yml
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: Exact current main-branch commit SHA to release
+        required: true
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: flight-commander-release-dispatch
+  cancel-in-progress: false
+
+jobs:
+  dispatch:
+    name: Validate and dispatch the immutable release workflow
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: write
+      contents: read
+
+    steps:
+      - name: Check out the exact candidate
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.expected_sha || github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Validate release identity and intent
+        id: metadata
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          EXPECTED_INPUT_SHA: ${{ inputs.expected_sha }}
+          PUSH_MESSAGE: ${{ github.event.head_commit.message }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import re
+          import subprocess
+          from pathlib import Path
+
+          package = json.loads(Path('package.json').read_text(encoding='utf-8'))
+          manifest = json.loads(Path('manifest.json').read_text(encoding='utf-8'))
+          version = package['version']
+          if not re.fullmatch(r'(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)', version):
+              raise SystemExit(f'package.json version is not a stable semantic version: {version}')
+          if manifest.get('version') != version:
+              raise SystemExit('manifest.json and package.json versions do not match.')
+
+          actual_sha = subprocess.check_output(
+              ['git', 'rev-parse', 'HEAD'], text=True
+          ).strip().lower()
+          if actual_sha != os.environ['GITHUB_SHA'].lower():
+              raise SystemExit(
+                  f'Checked-out SHA {actual_sha} does not match workflow SHA {os.environ["GITHUB_SHA"]}.'
+              )
+
+          event_name = os.environ['EVENT_NAME']
+          if event_name == 'workflow_dispatch':
+              expected = os.environ.get('EXPECTED_INPUT_SHA', '').strip().lower()
+              if expected != actual_sha:
+                  raise SystemExit('The manually supplied SHA is not the selected main revision.')
+          else:
+              expected_message = f'Publish Flight Commander {version} release'
+              actual_message = os.environ.get('PUSH_MESSAGE', '')
+              if actual_message != expected_message:
+                  print(
+                      f'Skipping release dispatch because the commit message is not exactly: {expected_message}'
+                  )
+                  with Path(os.environ['GITHUB_OUTPUT']).open('a', encoding='utf-8') as output:
+                      output.write('publish=false\n')
+                      output.write(f'version={version}\n')
+                  raise SystemExit(0)
+
+          with Path(os.environ['GITHUB_OUTPUT']).open('a', encoding='utf-8') as output:
+              output.write('publish=true\n')
+              output.write(f'version={version}\n')
+          print(f'Validated Flight Commander {version} release at {actual_sha}.')
+          PY
+
+      - name: Dispatch the existing tested release workflow
+        if: steps.metadata.outputs.publish == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh workflow run release.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref main \
+            -f expected_sha="$GITHUB_SHA"
+          echo "Dispatched release.yml for Flight Commander ${{ steps.metadata.outputs.version }} at $GITHUB_SHA."
