@@ -1,0 +1,132 @@
+name: Build GCS diagnostics Configurator
+
+"on":
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/build-gcs-diagnostics-configurator.yml
+      - tabs/flight_data.js
+      - js/mavlink/mavlinkSession.js
+      - js/serial_backend.js
+      - tests/flight-commander/gcs/mavlink-live-diagnostics.test.mjs
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-configurator:
+    name: Build Windows GCS diagnostics test Configurator
+    runs-on: windows-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out the exact pull-request source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: yarn
+          cache-dependency-path: yarn.lock
+
+      - name: Enable pinned Yarn
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          corepack enable
+          corepack prepare yarn@1.22.22 --activate
+          yarn --version
+
+      - name: Install dependencies
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          yarn install --frozen-lockfile --non-interactive
+
+      - name: Run complete Configurator test suite
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          yarn test
+
+      - name: Package Windows x64
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          yarn package:windows
+
+      - name: Create downloadable diagnostics ZIP
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $packages = @(
+            Get-ChildItem -LiteralPath (Join-Path $PWD 'out') -Directory |
+              Where-Object { Test-Path -LiteralPath (Join-Path $_.FullName 'flight-commander.exe') }
+          )
+          if ($packages.Count -ne 1) {
+            throw "Expected one Windows x64 package directory, found $($packages.Count)."
+          }
+          $artifactDir = Join-Path $PWD 'diagnostics-artifact'
+          New-Item -ItemType Directory -Force -Path $artifactDir | Out-Null
+          $zipPath = Join-Path $artifactDir 'FC-Windows-v4.0.8-GCS-Diagnostics-Test.zip'
+          if (Test-Path -LiteralPath $zipPath) {
+            Remove-Item -LiteralPath $zipPath -Force
+          }
+          [System.IO.Compression.ZipFile]::CreateFromDirectory(
+            $packages[0].FullName,
+            $zipPath,
+            [System.IO.Compression.CompressionLevel]::Optimal,
+            $false
+          )
+          $hash = (Get-FileHash -LiteralPath $zipPath -Algorithm SHA256).Hash.ToLowerInvariant()
+          @"
+          Flight Commander 4.0.8 GCS diagnostics test Configurator
+          Source commit: ${{ github.event.pull_request.head.sha || github.sha }}
+          ZIP SHA-256: $hash
+
+          This is a Configurator-only diagnostic build. It keeps Show Log available in Ground Control and reports whether inbound serial bytes, valid MAVLink frames, and vehicle heartbeats are still arriving. Flight Commander Firmware 4.0.8 is unchanged.
+          "@ | Set-Content -LiteralPath (Join-Path $artifactDir 'BUILD-INFO.txt') -Encoding UTF8
+          "$hash  FC-Windows-v4.0.8-GCS-Diagnostics-Test.zip" |
+            Set-Content -LiteralPath (Join-Path $artifactDir 'SHA256SUMS.txt') -Encoding ASCII
+          Get-Item -LiteralPath $zipPath | Format-List FullName,Length
+
+      - name: Upload the packaged Configurator
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: Flight-Commander-v4.0.8-GCS-Diagnostics-Test
+          path: diagnostics-artifact
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Verify packaged application
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          yarn verify:windows
+
+      - name: Record successful packaged verification
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          @"
+          VERIFIED
+          Complete source tests: passed
+          Windows x64 packaging: passed
+          Packaged-application verification: passed
+          Source commit: ${{ github.event.pull_request.head.sha || github.sha }}
+          "@ | Set-Content -LiteralPath 'diagnostics-artifact/VERIFIED.txt' -Encoding UTF8
+
+      - name: Upload verification record
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: Flight-Commander-v4.0.8-GCS-Diagnostics-Verification
+          path: diagnostics-artifact/VERIFIED.txt
+          if-no-files-found: error
+          retention-days: 7
