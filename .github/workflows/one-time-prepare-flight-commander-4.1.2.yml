@@ -107,3 +107,5 @@ jobs:
           if [ "$transform_status" -ne 0 ]; then exit "$transform_status"; fi
           if [ "$install_status" -ne 0 ]; then exit "$install_status"; fi
           exit "$test_status"
+
+# Triggered after bootstrap merge.
