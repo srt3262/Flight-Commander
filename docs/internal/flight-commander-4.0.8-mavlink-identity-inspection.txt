@@ -1,0 +1,363 @@
+Flight Commander Firmware 4.0.8 MAVLink identity inspection
+
+--- MAVLink-related source paths ---
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_actuator_control_target.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_actuator_output_status.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_adsb_vehicle.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_ais_vessel.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_altitude.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_att_pos_mocap.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_attitude.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_attitude_quaternion.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_attitude_quaternion_cov.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_attitude_target.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_auth_key.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_autopilot_state_for_gimbal_device.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_available_modes.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_available_modes_monitor.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_battery_info.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_battery_status.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_button_change.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_camera_capture_status.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_camera_fov_status.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_camera_image_captured.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_camera_information.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_camera_settings.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_camera_thermal_range.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_camera_tracking_geo_status.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_camera_tracking_image_status.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_camera_trigger.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_can_filter_modify.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_can_frame.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_canfd_frame.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_cellular_config.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_cellular_status.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_change_operator_control.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_change_operator_control_ack.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_collision.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_command_ack.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_command_cancel.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_command_int.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_command_long.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_component_information.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_component_information_basic.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_component_metadata.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_control_system_state.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_current_event_sequence.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_current_mode.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_data_stream.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_data_transmission_handshake.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_debug.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_debug_float_array.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_debug_vect.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_distance_sensor.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_efi_status.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_encapsulated_data.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_esc_info.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_esc_status.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_estimator_status.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_event.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_extended_sys_state.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_fence_status.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_file_transfer_protocol.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_flight_information.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_follow_target.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_fuel_status.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_generator_status.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_gimbal_device_attitude_status.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_gimbal_device_information.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_gimbal_device_set_attitude.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_gimbal_manager_information.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_gimbal_manager_set_attitude.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_gimbal_manager_set_manual_control.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_gimbal_manager_set_pitchyaw.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_gimbal_manager_status.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_global_position_int.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_global_position_int_cov.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_global_vision_position_estimate.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_gps2_raw.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_gps2_rtk.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_gps_global_origin.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_gps_inject_data.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_gps_input.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_gps_raw_int.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_gps_rtcm_data.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_gps_rtk.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_gps_status.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_high_latency.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_high_latency2.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_highres_imu.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_hil_actuator_controls.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_hil_controls.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_hil_gps.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_hil_optical_flow.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_hil_rc_inputs_raw.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_hil_sensor.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_hil_state.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_hil_state_quaternion.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_home_position.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_hygrometer_sensor.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_illuminator_status.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_isbd_link_status.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_landing_target.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_link_node_status.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_local_position_ned.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_local_position_ned_cov.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_local_position_ned_system_global_offset.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_log_data.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_log_entry.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_log_erase.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_log_request_data.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_log_request_end.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_log_request_list.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_logging_ack.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_logging_data.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_logging_data_acked.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_mag_cal_report.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_manual_control.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_manual_setpoint.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_memory_vect.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_message_interval.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_mission_ack.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_mission_clear_all.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_mission_count.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_mission_current.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_mission_item.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_mission_item_int.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_mission_item_reached.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_mission_request.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_mission_request_int.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_mission_request_list.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_mission_request_partial_list.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_mission_set_current.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_mission_write_partial_list.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_mount_orientation.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_named_value_float.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_named_value_int.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_nav_controller_output.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_obstacle_distance.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_odometry.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_onboard_computer_status.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_open_drone_id_arm_status.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_open_drone_id_authentication.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_open_drone_id_basic_id.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_open_drone_id_location.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_open_drone_id_message_pack.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_open_drone_id_operator_id.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_open_drone_id_self_id.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_open_drone_id_system.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_open_drone_id_system_update.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_optical_flow.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_optical_flow_rad.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_orbit_execution_status.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_param_ext_ack.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_param_ext_request_list.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_param_ext_request_read.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_param_ext_set.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_param_ext_value.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_param_map_rc.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_param_request_list.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_param_request_read.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_param_set.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_param_value.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_ping.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_play_tune.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_play_tune_v2.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_position_target_global_int.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_position_target_local_ned.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_power_status.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_radio_status.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_raw_imu.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_raw_pressure.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_raw_rpm.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_rc_channels.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_rc_channels_override.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_rc_channels_raw.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_rc_channels_scaled.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_request_data_stream.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_request_event.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_resource_request.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_response_event_error.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_safety_allowed_area.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_safety_set_allowed_area.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_scaled_imu.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_scaled_imu2.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_scaled_imu3.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_scaled_pressure.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_scaled_pressure2.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_scaled_pressure3.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_serial_control.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_servo_output_raw.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_set_actuator_control_target.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_set_attitude_target.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_set_gps_global_origin.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_set_home_position.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_set_mode.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_set_position_target_global_int.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_set_position_target_local_ned.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_setup_signing.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_sim_state.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_smart_battery_info.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_statustext.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_storage_information.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_supported_tunes.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_sys_status.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_system_time.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_terrain_check.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_terrain_data.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_terrain_report.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_terrain_request.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_time_estimate_to_target.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_timesync.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_trajectory_representation_bezier.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_trajectory_representation_waypoints.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_tunnel.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_uavcan_node_info.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_uavcan_node_status.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_utm_global_position.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_v2_extension.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_vfr_hud.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_vibration.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_vicon_position_estimate.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_video_stream_information.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_video_stream_status.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_vision_position_estimate.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_vision_speed_estimate.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_wheel_distance.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_wifi_config_ap.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_winch_status.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/mavlink_msg_wind_cov.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/mavlink_conversions.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/mavlink_get_info.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/mavlink_helpers.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/mavlink_sha256.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/mavlink_types.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/minimal/mavlink_msg_heartbeat.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/minimal/mavlink_msg_protocol_version.h
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h
+Flight-Commander-Firmware-Source-v4.0.8/src/main/rx/mavlink.c
+Flight-Commander-Firmware-Source-v4.0.8/src/main/rx/mavlink.h
+Flight-Commander-Firmware-Source-v4.0.8/src/main/telemetry/mavlink.c
+Flight-Commander-Firmware-Source-v4.0.8/src/main/telemetry/mavlink.h
+Flight-Commander-Firmware-Source-v4.0.8/src/main/telemetry/telemetry.c
+Flight-Commander-Firmware-Source-v4.0.8/src/main/telemetry/telemetry.h
+Flight-Commander-Firmware-Source-v4.0.8/src/test/unit/telemetry_hott_unittest.cc
+
+--- Identity and AUTOPILOT_VERSION references ---
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/common.h:740:          Note: the current home position may be emitted in a HOME_POSITION message on request (using MAV_CMD_REQUEST_MESSAGE with param1=242).
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/common.h:859:   MAV_CMD_REQUEST_MESSAGE=512, /* Request the target system(s) emit a single instance of a specified message (i.e. a "one-shot" version of MAV_CMD_SET_MESSAGE_INTERVAL). |The MAVLink message ID of the requested message.| Use for index ID, if required. Otherwise, the use of this parameter (if any) must be defined in the requested message. By default assumed not used (0).| The use of this parameter (if any), must be defined in the requested message. By default assumed not used (0).| The use of this parameter (if any), must be defined in the requested message. By default assumed not used (0).| The use of this parameter (if any), must be defined in the requested message. By default assumed not used (0).| The use of this parameter (if any), must be defined in the requested message. By default assumed not used (0).| Target address for requested message (if message has target address fields). 0: Flight-stack default, 1: address of requester, 2: broadcast.|  */
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/common.h:861:   MAV_CMD_REQUEST_AUTOPILOT_CAPABILITIES=520, /* Request autopilot capabilities. The receiver should ACK the command and then emit its capabilities in an AUTOPILOT_VERSION message |Request autopilot version (MAV_BOOL_TRUE). Values not equal to 0 or 1 are invalid.| Reserved (all remaining params)| Reserved (default:0)| Reserved (default:0)| Reserved (default:0)| Reserved (default:0)| Reserved (default:0)|  */
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/common.h:1663:   CAMERA_CAP_FLAGS_HAS_VIDEO_STREAM=256, /* Camera has video streaming capabilities (request VIDEO_STREAM_INFORMATION with MAV_CMD_REQUEST_MESSAGE for video streaming info) | */
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/common.h:1667:   CAMERA_CAP_FLAGS_HAS_THERMAL_RANGE=4096, /* Camera supports absolute thermal range (request CAMERA_THERMAL_RANGE with MAV_CMD_REQUEST_MESSAGE). | */
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/common.h:3045:# define MAVLINK_MESSAGE_INFO {MAVLINK_MESSAGE_INFO_HEARTBEAT, MAVLINK_MESSAGE_INFO_SYS_STATUS, MAVLINK_MESSAGE_INFO_SYSTEM_TIME, MAVLINK_MESSAGE_INFO_PING, MAVLINK_MESSAGE_INFO_CHANGE_OPERATOR_CONTROL, MAVLINK_MESSAGE_INFO_CHANGE_OPERATOR_CONTROL_ACK, MAVLINK_MESSAGE_INFO_AUTH_KEY, MAVLINK_MESSAGE_INFO_LINK_NODE_STATUS, MAVLINK_MESSAGE_INFO_SET_MODE, MAVLINK_MESSAGE_INFO_PARAM_REQUEST_READ, MAVLINK_MESSAGE_INFO_PARAM_REQUEST_LIST, MAVLINK_MESSAGE_INFO_PARAM_VALUE, MAVLINK_MESSAGE_INFO_PARAM_SET, MAVLINK_MESSAGE_INFO_GPS_RAW_INT, MAVLINK_MESSAGE_INFO_GPS_STATUS, MAVLINK_MESSAGE_INFO_SCALED_IMU, MAVLINK_MESSAGE_INFO_RAW_IMU, MAVLINK_MESSAGE_INFO_RAW_PRESSURE, MAVLINK_MESSAGE_INFO_SCALED_PRESSURE, MAVLINK_MESSAGE_INFO_ATTITUDE, MAVLINK_MESSAGE_INFO_ATTITUDE_QUATERNION, MAVLINK_MESSAGE_INFO_LOCAL_POSITION_NED, MAVLINK_MESSAGE_INFO_GLOBAL_POSITION_INT, MAVLINK_MESSAGE_INFO_RC_CHANNELS_SCALED, MAVLINK_MESSAGE_INFO_RC_CHANNELS_RAW, MAVLINK_MESSAGE_INFO_SERVO_OUTPUT_RAW, MAVLINK_MESSAGE_INFO_MISSION_REQUEST_PARTIAL_LIST, MAVLINK_MESSAGE_INFO_MISSION_WRITE_PARTIAL_LIST, MAVLINK_MESSAGE_INFO_MISSION_ITEM, MAVLINK_MESSAGE_INFO_MISSION_REQUEST, MAVLINK_MESSAGE_INFO_MISSION_SET_CURRENT, MAVLINK_MESSAGE_INFO_MISSION_CURRENT, MAVLINK_MESSAGE_INFO_MISSION_REQUEST_LIST, MAVLINK_MESSAGE_INFO_MISSION_COUNT, MAVLINK_MESSAGE_INFO_MISSION_CLEAR_ALL, MAVLINK_MESSAGE_INFO_MISSION_ITEM_REACHED, MAVLINK_MESSAGE_INFO_MISSION_ACK, MAVLINK_MESSAGE_INFO_SET_GPS_GLOBAL_ORIGIN, MAVLINK_MESSAGE_INFO_GPS_GLOBAL_ORIGIN, MAVLINK_MESSAGE_INFO_PARAM_MAP_RC, MAVLINK_MESSAGE_INFO_MISSION_REQUEST_INT, MAVLINK_MESSAGE_INFO_SAFETY_SET_ALLOWED_AREA, MAVLINK_MESSAGE_INFO_SAFETY_ALLOWED_AREA, MAVLINK_MESSAGE_INFO_ATTITUDE_QUATERNION_COV, MAVLINK_MESSAGE_INFO_NAV_CONTROLLER_OUTPUT, MAVLINK_MESSAGE_INFO_GLOBAL_POSITION_INT_COV, MAVLINK_MESSAGE_INFO_LOCAL_POSITION_NED_COV, MAVLINK_MESSAGE_INFO_RC_CHANNELS, MAVLINK_MESSAGE_INFO_REQUEST_DATA_STREAM, MAVLINK_MESSAGE_INFO_DATA_STREAM, MAVLINK_MESSAGE_INFO_MANUAL_CONTROL, MAVLINK_MESSAGE_INFO_RC_CHANNELS_OVERRIDE, MAVLINK_MESSAGE_INFO_MISSION_ITEM_INT, MAVLINK_MESSAGE_INFO_VFR_HUD, MAVLINK_MESSAGE_INFO_COMMAND_INT, MAVLINK_MESSAGE_INFO_COMMAND_LONG, MAVLINK_MESSAGE_INFO_COMMAND_ACK, MAVLINK_MESSAGE_INFO_COMMAND_CANCEL, MAVLINK_MESSAGE_INFO_MANUAL_SETPOINT, MAVLINK_MESSAGE_INFO_SET_ATTITUDE_TARGET, MAVLINK_MESSAGE_INFO_ATTITUDE_TARGET, MAVLINK_MESSAGE_INFO_SET_POSITION_TARGET_LOCAL_NED, MAVLINK_MESSAGE_INFO_POSITION_TARGET_LOCAL_NED, MAVLINK_MESSAGE_INFO_SET_POSITION_TARGET_GLOBAL_INT, MAVLINK_MESSAGE_INFO_POSITION_TARGET_GLOBAL_INT, MAVLINK_MESSAGE_INFO_LOCAL_POSITION_NED_SYSTEM_GLOBAL_OFFSET, MAVLINK_MESSAGE_INFO_HIL_STATE, MAVLINK_MESSAGE_INFO_HIL_CONTROLS, MAVLINK_MESSAGE_INFO_HIL_RC_INPUTS_RAW, MAVLINK_MESSAGE_INFO_HIL_ACTUATOR_CONTROLS, MAVLINK_MESSAGE_INFO_OPTICAL_FLOW, MAVLINK_MESSAGE_INFO_GLOBAL_VISION_POSITION_ESTIMATE, MAVLINK_MESSAGE_INFO_VISION_POSITION_ESTIMATE, MAVLINK_MESSAGE_INFO_VISION_SPEED_ESTIMATE, MAVLINK_MESSAGE_INFO_VICON_POSITION_ESTIMATE, MAVLINK_MESSAGE_INFO_HIGHRES_IMU, MAVLINK_MESSAGE_INFO_OPTICAL_FLOW_RAD, MAVLINK_MESSAGE_INFO_HIL_SENSOR, MAVLINK_MESSAGE_INFO_SIM_STATE, MAVLINK_MESSAGE_INFO_RADIO_STATUS, MAVLINK_MESSAGE_INFO_FILE_TRANSFER_PROTOCOL, MAVLINK_MESSAGE_INFO_TIMESYNC, MAVLINK_MESSAGE_INFO_CAMERA_TRIGGER, MAVLINK_MESSAGE_INFO_HIL_GPS, MAVLINK_MESSAGE_INFO_HIL_OPTICAL_FLOW, MAVLINK_MESSAGE_INFO_HIL_STATE_QUATERNION, MAVLINK_MESSAGE_INFO_SCALED_IMU2, MAVLINK_MESSAGE_INFO_LOG_REQUEST_LIST, MAVLINK_MESSAGE_INFO_LOG_ENTRY, MAVLINK_MESSAGE_INFO_LOG_REQUEST_DATA, MAVLINK_MESSAGE_INFO_LOG_DATA, MAVLINK_MESSAGE_INFO_LOG_ERASE, MAVLINK_MESSAGE_INFO_LOG_REQUEST_END, MAVLINK_MESSAGE_INFO_GPS_INJECT_DATA, MAVLINK_MESSAGE_INFO_GPS2_RAW, MAVLINK_MESSAGE_INFO_POWER_STATUS, MAVLINK_MESSAGE_INFO_SERIAL_CONTROL, MAVLINK_MESSAGE_INFO_GPS_RTK, MAVLINK_MESSAGE_INFO_GPS2_RTK, MAVLINK_MESSAGE_INFO_SCALED_IMU3, MAVLINK_MESSAGE_INFO_DATA_TRANSMISSION_HANDSHAKE, MAVLINK_MESSAGE_INFO_ENCAPSULATED_DATA, MAVLINK_MESSAGE_INFO_DISTANCE_SENSOR, MAVLINK_MESSAGE_INFO_TERRAIN_REQUEST, MAVLINK_MESSAGE_INFO_TERRAIN_DATA, MAVLINK_MESSAGE_INFO_TERRAIN_CHECK, MAVLINK_MESSAGE_INFO_TERRAIN_REPORT, MAVLINK_MESSAGE_INFO_SCALED_PRESSURE2, MAVLINK_MESSAGE_INFO_ATT_POS_MOCAP, MAVLINK_MESSAGE_INFO_SET_ACTUATOR_CONTROL_TARGET, MAVLINK_MESSAGE_INFO_ACTUATOR_CONTROL_TARGET, MAVLINK_MESSAGE_INFO_ALTITUDE, MAVLINK_MESSAGE_INFO_RESOURCE_REQUEST, MAVLINK_MESSAGE_INFO_SCALED_PRESSURE3, MAVLINK_MESSAGE_INFO_FOLLOW_TARGET, MAVLINK_MESSAGE_INFO_CONTROL_SYSTEM_STATE, MAVLINK_MESSAGE_INFO_BATTERY_STATUS, MAVLINK_MESSAGE_INFO_AUTOPILOT_VERSION, MAVLINK_MESSAGE_INFO_LANDING_TARGET, MAVLINK_MESSAGE_INFO_FENCE_STATUS, MAVLINK_MESSAGE_INFO_MAG_CAL_REPORT, MAVLINK_MESSAGE_INFO_EFI_STATUS, MAVLINK_MESSAGE_INFO_ESTIMATOR_STATUS, MAVLINK_MESSAGE_INFO_WIND_COV, MAVLINK_MESSAGE_INFO_GPS_INPUT, MAVLINK_MESSAGE_INFO_GPS_RTCM_DATA, MAVLINK_MESSAGE_INFO_HIGH_LATENCY, MAVLINK_MESSAGE_INFO_HIGH_LATENCY2, MAVLINK_MESSAGE_INFO_VIBRATION, MAVLINK_MESSAGE_INFO_HOME_POSITION, MAVLINK_MESSAGE_INFO_SET_HOME_POSITION, MAVLINK_MESSAGE_INFO_MESSAGE_INTERVAL, MAVLINK_MESSAGE_INFO_EXTENDED_SYS_STATE, MAVLINK_MESSAGE_INFO_ADSB_VEHICLE, MAVLINK_MESSAGE_INFO_COLLISION, MAVLINK_MESSAGE_INFO_V2_EXTENSION, MAVLINK_MESSAGE_INFO_MEMORY_VECT, MAVLINK_MESSAGE_INFO_DEBUG_VECT, MAVLINK_MESSAGE_INFO_NAMED_VALUE_FLOAT, MAVLINK_MESSAGE_INFO_NAMED_VALUE_INT, MAVLINK_MESSAGE_INFO_STATUSTEXT, MAVLINK_MESSAGE_INFO_DEBUG, MAVLINK_MESSAGE_INFO_SETUP_SIGNING, MAVLINK_MESSAGE_INFO_BUTTON_CHANGE, MAVLINK_MESSAGE_INFO_PLAY_TUNE, MAVLINK_MESSAGE_INFO_CAMERA_INFORMATION, MAVLINK_MESSAGE_INFO_CAMERA_SETTINGS, MAVLINK_MESSAGE_INFO_STORAGE_INFORMATION, MAVLINK_MESSAGE_INFO_CAMERA_CAPTURE_STATUS, MAVLINK_MESSAGE_INFO_CAMERA_IMAGE_CAPTURED, MAVLINK_MESSAGE_INFO_FLIGHT_INFORMATION, MAVLINK_MESSAGE_INFO_MOUNT_ORIENTATION, MAVLINK_MESSAGE_INFO_LOGGING_DATA, MAVLINK_MESSAGE_INFO_LOGGING_DATA_ACKED, MAVLINK_MESSAGE_INFO_LOGGING_ACK, MAVLINK_MESSAGE_INFO_VIDEO_STREAM_INFORMATION, MAVLINK_MESSAGE_INFO_VIDEO_STREAM_STATUS, MAVLINK_MESSAGE_INFO_CAMERA_FOV_STATUS, MAVLINK_MESSAGE_INFO_CAMERA_TRACKING_IMAGE_STATUS, MAVLINK_MESSAGE_INFO_CAMERA_TRACKING_GEO_STATUS, MAVLINK_MESSAGE_INFO_CAMERA_THERMAL_RANGE, MAVLINK_MESSAGE_INFO_GIMBAL_MANAGER_INFORMATION, MAVLINK_MESSAGE_INFO_GIMBAL_MANAGER_STATUS, MAVLINK_MESSAGE_INFO_GIMBAL_MANAGER_SET_ATTITUDE, MAVLINK_MESSAGE_INFO_GIMBAL_DEVICE_INFORMATION, MAVLINK_MESSAGE_INFO_GIMBAL_DEVICE_SET_ATTITUDE, MAVLINK_MESSAGE_INFO_GIMBAL_DEVICE_ATTITUDE_STATUS, MAVLINK_MESSAGE_INFO_AUTOPILOT_STATE_FOR_GIMBAL_DEVICE, MAVLINK_MESSAGE_INFO_GIMBAL_MANAGER_SET_PITCHYAW, MAVLINK_MESSAGE_INFO_GIMBAL_MANAGER_SET_MANUAL_CONTROL, MAVLINK_MESSAGE_INFO_ESC_INFO, MAVLINK_MESSAGE_INFO_ESC_STATUS, MAVLINK_MESSAGE_INFO_WIFI_CONFIG_AP, MAVLINK_MESSAGE_INFO_PROTOCOL_VERSION, MAVLINK_MESSAGE_INFO_AIS_VESSEL, MAVLINK_MESSAGE_INFO_UAVCAN_NODE_STATUS, MAVLINK_MESSAGE_INFO_UAVCAN_NODE_INFO, MAVLINK_MESSAGE_INFO_PARAM_EXT_REQUEST_READ, MAVLINK_MESSAGE_INFO_PARAM_EXT_REQUEST_LIST, MAVLINK_MESSAGE_INFO_PARAM_EXT_VALUE, MAVLINK_MESSAGE_INFO_PARAM_EXT_SET, MAVLINK_MESSAGE_INFO_PARAM_EXT_ACK, MAVLINK_MESSAGE_INFO_OBSTACLE_DISTANCE, MAVLINK_MESSAGE_INFO_ODOMETRY, MAVLINK_MESSAGE_INFO_TRAJECTORY_REPRESENTATION_WAYPOINTS, MAVLINK_MESSAGE_INFO_TRAJECTORY_REPRESENTATION_BEZIER, MAVLINK_MESSAGE_INFO_CELLULAR_STATUS, MAVLINK_MESSAGE_INFO_ISBD_LINK_STATUS, MAVLINK_MESSAGE_INFO_CELLULAR_CONFIG, MAVLINK_MESSAGE_INFO_RAW_RPM, MAVLINK_MESSAGE_INFO_UTM_GLOBAL_POSITION, MAVLINK_MESSAGE_INFO_DEBUG_FLOAT_ARRAY, MAVLINK_MESSAGE_INFO_ORBIT_EXECUTION_STATUS, MAVLINK_MESSAGE_INFO_SMART_BATTERY_INFO, MAVLINK_MESSAGE_INFO_FUEL_STATUS, MAVLINK_MESSAGE_INFO_BATTERY_INFO, MAVLINK_MESSAGE_INFO_GENERATOR_STATUS, MAVLINK_MESSAGE_INFO_ACTUATOR_OUTPUT_STATUS, MAVLINK_MESSAGE_INFO_TIME_ESTIMATE_TO_TARGET, MAVLINK_MESSAGE_INFO_TUNNEL, MAVLINK_MESSAGE_INFO_CAN_FRAME, MAVLINK_MESSAGE_INFO_CANFD_FRAME, MAVLINK_MESSAGE_INFO_CAN_FILTER_MODIFY, MAVLINK_MESSAGE_INFO_ONBOARD_COMPUTER_STATUS, MAVLINK_MESSAGE_INFO_COMPONENT_INFORMATION, MAVLINK_MESSAGE_INFO_COMPONENT_INFORMATION_BASIC, MAVLINK_MESSAGE_INFO_COMPONENT_METADATA, MAVLINK_MESSAGE_INFO_PLAY_TUNE_V2, MAVLINK_MESSAGE_INFO_SUPPORTED_TUNES, MAVLINK_MESSAGE_INFO_EVENT, MAVLINK_MESSAGE_INFO_CURRENT_EVENT_SEQUENCE, MAVLINK_MESSAGE_INFO_REQUEST_EVENT, MAVLINK_MESSAGE_INFO_RESPONSE_EVENT_ERROR, MAVLINK_MESSAGE_INFO_AVAILABLE_MODES, MAVLINK_MESSAGE_INFO_CURRENT_MODE, MAVLINK_MESSAGE_INFO_AVAILABLE_MODES_MONITOR, MAVLINK_MESSAGE_INFO_ILLUMINATOR_STATUS, MAVLINK_MESSAGE_INFO_WHEEL_DISTANCE, MAVLINK_MESSAGE_INFO_WINCH_STATUS, MAVLINK_MESSAGE_INFO_OPEN_DRONE_ID_BASIC_ID, MAVLINK_MESSAGE_INFO_OPEN_DRONE_ID_LOCATION, MAVLINK_MESSAGE_INFO_OPEN_DRONE_ID_AUTHENTICATION, MAVLINK_MESSAGE_INFO_OPEN_DRONE_ID_SELF_ID, MAVLINK_MESSAGE_INFO_OPEN_DRONE_ID_SYSTEM, MAVLINK_MESSAGE_INFO_OPEN_DRONE_ID_OPERATOR_ID, MAVLINK_MESSAGE_INFO_OPEN_DRONE_ID_MESSAGE_PACK, MAVLINK_MESSAGE_INFO_OPEN_DRONE_ID_ARM_STATUS, MAVLINK_MESSAGE_INFO_OPEN_DRONE_ID_SYSTEM_UPDATE, MAVLINK_MESSAGE_INFO_HYGROMETER_SENSOR}
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/common/common.h:3046:# define MAVLINK_MESSAGE_NAMES {{ "ACTUATOR_CONTROL_TARGET", 140 }, { "ACTUATOR_OUTPUT_STATUS", 375 }, { "ADSB_VEHICLE", 246 }, { "AIS_VESSEL", 301 }, { "ALTITUDE", 141 }, { "ATTITUDE", 30 }, { "ATTITUDE_QUATERNION", 31 }, { "ATTITUDE_QUATERNION_COV", 61 }, { "ATTITUDE_TARGET", 83 }, { "ATT_POS_MOCAP", 138 }, { "AUTH_KEY", 7 }, { "AUTOPILOT_STATE_FOR_GIMBAL_DEVICE", 286 }, { "AUTOPILOT_VERSION", 148 }, { "AVAILABLE_MODES", 435 }, { "AVAILABLE_MODES_MONITOR", 437 }, { "BATTERY_INFO", 372 }, { "BATTERY_STATUS", 147 }, { "BUTTON_CHANGE", 257 }, { "CAMERA_CAPTURE_STATUS", 262 }, { "CAMERA_FOV_STATUS", 271 }, { "CAMERA_IMAGE_CAPTURED", 263 }, { "CAMERA_INFORMATION", 259 }, { "CAMERA_SETTINGS", 260 }, { "CAMERA_THERMAL_RANGE", 277 }, { "CAMERA_TRACKING_GEO_STATUS", 276 }, { "CAMERA_TRACKING_IMAGE_STATUS", 275 }, { "CAMERA_TRIGGER", 112 }, { "CANFD_FRAME", 387 }, { "CAN_FILTER_MODIFY", 388 }, { "CAN_FRAME", 386 }, { "CELLULAR_CONFIG", 336 }, { "CELLULAR_STATUS", 334 }, { "CHANGE_OPERATOR_CONTROL", 5 }, { "CHANGE_OPERATOR_CONTROL_ACK", 6 }, { "COLLISION", 247 }, { "COMMAND_ACK", 77 }, { "COMMAND_CANCEL", 80 }, { "COMMAND_INT", 75 }, { "COMMAND_LONG", 76 }, { "COMPONENT_INFORMATION", 395 }, { "COMPONENT_INFORMATION_BASIC", 396 }, { "COMPONENT_METADATA", 397 }, { "CONTROL_SYSTEM_STATE", 146 }, { "CURRENT_EVENT_SEQUENCE", 411 }, { "CURRENT_MODE", 436 }, { "DATA_STREAM", 67 }, { "DATA_TRANSMISSION_HANDSHAKE", 130 }, { "DEBUG", 254 }, { "DEBUG_FLOAT_ARRAY", 350 }, { "DEBUG_VECT", 250 }, { "DISTANCE_SENSOR", 132 }, { "EFI_STATUS", 225 }, { "ENCAPSULATED_DATA", 131 }, { "ESC_INFO", 290 }, { "ESC_STATUS", 291 }, { "ESTIMATOR_STATUS", 230 }, { "EVENT", 410 }, { "EXTENDED_SYS_STATE", 245 }, { "FENCE_STATUS", 162 }, { "FILE_TRANSFER_PROTOCOL", 110 }, { "FLIGHT_INFORMATION", 264 }, { "FOLLOW_TARGET", 144 }, { "FUEL_STATUS", 371 }, { "GENERATOR_STATUS", 373 }, { "GIMBAL_DEVICE_ATTITUDE_STATUS", 285 }, { "GIMBAL_DEVICE_INFORMATION", 283 }, { "GIMBAL_DEVICE_SET_ATTITUDE", 284 }, { "GIMBAL_MANAGER_INFORMATION", 280 }, { "GIMBAL_MANAGER_SET_ATTITUDE", 282 }, { "GIMBAL_MANAGER_SET_MANUAL_CONTROL", 288 }, { "GIMBAL_MANAGER_SET_PITCHYAW", 287 }, { "GIMBAL_MANAGER_STATUS", 281 }, { "GLOBAL_POSITION_INT", 33 }, { "GLOBAL_POSITION_INT_COV", 63 }, { "GLOBAL_VISION_POSITION_ESTIMATE", 101 }, { "GPS2_RAW", 124 }, { "GPS2_RTK", 128 }, { "GPS_GLOBAL_ORIGIN", 49 }, { "GPS_INJECT_DATA", 123 }, { "GPS_INPUT", 232 }, { "GPS_RAW_INT", 24 }, { "GPS_RTCM_DATA", 233 }, { "GPS_RTK", 127 }, { "GPS_STATUS", 25 }, { "HEARTBEAT", 0 }, { "HIGHRES_IMU", 105 }, { "HIGH_LATENCY", 234 }, { "HIGH_LATENCY2", 235 }, { "HIL_ACTUATOR_CONTROLS", 93 }, { "HIL_CONTROLS", 91 }, { "HIL_GPS", 113 }, { "HIL_OPTICAL_FLOW", 114 }, { "HIL_RC_INPUTS_RAW", 92 }, { "HIL_SENSOR", 107 }, { "HIL_STATE", 90 }, { "HIL_STATE_QUATERNION", 115 }, { "HOME_POSITION", 242 }, { "HYGROMETER_SENSOR", 12920 }, { "ILLUMINATOR_STATUS", 440 }, { "ISBD_LINK_STATUS", 335 }, { "LANDING_TARGET", 149 }, { "LINK_NODE_STATUS", 8 }, { "LOCAL_POSITION_NED", 32 }, { "LOCAL_POSITION_NED_COV", 64 }, { "LOCAL_POSITION_NED_SYSTEM_GLOBAL_OFFSET", 89 }, { "LOGGING_ACK", 268 }, { "LOGGING_DATA", 266 }, { "LOGGING_DATA_ACKED", 267 }, { "LOG_DATA", 120 }, { "LOG_ENTRY", 118 }, { "LOG_ERASE", 121 }, { "LOG_REQUEST_DATA", 119 }, { "LOG_REQUEST_END", 122 }, { "LOG_REQUEST_LIST", 117 }, { "MAG_CAL_REPORT", 192 }, { "MANUAL_CONTROL", 69 }, { "MANUAL_SETPOINT", 81 }, { "MEMORY_VECT", 249 }, { "MESSAGE_INTERVAL", 244 }, { "MISSION_ACK", 47 }, { "MISSION_CLEAR_ALL", 45 }, { "MISSION_COUNT", 44 }, { "MISSION_CURRENT", 42 }, { "MISSION_ITEM", 39 }, { "MISSION_ITEM_INT", 73 }, { "MISSION_ITEM_REACHED", 46 }, { "MISSION_REQUEST", 40 }, { "MISSION_REQUEST_INT", 51 }, { "MISSION_REQUEST_LIST", 43 }, { "MISSION_REQUEST_PARTIAL_LIST", 37 }, { "MISSION_SET_CURRENT", 41 }, { "MISSION_WRITE_PARTIAL_LIST", 38 }, { "MOUNT_ORIENTATION", 265 }, { "NAMED_VALUE_FLOAT", 251 }, { "NAMED_VALUE_INT", 252 }, { "NAV_CONTROLLER_OUTPUT", 62 }, { "OBSTACLE_DISTANCE", 330 }, { "ODOMETRY", 331 }, { "ONBOARD_COMPUTER_STATUS", 390 }, { "OPEN_DRONE_ID_ARM_STATUS", 12918 }, { "OPEN_DRONE_ID_AUTHENTICATION", 12902 }, { "OPEN_DRONE_ID_BASIC_ID", 12900 }, { "OPEN_DRONE_ID_LOCATION", 12901 }, { "OPEN_DRONE_ID_MESSAGE_PACK", 12915 }, { "OPEN_DRONE_ID_OPERATOR_ID", 12905 }, { "OPEN_DRONE_ID_SELF_ID", 12903 }, { "OPEN_DRONE_ID_SYSTEM", 12904 }, { "OPEN_DRONE_ID_SYSTEM_UPDATE", 12919 }, { "OPTICAL_FLOW", 100 }, { "OPTICAL_FLOW_RAD", 106 }, { "ORBIT_EXECUTION_STATUS", 360 }, { "PARAM_EXT_ACK", 324 }, { "PARAM_EXT_REQUEST_LIST", 321 }, { "PARAM_EXT_REQUEST_READ", 320 }, { "PARAM_EXT_SET", 323 }, { "PARAM_EXT_VALUE", 322 }, { "PARAM_MAP_RC", 50 }, { "PARAM_REQUEST_LIST", 21 }, { "PARAM_REQUEST_READ", 20 }, { "PARAM_SET", 23 }, { "PARAM_VALUE", 22 }, { "PING", 4 }, { "PLAY_TUNE", 258 }, { "PLAY_TUNE_V2", 400 }, { "POSITION_TARGET_GLOBAL_INT", 87 }, { "POSITION_TARGET_LOCAL_NED", 85 }, { "POWER_STATUS", 125 }, { "PROTOCOL_VERSION", 300 }, { "RADIO_STATUS", 109 }, { "RAW_IMU", 27 }, { "RAW_PRESSURE", 28 }, { "RAW_RPM", 339 }, { "RC_CHANNELS", 65 }, { "RC_CHANNELS_OVERRIDE", 70 }, { "RC_CHANNELS_RAW", 35 }, { "RC_CHANNELS_SCALED", 34 }, { "REQUEST_DATA_STREAM", 66 }, { "REQUEST_EVENT", 412 }, { "RESOURCE_REQUEST", 142 }, { "RESPONSE_EVENT_ERROR", 413 }, { "SAFETY_ALLOWED_AREA", 55 }, { "SAFETY_SET_ALLOWED_AREA", 54 }, { "SCALED_IMU", 26 }, { "SCALED_IMU2", 116 }, { "SCALED_IMU3", 129 }, { "SCALED_PRESSURE", 29 }, { "SCALED_PRESSURE2", 137 }, { "SCALED_PRESSURE3", 143 }, { "SERIAL_CONTROL", 126 }, { "SERVO_OUTPUT_RAW", 36 }, { "SETUP_SIGNING", 256 }, { "SET_ACTUATOR_CONTROL_TARGET", 139 }, { "SET_ATTITUDE_TARGET", 82 }, { "SET_GPS_GLOBAL_ORIGIN", 48 }, { "SET_HOME_POSITION", 243 }, { "SET_MODE", 11 }, { "SET_POSITION_TARGET_GLOBAL_INT", 86 }, { "SET_POSITION_TARGET_LOCAL_NED", 84 }, { "SIM_STATE", 108 }, { "SMART_BATTERY_INFO", 370 }, { "STATUSTEXT", 253 }, { "STORAGE_INFORMATION", 261 }, { "SUPPORTED_TUNES", 401 }, { "SYSTEM_TIME", 2 }, { "SYS_STATUS", 1 }, { "TERRAIN_CHECK", 135 }, { "TERRAIN_DATA", 134 }, { "TERRAIN_REPORT", 136 }, { "TERRAIN_REQUEST", 133 }, { "TIMESYNC", 111 }, { "TIME_ESTIMATE_TO_TARGET", 380 }, { "TRAJECTORY_REPRESENTATION_BEZIER", 333 }, { "TRAJECTORY_REPRESENTATION_WAYPOINTS", 332 }, { "TUNNEL", 385 }, { "UAVCAN_NODE_INFO", 311 }, { "UAVCAN_NODE_STATUS", 310 }, { "UTM_GLOBAL_POSITION", 340 }, { "V2_EXTENSION", 248 }, { "VFR_HUD", 74 }, { "VIBRATION", 241 }, { "VICON_POSITION_ESTIMATE", 104 }, { "VIDEO_STREAM_INFORMATION", 269 }, { "VIDEO_STREAM_STATUS", 270 }, { "VISION_POSITION_ESTIMATE", 102 }, { "VISION_SPEED_ESTIMATE", 103 }, { "WHEEL_DISTANCE", 9000 }, { "WIFI_CONFIG_AP", 299 }, { "WINCH_STATUS", 9005 }, { "WIND_COV", 231 }}
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:2:// MESSAGE AUTOPILOT_VERSION PACKING
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:4:#define MAVLINK_MSG_ID_AUTOPILOT_VERSION 148
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:18: uint8_t flight_custom_version[8]; /*<  Custom version field, commonly the first 8 bytes of the git hash. This is not an unique identifier, but should allow to identify the commit using the main version number even for very large code bases.*/
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:24:#define MAVLINK_MSG_ID_AUTOPILOT_VERSION_LEN 78
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:25:#define MAVLINK_MSG_ID_AUTOPILOT_VERSION_MIN_LEN 60
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:29:#define MAVLINK_MSG_ID_AUTOPILOT_VERSION_CRC 178
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:32:#define MAVLINK_MSG_AUTOPILOT_VERSION_FIELD_FLIGHT_CUSTOM_VERSION_LEN 8
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:33:#define MAVLINK_MSG_AUTOPILOT_VERSION_FIELD_MIDDLEWARE_CUSTOM_VERSION_LEN 8
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:34:#define MAVLINK_MSG_AUTOPILOT_VERSION_FIELD_OS_CUSTOM_VERSION_LEN 8
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:35:#define MAVLINK_MSG_AUTOPILOT_VERSION_FIELD_UID2_LEN 18
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:38:#define MAVLINK_MESSAGE_INFO_AUTOPILOT_VERSION { \
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:40:    "AUTOPILOT_VERSION", \
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:47:         { "flight_custom_version", NULL, MAVLINK_TYPE_UINT8_T, 8, 36, offsetof(mavlink_autopilot_version_t, flight_custom_version) }, \
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:57:#define MAVLINK_MESSAGE_INFO_AUTOPILOT_VERSION { \
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:58:    "AUTOPILOT_VERSION", \
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:65:         { "flight_custom_version", NULL, MAVLINK_TYPE_UINT8_T, 8, 36, offsetof(mavlink_autopilot_version_t, flight_custom_version) }, \
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:89: * @param flight_custom_version  Custom version field, commonly the first 8 bytes of the git hash. This is not an unique identifier, but should allow to identify the commit using the main version number even for very large code bases.
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:98:static inline uint16_t mavlink_msg_autopilot_version_pack(uint8_t system_id, uint8_t component_id, mavlink_message_t* msg,
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:99:                               uint64_t capabilities, uint32_t flight_sw_version, uint32_t middleware_sw_version, uint32_t os_sw_version, uint32_t board_version, const uint8_t *flight_custom_version, const uint8_t *middleware_custom_version, const uint8_t *os_custom_version, uint16_t vendor_id, uint16_t product_id, uint64_t uid, const uint8_t *uid2)
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:102:    char buf[MAVLINK_MSG_ID_AUTOPILOT_VERSION_LEN];
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:111:    _mav_put_uint8_t_array(buf, 36, flight_custom_version, 8);
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:115:        memcpy(_MAV_PAYLOAD_NON_CONST(msg), buf, MAVLINK_MSG_ID_AUTOPILOT_VERSION_LEN);
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:126:    mav_array_assign_uint8_t(packet.flight_custom_version, flight_custom_version, 8);
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:130:        memcpy(_MAV_PAYLOAD_NON_CONST(msg), &packet, MAVLINK_MSG_ID_AUTOPILOT_VERSION_LEN);
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:133:    msg->msgid = MAVLINK_MSG_ID_AUTOPILOT_VERSION;
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:134:    return mavlink_finalize_message(msg, system_id, component_id, MAVLINK_MSG_ID_AUTOPILOT_VERSION_MIN_LEN, MAVLINK_MSG_ID_AUTOPILOT_VERSION_LEN, MAVLINK_MSG_ID_AUTOPILOT_VERSION_CRC);
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:151: * @param flight_custom_version  Custom version field, commonly the first 8 bytes of the git hash. This is not an unique identifier, but should allow to identify the commit using the main version number even for very large code bases.
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:160:static inline uint16_t mavlink_msg_autopilot_version_pack_status(uint8_t system_id, uint8_t component_id, mavlink_status_t *_status, mavlink_message_t* msg,
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:161:                               uint64_t capabilities, uint32_t flight_sw_version, uint32_t middleware_sw_version, uint32_t os_sw_version, uint32_t board_version, const uint8_t *flight_custom_version, const uint8_t *middleware_custom_version, const uint8_t *os_custom_version, uint16_t vendor_id, uint16_t product_id, uint64_t uid, const uint8_t *uid2)
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:164:    char buf[MAVLINK_MSG_ID_AUTOPILOT_VERSION_LEN];
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:173:    _mav_put_uint8_t_array(buf, 36, flight_custom_version, 8);
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:177:        memcpy(_MAV_PAYLOAD_NON_CONST(msg), buf, MAVLINK_MSG_ID_AUTOPILOT_VERSION_LEN);
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:188:    mav_array_memcpy(packet.flight_custom_version, flight_custom_version, sizeof(uint8_t)*8);
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:192:        memcpy(_MAV_PAYLOAD_NON_CONST(msg), &packet, MAVLINK_MSG_ID_AUTOPILOT_VERSION_LEN);
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:195:    msg->msgid = MAVLINK_MSG_ID_AUTOPILOT_VERSION;
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:197:    return mavlink_finalize_message_buffer(msg, system_id, component_id, _status, MAVLINK_MSG_ID_AUTOPILOT_VERSION_MIN_LEN, MAVLINK_MSG_ID_AUTOPILOT_VERSION_LEN, MAVLINK_MSG_ID_AUTOPILOT_VERSION_CRC);
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:199:    return mavlink_finalize_message_buffer(msg, system_id, component_id, _status, MAVLINK_MSG_ID_AUTOPILOT_VERSION_MIN_LEN, MAVLINK_MSG_ID_AUTOPILOT_VERSION_LEN);
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:216: * @param flight_custom_version  Custom version field, commonly the first 8 bytes of the git hash. This is not an unique identifier, but should allow to identify the commit using the main version number even for very large code bases.
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:225:static inline uint16_t mavlink_msg_autopilot_version_pack_chan(uint8_t system_id, uint8_t component_id, uint8_t chan,
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:227:                                   uint64_t capabilities,uint32_t flight_sw_version,uint32_t middleware_sw_version,uint32_t os_sw_version,uint32_t board_version,const uint8_t *flight_custom_version,const uint8_t *middleware_custom_version,const uint8_t *os_custom_version,uint16_t vendor_id,uint16_t product_id,uint64_t uid,const uint8_t *uid2)
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:230:    char buf[MAVLINK_MSG_ID_AUTOPILOT_VERSION_LEN];
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:239:    _mav_put_uint8_t_array(buf, 36, flight_custom_version, 8);
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:243:        memcpy(_MAV_PAYLOAD_NON_CONST(msg), buf, MAVLINK_MSG_ID_AUTOPILOT_VERSION_LEN);
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:254:    mav_array_assign_uint8_t(packet.flight_custom_version, flight_custom_version, 8);
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:258:        memcpy(_MAV_PAYLOAD_NON_CONST(msg), &packet, MAVLINK_MSG_ID_AUTOPILOT_VERSION_LEN);
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:261:    msg->msgid = MAVLINK_MSG_ID_AUTOPILOT_VERSION;
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:262:    return mavlink_finalize_message_chan(msg, system_id, component_id, chan, MAVLINK_MSG_ID_AUTOPILOT_VERSION_MIN_LEN, MAVLINK_MSG_ID_AUTOPILOT_VERSION_LEN, MAVLINK_MSG_ID_AUTOPILOT_VERSION_CRC);
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:273:static inline uint16_t mavlink_msg_autopilot_version_encode(uint8_t system_id, uint8_t component_id, mavlink_message_t* msg, const mavlink_autopilot_version_t* autopilot_version)
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:275:    return mavlink_msg_autopilot_version_pack(system_id, component_id, msg, autopilot_version->capabilities, autopilot_version->flight_sw_version, autopilot_version->middleware_sw_version, autopilot_version->os_sw_version, autopilot_version->board_version, autopilot_version->flight_custom_version, autopilot_version->middleware_custom_version, autopilot_version->os_custom_version, autopilot_version->vendor_id, autopilot_version->product_id, autopilot_version->uid, autopilot_version->uid2);
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:287:static inline uint16_t mavlink_msg_autopilot_version_encode_chan(uint8_t system_id, uint8_t component_id, uint8_t chan, mavlink_message_t* msg, const mavlink_autopilot_version_t* autopilot_version)
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:289:    return mavlink_msg_autopilot_version_pack_chan(system_id, component_id, chan, msg, autopilot_version->capabilities, autopilot_version->flight_sw_version, autopilot_version->middleware_sw_version, autopilot_version->os_sw_version, autopilot_version->board_version, autopilot_version->flight_custom_version, autopilot_version->middleware_custom_version, autopilot_version->os_custom_version, autopilot_version->vendor_id, autopilot_version->product_id, autopilot_version->uid, autopilot_version->uid2);
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:301:static inline uint16_t mavlink_msg_autopilot_version_encode_status(uint8_t system_id, uint8_t component_id, mavlink_status_t* _status, mavlink_message_t* msg, const mavlink_autopilot_version_t* autopilot_version)
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:303:    return mavlink_msg_autopilot_version_pack_status(system_id, component_id, _status, msg,  autopilot_version->capabilities, autopilot_version->flight_sw_version, autopilot_version->middleware_sw_version, autopilot_version->os_sw_version, autopilot_version->board_version, autopilot_version->flight_custom_version, autopilot_version->middleware_custom_version, autopilot_version->os_custom_version, autopilot_version->vendor_id, autopilot_version->product_id, autopilot_version->uid, autopilot_version->uid2);
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:317: * @param flight_custom_version  Custom version field, commonly the first 8 bytes of the git hash. This is not an unique identifier, but should allow to identify the commit using the main version number even for very large code bases.
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:327:static inline void mavlink_msg_autopilot_version_send(mavlink_channel_t chan, uint64_t capabilities, uint32_t flight_sw_version, uint32_t middleware_sw_version, uint32_t os_sw_version, uint32_t board_version, const uint8_t *flight_custom_version, const uint8_t *middleware_custom_version, const uint8_t *os_custom_version, uint16_t vendor_id, uint16_t product_id, uint64_t uid, const uint8_t *uid2)
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:330:    char buf[MAVLINK_MSG_ID_AUTOPILOT_VERSION_LEN];
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:339:    _mav_put_uint8_t_array(buf, 36, flight_custom_version, 8);
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:343:    _mav_finalize_message_chan_send(chan, MAVLINK_MSG_ID_AUTOPILOT_VERSION, buf, MAVLINK_MSG_ID_AUTOPILOT_VERSION_MIN_LEN, MAVLINK_MSG_ID_AUTOPILOT_VERSION_LEN, MAVLINK_MSG_ID_AUTOPILOT_VERSION_CRC);
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:354:    mav_array_assign_uint8_t(packet.flight_custom_version, flight_custom_version, 8);
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:358:    _mav_finalize_message_chan_send(chan, MAVLINK_MSG_ID_AUTOPILOT_VERSION, (const char *)&packet, MAVLINK_MSG_ID_AUTOPILOT_VERSION_MIN_LEN, MAVLINK_MSG_ID_AUTOPILOT_VERSION_LEN, MAVLINK_MSG_ID_AUTOPILOT_VERSION_CRC);
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:367:static inline void mavlink_msg_autopilot_version_send_struct(mavlink_channel_t chan, const mavlink_autopilot_version_t* autopilot_version)
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:370:    mavlink_msg_autopilot_version_send(chan, autopilot_version->capabilities, autopilot_version->flight_sw_version, autopilot_version->middleware_sw_version, autopilot_version->os_sw_version, autopilot_version->board_version, autopilot_version->flight_custom_version, autopilot_version->middleware_custom_version, autopilot_version->os_custom_version, autopilot_version->vendor_id, autopilot_version->product_id, autopilot_version->uid, autopilot_version->uid2);
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:372:    _mav_finalize_message_chan_send(chan, MAVLINK_MSG_ID_AUTOPILOT_VERSION, (const char *)autopilot_version, MAVLINK_MSG_ID_AUTOPILOT_VERSION_MIN_LEN, MAVLINK_MSG_ID_AUTOPILOT_VERSION_LEN, MAVLINK_MSG_ID_AUTOPILOT_VERSION_CRC);
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:376:#if MAVLINK_MSG_ID_AUTOPILOT_VERSION_LEN <= MAVLINK_MAX_PAYLOAD_LEN
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:384:static inline void mavlink_msg_autopilot_version_send_buf(mavlink_message_t *msgbuf, mavlink_channel_t chan,  uint64_t capabilities, uint32_t flight_sw_version, uint32_t middleware_sw_version, uint32_t os_sw_version, uint32_t board_version, const uint8_t *flight_custom_version, const uint8_t *middleware_custom_version, const uint8_t *os_custom_version, uint16_t vendor_id, uint16_t product_id, uint64_t uid, const uint8_t *uid2)
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:396:    _mav_put_uint8_t_array(buf, 36, flight_custom_version, 8);
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:400:    _mav_finalize_message_chan_send(chan, MAVLINK_MSG_ID_AUTOPILOT_VERSION, buf, MAVLINK_MSG_ID_AUTOPILOT_VERSION_MIN_LEN, MAVLINK_MSG_ID_AUTOPILOT_VERSION_LEN, MAVLINK_MSG_ID_AUTOPILOT_VERSION_CRC);
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:411:    mav_array_assign_uint8_t(packet->flight_custom_version, flight_custom_version, 8);
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:415:    _mav_finalize_message_chan_send(chan, MAVLINK_MSG_ID_AUTOPILOT_VERSION, (const char *)packet, MAVLINK_MSG_ID_AUTOPILOT_VERSION_MIN_LEN, MAVLINK_MSG_ID_AUTOPILOT_VERSION_LEN, MAVLINK_MSG_ID_AUTOPILOT_VERSION_CRC);
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:422:// MESSAGE AUTOPILOT_VERSION UNPACKING
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:430:static inline uint64_t mavlink_msg_autopilot_version_get_capabilities(const mavlink_message_t* msg)
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:442:static inline uint32_t mavlink_msg_autopilot_version_get_flight_sw_version(const mavlink_message_t* msg)
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:452:static inline uint32_t mavlink_msg_autopilot_version_get_middleware_sw_version(const mavlink_message_t* msg)
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:462:static inline uint32_t mavlink_msg_autopilot_version_get_os_sw_version(const mavlink_message_t* msg)
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:472:static inline uint32_t mavlink_msg_autopilot_version_get_board_version(const mavlink_message_t* msg)
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:478: * @brief Get field flight_custom_version from autopilot_version message
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:482:static inline uint16_t mavlink_msg_autopilot_version_get_flight_custom_version(const mavlink_message_t* msg, uint8_t *flight_custom_version)
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:484:    return _MAV_RETURN_uint8_t_array(msg, flight_custom_version, 8,  36);
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:492:static inline uint16_t mavlink_msg_autopilot_version_get_middleware_custom_version(const mavlink_message_t* msg, uint8_t *middleware_custom_version)
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:502:static inline uint16_t mavlink_msg_autopilot_version_get_os_custom_version(const mavlink_message_t* msg, uint8_t *os_custom_version)
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:512:static inline uint16_t mavlink_msg_autopilot_version_get_vendor_id(const mavlink_message_t* msg)
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:522:static inline uint16_t mavlink_msg_autopilot_version_get_product_id(const mavlink_message_t* msg)
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:532:static inline uint64_t mavlink_msg_autopilot_version_get_uid(const mavlink_message_t* msg)
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:542:static inline uint16_t mavlink_msg_autopilot_version_get_uid2(const mavlink_message_t* msg, uint8_t *uid2)
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:553:static inline void mavlink_msg_autopilot_version_decode(const mavlink_message_t* msg, mavlink_autopilot_version_t* autopilot_version)
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:556:    autopilot_version->capabilities = mavlink_msg_autopilot_version_get_capabilities(msg);
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:557:    autopilot_version->uid = mavlink_msg_autopilot_version_get_uid(msg);
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:558:    autopilot_version->flight_sw_version = mavlink_msg_autopilot_version_get_flight_sw_version(msg);
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:559:    autopilot_version->middleware_sw_version = mavlink_msg_autopilot_version_get_middleware_sw_version(msg);
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:560:    autopilot_version->os_sw_version = mavlink_msg_autopilot_version_get_os_sw_version(msg);
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:561:    autopilot_version->board_version = mavlink_msg_autopilot_version_get_board_version(msg);
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:562:    autopilot_version->vendor_id = mavlink_msg_autopilot_version_get_vendor_id(msg);
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:563:    autopilot_version->product_id = mavlink_msg_autopilot_version_get_product_id(msg);
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:564:    mavlink_msg_autopilot_version_get_flight_custom_version(msg, autopilot_version->flight_custom_version);
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:565:    mavlink_msg_autopilot_version_get_middleware_custom_version(msg, autopilot_version->middleware_custom_version);
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:566:    mavlink_msg_autopilot_version_get_os_custom_version(msg, autopilot_version->os_custom_version);
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:567:    mavlink_msg_autopilot_version_get_uid2(msg, autopilot_version->uid2);
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:569:        uint8_t len = msg->len < MAVLINK_MSG_ID_AUTOPILOT_VERSION_LEN? msg->len : MAVLINK_MSG_ID_AUTOPILOT_VERSION_LEN;
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/mavlink_msg_autopilot_version.h:570:        memset(autopilot_version, 0, MAVLINK_MSG_ID_AUTOPILOT_VERSION_LEN);
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/standard.h:112:#include "./mavlink_msg_autopilot_version.h"
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/standard.h:119:# define MAVLINK_MESSAGE_INFO {MAVLINK_MESSAGE_INFO_HEARTBEAT, MAVLINK_MESSAGE_INFO_AUTOPILOT_VERSION, MAVLINK_MESSAGE_INFO_PROTOCOL_VERSION}
+Flight-Commander-Firmware-Source-v4.0.8/lib/main/MAVLink/standard/standard.h:120:# define MAVLINK_MESSAGE_NAMES {{ "AUTOPILOT_VERSION", 148 }, { "HEARTBEAT", 0 }, { "PROTOCOL_VERSION", 300 }}
+Flight-Commander-Firmware-Source-v4.0.8/src/main/build/flight_commander.h:25:#define FLIGHT_COMMANDER_INFO_SIGNATURE "FCFW"
+Flight-Commander-Firmware-Source-v4.0.8/src/main/build/flight_commander.h:26:#define FLIGHT_COMMANDER_INFO_SIGNATURE_LENGTH 4
+Flight-Commander-Firmware-Source-v4.0.8/src/main/build/flight_commander.h:49:#define FLIGHT_COMMANDER_CAPABILITIES ((uint32_t)0xFFFFU)
+Flight-Commander-Firmware-Source-v4.0.8/src/main/msp/msp_flight_commander.c:31:        FLIGHT_COMMANDER_CAPABILITIES & 0xFFU,
+Flight-Commander-Firmware-Source-v4.0.8/src/main/msp/msp_flight_commander.c:32:        (FLIGHT_COMMANDER_CAPABILITIES >> 8) & 0xFFU,
+Flight-Commander-Firmware-Source-v4.0.8/src/main/msp/msp_flight_commander.c:33:        (FLIGHT_COMMANDER_CAPABILITIES >> 16) & 0xFFU,
+Flight-Commander-Firmware-Source-v4.0.8/src/main/msp/msp_flight_commander.c:34:        (FLIGHT_COMMANDER_CAPABILITIES >> 24) & 0xFFU,
