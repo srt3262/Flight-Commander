@@ -150,6 +150,8 @@ configurationTab.initialize = function (callback, scrollPosition) {
         // translate to user-selected language
         i18n.localize();
 
+        let compassSettingsPopulated = false;
+
         function dronecanCompassConfigured() {
             const node = Number(FC.DRONECAN_CONFIG?.magNodeId ?? DRONECAN_NODE_ID_DISABLED);
             return node !== DRONECAN_NODE_ID_DISABLED;
@@ -161,6 +163,10 @@ configurationTab.initialize = function (callback, scrollPosition) {
                 .addClass('info-box');
             if (!supportsHeadingFusion) {
                 $info.text('External compass selection requires Flight Commander firmware.');
+                return;
+            }
+            if (!compassSettingsPopulated) {
+                $info.text('Reading configured compass sources…');
                 return;
             }
             const onboardEnabled = Number($('#sensor-mag').val()) !== 0;
@@ -356,11 +362,13 @@ configurationTab.initialize = function (callback, scrollPosition) {
 
         });
 
-        // Wait for settings to load before triggering change event
+        // Refresh dependent UI only after Settings has populated every selector.
         settingsPromise.then(function() {
+            compassSettingsPopulated = true;
+            renderCompassSourceSelectionInfo();
             $i2cSpeed.trigger('change');
         }).catch(function(error) {
-            console.error('Settings load failed, I2C speed change not triggered:', error);
+            console.error('Settings load failed, delayed UI refreshes were not triggered:', error);
         });
 
         $('a.save').on('click', function () {
