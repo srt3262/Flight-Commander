@@ -413,7 +413,14 @@ flightData.configureProtocol = function () {
     }
   });
 
-  if (!this.protocol || !CONFIGURATOR.connectionValid) {
+  // The Ground Control tab opens as soon as a selected MAVLink transport is
+  // ready, before the first vehicle heartbeat validates the connection. Keep
+  // that tab subscribed so the heartbeat can promote its waiting UI to live
+  // telemetry without forcing an operator tab change or reconnect.
+  if (
+    !this.protocol
+    || (this.protocol !== 'mavlink' && !CONFIGURATOR.connectionValid)
+  ) {
     this.setCommandButtonsDisabled(true);
     $('#flightDataCommandCapability').text(
       'Connect an aircraft to use vehicle commands. RTK base and NTRIP setup remain available offline.',

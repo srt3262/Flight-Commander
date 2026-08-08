@@ -697,7 +697,7 @@ test("all requested large-prop INAV presets are wired into the release source", 
 });
 
 test("landing page reports the current Flight Commander release", () => {
-  assert.equal(packageManifest.version, "4.1.0");
+  assert.equal(packageManifest.version, "4.1.1");
   assert.equal(manifest.version, packageManifest.version);
   assert.match(
     landingHtml,

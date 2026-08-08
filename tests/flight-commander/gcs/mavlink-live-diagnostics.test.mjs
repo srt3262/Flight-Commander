@@ -32,3 +32,23 @@ test("MAVLink timeout diagnostics distinguish bytes, frames, and heartbeats", ()
   assert.match(backend, /inbound serial bytes are still arriving/);
   assert.match(backend, /case 'vehicle-heartbeat-restored'/);
 });
+
+test("Ground Control subscribes while MAVLink waits for its first heartbeat", () => {
+  const start = flightData.indexOf("flightData.configureProtocol = function () {");
+  const end = flightData.indexOf(
+    "flightData.invalidateMavlinkAttachment = function () {",
+    start,
+  );
+  assert.ok(start >= 0 && end > start);
+  const block = flightData.slice(start, end);
+  assert.match(
+    block,
+    /this\.protocol !== 'mavlink'\s*&&\s*!CONFIGURATOR\.connectionValid/,
+  );
+  assert.doesNotMatch(
+    block,
+    /if \(!this\.protocol \|\| !CONFIGURATOR\.connectionValid\)/,
+  );
+  assert.match(block, /mavlinkSession\.on\('state'/);
+  assert.match(block, /vehicleJustConnected/);
+});
