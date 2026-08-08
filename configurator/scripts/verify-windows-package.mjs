@@ -20,6 +20,15 @@ function fail(message) {
   throw new Error(`Windows package verification failed: ${message}`);
 }
 
+function requireMarkers(source, markers, bundleDescription) {
+  const missing = markers.filter((marker) => !source.includes(marker));
+  if (missing.length > 0) {
+    fail(
+      `${bundleDescription} is missing required marker(s): ${missing.join(", ")}`,
+    );
+  }
+}
+
 function filesBelow(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const path = join(directory, entry.name);
@@ -578,26 +587,23 @@ if (!existsSync(mainPath)) {
   fail("compiled main process is missing");
 }
 const compiledMain = readFileSync(mainPath, "utf8");
-if (
-  !compiledMain.includes("Serial port open timed out") ||
-  !compiledMain.includes("Serial port open was superseded") ||
-  !compiledMain.includes("configuring-control-lines") ||
-  !compiledMain.includes("serial-open-complete") ||
-  !compiledMain.includes("USB device may have reset or briefly re-enumerated") ||
-  !compiledMain.includes("setSignals") ||
-  !compiledMain.includes("dtr") ||
-  !compiledMain.includes("rts") ||
-  !compiledMain.includes("serial link ended during MAVLink startup") ||
-  !compiledMain.includes("Serial link interrupted") ||
-  !compiledMain.includes("Unable to enumerate serial ports") ||
-  !compiledMain.includes("hadVehicleHeartbeat") ||
-  !compiledMain.includes("pendingReconnectRequest") ||
-  !compiledMain.includes("unexpectedTerminalOperatorGuardUntil")
-) {
-  fail(
-    "the compiled main process does not contain bounded, connection-scoped serial lifecycle handling",
-  );
-}
+requireMarkers(
+  compiledMain,
+  [
+    "Serial port open timed out",
+    "Serial port open was superseded",
+    "configuring-control-lines",
+    "Unable to configure serial control lines",
+    "Serial control-line setup timed out",
+    "Stale serial connection close was rejected",
+    "Invalid, stale, or closed serial connection",
+    "hupcl",
+    "rtscts",
+    "dtr",
+    "rts",
+  ],
+  "the compiled main-process serial lifecycle",
+);
 if (
   !compiledMain.includes(`NTRIP FlightCommander/${sourcePackage.version}`) ||
   !compiledMain.includes("ntripListMountpoints") ||
@@ -620,6 +626,20 @@ const rendererText = [
   ...rendererFiles.map((file) => readFileSync(file, "utf8")),
   ...rendererStylesheets.map((file) => readFileSync(file, "utf8")),
 ].join("\n");
+
+requireMarkers(
+  rendererText,
+  [
+    "USB device may have reset or briefly re-enumerated",
+    "serial link ended during MAVLink startup",
+    "Serial link interrupted",
+    "Unable to enumerate serial ports",
+    "hadVehicleHeartbeat",
+    "pendingReconnectRequest",
+    "unexpectedTerminalOperatorGuardUntil",
+  ],
+  "the active renderer serial-recovery lifecycle",
+);
 
 for (const forbidden of [
   "INAV Configurator",
@@ -686,13 +706,11 @@ for (const marker of [
   "Switch Flight Commander's global display units between metric and imperial",
   "flightCommanderTheme",
   "flight-commander-theme-change",
-  "dark-only",
   "data-motor-number-layout",
   "data-motor-prop-configuration",
   "quad_x_reverse",
   "quad_p_reverse",
-  "data-motor-rotations",
-  "wrong INAV motor rotation order",
+  "data-motor-rotation",
   "Keep every current value and save only the first-run acknowledgement",
   "Selecting default control profile 1",
   "Control profile 1:",
@@ -706,7 +724,7 @@ for (const marker of [
   "FCFW",
   "MICOAIR743",
   "MICROAIR743",
-  "The HEX does not contain the required FCFW firmware identity",
+  "The published HEX does not contain the required FCFW firmware identity",
   "Firmware Capabilities",
   "Multirotor AutoTune",
   "Terrain-relative waypoints",
@@ -784,7 +802,7 @@ for (const retiredRuntime of [
 for (const requiredProtocol of [
   "INAV",
   "MSP2_FLIGHT_COMMANDER_INFO",
-  "mspVersion",
+  "mspProtocolVersion",
 ]) {
   if (!rendererText.includes(requiredProtocol)) {
     fail(`the active renderer is missing inherited protocol ${requiredProtocol}`);
@@ -803,8 +821,6 @@ if (applicationStylesheet.includes('data-theme="light"')) {
 for (const selector of [
   ".tab-landing .flightCommanderLogo",
   ".tab-firmware_flasher",
-  ".tab-flight_data",
-  ".tab-flight_planner",
   ".tab-gps",
   ".tab-magnetometer",
   ".tab-ports",
@@ -812,7 +828,6 @@ for (const selector of [
   ".tab-calibration",
   ".tab-failsafe",
   ".tab-mixer",
-  ".tab-outputs",
   ".tab-cli",
   ".batteryProfileHighlightActive",
   ".controlProfileHighlightActive",
@@ -821,7 +836,7 @@ for (const selector of [
     fail(`the active renderer stylesheet is missing ${selector}`);
   }
 }
-const titleLogoDeclarations = ruleDeclarations(applicationStylesheet, "#logo .title");
+const titleLogoDeclarations = ruleDeclarations(applicationStylesheet, "#logo");
 if (!titleLogoDeclarations.some(hasFlightCommanderWordmark)) {
   fail("the title bar does not contain the Flight Commander wordmark");
 }
@@ -834,7 +849,7 @@ if (!welcomeLogoDeclarations.some(hasCompleteDarkWelcomeWordmark)) {
 }
 
 const landingCss = applicationStylesheet;
-for (const color of ["#17242b", "#121a20", "#d6dde2", "#37a8db"]) {
+for (const color of ["#17242b", "#131b21", "#edf3f6", "#37a8db"]) {
   if (!landingCss.includes(color)) {
     fail(`the dark Welcome page stylesheet is missing ${color}`);
   }

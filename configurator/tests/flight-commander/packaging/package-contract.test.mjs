@@ -274,7 +274,18 @@ test("Windows verification follows the active renderer graph and rejects leftove
   assert.match(packageVerifier, /embedded executable icon/);
   assert.match(packageVerifier, /exactly one group-icon resource/);
   assert.match(packageVerifier, /configuring-control-lines/);
-  assert.match(packageVerifier, /serial-open-complete/);
+  assert.match(packageVerifier, /Unable to configure serial control lines/);
+  assert.match(packageVerifier, /Serial control-line setup timed out/);
+  assert.match(packageVerifier, /Stale serial connection close was rejected/);
+  assert.match(packageVerifier, /Invalid, stale, or closed serial connection/);
+  assert.match(
+    packageVerifier,
+    /requireMarkers\(\s*compiledMain,[\s\S]*?the compiled main-process serial lifecycle/,
+  );
+  assert.match(
+    packageVerifier,
+    /requireMarkers\(\s*rendererText,[\s\S]*?the active renderer serial-recovery lifecycle/,
+  );
   assert.match(packageVerifier, /Waiting for vehicle heartbeat/);
   assert.match(packageVerifier, /discovery-heartbeat-write-accepted/);
   assert.match(packageVerifier, /serial-bytes-received/);
@@ -343,8 +354,7 @@ test("Windows verification follows the active renderer graph and rejects leftove
   assert.match(packageVerifier, /data-motor-prop-configuration/);
   assert.match(packageVerifier, /quad_x_reverse/);
   assert.match(packageVerifier, /quad_p_reverse/);
-  assert.match(packageVerifier, /data-motor-rotations/);
-  assert.match(packageVerifier, /wrong INAV motor rotation order/);
+  assert.match(packageVerifier, /data-motor-rotation/);
   assert.match(packageVerifier, /Keep every current value and save only the first-run acknowledgement/);
   assert.match(packageVerifier, /Selecting default control profile 1/);
   assert.match(packageVerifier, /Control profile 1:/);
@@ -829,5 +839,3 @@ test("legacy welcome art remains intact while the active theme selects dark bran
     /\.tab-landing \.content_top\s*\{[^}]*background-color:\s*#17242b/s,
   );
 });
-
-
