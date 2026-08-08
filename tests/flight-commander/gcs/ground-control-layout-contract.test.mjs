@@ -147,13 +147,17 @@ test('telemetry fits under both views while RTK is reached by normal page scroll
   assert.match(groundControlHtml, /href="#flightDataRtk">RTK setup ↓<\/a>/);
 });
 
-test('Ground Control owns RTK setup and remains available with the aircraft offline', () => {
+test('Ground Control owns RTK setup offline and subscribes during MAVLink startup', () => {
   assert.match(groundControlSource, /import rtkBasePanel from ['"]\.\/rtk_base['"]/);
   assert.match(
     groundControlSource,
     /rtkBasePanel\.mount\('#flightDataRtkMount',\s*\{[\s\S]*?unitSystem: this\.unitSystem/,
   );
-  assert.match(groundControlSource, /if \(!this\.protocol \|\| !CONFIGURATOR\.connectionValid\)/);
+  assert.match(
+    groundControlSource,
+    /this\.protocol !== 'mavlink'\s*&&\s*!CONFIGURATOR\.connectionValid/,
+  );
+  assert.match(groundControlSource, /mavlinkSession\.on\('state'/);
   assert.match(groundControlSource, /Offline setup mode/);
 
   const disconnectedMenu = indexSource.match(
