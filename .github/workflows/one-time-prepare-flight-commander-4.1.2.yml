@@ -7,6 +7,7 @@ name: One-time prepare Flight Commander 4.1.2
     paths:
       - .github/workflows/one-time-prepare-flight-commander-4.1.2.yml
       - scripts/prepare-flight-commander-4.1.2.py
+      - scripts/patch-flight-commander-4.1.2.py
 
 permissions:
   contents: write
@@ -50,10 +51,19 @@ jobs:
           set +e
           python3 /tmp/prepare-flight-commander-4.1.2.py > /tmp/transform.log 2>&1
           transform_status=$?
+          patch_status=0
           install_status=0
           test_status=0
 
           if [ "$transform_status" -eq 0 ]; then
+            # Restore compact source locale files before replacing only the
+            # active firmware-policy messages without whole-file reformatting.
+            git checkout origin/main -- locale
+            python3 scripts/patch-flight-commander-4.1.2.py > /tmp/patch.log 2>&1
+            patch_status=$?
+          fi
+
+          if [ "$transform_status" -eq 0 ] && [ "$patch_status" -eq 0 ]; then
             corepack enable > /tmp/install.log 2>&1
             install_status=$?
             if [ "$install_status" -eq 0 ]; then
@@ -72,17 +82,21 @@ jobs:
 
           mkdir -p docs/internal
           status_path=docs/internal/flight-commander-4.1.2-transform-status.txt
-          if [ "$transform_status" -eq 0 ] && [ "$install_status" -eq 0 ] && [ "$test_status" -eq 0 ]; then
+          if [ "$transform_status" -eq 0 ] && [ "$patch_status" -eq 0 ] && [ "$install_status" -eq 0 ] && [ "$test_status" -eq 0 ]; then
             rm -f "$status_path"
           else
             {
               echo "Flight Commander 4.1.2 one-time transformation failed."
               echo "transform_status=$transform_status"
+              echo "patch_status=$patch_status"
               echo "install_status=$install_status"
               echo "test_status=$test_status"
               echo
               echo "--- transformer log ---"
               tail -n 300 /tmp/transform.log 2>/dev/null || true
+              echo
+              echo "--- focused patch log ---"
+              cat /tmp/patch.log 2>/dev/null || true
               echo
               echo "--- dependency log ---"
               tail -n 200 /tmp/install.log 2>/dev/null || true
@@ -96,18 +110,19 @@ jobs:
           fi
 
           # GitHub Actions' repository token cannot update workflow files. Keep
-          # all workflow files and the transformer identical to main while the
+          # all workflow files and the transformers identical to main while the
           # tested application/source changes are published to the release branch.
           git checkout origin/main -- \
             .github/workflows/release.yml \
             .github/workflows/one-time-prepare-flight-commander-4.1.2.yml \
-            scripts/prepare-flight-commander-4.1.2.py
+            scripts/prepare-flight-commander-4.1.2.py \
+            scripts/patch-flight-commander-4.1.2.py
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
           if ! git diff --cached --quiet; then
-            if [ "$transform_status" -eq 0 ] && [ "$install_status" -eq 0 ] && [ "$test_status" -eq 0 ]; then
+            if [ "$transform_status" -eq 0 ] && [ "$patch_status" -eq 0 ] && [ "$install_status" -eq 0 ] && [ "$test_status" -eq 0 ]; then
               git commit -m "Prepare Flight Commander 4.1.2 firmware-only support"
             else
               git commit -m "Record Flight Commander 4.1.2 transformation failure"
@@ -116,5 +131,6 @@ jobs:
           git push --force origin HEAD:remove-official-inav-support
 
           if [ "$transform_status" -ne 0 ]; then exit "$transform_status"; fi
+          if [ "$patch_status" -ne 0 ]; then exit "$patch_status"; fi
           if [ "$install_status" -ne 0 ]; then exit "$install_status"; fi
           exit "$test_status"
