@@ -120,7 +120,7 @@ The validated publication target for the reconstructed release is **Windows
 x64**. Every source-backed release provides one complete download on
 [GitHub Releases](https://github.com/srt3262/Flight-Commander/releases):
 
-- `Flight-Commander-vX.Y.Z.zip` contains the following four files.
+- `Flight-Commander-vX.Y.Z.zip` contains the following five files.
 - `FC-Windows-vX.Y.Z.zip` is the portable
   Windows application. Extract it into a new folder and run
   `flight-commander.exe`.
@@ -130,13 +130,16 @@ x64**. Every source-backed release provides one complete download on
   firmware image under its truthful embedded firmware version. A
   Configurator-only release may therefore publish a lower firmware version
   without wrapping or relabeling the binary.
+- `FC-Firmware-vX.Y.Z-CUBEORANGEPLUS.hex` is the CubePilot Cube Orange+
+  STM32H757 image. It begins after the protected 128 KiB vendor bootloader and
+  must never be flashed with full-chip erase.
 - `FC-Firmware-Source-vX.Y.Z.zip` is the exact corresponding
   firmware source. Its manifest pins the source revision/tree, deterministic
   build epoch, compiler, HEX size, and hashes needed to reproduce the image.
 
-GitHub also exposes the same verified HEX under its canonical long filename as
-a small service asset for **Download Online Firmware**. The complete ZIP remains
-the normal user-facing release download.
+GitHub also exposes both verified HEX files under their canonical long
+filenames as service assets for **Download Online Firmware**. The complete ZIP
+remains the normal user-facing release download.
 
 Every published Configurator update advances its software version. If the
 update changes firmware, the firmware is rebuilt and its complete version must

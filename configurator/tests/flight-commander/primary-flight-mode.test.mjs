@@ -90,7 +90,7 @@ test("raw mode aliases and display state never expose secondary labels", () => {
   );
 });
 
-test("firmware and backup sources retain the 4.1.7 display contract", () => {
+test("firmware and backup sources retain the 4.1.8 display contract", () => {
   const backup = readFileSync(
     new URL("../../js/backup_restore.js", import.meta.url),
     "utf8",

@@ -17,10 +17,10 @@ import {
   verifyFlightCommanderOnlinePayload,
 } from "../../../js/flightCommander/firmwareCatalog.js";
 
-function asset(version, marker, suffix = "") {
+function asset(version, marker, suffix = "", target = "MICOAIR743") {
   return {
-    name: `Flight-Commander-Firmware-${version}-MICOAIR743${suffix}.hex`,
-    browser_download_url: `https://example.invalid/${version}${suffix}.hex`,
+    name: `Flight-Commander-Firmware-${version}-${target}${suffix}.hex`,
+    browser_download_url: `https://example.invalid/${version}-${target}${suffix}.hex`,
     digest: `sha256:${marker.repeat(64)}`,
     size: 1200,
   };
@@ -70,6 +70,7 @@ describe("Flight Commander firmware catalog", () => {
     assert.equal(isSupportedFlightCommanderFirmwareVersion("4.0.6"), false);
     assert.equal(isSupportedFlightCommanderFirmwareVersion("4.0.8"), true);
     assert.equal(normalizeFirmwareTarget("MICROAIR743"), "MICOAIR743");
+    assert.equal(normalizeFirmwareTarget("CubeOrange+"), "CUBEORANGEPLUS");
   });
 
   test("parses canonical release filenames", () => {
@@ -84,6 +85,12 @@ describe("Flight Commander firmware catalog", () => {
         "Flight-Commander-Firmware-3.0.7-MICOAIR743-BENCH-ONLY.hex",
       ).benchOnly,
       true,
+    );
+    assert.equal(
+      parseFlightCommanderFirmwareFilename(
+        "Flight-Commander-Firmware-4.1.8-CUBEORANGEPLUS.hex",
+      ).target_id,
+      "CUBEORANGEPLUS",
     );
     assert.equal(parseFlightCommanderFirmwareFilename("arducopter.apj"), null);
   });
@@ -106,6 +113,7 @@ describe("Flight Commander firmware catalog", () => {
     );
     assert.equal(descriptors[0].digest, `sha256:${"b".repeat(64)}`);
     assert.equal(catalogByTarget(descriptors).MICOAIR743.length, 2);
+    assert.deepEqual(catalogByTarget(descriptors).CUBEORANGEPLUS, []);
   });
 
   test("verifies online byte count and GitHub SHA-256", async () => {
@@ -141,6 +149,16 @@ describe("Flight Commander firmware catalog", () => {
         selectedTarget: "0",
       }).target_id,
       "MICOAIR743",
+    );
+
+    const cube = parsedFirmwareBytes(
+      [0x46, 0x43, 0x46, 0x57],
+      "CUBEORANGEPLUS",
+    );
+    assert.equal(inferFlightCommanderFirmwareTarget(cube), "CUBEORANGEPLUS");
+    assert.equal(
+      localFlightCommanderFirmwareDescriptor(cube).target_id,
+      "CUBEORANGEPLUS",
     );
   });
 });

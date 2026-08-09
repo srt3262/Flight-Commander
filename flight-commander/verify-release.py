@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify the Flight Commander 4.1.7 MICOAIR743 source and HEX contract."""
+"""Verify the Flight Commander 4.1.8 source and official target images."""
 
 from __future__ import annotations
 
@@ -11,8 +11,8 @@ import re
 import subprocess
 import sys
 
-VERSION = "4.1.7"
-TARGET = "MICOAIR743"
+VERSION = "4.1.8"
+TARGETS = ("MICOAIR743", "CUBEORANGEPLUS")
 UPSTREAM_RELEASE = "9.1.0"
 UPSTREAM_COMMIT = "e519b69b02e27c8bdc03b4a0889f1baaae211a54"
 CAPABILITIES = "0x0000ffff"
@@ -64,7 +64,7 @@ def require_text(path: Path, patterns: list[str]) -> None:
     text = path.read_text(encoding="utf-8")
     for pattern in patterns:
         if not re.search(pattern, text, re.MULTILINE | re.DOTALL):
-            fail(f"{path}: required 4.1.7 source contract is missing: {pattern}")
+            fail(f"{path}: required 4.1.8 source contract is missing: {pattern}")
 
 
 def verify_upstream_baseline(root: Path) -> None:
@@ -111,13 +111,13 @@ def verify_upstream_baseline(root: Path) -> None:
 def verify_source(root: Path) -> None:
     verify_upstream_baseline(root)
     require_text(root / "CMakeLists.txt", [
-        r"set\(FLIGHT_COMMANDER_FIRMWARE_VERSION 4\.1\.7\)",
+        r"set\(FLIGHT_COMMANDER_FIRMWARE_VERSION 4\.1\.8\)",
         r"FLIGHT_COMMANDER_SOURCE_REVISION",
     ])
     require_text(root / "src/main/build/flight_commander.h", [
         r"FLIGHT_COMMANDER_VERSION_MAJOR 4",
         r"FLIGHT_COMMANDER_VERSION_MINOR 1",
-        r"FLIGHT_COMMANDER_VERSION_PATCH 7",
+        r"FLIGHT_COMMANDER_VERSION_PATCH 8",
         r"FLIGHT_COMMANDER_CAPABILITY_INDIVIDUAL_COMPASS_CALIBRATION = \(1U << 15\)",
         r"FLIGHT_COMMANDER_CAPABILITIES \(\(uint32_t\)0xFFFFU\)",
     ])
@@ -185,15 +185,50 @@ def verify_source(root: Path) -> None:
         r"IMU_BMI088_ALIGN\s+CW270_DEG",
         r"FLIGHT_COMMANDER_MICOAIR743_ONBOARD_IST8310",
     ])
+    require_text(root / "src/main/target/CUBEORANGEPLUS/CMakeLists.txt", [
+        r"target_stm32h757xi",
+        r"HSE_MHZ 24",
+        r"HEX_START_ADDRESS 0x08020000",
+        r"USE_H7_DIRECT_SMPS_SUPPLY",
+        r"VECT_TAB_OFFSET=0x00020000",
+    ])
+    require_text(root / "src/main/target/CUBEORANGEPLUS/target.h", [
+        r'TARGET_BOARD_IDENTIFIER "COPL"',
+        r"USE_TARGET_IMU_HARDWARE_DESCRIPTORS",
+        r"MAX_PWM_OUTPUT_PORTS 6",
+        r"USART6 is reserved for the onboard IOMCU",
+        r"MAG_I2C_BUS\s+BUS_I2C1",
+    ])
+    require_text(root / "src/main/target/CUBEORANGEPLUS/target.c", [
+        r"PC15.*CW270_DEG",
+        r"PC13.*CW270_DEG_FLIP",
+        r"PA8",
+        r"PE3",
+        r"PB4",
+    ])
+    cube_target = (root / "src/main/target/CUBEORANGEPLUS/target.c").read_text(encoding="utf-8")
+    if len(re.findall(r"TIM_USE_OUTPUT_AUTO", cube_target)) != 6:
+        fail("Cube Orange+ must expose exactly its six direct FMU AUX outputs")
+    if re.search(r"\bUSE_UART6\b", (root / "src/main/target/CUBEORANGEPLUS/target.h").read_text(encoding="utf-8")):
+        fail("Cube Orange+ must not expose its IOMCU USART6 as a general serial port")
+    require_text(root / "src/main/target/link/stm32_flash_h757xi.ld", [
+        r"FLASH \(rx\)\s*: ORIGIN = 0x08020000, LENGTH = 128K",
+        r"FLASH1 \(rx\)\s*: ORIGIN = 0x08040000, LENGTH = 1664K",
+        r"FLASH_CONFIG \(r\)\s*: ORIGIN = 0x081E0000, LENGTH = 128K",
+    ])
+    require_text(root / "src/main/target/system_stm32h7xx.c", [
+        r"USE_H7_DIRECT_SMPS_SUPPLY",
+        r"PWR_DIRECT_SMPS_SUPPLY",
+    ])
 
 
-def verify_manifest(root: Path, hex_path: Path, manifest_path: Path) -> None:
+def verify_manifest(root: Path, hex_paths: list[Path], manifest_path: Path) -> None:
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     expected = {
-        "schema": 1,
+        "schema": 2,
         "product": "Flight Commander Firmware",
         "version": VERSION,
-        "target": TARGET,
+        "targets": list(TARGETS),
         "inav_release": UPSTREAM_RELEASE,
         "inav_commit": UPSTREAM_COMMIT,
         "capabilities": CAPABILITIES,
@@ -205,13 +240,24 @@ def verify_manifest(root: Path, hex_path: Path, manifest_path: Path) -> None:
     revision, tree = source_identities(root)
     if manifest.get("source_revision") != revision or manifest.get("source_tree") != tree:
         fail("manifest source identities do not identify the supplied source")
-    artifact = manifest.get("artifact", {})
-    if artifact.get("filename") != hex_path.name:
-        fail("manifest artifact filename does not match the HEX")
-    if artifact.get("sha256") != sha256(hex_path):
-        fail("manifest SHA-256 does not match the HEX")
-    if artifact.get("bytes") != hex_path.stat().st_size:
-        fail("manifest byte count does not match the HEX")
+    if len(hex_paths) != len(TARGETS):
+        fail(f"expected {len(TARGETS)} official HEX images, received {len(hex_paths)}")
+    by_name = {path.name: path for path in hex_paths}
+    artifacts = manifest.get("artifacts")
+    if not isinstance(artifacts, dict) or tuple(artifacts) != TARGETS:
+        fail("manifest artifact targets are missing or out of canonical order")
+    for target in TARGETS:
+        artifact = artifacts.get(target)
+        if not isinstance(artifact, dict):
+            fail(f"manifest artifact is missing for {target}")
+        expected_name = f"Flight-Commander-Firmware-{VERSION}-{target}.hex"
+        hex_path = by_name.get(expected_name)
+        if hex_path is None or artifact.get("filename") != expected_name:
+            fail(f"manifest artifact filename does not match the {target} HEX")
+        if artifact.get("sha256") != sha256(hex_path):
+            fail(f"manifest SHA-256 does not match the {target} HEX")
+        if artifact.get("bytes") != hex_path.stat().st_size:
+            fail(f"manifest byte count does not match the {target} HEX")
     requirement = str(manifest.get("bench_acceptance", {}).get("propeller_requirement", "")).lower()
     if "propellers removed" not in requirement:
         fail("manifest does not preserve the propeller-off acceptance requirement")
@@ -220,18 +266,20 @@ def verify_manifest(root: Path, hex_path: Path, manifest_path: Path) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--source-root", required=True, type=Path)
-    parser.add_argument("--hex", required=True, type=Path, dest="hex_path")
+    parser.add_argument("--hex", required=True, nargs="+", type=Path, dest="hex_paths")
     parser.add_argument("--manifest", required=True, type=Path)
     args = parser.parse_args()
     root = args.source_root.resolve()
-    hex_path = args.hex_path.resolve()
+    hex_paths = [path.resolve() for path in args.hex_paths]
     verify_source(root)
-    subprocess.run(
-        [sys.executable, str(root / "flight-commander/verify-compass-release.py"), str(hex_path)],
-        check=True,
-    )
-    verify_manifest(root, hex_path, args.manifest.resolve())
-    print(f"Verified {hex_path.name}: {hex_path.stat().st_size} bytes, SHA-256 {sha256(hex_path)}")
+    for hex_path in hex_paths:
+        subprocess.run(
+            [sys.executable, str(root / "flight-commander/verify-compass-release.py"), str(hex_path)],
+            check=True,
+        )
+    verify_manifest(root, hex_paths, args.manifest.resolve())
+    for hex_path in hex_paths:
+        print(f"Verified {hex_path.name}: {hex_path.stat().st_size} bytes, SHA-256 {sha256(hex_path)}")
     return 0
 
 

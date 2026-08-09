@@ -50,7 +50,8 @@ the complete flight-controller design.
    select an official or beta release.
 5. For a local image, independently verify the intended MCU, board target,
    flash layout, and build provenance before selecting the HEX.
-6. Enable full chip erase when the release or recovery procedure requires it.
+6. Enable full chip erase only when the exact target's release or recovery
+   procedure explicitly requires it. It is forbidden for Cube Orange+.
 7. Press **Flash Firmware** once. Do not disconnect or power down while
    erase/write/verify is active.
 8. Reconnect after reboot and verify firmware identity, target, sensors, outputs,
@@ -59,7 +60,9 @@ the complete flight-controller design.
 ## Erase and boot-sequence controls
 
 - **Full chip erase** removes the existing configuration. Use it for clean
-  recovery, major migrations, or when release instructions require it.
+  recovery, major migrations, or when release instructions require it. The
+  option is disabled for Cube Orange+ because its vendor bootloader occupies
+  the first 128 KiB of internal flash.
 - **No reboot sequence** is for a controller already held in its hardware ROM
   bootloader by BOOT pins/button.
 - **Manual baud rate** applies to serial bootloader paths; it is not used for
@@ -73,3 +76,12 @@ the STM32 DFU device, and flash a local image that you have independently
 verified for the exact board. Remove the BOOT condition and reconnect normally.
 A successful DFU connection identifies the processor bootloader, not the full
 flight-controller target.
+
+## Cube Orange+ exception
+
+The `CUBEORANGEPLUS` HEX begins at `0x08020000` so it does not overwrite the
+Cube vendor bootloader at `0x08000000`-`0x0801FFFF`. Use local-sector erase and
+never perform a global/full-chip erase. Configurator 4.1.8 enforces this for a
+selected or embedded Cube Orange+ target. See the
+[Cube Orange+ target guide](CUBEORANGEPLUS.md) for its output, receiver,
+compass, and propeller-off acceptance limits.

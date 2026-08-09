@@ -35,7 +35,7 @@ static uint32_t getFLASHBankForEEPROM(uint32_t address)
 #endif
 }
 
-#if defined(STM32H7A3xx)
+#if defined(STM32H7A3xx) || defined(STM32H743xx) || defined(STM32H757xx)
 static uint32_t getFLASHSectorForEEPROM(uint32_t address)
 {
     uint32_t sector = 0;
@@ -46,36 +46,11 @@ static uint32_t getFLASHSectorForEEPROM(uint32_t address)
         sector = (address - (FLASH_BASE + FLASH_BANK_SIZE)) / FLASH_SECTOR_SIZE;
     }
 
-    if (sector > FLASH_SECTOR_TOTAL) {
+    if (sector >= FLASH_SECTOR_TOTAL) {
         failureMode(FAILURE_FLASH_WRITE_FAILED);
     }
 
     return sector;
-}
-#elif defined(STM32H743xx)
-/* Sectors 0-7 of 128K each */
-static uint32_t getFLASHSectorForEEPROM(uint32_t address)
-{
-    if (address <= 0x0801FFFF)
-        return FLASH_SECTOR_0;
-    if (address <= 0x0803FFFF)
-        return FLASH_SECTOR_1;
-    if (address <= 0x0805FFFF)
-        return FLASH_SECTOR_2;
-    if (address <= 0x0807FFFF)
-        return FLASH_SECTOR_3;
-    if (address <= 0x0809FFFF)
-        return FLASH_SECTOR_4;
-    if (address <= 0x080BFFFF)
-        return FLASH_SECTOR_5;
-    if (address <= 0x080DFFFF)
-        return FLASH_SECTOR_6;
-    if (address <= 0x080FFFFF)
-        return FLASH_SECTOR_7;
-
-    while (1) {
-        failureMode(FAILURE_FLASH_WRITE_FAILED);
-    }
 }
 #elif defined(STM32H750xx)
 #error "STM32750xx only has one flash page which contains the bootloader, no spare flash pages available, use external storage for persistent config or ram for target testing"

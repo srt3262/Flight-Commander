@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { access, readFile, readdir, stat } from 'node:fs/promises';
 
 const SEMVER_PATTERN = /^(\d+)\.(\d+)\.(\d+)(?:[-+].*)?$/;
+const OFFICIAL_FIRMWARE_TARGETS = Object.freeze(['MICOAIR743', 'CUBEORANGEPLUS']);
 
 export function validateFlightCommanderVersions(packageJson) {
   const versionMatch = SEMVER_PATTERN.exec(packageJson.version ?? '');
@@ -13,6 +14,7 @@ export function validateFlightCommanderVersions(packageJson) {
   const firmwareMajor = Number(packageJson.flightCommander?.firmwareMajor);
   const firmwareReleaseVersion = packageJson.flightCommander?.firmwareReleaseVersion;
   const firmwareReleaseSha256 = packageJson.flightCommander?.firmwareReleaseSha256;
+  const firmwareReleaseArtifacts = packageJson.flightCommander?.firmwareReleaseArtifacts;
   const firmwareChangedInRelease = packageJson.flightCommander?.firmwareChangedInRelease;
   const firmwareSourceAvailable = packageJson.flightCommander?.firmwareSourceAvailable;
   const firmwareSourceVersion = packageJson.flightCommander?.firmwareSourceVersion;
@@ -39,6 +41,26 @@ export function validateFlightCommanderVersions(packageJson) {
     throw new Error(
       'package.json must declare the exact lowercase SHA-256 of the published firmware HEX.',
     );
+  }
+  if (
+    !firmwareReleaseArtifacts ||
+    typeof firmwareReleaseArtifacts !== 'object' ||
+    JSON.stringify(Object.keys(firmwareReleaseArtifacts)) !== JSON.stringify(OFFICIAL_FIRMWARE_TARGETS)
+  ) {
+    throw new Error(
+      `package.json must declare firmwareReleaseArtifacts for exactly ${OFFICIAL_FIRMWARE_TARGETS.join(' and ')}.`,
+    );
+  }
+  for (const target of OFFICIAL_FIRMWARE_TARGETS) {
+    const artifact = firmwareReleaseArtifacts[target];
+    const expectedFilename =
+      `Flight-Commander-Firmware-${firmwareReleaseVersion}-${target}.hex`;
+    if (artifact?.filename !== expectedFilename || !/^[0-9a-f]{64}$/.test(artifact?.sha256 ?? '')) {
+      throw new Error(`package.json has an invalid published firmware artifact for ${target}.`);
+    }
+  }
+  if (firmwareReleaseSha256 !== firmwareReleaseArtifacts.MICOAIR743.sha256) {
+    throw new Error('The legacy firmwareReleaseSha256 must identify the MICOAIR743 artifact.');
   }
   if (typeof firmwareChangedInRelease !== 'boolean') {
     throw new Error(
@@ -87,6 +109,7 @@ export function validateFlightCommanderVersions(packageJson) {
     firmwareMajor,
     firmwareReleaseVersion,
     firmwareReleaseSha256,
+    firmwareReleaseArtifacts,
     firmwareChangedInRelease,
     firmwareSourceAvailable,
     firmwareSourceVersion,
@@ -121,34 +144,37 @@ for (const forbiddenDirectory of ['../resources/firmware/', '../resources/firmwa
 
 const releaseDirectory = new URL('../release/firmware/', import.meta.url);
 if (await exists(releaseDirectory)) {
-  const expectedFirmwareFilename =
-    `Flight-Commander-Firmware-${release.firmwareReleaseVersion}-MICOAIR743.hex`;
-  const expectedSourceFilename =
-    `Flight-Commander-Firmware-Source-v${release.firmwareReleaseVersion}.zip`;
+  const expectedFirmwareFilenames = OFFICIAL_FIRMWARE_TARGETS.map(
+    (target) => `Flight-Commander-Firmware-${release.firmwareReleaseVersion}-${target}.hex`,
+  );
   const releaseFiles = (await readdir(releaseDirectory)).sort();
-  const expectedFiles = [expectedFirmwareFilename, expectedSourceFilename].sort();
+  const expectedFiles = [...expectedFirmwareFilenames].sort();
   if (JSON.stringify(releaseFiles) !== JSON.stringify(expectedFiles)) {
     throw new Error(
       `release/firmware must contain exactly ${expectedFiles.join(' and ')}.`,
     );
   }
 
-  const firmwareUrl = new URL(`../release/firmware/${expectedFirmwareFilename}`, import.meta.url);
   const sourceUrl = new URL(`../${release.firmwareSourceArchive}`, import.meta.url);
-  for (const url of [firmwareUrl, sourceUrl]) {
+  const firmwareUrls = expectedFirmwareFilenames.map(
+    (filename) => new URL(`../release/firmware/${filename}`, import.meta.url),
+  );
+  for (const url of [...firmwareUrls, sourceUrl]) {
     const fileStat = await stat(url);
     if (!fileStat.isFile() || fileStat.size === 0) {
       throw new Error(`Release-only firmware artifact is missing or empty: ${url.pathname}`);
     }
   }
-  const actualFirmwareSha256 = createHash('sha256')
-    .update(await readFile(firmwareUrl))
-    .digest('hex');
   const actualSourceSha256 = createHash('sha256')
     .update(await readFile(sourceUrl))
     .digest('hex');
-  if (actualFirmwareSha256 !== release.firmwareReleaseSha256) {
-    throw new Error('Published firmware HEX SHA-256 does not match package.json.');
+  for (const [index, target] of OFFICIAL_FIRMWARE_TARGETS.entries()) {
+    const actualFirmwareSha256 = createHash('sha256')
+      .update(await readFile(firmwareUrls[index]))
+      .digest('hex');
+    if (actualFirmwareSha256 !== release.firmwareReleaseArtifacts[target].sha256) {
+      throw new Error(`Published ${target} firmware HEX SHA-256 does not match package.json.`);
+    }
   }
   if (actualSourceSha256 !== release.firmwareSourceSha256) {
     throw new Error('Published firmware source ZIP SHA-256 does not match package.json.');

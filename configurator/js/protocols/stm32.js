@@ -673,8 +673,11 @@ STM32_protocol.prototype.upload_procedure = function (step) {
 
                             // For reference: https://code.google.com/p/stm32flash/source/browse/stm32.c#723
 
-                            var max_address = self.hex.data[self.hex.data.length - 1].address + self.hex.data[self.hex.data.length - 1].bytes - 0x8000000,
-                                erase_pages_n = Math.ceil(max_address / self.page_size),
+                            var first_address = Math.min.apply(null, self.hex.data.map(function (block) { return block.address; })) - 0x8000000,
+                                max_address = Math.max.apply(null, self.hex.data.map(function (block) { return block.address + block.bytes; })) - 0x8000000,
+                                first_page = Math.floor(first_address / self.page_size),
+                                last_page = Math.ceil(max_address / self.page_size) - 1,
+                                erase_pages_n = last_page - first_page + 1,
                                 buff = [],
                                 checksum = 0;
 
@@ -688,7 +691,7 @@ STM32_protocol.prototype.upload_procedure = function (step) {
                             checksum ^= pg_byte;
 
 
-                            for (var i = 0; i < erase_pages_n; i++) {
+                            for (var i = first_page; i <= last_page; i++) {
                                 pg_byte = i >> 8;
                                 buff.push(pg_byte);
                                 checksum ^= pg_byte;
@@ -698,7 +701,7 @@ STM32_protocol.prototype.upload_procedure = function (step) {
                             }
 
                             buff.push(checksum);
-                            console.log('Erasing. pages: 0x00 - 0x' + erase_pages_n.toString(16) + ', checksum: 0x' + checksum.toString(16));
+                            console.log('Erasing. pages: 0x' + first_page.toString(16) + ' - 0x' + last_page.toString(16) + ', checksum: 0x' + checksum.toString(16));
 
                             self.send(buff, 1, function (reply) {
                                 if (self.verify_response(self.status.ACK, reply)) {
@@ -739,14 +742,17 @@ STM32_protocol.prototype.upload_procedure = function (step) {
                 self.send([self.command.erase, 0xBC], 1, function (reply) { // 0x43 ^ 0xFF
                     if (self.verify_response(self.status.ACK, reply)) {
                         // the bootloader receives one byte that contains N, the number of pages to be erased – 1
-                        var max_address = self.hex.data[self.hex.data.length - 1].address + self.hex.data[self.hex.data.length - 1].bytes - 0x8000000,
-                            erase_pages_n = Math.ceil(max_address / self.page_size),
+                        var first_address = Math.min.apply(null, self.hex.data.map(function (block) { return block.address; })) - 0x8000000,
+                            max_address = Math.max.apply(null, self.hex.data.map(function (block) { return block.address + block.bytes; })) - 0x8000000,
+                            first_page = Math.floor(first_address / self.page_size),
+                            last_page = Math.ceil(max_address / self.page_size) - 1,
+                            erase_pages_n = last_page - first_page + 1,
                             buff = [],
                             checksum = erase_pages_n - 1;
 
                         buff.push(erase_pages_n - 1);
 
-                        for (var i = 0; i < erase_pages_n; i++) {
+                        for (var i = first_page; i <= last_page; i++) {
                             buff.push(i);
                             checksum ^= i;
                         }

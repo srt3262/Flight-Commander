@@ -192,14 +192,15 @@ function(get_stm32_flash_size out size)
     endif()
 endfunction()
 
-function(add_hex_target name exe hex)
+function(add_stm32_hex_target name exe hex)
+    if(ARGC GREATER 3)
+        set(start_address "${ARGV3}")
+    else()
+        set(start_address 0x08000000)
+    endif()
     add_custom_target(${name} ALL
         cmake -E env PATH="$ENV{PATH}"
-        # TODO: Overriding the start address with --set-start 0x08000000
-        # seems to be required due to some incorrect assumptions about .hex
-        # files in the configurator. Verify wether that's the case and fix
-        # the bug in configurator or delete this comment.
-        ${CMAKE_OBJCOPY} -Oihex --set-start 0x08000000 $<TARGET_FILE:${exe}> ${hex}
+        ${CMAKE_OBJCOPY} -Oihex --set-start ${start_address} $<TARGET_FILE:${exe}> ${hex}
         BYPRODUCTS ${hex}
     )
 endfunction()
@@ -236,7 +237,7 @@ function(add_stm32_executable)
         # Boolean arguments
         ""
         # Single value arguments
-        "FILENAME;NAME;OPTIMIZATION;OUTPUT_BIN_FILENAME;OUTPUT_HEX_FILENAME;OUTPUT_TARGET_NAME"
+        "FILENAME;HEX_START_ADDRESS;NAME;OPTIMIZATION;OUTPUT_BIN_FILENAME;OUTPUT_HEX_FILENAME;OUTPUT_TARGET_NAME"
         # Multi-value arguments
         "COMPILE_DEFINITIONS;COMPILE_OPTIONS;INCLUDE_DIRECTORIES;LINK_OPTIONS;LINKER_SCRIPT;SOURCES"
         # Start parsing after the known arguments
@@ -262,7 +263,7 @@ function(add_stm32_executable)
     if(args_FILENAME)
         set(basename ${CMAKE_BINARY_DIR}/${args_FILENAME})
         set(hex_filename ${basename}.hex)
-        add_hex_target(${args_NAME} ${elf_target} ${hex_filename})
+        add_stm32_hex_target(${args_NAME} ${elf_target} ${hex_filename} ${args_HEX_START_ADDRESS})
         set(bin_filename ${basename}.bin)
         add_bin_target(${args_NAME}.bin ${elf_target} ${bin_filename})
     endif()
@@ -287,7 +288,7 @@ function(target_stm32)
         # Boolean arguments
         "DISABLE_MSC;BOOTLOADER;NO_BOOTLOADER"
         # Single value arguments
-        "HSE_MHZ;LINKER_SCRIPT;NAME;OPENOCD_TARGET;OPTIMIZATION;STARTUP;SVD"
+        "HEX_START_ADDRESS;HSE_MHZ;LINKER_SCRIPT;NAME;OPENOCD_TARGET;OPTIMIZATION;STARTUP;SVD"
         # Multi-value arguments
         "COMPILE_DEFINITIONS;COMPILE_OPTIONS;INCLUDE_DIRECTORIES;LINK_OPTIONS;SOURCES;MSC_SOURCES;MSC_INCLUDE_DIRECTORIES;VCP_SOURCES;VCP_INCLUDE_DIRECTORIES"
         # Start parsing after the known arguments
@@ -349,7 +350,7 @@ function(target_stm32)
         list(APPEND target_definitions DEBUG_HARDFAULTS)
     endif()
 
-    if (name STREQUAL "MICOAIR743")
+    if (name STREQUAL "MICOAIR743" OR name STREQUAL "CUBEORANGEPLUS")
         set(binary_name Flight-Commander-Firmware-${FLIGHT_COMMANDER_FIRMWARE_VERSION}-${name})
     else()
         string(TOLOWER ${PROJECT_NAME} lowercase_project_name)
@@ -369,6 +370,7 @@ function(target_stm32)
         INCLUDE_DIRECTORIES ${target_include_directories}
         LINK_OPTIONS ${args_LINK_OPTIONS}
         LINKER_SCRIPT ${args_LINKER_SCRIPT}
+        HEX_START_ADDRESS ${args_HEX_START_ADDRESS}
         OPTIMIZATION ${args_OPTIMIZATION}
 
         OUTPUT_HEX_FILENAME main_hex_filename

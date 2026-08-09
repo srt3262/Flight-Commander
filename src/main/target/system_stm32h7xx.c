@@ -112,8 +112,10 @@ void forcedSystemResetWithoutDisablingCaches(void);
 /*!< Uncomment the following line if you need to relocate your vector Table in
      Internal SRAM. */
 /* #define VECT_TAB_SRAM */
+#ifndef VECT_TAB_OFFSET
 #define VECT_TAB_OFFSET  0x00       /*!< Vector Table base offset field.
                                       This value must be a multiple of 0x200. */
+#endif
 /******************************************************************************/
 
 /**
@@ -375,7 +377,15 @@ void SystemClock_Config(void)
 {
     // Configure power supply
 
-    HAL_PWREx_ConfigSupply(PWR_LDO_SUPPLY);
+#ifdef USE_H7_DIRECT_SMPS_SUPPLY
+    if (HAL_PWREx_ConfigSupply(PWR_DIRECT_SMPS_SUPPLY) != HAL_OK) {
+        Error_Handler();
+    }
+#else
+    if (HAL_PWREx_ConfigSupply(PWR_LDO_SUPPLY) != HAL_OK) {
+        Error_Handler();
+    }
+#endif
 
     // Pre-configure voltage scale to PWR_REGULATOR_VOLTAGE_SCALE1.
     // SystemClockHSE_Config may configure PWR_REGULATOR_VOLTAGE_SCALE0.

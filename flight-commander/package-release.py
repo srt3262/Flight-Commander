@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build, verify, and package the Flight Commander MICOAIR743 firmware."""
+"""Build, verify, and package every official Flight Commander firmware target."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST_PATH = ROOT / "RELEASE-MANIFEST.json"
-TARGET = "MICOAIR743"
+TARGETS = ("MICOAIR743", "CUBEORANGEPLUS")
 
 FIRMWARE_SOURCE_ENTRIES = (
     ".dir-locals.el",
@@ -108,12 +108,12 @@ def write_manifest(manifest: dict[str, object]) -> None:
 
 def validate_manifest(manifest: dict[str, object], revision: str, tree: str) -> tuple[str, int]:
     version = str(manifest.get("version", ""))
-    if not version or version != "4.1.7":
-        raise RuntimeError(f"Expected Firmware 4.1.7, received {version or 'missing'}")
+    if not version or version != "4.1.8":
+        raise RuntimeError(f"Expected Firmware 4.1.8, received {version or 'missing'}")
     if manifest.get("product") != "Flight Commander Firmware":
         raise RuntimeError("Firmware manifest product identity is invalid")
-    if manifest.get("target") != TARGET:
-        raise RuntimeError("Firmware manifest target is invalid")
+    if manifest.get("schema") != 2 or manifest.get("targets") != list(TARGETS):
+        raise RuntimeError("Firmware manifest targets are invalid")
     if manifest.get("source_revision") != revision:
         raise RuntimeError("Firmware source revision does not match the tracked firmware tree")
     if manifest.get("source_tree") != tree:
@@ -151,10 +151,13 @@ def build(output: Path, build_dir: Path, refresh_manifest: bool) -> dict[str, ob
     if refresh_manifest:
         manifest["source_revision"] = revision
         manifest["source_tree"] = tree
-        manifest["artifact"] = {
-            "filename": f"Flight-Commander-Firmware-4.1.7-{TARGET}.hex",
-            "sha256": "0" * 64,
-            "bytes": 0,
+        manifest["artifacts"] = {
+            target: {
+                "filename": f"Flight-Commander-Firmware-4.1.8-{target}.hex",
+                "sha256": "0" * 64,
+                "bytes": 0,
+            }
+            for target in TARGETS
         }
         write_manifest(manifest)
 
@@ -165,40 +168,35 @@ def build(output: Path, build_dir: Path, refresh_manifest: bool) -> dict[str, ob
     environment = os.environ.copy()
     environment["FLIGHT_COMMANDER_SOURCE_REVISION"] = revision
     environment["SOURCE_DATE_EPOCH"] = str(source_date_epoch)
-    print(f"+ bash flight-commander/build-micoair743.sh {build_dir}", flush=True)
+    print(f"+ bash flight-commander/build-targets.sh {build_dir}", flush=True)
     subprocess.run(
-        ["bash", str(ROOT / "flight-commander/build-micoair743.sh"), str(build_dir)],
+        ["bash", str(ROOT / "flight-commander/build-targets.sh"), str(build_dir)],
         cwd=ROOT,
         env=environment,
         check=True,
     )
 
-    firmware_name = f"Flight-Commander-Firmware-{version}-{TARGET}.hex"
-    built_hex = build_dir / firmware_name
-    if not built_hex.is_file() or built_hex.stat().st_size <= 1024 * 1024:
-        raise RuntimeError("Firmware build did not produce the expected MICOAIR743 HEX")
-    firmware_hash = sha256(built_hex)
-    firmware_bytes = built_hex.stat().st_size
+    built_hexes: dict[str, Path] = {}
+    artifact_records: dict[str, dict[str, object]] = {}
+    for target in TARGETS:
+        firmware_name = f"Flight-Commander-Firmware-{version}-{target}.hex"
+        built_hex = build_dir / firmware_name
+        if not built_hex.is_file() or built_hex.stat().st_size <= 1024 * 1024:
+            raise RuntimeError(f"Firmware build did not produce the expected {target} HEX")
+        built_hexes[target] = built_hex
+        artifact_records[target] = {
+            "filename": firmware_name,
+            "sha256": sha256(built_hex),
+            "bytes": built_hex.stat().st_size,
+        }
 
     if refresh_manifest:
         manifest = read_manifest()
-        manifest["artifact"] = {
-            "filename": firmware_name,
-            "sha256": firmware_hash,
-            "bytes": firmware_bytes,
-        }
+        manifest["artifacts"] = artifact_records
         write_manifest(manifest)
     else:
-        artifact = manifest.get("artifact")
-        if not isinstance(artifact, dict):
-            raise RuntimeError("Firmware artifact manifest is missing")
-        expected_artifact = {
-            "filename": firmware_name,
-            "sha256": firmware_hash,
-            "bytes": firmware_bytes,
-        }
-        if artifact != expected_artifact:
-            raise RuntimeError("Rebuilt firmware does not match RELEASE-MANIFEST.json")
+        if manifest.get("artifacts") != artifact_records:
+            raise RuntimeError("Rebuilt firmware artifacts do not match RELEASE-MANIFEST.json")
 
     run(
         "python3",
@@ -206,26 +204,29 @@ def build(output: Path, build_dir: Path, refresh_manifest: bool) -> dict[str, ob
         "--source-root",
         ROOT,
         "--hex",
-        built_hex,
+        *built_hexes.values(),
         "--manifest",
         MANIFEST_PATH,
         cwd=ROOT,
     )
 
     output.mkdir(parents=True, exist_ok=True)
-    firmware_output = output / firmware_name
     source_output = output / f"FC-Firmware-Source-v{version}.zip"
-    shutil.copy2(built_hex, firmware_output)
+    for target, built_hex in built_hexes.items():
+        shutil.copy2(built_hex, output / str(artifact_records[target]["filename"]))
     deterministic_zip(source_output, version, source_date_epoch)
 
     metadata: dict[str, object] = {
         "version": version,
-        "target": TARGET,
+        "targets": list(TARGETS),
         "sourceDateEpoch": source_date_epoch,
         "firmware": {
-            "name": firmware_output.name,
-            "sha256": firmware_hash,
-            "bytes": firmware_bytes,
+            target: {
+                "name": record["filename"],
+                "sha256": record["sha256"],
+                "bytes": record["bytes"],
+            }
+            for target, record in artifact_records.items()
         },
         "source": {
             "name": source_output.name,

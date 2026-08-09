@@ -121,7 +121,7 @@ void initEEPROM(void)
 
 #ifdef STM32H7A3xx
     BUILD_BUG_ON(CONFIG_STREAMER_BUFFER_SIZE != 16);
-#elif defined(STM32H743xx)
+#elif defined(STM32H743xx) || defined(STM32H757xx)
     BUILD_BUG_ON(CONFIG_STREAMER_BUFFER_SIZE != 32);
 #endif
 

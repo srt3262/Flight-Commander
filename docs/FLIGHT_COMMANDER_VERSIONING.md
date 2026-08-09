@@ -16,15 +16,16 @@ Every release is delivered as `Flight-Commander-vX.Y.Z.zip` containing exactly:
 - `FC-Windows-vX.Y.Z.zip`
 - `FC-Configurator-Source-vX.Y.Z.zip`
 - `FC-Firmware-vX.Y.Z-MICOAIR743.hex`
+- `FC-Firmware-vX.Y.Z-CUBEORANGEPLUS.hex`
 - `FC-Firmware-Source-vX.Y.Z.zip`
 
-The same verified firmware HEX is also published under its canonical long
-filename for the Configurator's online flasher. The GitHub release therefore
-has exactly two public assets: the complete four-file bundle and that standalone
-HEX. Publication fails on a version, source identity, checksum, filename, or
-asset-count mismatch.
+The same two verified firmware HEX files are also published under their
+canonical long filenames for the Configurator's online flasher. The GitHub
+release therefore has exactly three public assets: the complete five-file
+bundle and both standalone HEX files. Publication fails on a version, source
+identity, checksum, filename, or asset-count mismatch.
 
-For 4.1.7, both Configurator and Firmware are 4.1.7 and
-`firmwareChangedInRelease` is `true`. The coordinated release replaces cached
-AUX/RC command emulation with native MAVLink commands and enforces the physical
-GCS NAV authorization mode independently in the Configurator and firmware.
+For 4.1.8, both Configurator and Firmware are 4.1.8 and
+`firmwareChangedInRelease` is `true`. The coordinated release adds the
+CubePilot Cube Orange+ while retaining MICOAIR743 and records an independent
+filename and SHA-256 for each official target.

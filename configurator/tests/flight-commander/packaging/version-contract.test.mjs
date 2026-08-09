@@ -13,6 +13,16 @@ function manifest(overrides = {}) {
       firmwareMajor: 3,
       firmwareReleaseVersion: '3.0.7',
       firmwareReleaseSha256: 'a'.repeat(64),
+      firmwareReleaseArtifacts: {
+        MICOAIR743: {
+          filename: 'Flight-Commander-Firmware-3.0.7-MICOAIR743.hex',
+          sha256: 'a'.repeat(64),
+        },
+        CUBEORANGEPLUS: {
+          filename: 'Flight-Commander-Firmware-3.0.7-CUBEORANGEPLUS.hex',
+          sha256: 'e'.repeat(64),
+        },
+      },
       firmwareChangedInRelease: true,
       firmwareSourceAvailable: true,
       firmwareSourceVersion: '3.0.7',
@@ -30,6 +40,7 @@ test('coordinated releases identify the standalone published firmware asset', ()
   const result = validateFlightCommanderVersions(manifest());
   assert.equal(result.firmwareReleaseVersion, '3.0.7');
   assert.equal(result.firmwareReleaseSha256, 'a'.repeat(64));
+  assert.equal(result.firmwareReleaseArtifacts.CUBEORANGEPLUS.sha256, 'e'.repeat(64));
   assert.equal(
     result.firmwareSourceArchive,
     'FC-Firmware-Source-v3.0.7.zip',
@@ -98,6 +109,32 @@ test('published firmware and source checksums are mandatory', () => {
       flightCommander: { firmwareSourceSha256: undefined },
     })),
     /firmware source ZIP/,
+  );
+});
+
+test('every official target has a canonical independently hashed artifact', () => {
+  assert.throws(
+    () => validateFlightCommanderVersions(manifest({
+      flightCommander: { firmwareReleaseArtifacts: undefined },
+    })),
+    /exactly MICOAIR743 and CUBEORANGEPLUS/,
+  );
+  assert.throws(
+    () => validateFlightCommanderVersions(manifest({
+      flightCommander: {
+        firmwareReleaseArtifacts: {
+          MICOAIR743: {
+            filename: 'renamed.hex',
+            sha256: 'a'.repeat(64),
+          },
+          CUBEORANGEPLUS: {
+            filename: 'Flight-Commander-Firmware-3.0.7-CUBEORANGEPLUS.hex',
+            sha256: 'e'.repeat(64),
+          },
+        },
+      },
+    })),
+    /invalid published firmware artifact for MICOAIR743/,
   );
 });
 

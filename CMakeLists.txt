@@ -90,7 +90,7 @@ set(FIRMWARE_VERSION ${PROJECT_VERSION})
 
 # Flight Commander release identity is independent from the inherited INAV
 # protocol compatibility version declared by project().
-set(FLIGHT_COMMANDER_FIRMWARE_VERSION 4.1.7)
+set(FLIGHT_COMMANDER_FIRMWARE_VERSION 4.1.8)
 
 option(WARNINGS_AS_ERRORS "Make all warnings into errors")
 message("-- toolchain: ${TOOLCHAIN}, WARNINGS_AS_ERRORS: ${WARNINGS_AS_ERRORS}")
@@ -113,9 +113,9 @@ include(sitl)
 
 add_subdirectory(src)
 
-# Target-scoped Flight Commander integrations are added after INAV declares
-# the official targets. The MICOAIR743 target and compass implementation stay
-# identical to the pinned INAV 9.1.0 source baseline.
+# Target-scoped Flight Commander integrations are added after the firmware
+# targets are declared. Both official hardware targets receive the same
+# navigation, RTK, DroneCAN, and Ground Control feature set.
 include(flight-commander-micoair743)
 
 collect_targets()

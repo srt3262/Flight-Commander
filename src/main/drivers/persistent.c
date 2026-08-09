@@ -134,6 +134,8 @@ void persistentObjectInit(void)
 
 #if defined(AT32F43x)
     wasSoftReset = crm_flag_get(CRM_SW_RESET_FLAG);
+#elif defined(STM32H757xx)
+    wasSoftReset = RCC->RSR & RCC_RSR_SFT1RSTF;
 #elif defined(STM32H7)
     wasSoftReset = RCC->RSR & RCC_RSR_SFTRSTF;
 #else

@@ -6,7 +6,7 @@ import test from "node:test";
 const root = resolve(import.meta.dirname, "../../..");
 const text = (relative) => readFileSync(resolve(root, relative), "utf8");
 
-test("Flight Commander 4.1.7 keeps one product without runtime identity or stale-profile gates", () => {
+test("Flight Commander 4.1.8 keeps one product without runtime identity or stale-profile gates", () => {
   const packageJson = JSON.parse(text("package.json"));
   const flasherHtml = text("tabs/firmware_flasher.html");
   const flasherSource = text("tabs/firmware_flasher.js");
@@ -25,8 +25,8 @@ test("Flight Commander 4.1.7 keeps one product without runtime identity or stale
     "tabs/ports.js",
   ].map(text).join("\n");
 
-  assert.equal(packageJson.version, "4.1.7");
-  assert.equal(packageJson.flightCommander.firmwareReleaseVersion, "4.1.7");
+  assert.equal(packageJson.version, "4.1.8");
+  assert.equal(packageJson.flightCommander.firmwareReleaseVersion, "4.1.8");
   assert.match(flasherHtml, /Online Flight Commander Firmware \/ Local HEX/);
   assert.doesNotMatch(flasherHtml, /value="inav"|Official INAV/);
   assert.match(flasherSource, /if \(local\) \{[\s\S]+flashed as supplied/);

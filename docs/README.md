@@ -12,6 +12,7 @@ match the installed Flight Commander interface and its operational checks.
 | First use | [Getting started](GETTING_STARTED.md) | Installation, application options, first connection, backup, and initial bench setup |
 | Links | [Connection modes](CONNECTIONS.md) | MSP, MAVLink, USB radios, optional identity metadata, baud rates, and transport limitations |
 | Firmware | [Firmware flashing](FIRMWARE_FLASHING.md) | Online, bundled, and local firmware sources; target checks; DFU recovery |
+| Cube hardware | [CubePilot Cube Orange+](CUBEORANGEPLUS.md) | Bootloader-safe flashing, ports, sensors, six AUX outputs, IOMCU limits, and bench acceptance |
 | Aircraft setup | [Configuration reference](CONFIGURATION_REFERENCE.md) | Every connected-aircraft configuration tab and save/reboot behavior |
 | Navigation | [GPS and RTK](GPS_AND_RTK.md) | UART F9 RTK rovers, DroneCAN GPS, primary receivers, corrections, and alignment |
 | Live operation | [Ground Control](GROUND_CONTROL.md) | Map, HUD, telemetry, commands, units, messages, and guided RTK workflows |
@@ -30,7 +31,7 @@ match the installed Flight Commander interface and its operational checks.
 - [Heading fusion, compass sources, calibration, and moving-baseline yaw](HEADING_FUSION.md)
 - [Configurator and firmware versioning](FLIGHT_COMMANDER_VERSIONING.md)
 - [Source reconstruction and upstream provenance](RECONSTRUCTION.md)
-- [Flight Commander 4.1.7 release notes](releases/v4.1.7.md)
+- [Flight Commander 4.1.8 release notes](releases/v4.1.8.md)
 - [Verified Windows, Configurator source, firmware HEX, and firmware source downloads](https://github.com/srt3262/Flight-Commander/releases)
 
 ## Documentation boundaries

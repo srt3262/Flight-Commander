@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+## 4.1.8
+
+- Add the official `CUBEORANGEPLUS` firmware target for CubePilot Cube Orange+
+  controllers with the STM32H757 application positioned after the protected
+  128 KiB Cube bootloader.
+- Support the Cube's two isolated SPI4 IMU positions, primary MS5611,
+  microSD, CAN, external I2C compass, connector UARTs, power monitoring, buzzer,
+  and six direct FMU AUX outputs.
+- Keep USART6, MAIN1-8, and physical RC input reserved for the external Cube
+  IOMCU; receiver control is available through MAVLink RC override.
+- Publish independently verified MICOAIR743 and CUBEORANGEPLUS Firmware 4.1.8
+  images with Configurator 4.1.8 and their exact shared firmware source.
+
 ## 4.1.7
 
 - Normalize the Ground Control primary mode card and HUD to exactly `ACRO`,

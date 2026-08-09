@@ -45,7 +45,11 @@ void enableGPIOPowerUsageAndNoiseReductions(void)
 
 bool isMPUSoftReset(void)
 {
+#if defined(STM32H757xx)
+    if (cachedRccCsrValue & RCC_RSR_SFT1RSTF)
+#else
     if (cachedRccCsrValue & RCC_RSR_SFTRSTF)
+#endif
         return true;
     else
         return false;
@@ -53,7 +57,7 @@ bool isMPUSoftReset(void)
 
 uint32_t systemBootloaderAddress(void)
 {
-#if defined(STM32H743xx) || defined(STM32H750xx) || defined(STM32H723xx) || defined(STM32H725xx)
+#if defined(STM32H743xx) || defined(STM32H750xx) || defined(STM32H723xx) || defined(STM32H725xx) || defined(STM32H757xx)
     return 0x1ff09800;
 #else
 #error Unknown MCU

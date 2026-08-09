@@ -489,6 +489,30 @@ firmwareFlasherTab.initialize = function (callback) {
             return normalizeFirmwareTarget($('select[name="board"]').val());
         }
 
+        function cubeOrangePlusImageIsActive() {
+            return selectedFirmwareTarget() === 'CUBEORANGEPLUS' ||
+                inferFlightCommanderFirmwareTarget(parsed_hex) === 'CUBEORANGEPLUS';
+        }
+
+        function refreshEraseChipPolicy() {
+            const erase = $('input.erase_chip');
+            const description = erase.closest('tr').find('.description');
+            if (!description.data('flightCommanderDefaultText')) {
+                description.data('flightCommanderDefaultText', description.text());
+            }
+            const protectedBootloader = cubeOrangePlusImageIsActive();
+            if (protectedBootloader) {
+                erase.prop('checked', false);
+                store.set('erase_chip', false);
+                description.text(
+                    'Unavailable for Cube Orange+: local sector erase preserves its protected 128 KiB vendor bootloader.',
+                );
+            } else {
+                description.text(description.data('flightCommanderDefaultText'));
+            }
+            erase.prop('disabled', protectedBootloader);
+        }
+
         function rejectLoadedFirmware(message) {
             parsed_hex = false;
             intel_hex = false;
@@ -515,6 +539,7 @@ function acceptParsedFirmware(data, { filename, descriptor = null, local = false
         localFirmwareLoaded = true;
         loadedFirmwareFamily = firmwareBackend;
         loadedFirmwareDescriptor = null;
+        refreshEraseChipPolicy();
         $('a.flash_firmware').removeClass('disabled');
         return true;
     }
@@ -583,6 +608,7 @@ function acceptParsedFirmware(data, { filename, descriptor = null, local = false
     parsed_hex = data;
     localFirmwareLoaded = false;
     loadedFirmwareFamily = firmwareBackend;
+    refreshEraseChipPolicy();
     $('a.flash_firmware').removeClass('disabled');
     return true;
 }
@@ -610,6 +636,7 @@ function acceptParsedFirmware(data, { filename, descriptor = null, local = false
             $('a.load_remote_file').addClass('disabled');
             const target = normalizeFirmwareTarget($(this).children('option:selected').val());
             const targetDisplay = $(this).children('option:selected').text();
+            refreshEraseChipPolicy();
 
             if (!GUI.connect_lock) {
                 $('.progress').val(0).removeClass('valid invalid');
@@ -878,6 +905,12 @@ function acceptParsedFirmware(data, { filename, descriptor = null, local = false
                         var options = {};
                         var skipAutoRestore = false;
 
+                        if (cubeOrangePlusImageIsActive() && $('input.erase_chip').is(':checked')) {
+                            rejectLoadedFirmware(
+                                'Full chip erase is forbidden for Cube Orange+ because it would remove the vendor bootloader.',
+                            );
+                            return;
+                        }
                         if ($('input.erase_chip').is(':checked')) {
                             options.erase_chip = true;
                         }
@@ -1281,10 +1314,14 @@ function acceptParsedFirmware(data, { filename, descriptor = null, local = false
 
         // bind UI hook so the status is saved on change
         $('input.erase_chip').on('change', async function () {
+            if (cubeOrangePlusImageIsActive()) {
+                $(this).prop('checked', false);
+            }
             store.set('erase_chip', $(this).is(':checked'));
         });
 
         $('input.erase_chip').trigger('change');
+        refreshEraseChipPolicy();
 
         
 

@@ -36,6 +36,11 @@ export const FLIGHT_COMMANDER_FIRMWARE_TARGETS = Object.freeze([
     name: "MICOAIR743 (Aero Selfie H743)",
     aliases: Object.freeze(["MICROAIR743"]),
   }),
+  Object.freeze({
+    id: "CUBEORANGEPLUS",
+    name: "CubePilot Cube Orange+",
+    aliases: Object.freeze(["CUBEORANGE+"]),
+  }),
 ]);
 
 const FLIGHT_COMMANDER_MARKER = Object.freeze([0x46, 0x43, 0x46, 0x57]);
@@ -58,7 +63,7 @@ function knownFirmwareTarget(value) {
 }
 
 export function parseFlightCommanderFirmwareFilename(filename) {
-  const match = /^Flight-Commander-Firmware-(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)-(MICOAIR743|MICROAIR743)(-BENCH-ONLY)?\.hex$/i.exec(
+  const match = /^Flight-Commander-Firmware-(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)-(MICOAIR743|MICROAIR743|CUBEORANGEPLUS|CUBEORANGE\+)(-BENCH-ONLY)?\.hex$/i.exec(
     String(filename ?? "").trim(),
   );
   if (!match) return null;
