@@ -12,8 +12,8 @@ The header identifies the active Flight Commander transport and vehicle.
   telemetry, but airborne command buttons require a validated MAVLink link.
 - **MAVLink · Flight Commander** supplies live telemetry and mission transport
   as soon as a valid aircraft heartbeat establishes the link. Commands that use
-  configured AUX ranges additionally require one unambiguous wired aircraft
-  profile.
+  configured AUX ranges use the most recently captured wired command profile
+  for the connected MAVLink system ID.
 - **Offline RTK setup** means the aircraft is disconnected but the lower RTK
   workspace can still operate an independent USB base.
 
@@ -87,8 +87,11 @@ The command deck includes:
 
 Flight Commander does not infer operational safety from a visible button. A
 command can require a live MAVLink heartbeat, known system/component ID,
-exactly one intended aircraft, a cached MSP command profile, valid AUX mappings,
-and a confirmable resulting state. Firmware identity is not one of those gates.
+exactly one intended aircraft, a current MSP command profile, valid AUX
+mappings, and a confirmable resulting state. Firmware identity is not one of
+those gates. Assign every aircraft a unique `mavlink_sysid`; a wired capture for
+that ID replaces any older cached mapping instead of creating a blocking
+duplicate.
 
 Never use Ground Control commands as the first test of arm, launch, mission,
 return, or land behavior. Verify equivalent RC/AUX behavior on the bench and

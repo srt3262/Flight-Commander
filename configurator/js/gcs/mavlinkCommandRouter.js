@@ -78,9 +78,6 @@ export const MISSION_INTERRUPTION_ACTIONS = Object.freeze({
   LAND: "land",
 });
 
-export const INAV_NO_TARGET_ISOLATION_WARNING =
-  "Flight Commander commands require a validated, target-isolated FCFW vehicle link.";
-
 export function normalizedName(value) {
   const candidate =
     value && typeof value === "object"
@@ -227,7 +224,7 @@ export class InavMavlinkCommandAdapter {
   constructor(session, profile, options = {}) {
     if (!session?.state || typeof session.send !== "function") {
       throw new Error(
-        "An active MAVLink session is required for INAV commands.",
+        "An active MAVLink session is required for Flight Commander commands.",
       );
     }
     this.session = session;
@@ -264,21 +261,21 @@ export class InavMavlinkCommandAdapter {
     ) {
       return {
         available: false,
-        reason: `The cached INAV profile does not match MAVLink system ID ${this.session.state.systemId ?? "unknown"}.`,
+        reason: `The cached Flight Commander command profile does not match MAVLink system ID ${this.session.state.systemId ?? "unknown"}.`,
       };
     }
     if (normalizedName(this.profile.receiverType) !== "SERIAL") {
       return {
         available: false,
         reason:
-          "INAV receiver_type must be SERIAL for MAVLink RC command control.",
+          "Flight Commander receiver_type must be SERIAL for MAVLink RC command control.",
       };
     }
     if (normalizedName(this.profile.serialRxProvider) !== "MAVLINK") {
       return {
         available: false,
         reason:
-          "INAV serialrx_provider must be MAVLINK for MAVLink RC command control.",
+          "Flight Commander serialrx_provider must be MAVLINK for MAVLink RC command control.",
       };
     }
 
@@ -289,7 +286,7 @@ export class InavMavlinkCommandAdapter {
         return {
           available: false,
           reason:
-            "The cached INAV RC map contains duplicate channels and cannot be used safely.",
+            "The cached Flight Commander RC map contains duplicate channels and cannot be used safely.",
         };
       }
       mappedChannels.add(raw);
@@ -303,7 +300,7 @@ export class InavMavlinkCommandAdapter {
       if (this.safeInactiveValue(channel) == null) {
         return {
           available: false,
-          reason: `RC channel ${channel + 1} has no PWM value outside its configured INAV AUX ranges.`,
+          reason: `RC channel ${channel + 1} has no PWM value outside its configured Flight Commander AUX ranges.`,
         };
       }
     }
@@ -340,7 +337,7 @@ export class InavMavlinkCommandAdapter {
     if (!confirmationNames.length) {
       return {
         confirmable: false,
-        reason: `${modeName} can be sent by MAVLink RC override, but INAV heartbeat telemetry cannot uniquely confirm that mode.`,
+        reason: `${modeName} can be sent by MAVLink RC override, but Flight Commander heartbeat telemetry cannot uniquely confirm that mode.`,
       };
     }
     const wanted = new Set(confirmationNames);
@@ -352,7 +349,7 @@ export class InavMavlinkCommandAdapter {
     return collision
       ? {
           confirmable: false,
-          reason: `${modeName} is being transmitted, but INAV heartbeat mode ${collision} also represents another configured AUX mode and cannot uniquely confirm this selection.`,
+          reason: `${modeName} is being transmitted, but Flight Commander heartbeat mode ${collision} also represents another configured AUX mode and cannot uniquely confirm this selection.`,
         }
       : { confirmable: true, reason: "" };
   }
@@ -365,7 +362,7 @@ export class InavMavlinkCommandAdapter {
     if (!range) {
       return {
         available: false,
-        reason: `${name} has no configured AUX range in the cached INAV profile.`,
+        reason: `${name} has no configured AUX range in the cached Flight Commander command profile.`,
       };
     }
 
@@ -441,8 +438,8 @@ export class InavMavlinkCommandAdapter {
         capability: selected.capability,
         reason:
           selected.modeName === "NAV RTH"
-            ? "A failed INAV mission resume can be replaced with configured NAV RTH and confirmed from heartbeat telemetry."
-            : "Configured NAV RTH cannot be confirmed; a failed INAV mission resume can be replaced with NAV POSHOLD and confirmed from heartbeat telemetry.",
+            ? "A failed Flight Commander mission resume can be replaced with configured NAV RTH and confirmed from heartbeat telemetry."
+            : "Configured NAV RTH cannot be confirmed; a failed Flight Commander mission resume can be replaced with NAV POSHOLD and confirmed from heartbeat telemetry.",
       };
     }
     return {
@@ -450,7 +447,7 @@ export class InavMavlinkCommandAdapter {
       modeName: null,
       capability: null,
       reason:
-        "Flight Commander cannot safely abort an INAV mission resume because no " +
+        "Flight Commander cannot safely abort a mission resume because no " +
         "configured non-mission AUX mode has unique heartbeat confirmation. " +
         candidates
           .map(
@@ -529,16 +526,16 @@ export class InavMavlinkCommandAdapter {
       canRtl: rtl.available,
       canLand: false,
       takeoffReason: takeoff.available
-        ? "Launch / Takeoff uses the configured INAV NAV LAUNCH AUX range."
+        ? "Launch / Takeoff uses the configured Flight Commander NAV LAUNCH AUX range."
         : takeoff.reason,
       rtlReason: rtl.available
-        ? "Return Home uses the configured INAV NAV RTH AUX range."
+        ? "Return Home uses the configured Flight Commander NAV RTH AUX range."
         : rtl.reason,
       landReason:
         "The current Flight Commander Firmware does not expose a separately confirmable generic Land command. Use Return Home or a configured landing mission.",
       missionHoldMode: hold.available ? "NAV POSHOLD" : null,
       missionHoldReason: hold.available
-        ? "Mission hold uses the configured INAV NAV POSHOLD AUX range."
+        ? "Mission hold uses the configured Flight Commander NAV POSHOLD AUX range."
         : hold.reason,
       missionResumeAbortMode: abort.modeName,
       missionResumeAbortReason: abort.reason,
@@ -550,7 +547,7 @@ export class InavMavlinkCommandAdapter {
           : mission.reason,
       reason:
         firstUnavailable?.reason ??
-        "INAV commands use a safe receiver baseline plus sustained MAVLink RC_CHANNELS_OVERRIDE frames.",
+        "Flight Commander commands use a safe receiver baseline plus sustained MAVLink RC_CHANNELS_OVERRIDE frames.",
     };
   }
 
@@ -665,7 +662,7 @@ export class InavMavlinkCommandAdapter {
         .waitForState(
           (state) => state.armed === active,
           options.timeoutMs ?? COMMAND_TIMEOUT_MS,
-          active ? "INAV armed state" : "INAV disarmed state",
+          active ? "Flight Commander armed state" : "Flight Commander disarmed state",
         )
         .then((state) =>
           commandResult(state, {
@@ -682,7 +679,7 @@ export class InavMavlinkCommandAdapter {
             ? confirmations.has(normalizedName(state.modeName))
             : !confirmations.has(normalizedName(state.modeName)),
         options.timeoutMs ?? COMMAND_TIMEOUT_MS,
-        `INAV ${modeName} ${active ? "activation" : "deactivation"}`,
+        `Flight Commander ${modeName} ${active ? "activation" : "deactivation"}`,
       )
       .then((state) =>
         commandResult(state, {
@@ -757,7 +754,7 @@ export class InavMavlinkCommandAdapter {
       const result = await this.setMode(capability.modeName, true, options);
       if (result.confirmed !== true) {
         throw new Error(
-          `INAV heartbeat telemetry did not confirm ${capability.modeName}.`,
+          `Flight Commander heartbeat telemetry did not confirm ${capability.modeName}.`,
         );
       }
       return commandResult(result, {
@@ -792,7 +789,7 @@ export class InavMavlinkCommandAdapter {
       const result = await this.setMode(capability.modeName, true, options);
       if (result.confirmed !== true) {
         throw new Error(
-          `INAV heartbeat telemetry did not confirm ${capability.modeName}.`,
+          `Flight Commander heartbeat telemetry did not confirm ${capability.modeName}.`,
         );
       }
       return commandResult(result, {
@@ -802,7 +799,7 @@ export class InavMavlinkCommandAdapter {
       });
     } catch (cause) {
       const error = new Error(
-        `Flight Commander replaced the sustained INAV NAV WP override with ${capability.modeName}, ` +
+        `Flight Commander replaced the sustained NAV WP override with ${capability.modeName}, ` +
           "but heartbeat telemetry did not confirm the safe non-mission state. " +
           "The original mission must not be restored until the aircraft state is confirmed.",
       );
@@ -834,7 +831,7 @@ export class InavMavlinkCommandAdapter {
 
   land() {
     throw new Error(
-      "INAV 9.1 does not expose a generic Land command over MAVLink. " +
+      "Flight Commander Firmware does not expose a generic Land command over MAVLink. " +
         "Configure and use NAV RTH; landing behavior follows the controller RTH settings.",
     );
   }
@@ -912,7 +909,7 @@ function validateSystemId(value) {
   const systemId = Number(value);
   if (!Number.isInteger(systemId) || systemId < 1 || systemId > 255) {
     throw new Error(
-      "INAV mavlink_sysid must be an integer from 1 through 255 before a MAVLink command profile can be saved.",
+      "Flight Commander mavlink_sysid must be an integer from 1 through 255 before a MAVLink command profile can be saved.",
     );
   }
   return systemId;
@@ -924,7 +921,7 @@ function requestMsp(MSP, code, timeoutMs = MSP_TIMEOUT_MS) {
     const timer = setTimeout(() => {
       if (settled) return;
       settled = true;
-      reject(new Error(`INAV did not respond to MSP command ${code}.`));
+      reject(new Error(`Flight Commander Firmware did not respond to MSP command ${code}.`));
     }, timeoutMs);
     timer?.unref?.();
     MSP.send_message(code, false, false, (response) => {
@@ -932,7 +929,7 @@ function requestMsp(MSP, code, timeoutMs = MSP_TIMEOUT_MS) {
       settled = true;
       clearTimeout(timer);
       if (!response || response.unsupported) {
-        reject(new Error(`INAV rejected MSP command ${code}.`));
+        reject(new Error(`Flight Commander Firmware rejected MSP command ${code}.`));
       } else {
         resolve(response);
       }
@@ -995,7 +992,9 @@ export class InavMavlinkProfileStore {
   save(profile) {
     const systemId = validateSystemId(profile?.systemId);
     if (!profile?.profileId) {
-      throw new Error("An INAV MAVLink profile must have a stable profileId.");
+      throw new Error(
+        "A Flight Commander MAVLink command profile must have a stable profileId.",
+      );
     }
     const document = this.readDocument();
     for (const [key, profiles] of Object.entries(document.profilesBySystemId)) {
@@ -1006,8 +1005,12 @@ export class InavMavlinkProfileStore {
       else delete document.profilesBySystemId[key];
     }
     const key = String(systemId);
+    // A MAVLink system ID identifies one command target. The controller most
+    // recently captured over the wired setup link is authoritative for that
+    // ID. Replacing the old entry prevents profiles left by firmware flashes,
+    // controller renames, or identity-field changes from deadlocking Ground
+    // Control with an ambiguity the UI cannot resolve.
     document.profilesBySystemId[key] = [
-      ...(document.profilesBySystemId[key] ?? []),
       copy({
         ...profile,
         schemaVersion: PROFILE_SCHEMA_VERSION,
@@ -1041,6 +1044,17 @@ export class InavMavlinkProfileStore {
           Number(platformType) === Number(options.platformType),
       );
     }
+    // Releases through 4.1.4 could retain several profiles for one system ID
+    // even though Ground Control had no profile selector. Repair that legacy
+    // state in place by using the last stored entry, which was the most recent
+    // wired capture under the append-only v1 schema.
+    if (profiles.length > 1) {
+      const profile = copy(profiles.at(-1));
+      const document = this.readDocument();
+      document.profilesBySystemId[String(validateSystemId(systemId))] = [profile];
+      this.writeDocument(document);
+      profiles = [profile];
+    }
     if (profiles.length === 1) {
       return {
         status: "resolved",
@@ -1049,23 +1063,13 @@ export class InavMavlinkProfileStore {
         reason: "",
       };
     }
-    if (profiles.length > 1) {
-      return {
-        status: "ambiguous",
-        profile: null,
-        profiles: copy(profiles),
-        reason:
-          `Multiple INAV controller profiles use MAVLink system ID ${systemId}. ` +
-          "Select the controller profile or configure unique mavlink_sysid values.",
-      };
-    }
     return {
       status: "missing",
       profile: null,
       profiles: [],
       reason: options.profileId
-        ? `The selected INAV controller profile is not cached for MAVLink system ID ${systemId}.`
-        : `No INAV controller profile is cached for MAVLink system ID ${systemId}. ` +
+        ? `The selected Flight Commander command profile is not cached for MAVLink system ID ${systemId}.`
+        : `No Flight Commander command profile is cached for MAVLink system ID ${systemId}. ` +
           "Connect it by USB and capture its MAVLink command profile first.",
     };
   }
@@ -1079,7 +1083,7 @@ export class InavMavlinkProfileStore {
     } = dependencies ?? (await defaultCaptureDependencies());
     if (!FC || !MSPCodes || !mspHelper || typeof sendMsp !== "function") {
       throw new Error(
-        "Incomplete MSP dependencies were supplied for INAV profile capture.",
+        "Incomplete MSP dependencies were supplied for Flight Commander profile capture.",
       );
     }
 
@@ -1166,12 +1170,7 @@ export class MavlinkCommandRouter {
     this.selectedProfileId = options.profileId ?? null;
     this.inavAdapter = null;
     this.inavAdapterProfileId = null;
-    this.singleInavAircraftAcknowledged = false;
     this.commandBlockReason = null;
-  }
-
-  firmwareFamily() {
-    return String(this.session.state.firmwareFamily ?? "unknown").toLowerCase();
   }
 
   flightCommanderCommandCapability() {
@@ -1226,32 +1225,6 @@ export class MavlinkCommandRouter {
     this.inavAdapter?.stop?.();
     this.inavAdapter = null;
     this.inavAdapterProfileId = null;
-  }
-
-  acknowledgeSingleInavAircraft(acknowledged = true) {
-    if (this.firmwareFamily() !== "inav" && acknowledged) {
-      throw new Error(
-        "The single-aircraft acknowledgement applies only to an identified INAV MAVLink connection.",
-      );
-    }
-    this.singleInavAircraftAcknowledged = Boolean(acknowledged);
-    return this.singleInavAircraftAcknowledged;
-  }
-
-  hasSingleInavAircraftAcknowledgement() {
-    return this.singleInavAircraftAcknowledged;
-  }
-
-  inavTargetIsolationCapability() {
-    return this.singleInavAircraftAcknowledged
-      ? {
-          available: true,
-          reason:
-            "Single-aircraft link confirmed for this connection. Stock INAV does not " +
-            "isolate RC_CHANNELS_OVERRIDE by target_system; do not share this transport " +
-            "with another INAV aircraft.",
-        }
-      : { available: false, reason: INAV_NO_TARGET_ISOLATION_WARNING };
   }
 
   inavResolution() {
@@ -1392,6 +1365,5 @@ export class MavlinkCommandRouter {
 
   stop() {
     this.releaseInavAdapter();
-    this.singleInavAircraftAcknowledged = false;
   }
 }

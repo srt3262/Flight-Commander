@@ -1,19 +1,19 @@
 {
   "schema": 1,
   "product": "Flight Commander Firmware",
-  "version": "4.1.4",
+  "version": "4.1.5",
   "target": "MICOAIR743",
   "inav_release": "9.1.0",
   "inav_commit": "e519b69b02e27c8bdc03b4a0889f1baaae211a54",
-  "source_revision": "b43a86954afe6c260f7584b71bfc141b7d7313c2",
-  "source_tree": "66e78a3231e1a79c36c80bd2fe804538ca8b0b7f",
+  "source_revision": "b99d059b6d85cce36235f8586897bcd8e5d830e3",
+  "source_tree": "540ca746246634e7927fff876552b624f90ae1a2",
   "source_hash_scheme": "sha1(sorted sha256sum records, excluding RELEASE-MANIFEST.json)",
   "source_tree_hash_scheme": "sha1('flight-commander-source-tree-v1\\n' plus sorted sha256sum records, excluding RELEASE-MANIFEST.json)",
-  "source_date_epoch": 1786219200,
+  "source_date_epoch": 1786234800,
   "capabilities": "0x0000ffff",
   "artifact": {
-    "filename": "Flight-Commander-Firmware-4.1.4-MICOAIR743.hex",
-    "sha256": "0b3d559a512490eae22f2ee14b1a95a2629aef7df69e68525e4a6976a979a6da",
+    "filename": "Flight-Commander-Firmware-4.1.5-MICOAIR743.hex",
+    "sha256": "c1312007a6bf7c13fa4f93f0a289664458626a5bb2253ecb74678927581db026",
     "bytes": 1937279
   },
   "bench_acceptance": {

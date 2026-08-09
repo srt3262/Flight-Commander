@@ -1,5 +1,18 @@
 # Flight Commander
 
+## 4.1.5
+
+- Repair command-profile records accumulated by Configurator 4.1.4 and earlier
+  so Ground Control no longer blocks a connected aircraft with the obsolete
+  “Multiple INAV controller profiles” warning.
+- Keep only the most recent wired command profile for each `mavlink_sysid`,
+  including an automatic in-place migration of existing duplicate records.
+- Replace remaining INAV-facing Ground Control command explanations with
+  Flight Commander terminology while preserving link, target, AUX mapping, and
+  command-confirmation safety checks.
+- Publish matching Configurator and MICOAIR743 Firmware 4.1.5 identities; the
+  flight-control implementation is unchanged from the reviewed 4.1.4 release.
+
 ## 4.1.4
 
 - Remove the connected-firmware `FCFW` authorization gate from MSP, MAVLink,

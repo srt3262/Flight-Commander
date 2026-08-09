@@ -9,7 +9,7 @@ Firmware. Selecting a protocol never converts or authorizes foreign firmware.
 | Link | Primary purpose | Configuration | Missions | Ground Control commands |
 | --- | --- | --- | --- | --- |
 | Flight Commander Firmware over MSP | Bench setup over USB/UART | Full persistent configuration | Native persistent mission read/write | Wired telemetry only; airborne commands require MAVLink |
-| Flight Commander Firmware over MAVLink | Live aircraft/radio link | Not a replacement for MSP setup | Active mission transfer and Flight Commander extensions | Telemetry plus commands after link/profile checks |
+| Flight Commander Firmware over MAVLink | Live aircraft/radio link | Not a replacement for MSP setup | Active mission transfer and Flight Commander extensions | Telemetry plus commands after link and current command-profile checks |
 
 LTM is telemetry-only because it cannot carry mission transfer or Ground
 Control command traffic. Use MAVLink for those operations.
@@ -51,7 +51,9 @@ MAVLink supplies live telemetry, mission transport, and Ground Control
 commands. A valid vehicle heartbeat establishes the transport and vehicle IDs.
 Optional `AUTOPILOT_VERSION` metadata may report the firmware version, but a
 missing or older payload does not disable the link. Aircraft-specific AUX/mode
-commands still require one unambiguous profile captured during wired MSP setup.
+commands use the most recently captured wired MSP command profile for the
+connected MAVLink system ID. Capturing that ID again replaces its older mapping,
+including duplicate records left by Configurator 4.1.4 and earlier.
 
 For an ExpressLRS transmitter module exposed as a Windows COM port, select
 **Ground Control / MAVLink**. Flight Commander defaults that protocol to
@@ -60,7 +62,8 @@ has been configured differently.
 
 Exactly one intended aircraft must be present on a command-capable link. A
 heartbeat alone does not bypass link, arming, mission, or aircraft-profile
-safety checks.
+safety checks. Give every aircraft a unique `mavlink_sysid`; two aircraft with
+the same system ID cannot be targeted independently.
 
 ## USB RTK base connection
 

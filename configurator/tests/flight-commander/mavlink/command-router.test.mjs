@@ -311,7 +311,7 @@ describe("Flight Commander command routing", () => {
     assert.equal(adapters.at(-1).commandStreamEnabled, false);
   });
 
-  test("rejects mismatched and ambiguous profiles", () => {
+  test("rejects an unresolved command-profile lookup", () => {
     const session = {
       state: {
         connected: true,
@@ -325,20 +325,62 @@ describe("Flight Commander command routing", () => {
       profileStore: {
         resolve() {
           return {
-            status: "ambiguous",
+            status: "missing",
             profile: null,
-            profiles: [{}, {}],
-            reason: "Multiple profiles use system ID 9.",
+            profiles: [],
+            reason: "No command profile is available for system ID 9.",
           };
         },
       },
     });
     assert.equal(router.capabilities().canSetMode, false);
-    assert.throws(() => router.setMode("NAV WP"), /Multiple profiles/);
+    assert.throws(() => router.setMode("NAV WP"), /No command profile/);
+  });
+
+  test("legacy duplicate profiles no longer disable connected controls", () => {
+    let stored = {
+      schemaVersion: 1,
+      profilesBySystemId: {
+        9: [
+          { ...inavProfile(), profileId: "stale-controller" },
+          { ...inavProfile(), profileId: "latest-wired-controller" },
+        ],
+      },
+    };
+    const profileStore = new InavMavlinkProfileStore({
+      storage: {
+        get: (_key, fallback) => stored ?? fallback,
+        set: (_key, value) => {
+          stored = value;
+        },
+      },
+    });
+    const session = fakeUnsupportedSession({
+      state: { firmwareFamily: "flight-commander", systemId: 9 },
+    });
+    const router = new MavlinkCommandRouter(session, {
+      profileStore,
+      adapterFactory: (_adapterSession, profile) => ({
+        capabilities: () => ({
+          canSetMode: true,
+          canArm: true,
+          canStartMission: true,
+          canResumeMission: true,
+        }),
+        availableModes: () => ["NAV WP"],
+        stop() {},
+        profile,
+      }),
+    });
+
+    assert.equal(router.capabilities().canArm, true);
+    assert.deepEqual(router.availableModes(), ["NAV WP"]);
+    assert.equal(router.inavAdapter.profile.profileId, "latest-wired-controller");
+    assert.equal(stored.profilesBySystemId[9].length, 1);
   });
 });
 
-describe("INAV profile persistence", () => {
+describe("Flight Commander command-profile persistence", () => {
 
 test("resolves exactly one MICOAIR743 wired profile as legacy Flight Commander identity", () => {
   const profile = inavProfile();
@@ -365,8 +407,20 @@ test("resolves exactly one MICOAIR743 wired profile as legacy Flight Commander i
   );
 });
 
-  test("resolves one profile and reports ambiguity without silently choosing", () => {
-    let stored;
+  test("migrates duplicate 4.1.4 profiles to the latest wired capture", () => {
+    const first = {
+      ...inavProfile(),
+      capturedAt: "2026-08-08T18:00:00.000Z",
+    };
+    const latest = {
+      ...inavProfile(),
+      profileId: "latest-wired-controller",
+      capturedAt: "2026-08-08T20:00:00.000Z",
+    };
+    let stored = {
+      schemaVersion: 1,
+      profilesBySystemId: { 9: [first, latest] },
+    };
     const storage = {
       get: (_key, fallback) => stored ?? fallback,
       set: (_key, value) => {
@@ -374,17 +428,36 @@ test("resolves exactly one MICOAIR743 wired profile as legacy Flight Commander i
       },
     };
     const store = new InavMavlinkProfileStore({ storage });
-    store.save(inavProfile());
-    assert.equal(store.resolve(9).status, "resolved");
+    const migrated = store.resolve(9);
+    assert.equal(migrated.status, "resolved");
+    assert.equal(migrated.profile.profileId, "latest-wired-controller");
+    assert.equal(migrated.profiles.length, 1);
+    assert.equal(stored.profilesBySystemId[9].length, 1);
+    assert.equal(
+      stored.profilesBySystemId[9][0].profileId,
+      "latest-wired-controller",
+    );
+
+    store.writeDocument({
+      schemaVersion: 1,
+      profilesBySystemId: { 9: [latest, latest] },
+    });
+    const explicitlySelected = store.resolve(9, {
+      profileId: "latest-wired-controller",
+    });
+    assert.equal(explicitlySelected.status, "resolved");
+    assert.equal(explicitlySelected.profile.profileId, "latest-wired-controller");
+    assert.equal(stored.profilesBySystemId[9].length, 1);
 
     store.save({
       ...inavProfile(),
-      profileId: "second-controller",
+      profileId: "new-wired-controller",
     });
-    const ambiguous = store.resolve(9);
-    assert.equal(ambiguous.status, "ambiguous");
-    assert.equal(ambiguous.profile, null);
-    assert.equal(ambiguous.profiles.length, 2);
+    const replaced = store.resolve(9);
+    assert.equal(replaced.status, "resolved");
+    assert.equal(replaced.profile.profileId, "new-wired-controller");
+    assert.equal(replaced.profiles.length, 1);
+    assert.doesNotMatch(replaced.reason, /INAV|Multiple profiles/i);
   });
 
   test("captures the command-safe MSP profile fields used by MAVLink routing", async () => {

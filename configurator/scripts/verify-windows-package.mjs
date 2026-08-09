@@ -473,19 +473,19 @@ if (packageManifest.version !== sourcePackage.version) {
 if (packageManifest.main !== ".vite/build/main.js") {
   fail(`packaged main entry is ${packageManifest.main}`);
 }
-if (sourcePackage.version !== "4.1.4") {
-  fail(`source version is ${sourcePackage.version}; expected 4.1.4`);
+if (sourcePackage.version !== "4.1.5") {
+  fail(`source version is ${sourcePackage.version}; expected 4.1.5`);
 }
-if (sourcePackage.flightCommander?.firmwareReleaseVersion !== "4.1.4") {
+if (sourcePackage.flightCommander?.firmwareReleaseVersion !== "4.1.5") {
   fail(
-    `published firmware version is ${sourcePackage.flightCommander?.firmwareReleaseVersion}; expected 4.1.4`,
+    `published firmware version is ${sourcePackage.flightCommander?.firmwareReleaseVersion}; expected 4.1.5`,
   );
 }
 if (sourcePackage.flightCommander?.firmwareChangedInRelease !== true) {
-  fail("Flight Commander 4.1.4 must publish coordinated Firmware 4.1.4");
+  fail("Flight Commander 4.1.5 must publish coordinated Firmware 4.1.5");
 }
-if (sourcePackage.flightCommander?.firmwareSourceVersion !== "4.1.4") {
-  fail("Flight Commander 4.1.4 must publish the Firmware 4.1.4 source archive");
+if (sourcePackage.flightCommander?.firmwareSourceVersion !== "4.1.5") {
+  fail("Flight Commander 4.1.5 must publish the Firmware 4.1.5 source archive");
 }
 if (!sourcePackage.description.includes("flight controller")) {
   fail(`package description is ${sourcePackage.description}`);

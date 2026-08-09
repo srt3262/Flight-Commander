@@ -6,7 +6,7 @@ import test from "node:test";
 const root = resolve(import.meta.dirname, "../../..");
 const text = (relative) => readFileSync(resolve(root, relative), "utf8");
 
-test("Flight Commander 4.1.4 keeps one product without runtime identity gates", () => {
+test("Flight Commander 4.1.5 keeps one product without runtime identity or stale-profile gates", () => {
   const packageJson = JSON.parse(text("package.json"));
   const flasherHtml = text("tabs/firmware_flasher.html");
   const flasherSource = text("tabs/firmware_flasher.js");
@@ -25,8 +25,8 @@ test("Flight Commander 4.1.4 keeps one product without runtime identity gates", 
     "tabs/ports.js",
   ].map(text).join("\n");
 
-  assert.equal(packageJson.version, "4.1.4");
-  assert.equal(packageJson.flightCommander.firmwareReleaseVersion, "4.1.4");
+  assert.equal(packageJson.version, "4.1.5");
+  assert.equal(packageJson.flightCommander.firmwareReleaseVersion, "4.1.5");
   assert.match(flasherHtml, /Online Flight Commander Firmware \/ Local HEX/);
   assert.doesNotMatch(flasherHtml, /value="inav"|Official INAV/);
   assert.match(flasherSource, /if \(local\) \{[\s\S]+flashed as supplied/);
@@ -36,6 +36,9 @@ test("Flight Commander 4.1.4 keeps one product without runtime identity gates", 
   assert.match(session, /flight-commander-product-policy/);
   assert.match(session, /MAV_CMD_REQUEST_AUTOPILOT_CAPABILITIES/);
   assert.match(router, /firmware identity metadata is informational/);
+  assert.match(router, /most recent[\s\S]+wired capture/);
+  assert.doesNotMatch(router, /Multiple INAV controller profiles/);
+  assert.doesNotMatch(router, /Select the controller profile/);
   assert.doesNotMatch(routerInstance, /setFlightCommanderIdentityResolver/);
   assert.doesNotMatch(serialBackend, /configuration, missions, and commands are disabled/);
   assert.doesNotMatch(featureSurfaces, /firmwareFeatureSupport/);

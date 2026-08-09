@@ -76,7 +76,7 @@ assumed to exist on another.
 | Controller and link | Configuration | Missions and planning | Live Ground Control |
 | --- | --- | --- | --- |
 | **Flight Commander Firmware over MSP** | Full persistent configuration, including UART GPS, DroneCAN nodes, and primary-GPS selection | Native mission and planning-data read/write, including safe homes, approaches, geozones, terrain profiles, and photo actions | Wired telemetry is available; airborne commands require a MAVLink link |
-| **Flight Commander Firmware over MAVLink** | Not a replacement for the wired MSP setup link | Active mission transfer plus terrain and photo extensions | Telemetry and Ground Control commands after link and aircraft-profile checks |
+| **Flight Commander Firmware over MAVLink** | Not a replacement for the wired MSP setup link | Active mission transfer plus terrain and photo extensions | Telemetry and Ground Control commands after link and current command-profile checks |
 
 Flight Commander interruption checkpoints are position-estimated, and the
 persistent `nav_wp_mission_restart` policy is managed over MSP. Resume is

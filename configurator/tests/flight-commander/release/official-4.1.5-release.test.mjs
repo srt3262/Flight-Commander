@@ -8,17 +8,17 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const packageJson = JSON.parse(readFileSync(resolve(root, "package.json"), "utf8"));
 const publisher = readFileSync(resolve(root, "../.github/workflows/release.yml"), "utf8");
 
-test("4.1.4 coordinates Configurator and Firmware versions", () => {
-  assert.equal(packageJson.version, "4.1.4");
+test("4.1.5 coordinates Configurator and Firmware versions", () => {
+  assert.equal(packageJson.version, "4.1.5");
   assert.equal(packageJson.flightCommander.firmwareChangedInRelease, true);
-  assert.equal(packageJson.flightCommander.firmwareReleaseVersion, "4.1.4");
-  assert.equal(packageJson.flightCommander.firmwareSourceVersion, "4.1.4");
+  assert.equal(packageJson.flightCommander.firmwareReleaseVersion, "4.1.5");
+  assert.equal(packageJson.flightCommander.firmwareSourceVersion, "4.1.5");
 });
 
-test("official publisher replaces 4.1.3 with a verified non-prerelease bundle", () => {
+test("official publisher creates a verified non-prerelease 4.1.5 bundle", () => {
   assert.match(publisher, /Publish verified release/);
   assert.match(publisher, /gh release create/);
-  assert.match(publisher, /gh release delete v4\.1\.3/);
+  assert.doesNotMatch(publisher, /gh release delete/);
   assert.match(publisher, /exactly the four canonical files/);
   assert.match(publisher, /exactly the two public assets/);
   assert.doesNotMatch(publisher, /--prerelease/);
