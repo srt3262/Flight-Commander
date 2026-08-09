@@ -49,7 +49,7 @@ test("INAV normalization preserves scale, corrects pitch, and reports native 3D 
 
   assert.equal(telemetry.vehicleTypeName, "Airplane");
   assert.equal(telemetry.armed, true);
-  assert.equal(telemetry.modeName, "NAV WP");
+  assert.equal(telemetry.modeName, "MISSION");
   assert.equal(telemetry.latitude, 40);
   assert.equal(telemetry.longitude, -75);
   assert.equal(telemetry.altitudeMsl, 147);

@@ -24,7 +24,7 @@ has exactly two public assets: the complete four-file bundle and that standalone
 HEX. Publication fails on a version, source identity, checksum, filename, or
 asset-count mismatch.
 
-For 4.1.6, both Configurator and Firmware are 4.1.6 and
+For 4.1.7, both Configurator and Firmware are 4.1.7 and
 `firmwareChangedInRelease` is `true`. The coordinated release replaces cached
 AUX/RC command emulation with native MAVLink commands and enforces the physical
 GCS NAV authorization mode independently in the Configurator and firmware.

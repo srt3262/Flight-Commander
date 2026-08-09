@@ -1064,8 +1064,8 @@ function acceptParsedFirmware(data, { filename, descriptor = null, local = false
             var fileResult = await window.electronAPI.showOpenDialog({
                 defaultPath: backupDir,
                 filters: [
-                    { name: 'CLI/TXT', extensions: ['cli', 'txt'] },
-                    { name: 'ALL', extensions: ['*'] },
+                    { name: 'Flight Commander Backup/Restore', extensions: ['cli', 'txt'] },
+                    { name: 'All Files', extensions: ['*'] },
                 ],
                 properties: ['openFile'],
             });

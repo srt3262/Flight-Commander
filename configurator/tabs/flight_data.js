@@ -52,6 +52,7 @@ import MSPCodes from './../js/msp/MSPCodes';
 import store from './../js/store';
 import normalizeInavTelemetry from './../js/telemetry/inavTelemetry';
 import normalizeLtmTelemetry from './../js/telemetry/ltmTelemetry';
+import { primaryModeForDisplay } from './../js/telemetry/primaryFlightMode';
 import rtkBasePanel from './rtk_base';
 
 const GPS_FIX_NAMES = {
@@ -317,11 +318,11 @@ flightData.setupHud = function () {
       if (loadToken !== this.hudLoadToken || GUI.active_tab !== this) return;
       this.hud?.destroy();
       this.hud = createGroundControlHud({
-        getState: () => this.currentState(),
+        getState: () => this.indicatedState(),
         onLayoutChange: () => this.map?.updateSize(),
         unitSystem: this.unitSystem,
       });
-      this.hud.render(this.currentState());
+      this.hud.render(this.indicatedState());
     })
     .catch((error) => {
       if (loadToken !== this.hudLoadToken || GUI.active_tab !== this) return;
@@ -494,6 +495,7 @@ flightData.configureProtocol = function () {
     + 'Connect through MAVLink telemetry for airborne commands.',
   );
   this.appendLocalMessage('Flight Commander MSP setup link connected; airborne commands require MAVLink.');
+  MSP.send_message(MSPCodes.MSP_MODE_RANGES, false, false);
   interval.add('flight-data-msp-refresh', () => this.pollInavTelemetry(), 400, true);
   this.render(this.currentState());
 };
@@ -890,7 +892,15 @@ flightData.currentState = function () {
   });
 };
 
+flightData.indicatedState = function (state = this.currentState()) {
+  return {
+    ...state,
+    modeName: primaryModeForDisplay(state, this.protocol) ?? '--',
+  };
+};
+
 flightData.render = function (state) {
+  const indicatedModeName = primaryModeForDisplay(state, this.protocol) ?? '--';
   const offline = !this.protocol || !CONFIGURATOR.connectionValid;
   const flightCommander = Boolean(state.connected);
   const protocolLabel = offline
@@ -927,7 +937,7 @@ flightData.render = function (state) {
     }
     $('#flightDataMode').val(modeName);
   }
-  $('#flightDataModeValue').text(state.modeName ?? '--');
+  $('#flightDataModeValue').text(indicatedModeName);
   $('#flightDataAltitude').text(formatGroundControlValue(
     state.relativeAltitude,
     'relativeAltitude',
@@ -963,7 +973,7 @@ flightData.render = function (state) {
   $('#flightDataPitch').text(format(state.pitch, 1, '°'));
   $('#flightDataLatitude').text(format(state.latitude, 7));
   $('#flightDataLongitude').text(format(state.longitude, 7));
-  this.hud?.render(state);
+  this.hud?.render({ ...state, modeName: indicatedModeName });
   let displayState = state;
   if (this.protocol === 'mavlink' && isSupportedMissionFamily(state.firmwareFamily)) {
     const estimate = estimateInavMissionProgress({

@@ -90,7 +90,7 @@ set(FIRMWARE_VERSION ${PROJECT_VERSION})
 
 # Flight Commander release identity is independent from the inherited INAV
 # protocol compatibility version declared by project().
-set(FLIGHT_COMMANDER_FIRMWARE_VERSION 4.1.6)
+set(FLIGHT_COMMANDER_FIRMWARE_VERSION 4.1.7)
 
 option(WARNINGS_AS_ERRORS "Make all warnings into errors")
 message("-- toolchain: ${TOOLCHAIN}, WARNINGS_AS_ERRORS: ${WARNINGS_AS_ERRORS}")

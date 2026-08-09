@@ -1,20 +1,20 @@
 {
   "schema": 1,
   "product": "Flight Commander Firmware",
-  "version": "4.1.6",
+  "version": "4.1.7",
   "target": "MICOAIR743",
   "inav_release": "9.1.0",
   "inav_commit": "e519b69b02e27c8bdc03b4a0889f1baaae211a54",
-  "source_revision": "8a330837e4aee6830c026091e17b85a85504eb0a",
-  "source_tree": "67c4bf51ca159cf9b16f531813b0bcc12131ba6c",
+  "source_revision": "6af97d80deaf0a1e4666bd03aeeea11f7ae02b47",
+  "source_tree": "946445b4b01996cda4f4f39fbfe882c8f44a8569",
   "source_hash_scheme": "sha1(sorted sha256sum records, excluding RELEASE-MANIFEST.json)",
   "source_tree_hash_scheme": "sha1('flight-commander-source-tree-v1\\n' plus sorted sha256sum records, excluding RELEASE-MANIFEST.json)",
   "source_date_epoch": 1786294800,
   "capabilities": "0x0000ffff",
   "artifact": {
-    "filename": "Flight-Commander-Firmware-4.1.6-MICOAIR743.hex",
-    "sha256": "b1ff49f1953481d64cb9d57adb298195342b24acdce4d0ded3c540386fa2cd6c",
-    "bytes": 1951287
+    "filename": "Flight-Commander-Firmware-4.1.7-MICOAIR743.hex",
+    "sha256": "53686d9d6a9e079849e56beecc01048a49473c1ca33eb596e1cacb1c9efd1962",
+    "bytes": 1951401
   },
   "bench_acceptance": {
     "workflow": "select one enabled compass, complete its six-side learned orientation, then calibrate only that source's field offsets and gains",
@@ -69,6 +69,26 @@
     "startup_yaw": "four consecutive fresh fused samples within 5 degrees seed yaw once while disarmed using a dedicated Flight Commander initialization state",
     "disabled_source_weight": "reset, runtime migration and MSP writes normalize every disabled source weight to zero",
     "orientation_gate": "onboard magnetic heading is unavailable to fusion until learned orientation and conventional field calibration are both valid"
+  },
+  "mode_reporting": {
+    "display_labels": [
+      "ACRO",
+      "ANGLE",
+      "ANGLE/ALT HLD",
+      "GPS POS HLD",
+      "RTH",
+      "MISSION"
+    ],
+    "priority": [
+      "RTH",
+      "MISSION",
+      "GPS POS HLD",
+      "ANGLE/ALT HLD",
+      "ANGLE",
+      "ACRO"
+    ],
+    "secondary_modes_ignored": true,
+    "selected_input_reported_before_navigation_availability": true
   },
   "capability_mask": "0x0000ffff"
 }

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Structural verification for the Flight Commander 4.1.6 compass release build."""
+"""Structural verification for the Flight Commander 4.1.7 compass release build."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import hashlib
 from pathlib import Path
 import sys
 
-EXPECTED_IDENTITY = b"FCFW" + bytes((1, 4, 1, 6, 9, 1, 0, 0xFF, 0xFF, 0, 0))
+EXPECTED_IDENTITY = b"FCFW" + bytes((1, 4, 1, 7, 9, 1, 0, 0xFF, 0xFF, 0, 0))
 EXPECTED_TARGET = b"MICOAIR743"
 
 
@@ -99,12 +99,12 @@ def main() -> int:
     path = Path(sys.argv[1]).resolve()
     memory = parse_intel_hex(path)
     if not contains(memory, EXPECTED_IDENTITY):
-        fail("HEX does not contain the Flight Commander 4.1.6 identity and 0x0000ffff capability mask")
+        fail("HEX does not contain the Flight Commander 4.1.7 identity and 0x0000ffff capability mask")
     if not contains(memory, EXPECTED_TARGET):
         fail("HEX does not contain the MICOAIR743 target identity")
 
     digest = hashlib.sha256(path.read_bytes()).hexdigest()
-    print(f"Verified Flight Commander 4.1.6 MICOAIR743 HEX: {path}")
+    print(f"Verified Flight Commander 4.1.7 MICOAIR743 HEX: {path}")
     print(f"SHA-256: {digest}")
     return 0
 

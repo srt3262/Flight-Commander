@@ -16,7 +16,7 @@ const REBOOT_WAIT_MS = 1500;
 let lastAutoBackup = null;
 
 /**
- * Backup & Restore module for INAV flight controller settings.
+ * Backup & Restore module for Flight Commander flight controller settings.
  * Uses CLI text protocol (diff all / batch commands) over the active connection.
  */
 const BackupRestore = {
@@ -170,7 +170,7 @@ const BackupRestore = {
         const version = FC.CONFIG.flightControllerVersion || 'unknown';
         const board = (FC.CONFIG.target || FC.CONFIG.boardIdentifier || 'unknown').replace(/\s+/g, '_');
         const timestamp = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}_${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
-        return `${prefix || ''}inav_backup_${version}_${board}_${timestamp}.txt`;
+        return `${prefix || ''}flight_commander_backup_${version}_${board}_${timestamp}.txt`;
     },
 
     /**
@@ -200,7 +200,7 @@ const BackupRestore = {
         const filename = this.generateBackupFilename();
         const filePath = backupDir + '/' + filename;
 
-        const header = `# INAV Backup\n# Version: ${version}\n# Board: ${FC.CONFIG.target || FC.CONFIG.boardIdentifier}\n# Date: ${new Date().toISOString()}\n# Craft: ${FC.CONFIG.name || ''}\n#\n`;
+        const header = `# Flight Commander Backup\n# Version: ${version}\n# Board: ${FC.CONFIG.target || FC.CONFIG.boardIdentifier}\n# Date: ${new Date().toISOString()}\n# Craft: ${FC.CONFIG.name || ''}\n#\n`;
         const fileContent = header + cleanedOutput;
 
         const err = await window.electronAPI.writeFile(filePath, fileContent);
@@ -233,8 +233,8 @@ const BackupRestore = {
         const result = await window.electronAPI.showSaveDialog({
             defaultPath: backupDir + '/' + filename,
             filters: [
-                { name: 'TXT', extensions: ['txt'] },
-                { name: 'CLI', extensions: ['cli'] },
+                { name: 'Flight Commander Backup/Restore', extensions: ['txt', 'cli'] },
+                { name: 'All Files', extensions: ['*'] },
             ],
         });
 
@@ -253,7 +253,7 @@ const BackupRestore = {
 
         if (onProgress) onProgress('backupRestoreStatusSavingFile');
 
-        const header = `# INAV Backup\n# Version: ${version}\n# Board: ${FC.CONFIG.target || FC.CONFIG.boardIdentifier}\n# Date: ${new Date().toISOString()}\n# Craft: ${FC.CONFIG.name || ''}\n#\n`;
+        const header = `# Flight Commander Backup\n# Version: ${version}\n# Board: ${FC.CONFIG.target || FC.CONFIG.boardIdentifier}\n# Date: ${new Date().toISOString()}\n# Craft: ${FC.CONFIG.name || ''}\n#\n`;
         const fileContent = header + cleanedOutput;
 
         const err = await window.electronAPI.writeFile(result.filePath, fileContent);
@@ -358,8 +358,8 @@ const BackupRestore = {
         const result = await window.electronAPI.showOpenDialog({
             defaultPath: backupDir,
             filters: [
-                { name: 'CLI/TXT', extensions: ['cli', 'txt'] },
-                { name: 'ALL', extensions: ['*'] },
+                { name: 'Flight Commander Backup/Restore', extensions: ['cli', 'txt'] },
+                { name: 'All Files', extensions: ['*'] },
             ],
             properties: ['openFile'],
         });
@@ -499,7 +499,7 @@ const BackupRestore = {
         const filename = this.generateBackupFilename('UPDATE_');
         const filePath = backupDir + '/' + filename;
 
-        const header = `# INAV Auto-Backup (pre-flash)\n# Version: ${version}\n# Board: ${FC.CONFIG.target || FC.CONFIG.boardIdentifier || 'unknown'}\n# Date: ${new Date().toISOString()}\n# Craft: ${FC.CONFIG.name || ''}\n#\n`;
+        const header = `# Flight Commander Auto-Backup (pre-flash)\n# Version: ${version}\n# Board: ${FC.CONFIG.target || FC.CONFIG.boardIdentifier || 'unknown'}\n# Date: ${new Date().toISOString()}\n# Craft: ${FC.CONFIG.name || ''}\n#\n`;
         const fileContent = header + cleanedOutput;
 
         const err = await window.electronAPI.writeFile(filePath, fileContent);
@@ -513,7 +513,7 @@ const BackupRestore = {
     },
 
     async _pruneAutoBackups(backupDir, maxKeep) {
-        const AUTO_BACKUP_PATTERN = /^UPDATE_inav_backup_.*_\d{4}-\d{2}-\d{2}_\d{6}\.txt$/;
+        const AUTO_BACKUP_PATTERN = /^UPDATE_(?:flight_commander|inav)_backup_.*_\d{4}-\d{2}-\d{2}_\d{6}\.txt$/;
 
         try {
             const allFiles = await window.electronAPI.listBackups();
@@ -550,7 +550,7 @@ const BackupRestore = {
      * applies migration profiles, and then restores.
      *
      * @param {string} fileContent - The backup file content
-     * @param {string} targetVersion - The target INAV version on the FC
+     * @param {string} targetVersion - The target Flight Commander version on the FC
      * @param {function} onProgress - Progress callback
      * @returns {Promise<{errors: string[], migrationSummary: object|null}>}
      */

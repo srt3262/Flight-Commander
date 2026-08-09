@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify the Flight Commander 4.1.6 MICOAIR743 source and HEX contract."""
+"""Verify the Flight Commander 4.1.7 MICOAIR743 source and HEX contract."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ import re
 import subprocess
 import sys
 
-VERSION = "4.1.6"
+VERSION = "4.1.7"
 TARGET = "MICOAIR743"
 UPSTREAM_RELEASE = "9.1.0"
 UPSTREAM_COMMIT = "e519b69b02e27c8bdc03b4a0889f1baaae211a54"
@@ -64,7 +64,7 @@ def require_text(path: Path, patterns: list[str]) -> None:
     text = path.read_text(encoding="utf-8")
     for pattern in patterns:
         if not re.search(pattern, text, re.MULTILINE | re.DOTALL):
-            fail(f"{path}: required 4.1.6 source contract is missing: {pattern}")
+            fail(f"{path}: required 4.1.7 source contract is missing: {pattern}")
 
 
 def verify_upstream_baseline(root: Path) -> None:
@@ -111,13 +111,13 @@ def verify_upstream_baseline(root: Path) -> None:
 def verify_source(root: Path) -> None:
     verify_upstream_baseline(root)
     require_text(root / "CMakeLists.txt", [
-        r"set\(FLIGHT_COMMANDER_FIRMWARE_VERSION 4\.1\.6\)",
+        r"set\(FLIGHT_COMMANDER_FIRMWARE_VERSION 4\.1\.7\)",
         r"FLIGHT_COMMANDER_SOURCE_REVISION",
     ])
     require_text(root / "src/main/build/flight_commander.h", [
         r"FLIGHT_COMMANDER_VERSION_MAJOR 4",
         r"FLIGHT_COMMANDER_VERSION_MINOR 1",
-        r"FLIGHT_COMMANDER_VERSION_PATCH 6",
+        r"FLIGHT_COMMANDER_VERSION_PATCH 7",
         r"FLIGHT_COMMANDER_CAPABILITY_INDIVIDUAL_COMPASS_CALIBRATION = \(1U << 15\)",
         r"FLIGHT_COMMANDER_CAPABILITIES \(\(uint32_t\)0xFFFFU\)",
     ])
@@ -164,6 +164,22 @@ def verify_source(root: Path) -> None:
         r"case MSP2_FLIGHT_COMMANDER_COMPASS_ORIENTATION_COMMAND:",
         r"case MSP2_FLIGHT_COMMANDER_COMPASS_CALIBRATION_COMMAND:",
         r"flightCommanderHeadingReadCompassCalibrationCommand\(src\)",
+    ])
+    require_text(root / "src/main/fc/runtime_config.c", [
+        r"flightCommanderPrimaryModeForTelemetry\(void\)",
+        r"isRcModeActiveFromInput\(BOXNAVRTH\)",
+        r"isRcModeActiveFromInput\(BOXNAVWP\)",
+        r"isRcModeActiveFromInput\(BOXPLANWPMISSION\)",
+        r"isRcModeActiveFromInput\(BOXNAVPOSHOLD\)",
+        r"angleRequested && altitudeHoldRequested",
+        r"return FLM_ACRO;",
+    ])
+    require_text(root / "src/main/fc/fc_msp_box.c", [
+        r"PRIMARY_MODE_ACTIVE_OR_SELECTED\(ANGLE_MODE, BOXANGLE\)",
+        r"PRIMARY_MODE_ACTIVE_OR_SELECTED\(NAV_ALTHOLD_MODE, BOXNAVALTHOLD\)",
+        r"PRIMARY_MODE_ACTIVE_OR_SELECTED\(NAV_POSHOLD_MODE, BOXNAVPOSHOLD\)",
+        r"PRIMARY_MODE_ACTIVE_OR_SELECTED\(NAV_RTH_MODE, BOXNAVRTH\)",
+        r"PRIMARY_MODE_ACTIVE_OR_SELECTED\(NAV_WP_MODE, BOXNAVWP\)",
     ])
     require_text(root / "src/main/target/MICOAIR743/target.h", [
         r"IMU_BMI088_ALIGN\s+CW270_DEG",

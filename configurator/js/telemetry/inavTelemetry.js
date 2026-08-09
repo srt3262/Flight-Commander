@@ -1,3 +1,5 @@
+import { primaryModeFromActiveModes } from "./primaryFlightMode.js";
+
 const PLATFORM_NAMES = {
   0: "Multirotor",
   1: "Airplane",
@@ -6,25 +8,6 @@ const PLATFORM_NAMES = {
   4: "Rover",
   5: "Boat",
 };
-
-const MODE_PRIORITY = [
-  "FAILSAFE",
-  "NAV RTH",
-  "NAV WP",
-  "WP PLANNER",
-  "NAV LAUNCH",
-  "GCS NAV",
-  "NAV POSHOLD",
-  "NAV CRUISE",
-  "NAV COURSE HOLD",
-  "NAV ALTHOLD",
-  "AUTO TUNE",
-  "MANUAL",
-  "ANGLE",
-  "HORIZON",
-  "HEADING HOLD",
-  "AIR MODE",
-];
 
 function finiteNumber(value) {
   if (value == null || value === "") {
@@ -52,31 +35,63 @@ function scaledNumber(value, divisor) {
   return number === null ? null : number / divisor;
 }
 
-function activeModeNames(fc) {
+function configuredInputModeNames(fc) {
   if (
+    !Array.isArray(fc?.MODE_RANGES) ||
     !Array.isArray(fc?.AUX_CONFIG) ||
-    typeof fc?.isModeEnabled !== "function"
+    !Array.isArray(fc?.AUX_CONFIG_IDS) ||
+    !Array.isArray(fc?.RC?.channels)
   ) {
     return [];
   }
-  return fc.AUX_CONFIG.filter((mode) => {
-    if (typeof mode !== "string") {
-      return false;
+
+  const names = [];
+  for (const modeRange of fc.MODE_RANGES) {
+    const start = finiteNumber(modeRange?.range?.start);
+    const end = finiteNumber(modeRange?.range?.end);
+    const auxChannelIndex = finiteNumber(modeRange?.auxChannelIndex);
+    if (
+      start === null ||
+      end === null ||
+      start >= end ||
+      auxChannelIndex === null ||
+      !Number.isInteger(auxChannelIndex) ||
+      auxChannelIndex < 0
+    ) {
+      continue;
     }
-    try {
-      return Boolean(fc.isModeEnabled(mode));
-    } catch {
-      return false;
+
+    const channelValue = finiteNumber(fc.RC.channels[auxChannelIndex + 4]);
+    if (channelValue === null || channelValue < start || channelValue >= end) {
+      continue;
     }
-  });
+
+    const permanentId = finiteNumber(modeRange?.id);
+    const modeIndex = fc.AUX_CONFIG_IDS.findIndex(
+      (candidate) => Number(candidate) === permanentId,
+    );
+    const mode = fc.AUX_CONFIG[modeIndex];
+    if (typeof mode === "string") names.push(mode);
+  }
+  return names;
 }
 
-function currentModeName(activeModes) {
-  return (
-    MODE_PRIORITY.find((mode) => activeModes.includes(mode)) ??
-    activeModes.find((mode) => !["ARM", "PREARM"].includes(mode)) ??
-    "ACRO"
-  );
+function activeModeNames(fc) {
+  const active = [];
+  if (
+    Array.isArray(fc?.AUX_CONFIG) &&
+    typeof fc?.isModeEnabled === "function"
+  ) {
+    for (const mode of fc.AUX_CONFIG) {
+      if (typeof mode !== "string") continue;
+      try {
+        if (fc.isModeEnabled(mode)) active.push(mode);
+      } catch {
+        // A malformed or unavailable mode bit must not block live telemetry.
+      }
+    }
+  }
+  return [...new Set([...active, ...configuredInputModeNames(fc)])];
 }
 
 function missionCount(missionPlanner) {
@@ -202,7 +217,7 @@ export function normalizeInavTelemetry(fc = {}) {
     autopilotName: "INAV",
     vehicleTypeName: PLATFORM_NAMES[platformType] ?? "Unknown INAV vehicle",
     armed: activeModes.includes("ARM"),
-    modeName: currentModeName(activeModes),
+    modeName: primaryModeFromActiveModes(activeModes),
     latitude: scaledNumber(gps.lat, 1e7),
     longitude: scaledNumber(gps.lon, 1e7),
     relativeAltitude: finiteNumber(sensors.altitude),

@@ -1,4 +1,11 @@
-import { chmod, rm, mkdirSync, existsSync } from 'node:fs';
+import {
+  chmod,
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  rm,
+} from 'node:fs';
 import { app, BrowserWindow, ipcMain, Menu, MenuItem, shell, dialog, session, nativeImage } from 'electron';
 import windowStateKeeper from 'electron-window-state';
 import Store from "electron-store";
@@ -63,6 +70,46 @@ const ntripClient = new NtripClient({
 });
 
 const store = new Store();
+
+const FLIGHT_COMMANDER_BACKUP_DIRECTORY = 'flight-commander-backups';
+const LEGACY_INAV_BACKUP_DIRECTORY = 'inav-backups';
+
+function backupDirectory() {
+  const userDataDirectory = app.getPath('userData');
+  const currentDirectory = path.join(
+    userDataDirectory,
+    FLIGHT_COMMANDER_BACKUP_DIRECTORY,
+  );
+  if (!existsSync(currentDirectory)) {
+    mkdirSync(currentDirectory, { recursive: true });
+  }
+
+  // Preserve access to backups made by older Configurator releases. Copying is
+  // intentionally non-destructive, and recognizable legacy filenames are
+  // presented with Flight Commander branding in the new default directory.
+  const legacyDirectory = path.join(
+    userDataDirectory,
+    LEGACY_INAV_BACKUP_DIRECTORY,
+  );
+  if (existsSync(legacyDirectory)) {
+    try {
+      for (const entry of readdirSync(legacyDirectory, { withFileTypes: true })) {
+        if (!entry.isFile() || !/\.(?:cli|txt)$/i.test(entry.name)) continue;
+        const migratedName = entry.name
+          .replace(/^UPDATE_inav_backup_/, 'UPDATE_flight_commander_backup_')
+          .replace(/^inav_backup_/, 'flight_commander_backup_');
+        const destination = path.join(currentDirectory, migratedName);
+        if (!existsSync(destination)) {
+          copyFileSync(path.join(legacyDirectory, entry.name), destination);
+        }
+      }
+    } catch (error) {
+      console.warn('Legacy backup migration could not be completed:', error);
+    }
+  }
+
+  return currentDirectory;
+}
 
 // Workaround for some Linux systems: https://github.com/electron/electron/issues/32760
 if (store.get('disable_3d_acceleration', false)) {
@@ -505,29 +552,20 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle('getBackupDir', (_event) => {
-    const backupDir = path.join(app.getPath('userData'), 'inav-backups');
-    if (!existsSync(backupDir)) {
-      mkdirSync(backupDir, { recursive: true });
-    }
-    return backupDir;
+    return backupDirectory();
   });
 
   ipcMain.handle('openBackupDir', (_event) => {
-    const backupDir = path.join(app.getPath('userData'), 'inav-backups');
-    if (!existsSync(backupDir)) {
-      mkdirSync(backupDir, { recursive: true });
-    }
+    const backupDir = backupDirectory();
     shell.openPath(backupDir); // fire-and-forget: xdg-open on Linux never exits
     return backupDir;
   });
 
   ipcMain.handle('listBackups', async (_event) => {
-    const backupDir = path.join(app.getPath('userData'), 'inav-backups');
-    if (!existsSync(backupDir)) {
-      return [];
-    }
-    const files = await readdir(backupDir);
-    return files.filter(f => f.endsWith('.txt') || f.endsWith('.cli'));
+    const backupDir = backupDirectory();
+    return readdirSync(backupDir).filter(
+      (file) => file.endsWith('.txt') || file.endsWith('.cli'),
+    );
   });
 
   ipcMain.on('startChildProcess', (_event, command, args, opts) => {

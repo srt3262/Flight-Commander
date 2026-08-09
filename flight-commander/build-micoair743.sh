@@ -65,7 +65,7 @@ cmake -S "${source_root}" -B "${build_dir}" -G Ninja \
     -DFLIGHT_COMMANDER_SOURCE_REVISION="${source_revision}"
 cmake --build "${build_dir}" --target MICOAIR743
 
-hex="${build_dir}/Flight-Commander-Firmware-4.1.6-MICOAIR743.hex"
+hex="${build_dir}/Flight-Commander-Firmware-4.1.7-MICOAIR743.hex"
 python3 "${source_root}/flight-commander/verify-compass-release.py" "${hex}"
 
 echo "Built and verified: ${hex}"

@@ -20,6 +20,13 @@ The header identifies the active Flight Commander transport and vehicle.
 The link, armed state, selected flight mode, and command explanation are always
 visible. Optional firmware identity metadata never disables these paths.
 
+The primary mode indication uses one protocol-independent vocabulary and strict
+priority: **RTH**, **MISSION**, **GPS POS HLD**, **ANGLE/ALT HLD**, **ANGLE**, then
+**ACRO**. Secondary boxes such as MC braking, air mode, heading hold, and GCS NAV
+never replace the selected primary mode. MSP and MAVLink both report the live
+pilot-selected mode even when a missing GPS or another navigation prerequisite
+prevents that mode from engaging yet.
+
 ## Map and HUD
 
 The live map and HUD stay side by side. **Make HUD major** / **Make map major**

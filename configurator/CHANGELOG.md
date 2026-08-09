@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+## 4.1.7
+
+- Normalize the Ground Control primary mode card and HUD to exactly `ACRO`,
+  `ANGLE`, `ANGLE/ALT HLD`, `GPS POS HLD`, `RTH`, or `MISSION` for both MSP and
+  MAVLink connections.
+- Apply strict primary-mode priority so MC braking and every other secondary
+  mode can no longer replace GPS position hold, mission, RTH, or stabilized
+  mode indications.
+- Report the pilot-selected MSP and MAVLink navigation mode before a missing
+  GPS or another navigation prerequisite allows that mode to engage.
+- Rename normal and automatic pre-flash backup filenames, headers, folders,
+  and file-dialog labels from INAV to Flight Commander while retaining
+  non-destructive access to older CLI/TXT backups.
+- Publish matching Configurator and MICOAIR743 Firmware 4.1.7 artifacts.
+
 ## 4.1.6
 
 - Replace sustained MAVLink RC override/AUX command emulation with native

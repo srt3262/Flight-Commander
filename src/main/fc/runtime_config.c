@@ -21,6 +21,7 @@
 #include "platform.h"
 
 #include "common/utils.h"
+#include "fc/rc_modes.h"
 #include "fc/runtime_config.h"
 
 #include "io/beeper.h"
@@ -122,8 +123,45 @@ uint32_t sensorsMask(void)
     return enabledSensors;
 }
 
+#ifdef USE_FLIGHT_COMMANDER_GCS_COMMANDS
+static flightModeForTelemetry_e flightCommanderPrimaryModeForTelemetry(void)
+{
+    const bool rthRequested = FLIGHT_MODE(NAV_RTH_MODE)
+        || isRcModeActiveFromInput(BOXNAVRTH);
+    const bool missionRequested = FLIGHT_MODE(NAV_WP_MODE)
+        || isRcModeActiveFromInput(BOXNAVWP)
+        || isRcModeActiveFromInput(BOXPLANWPMISSION);
+    const bool positionHoldRequested = FLIGHT_MODE(NAV_POSHOLD_MODE)
+        || isRcModeActiveFromInput(BOXNAVPOSHOLD);
+    const bool altitudeHoldRequested = FLIGHT_MODE(NAV_ALTHOLD_MODE)
+        || isRcModeActiveFromInput(BOXNAVALTHOLD);
+    const bool angleRequested = FLIGHT_MODE(ANGLE_MODE)
+        || isRcModeActiveFromInput(BOXANGLE);
+
+    if (rthRequested)
+        return FLM_RTH;
+
+    if (missionRequested)
+        return FLM_MISSION;
+
+    if (positionHoldRequested)
+        return FLM_POSITION_HOLD;
+
+    if (angleRequested && altitudeHoldRequested)
+        return FLM_ALTITUDE_HOLD;
+
+    if (angleRequested)
+        return FLM_ANGLE;
+
+    return FLM_ACRO;
+}
+#endif
+
 flightModeForTelemetry_e getFlightModeForTelemetry(void)
 {
+#ifdef USE_FLIGHT_COMMANDER_GCS_COMMANDS
+    return flightCommanderPrimaryModeForTelemetry();
+#else
     if (FLIGHT_MODE(FAILSAFE_MODE))
         return FLM_FAILSAFE;
 
@@ -161,6 +199,7 @@ flightModeForTelemetry_e getFlightModeForTelemetry(void)
         return FLM_ANGLEHOLD;
 
     return STATE(AIRMODE_ACTIVE) ? FLM_ACRO_AIR : FLM_ACRO;
+#endif
 }
 
 #ifdef USE_SIMULATOR

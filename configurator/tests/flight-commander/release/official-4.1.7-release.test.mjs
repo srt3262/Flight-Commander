@@ -8,14 +8,14 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const packageJson = JSON.parse(readFileSync(resolve(root, "package.json"), "utf8"));
 const publisher = readFileSync(resolve(root, "../.github/workflows/release.yml"), "utf8");
 
-test("4.1.6 coordinates Configurator and Firmware versions", () => {
-  assert.equal(packageJson.version, "4.1.6");
+test("4.1.7 coordinates Configurator and Firmware versions", () => {
+  assert.equal(packageJson.version, "4.1.7");
   assert.equal(packageJson.flightCommander.firmwareChangedInRelease, true);
-  assert.equal(packageJson.flightCommander.firmwareReleaseVersion, "4.1.6");
-  assert.equal(packageJson.flightCommander.firmwareSourceVersion, "4.1.6");
+  assert.equal(packageJson.flightCommander.firmwareReleaseVersion, "4.1.7");
+  assert.equal(packageJson.flightCommander.firmwareSourceVersion, "4.1.7");
 });
 
-test("official publisher creates a verified non-prerelease 4.1.6 bundle", () => {
+test("official publisher creates a verified non-prerelease 4.1.7 bundle", () => {
   assert.match(publisher, /Publish verified release/);
   assert.match(publisher, /gh release create/);
   assert.doesNotMatch(publisher, /gh release delete/);
