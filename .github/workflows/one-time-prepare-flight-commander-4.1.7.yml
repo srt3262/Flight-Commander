@@ -1,0 +1,125 @@
+name: One-time prepare Flight Commander 4.1.7
+
+"on":
+  push:
+    branches:
+      - master
+    paths:
+      - .github/workflows/one-time-prepare-flight-commander-4.1.7.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: one-time-prepare-flight-commander-4.1.7
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Transform, build, and verify Flight Commander 4.1.7
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+
+    steps:
+      - name: Check out master
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: master
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Decode and apply the 4.1.7 transformation
+        shell: bash
+        run: |
+          set -euo pipefail
+          base64 --decode scripts/internal/flight-commander-4.1.7-transform.py.gz.b64 \
+            | gzip --decompress > /tmp/prepare-flight-commander-4.1.7.py
+          echo "43fd64e833fdac992c958be55c223dd4db573ea6ddb5a1f590c8f131a5b01c89  /tmp/prepare-flight-commander-4.1.7.py" \
+            | sha256sum --check --strict
+          python3 -m py_compile /tmp/prepare-flight-commander-4.1.7.py
+          python3 /tmp/prepare-flight-commander-4.1.7.py
+          rm scripts/internal/flight-commander-4.1.7-transform.py.gz.b64
+
+      - name: Install Arm GNU toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          toolchain_dir="$(bash flight-commander/install-toolchain.sh)"
+          test -x "$toolchain_dir/arm-none-eabi-gcc"
+          echo "$toolchain_dir" >> "$GITHUB_PATH"
+
+      - name: Build firmware and refresh deterministic release metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf "$RUNNER_TEMP/flight-commander-4.1.7" "$RUNNER_TEMP/flight-commander-build-4.1.7"
+          python3 flight-commander/package-release.py \
+            --output "$RUNNER_TEMP/flight-commander-4.1.7" \
+            --build-dir "$RUNNER_TEMP/flight-commander-build-4.1.7" \
+            --refresh-manifest
+
+      - name: Apply built firmware identities to the Configurator package
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          import json
+          from pathlib import Path
+
+          metadata = json.loads(
+              (Path("${{ runner.temp }}") / "flight-commander-4.1.7/firmware-release-metadata.json")
+              .read_text(encoding="utf-8")
+          )
+          package_path = Path("configurator/package.json")
+          package = json.loads(package_path.read_text(encoding="utf-8"))
+          flight_commander = package["flightCommander"]
+          flight_commander["firmwareReleaseSha256"] = metadata["firmware"]["sha256"]
+          flight_commander["firmwareSourceSha256"] = metadata["source"]["sha256"]
+          flight_commander["firmwareSourceRevision"] = metadata["source"]["revision"]
+          flight_commander["firmwareSourceTree"] = metadata["source"]["tree"]
+          package_path.write_text(json.dumps(package, indent=2) + "\n", encoding="utf-8")
+          PY
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: yarn
+          cache-dependency-path: configurator/yarn.lock
+
+      - name: Install Configurator dependencies and run all tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          corepack enable
+          corepack prepare yarn@1.22.22 --activate
+          cd configurator
+          yarn install --frozen-lockfile --non-interactive
+          yarn test
+
+      - name: Rebuild firmware without refresh and compare metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf "$RUNNER_TEMP/flight-commander-4.1.7-rebuild" "$RUNNER_TEMP/flight-commander-build-4.1.7-rebuild"
+          python3 flight-commander/package-release.py \
+            --output "$RUNNER_TEMP/flight-commander-4.1.7-rebuild" \
+            --build-dir "$RUNNER_TEMP/flight-commander-build-4.1.7-rebuild"
+          cmp \
+            "$RUNNER_TEMP/flight-commander-4.1.7/firmware-release-metadata.json" \
+            "$RUNNER_TEMP/flight-commander-4.1.7-rebuild/firmware-release-metadata.json"
+
+      - name: Commit the tested 4.1.7 preparation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "The 4.1.7 transformation produced no source changes."
+            exit 1
+          fi
+          git commit -m "Prepare Flight Commander 4.1.7 mode reporting and backup branding"
+          git push origin HEAD:master
