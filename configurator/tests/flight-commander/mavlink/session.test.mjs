@@ -6,6 +6,7 @@ import {
   FIRMWARE_FAMILY_INAV,
   MAV_CMD_REQUEST_AUTOPILOT_CAPABILITIES,
   MAV_CMD_REQUEST_MESSAGE,
+  MAV_MODE_FLAG_GUIDED_ENABLED,
   MAV_MODE_FLAG_SAFETY_ARMED,
   MavlinkSession,
 } from "../../../js/mavlink/mavlinkSession.js";
@@ -304,7 +305,8 @@ describe("MAVLink state normalization and firmware detection", () => {
     session.handleMessage(
       heartbeat({
         customMode: 5,
-        baseMode: MAV_MODE_FLAG_SAFETY_ARMED,
+        baseMode:
+          MAV_MODE_FLAG_SAFETY_ARMED | MAV_MODE_FLAG_GUIDED_ENABLED,
       }),
     );
     session.handleMessage({
@@ -360,6 +362,7 @@ describe("MAVLink state normalization and firmware detection", () => {
     assert.equal(state.protocolVersion, 2);
     assert.equal(state.systemId, 1);
     assert.equal(state.armed, true);
+    assert.equal(state.gcsNavEnabled, true);
     assert.equal(state.modeName, "LOITER");
     assert.equal(state.latitude, 35);
     assert.equal(state.longitude, -78);

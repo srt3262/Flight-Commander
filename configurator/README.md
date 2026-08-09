@@ -103,9 +103,9 @@ cable directly to the external TX module when using the serial method.
 
 Ground Control opens immediately after the COM port is ready and reports that
 it is waiting for a vehicle heartbeat. The heartbeat establishes the active
-aircraft link. Commands may still require one aircraft-specific wired profile
-because its AUX ranges and RC mapping are operational inputs, not firmware
-identity proof.
+aircraft link and reports the physical **GCS NAV** authorization mode. Commands
+use native MAVLink acknowledgements and do not require a cached AUX/RC profile;
+the controls and firmware both reject commands whenever GCS NAV is off.
 
 ## Documentation and support
 

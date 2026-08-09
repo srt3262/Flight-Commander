@@ -550,7 +550,7 @@ flightData.bindControls = function () {
     'Changing flight mode',
     () => mavlinkCommandRouter.setMode(String($('#flightDataMode').val())),
     'Flight mode change confirmed by the vehicle.',
-    'The selected Flight Commander AUX flight-mode request is now being transmitted continuously.',
+    'The native Flight Commander mode request was accepted. Verify the displayed vehicle mode.',
   ));
 
   $('#flightDataArm').on('click', () => {
@@ -559,7 +559,7 @@ flightData.bindControls = function () {
       arm ? 'Sending arm command' : 'Sending disarm command',
       () => mavlinkCommandRouter.setArmed(arm),
       `${arm ? 'Armed' : 'Disarmed'} state confirmed by the vehicle.`,
-      `${arm ? 'Arm' : 'Disarm'} AUX request is now being transmitted continuously.`,
+      `The native ${arm ? 'arm' : 'disarm'} request was accepted. Verify the displayed vehicle state.`,
     );
   });
 
@@ -567,7 +567,7 @@ flightData.bindControls = function () {
     'Starting the stored mission',
     () => mavlinkCommandRouter.startMission(),
     'Mission start confirmed or accepted by the vehicle.',
-    'The Flight Commander NAV WP AUX request is now being transmitted continuously.',
+    'The native mission-start request was accepted. Verify the displayed vehicle mode.',
   ));
   $('#flightDataAbortMission').on('click', () => this.abortActiveMission());
   $('#flightDataTakeoff').on('click', () => this.runVehicleAction(
@@ -580,19 +580,19 @@ flightData.bindControls = function () {
       return mavlinkCommandRouter.takeoff(altitudeM);
     },
     'Takeoff / launch confirmed or accepted by the vehicle.',
-    'The Flight Commander NAV LAUNCH AUX request is now being transmitted continuously.',
+    'The native takeoff / launch request was accepted. Verify the displayed vehicle mode.',
   ));
   $('#flightDataRtl').on('click', () => this.runVehicleAction(
     'Commanding return to launch',
     () => mavlinkCommandRouter.returnToLaunch(),
     'Return-to-launch mode confirmed by the vehicle.',
-    'The Flight Commander NAV RTH AUX request is now being transmitted continuously.',
+    'The native return-to-launch request was accepted. Verify the displayed vehicle mode.',
   ));
   $('#flightDataLand').on('click', () => this.runVehicleAction(
     'Commanding land',
     () => mavlinkCommandRouter.land(),
     'Landing mode confirmed by the vehicle.',
-    'The landing request is now being transmitted continuously.',
+    'The native landing request was accepted. Verify the displayed vehicle mode.',
   ));
   $('#flightDataResumeMission').on('click', () => this.resumeInterruptedMission());
   $('#flightDataClearResume').on('click', () => {
@@ -630,7 +630,7 @@ flightData.abortActiveMission = async function () {
     'Aborting the active mission',
     () => mavlinkCommandRouter.abortMission(),
     `Mission abort confirmed; the aircraft entered ${safeMode}.`,
-    `The ${safeMode} request is being transmitted. Verify the displayed mode and aircraft response.`,
+    `The native ${safeMode} request was accepted. Verify the displayed mode and aircraft response.`,
   );
 };
 
@@ -656,7 +656,7 @@ flightData.runVehicleAction = async function (
     const result = await action();
     this.setActionStatus(
       result?.confirmed === false
-        ? `${unconfirmedMessage ?? 'The Flight Commander AUX request is being transmitted.'} ${result.warning ?? 'Verify the displayed mode and aircraft response.'}`
+        ? `${unconfirmedMessage ?? 'The native Flight Commander command was accepted.'} ${result.warning ?? 'Verify the displayed mode and aircraft response.'}`
         : successMessage,
     );
   } catch (error) {
@@ -818,8 +818,13 @@ flightData.updateActionAvailability = function (state) {
   $('#flightDataMode, #flightDataSetMode').prop(
     'disabled',
     !linkReady || !capabilities.canSetMode,
+  ).attr(
+    'title',
+    linkReady && capabilities.canSetMode ? '' : capabilities.reason,
   );
-  $('#flightDataArm').prop('disabled', !linkReady || !capabilities.canArm);
+  $('#flightDataArm')
+    .prop('disabled', !linkReady || !capabilities.canArm)
+    .attr('title', linkReady && capabilities.canArm ? '' : capabilities.reason);
   $('#flightDataTakeoff').prop('disabled', !linkReady || !capabilities.canTakeoff);
   $('#flightDataTakeoffAltitude')
     .prop('disabled', !linkReady || !capabilities.canTakeoff)

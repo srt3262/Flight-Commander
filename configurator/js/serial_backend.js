@@ -26,10 +26,7 @@ import ltmDecoder from './ltmDecoder';
 import mspDeduplicationQueue from './msp/mspDeduplicationQueue';
 import store from './store';
 import mavlinkSession from './mavlink/mavlinkSession';
-import {
-    inavMavlinkProfileStore,
-    mavlinkCommandRouter,
-} from './gcs/mavlinkCommandRouterInstance';
+import { mavlinkCommandRouter } from './gcs/mavlinkCommandRouterInstance';
 import cliTab from '../tabs/cli';
 import javascriptProgrammingTab from '../tabs/javascript_programming';
 import {
@@ -1432,17 +1429,6 @@ var SerialBackend = (function () {
         MSP.send_message(MSPCodes.MSP_BOXIDS, false, false, function () {
             FC.generateAuxConfig();
         });
-
-        inavMavlinkProfileStore.captureFromMsp()
-            .then(function (profile) {
-                GUI.log(
-                    `Flight Commander MAVLink command profile saved for system ${profile.systemId}` +
-                    `${profile.name ? ` (${profile.name})` : ''}.`,
-                );
-            })
-            .catch(function (error) {
-                GUI.log(`Flight Commander MAVLink command profile was not saved: ${error.message}`);
-            });
 
         MSP.send_message(MSPCodes.MSP_DATAFLASH_SUMMARY, false, false, function () {
             $('#sensor-status').show();

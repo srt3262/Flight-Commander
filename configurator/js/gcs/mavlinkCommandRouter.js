@@ -1,11 +1,5 @@
 "use strict";
 
-import { bindHostTimer } from "../mavlink/hostTimers.js";
-import {
-  FLIGHT_COMMANDER_CAPABILITIES,
-  FLIGHT_COMMANDER_KNOWN_CAPABILITY_MASK,
-} from "../flightCommander/firmwareIdentity.js";
-
 export const INAV_MODE_IDS = Object.freeze({
   ARM: 0,
   ANGLE: 1,
@@ -22,17 +16,22 @@ export const INAV_MODE_IDS = Object.freeze({
   "NAV LAUNCH": 36,
   "NAV COURSE HOLD": 45,
   "MSP RC OVERRIDE": 50,
+  "NAV CRUISE": 53,
 });
 
-const MODE_NAMES_BY_ID = new Map(
-  Object.entries(INAV_MODE_IDS).map(([name, id]) => [id, name]),
-);
 const COMMAND_TIMEOUT_MS = 6000;
-const OVERRIDE_INTERVAL_MS = 125;
-const MAVLINK_V1_CHANNEL_COUNT = 8;
-const MAVLINK_V2_CHANNEL_COUNT = 18;
-const SAFE_LOW_PWM = 1000;
-const SAFE_NEUTRAL_PWM = 1500;
+const MAV_CMD_NAV_RETURN_TO_LAUNCH = 20;
+const MAV_CMD_NAV_LAND = 21;
+const MAV_CMD_NAV_TAKEOFF = 22;
+const MAV_CMD_DO_SET_MODE = 176;
+const MAV_CMD_DO_PAUSE_CONTINUE = 193;
+const MAV_CMD_MISSION_START = 300;
+const MAV_CMD_COMPONENT_ARM_DISARM = 400;
+const MAV_MODE_FLAG_CUSTOM_MODE_ENABLED = 1;
+const MAV_MODE_FLAG_GUIDED_ENABLED = 8;
+const GCS_NAV_DISABLED_REASON =
+  "Enable the pilot-controlled GCS NAV mode to authorize Flight Commander commands.";
+
 const MODE_CONFIRMATIONS = Object.freeze({
   ANGLE: ["STABILIZE", "FLY_BY_WIRE_A"],
   HORIZON: ["STABILIZE"],
@@ -41,14 +40,8 @@ const MODE_CONFIRMATIONS = Object.freeze({
   "NAV RTH": ["RTL", "QRTL", "SMART_RTL"],
   MANUAL: ["MANUAL"],
   "NAV WP": ["AUTO"],
-  "GCS NAV": ["GUIDED"],
   "NAV LAUNCH": ["TAKEOFF", "THROW"],
 });
-const MISSION_RESUME_ABORT_MODES = Object.freeze(["NAV RTH", "NAV POSHOLD"]);
-const MISSION_ABORT_MODES = Object.freeze(["NAV POSHOLD", "NAV RTH"]);
-const PROFILE_SCHEMA_VERSION = 1;
-const PROFILE_STORAGE_KEY = "flightCommander.inavMavlinkProfiles.v1";
-const MSP_TIMEOUT_MS = 5000;
 
 const UNAVAILABLE_CAPABILITIES = Object.freeze({
   canArm: false,
@@ -70,6 +63,9 @@ const UNAVAILABLE_CAPABILITIES = Object.freeze({
   missionHoldReason: "Mission hold is unavailable.",
   missionAbortMode: null,
   missionAbortReason: "Mission abort is unavailable.",
+  missionResumeAbortMode: null,
+  missionResumeAbortReason: "Mission-resume abort is unavailable.",
+  missionResumeReason: "Mission resume is unavailable.",
 });
 
 export const MISSION_INTERRUPTION_ACTIONS = Object.freeze({
@@ -77,6 +73,21 @@ export const MISSION_INTERRUPTION_ACTIONS = Object.freeze({
   RTL: "rtl",
   LAND: "land",
 });
+
+const NATIVE_COMMON_MODES = Object.freeze([
+  "ANGLE",
+  "HORIZON",
+  "NAV ALTHOLD",
+  "NAV POSHOLD",
+  "NAV RTH",
+  "NAV WP",
+]);
+const NATIVE_PLANE_MODES = Object.freeze([
+  "MANUAL",
+  ...NATIVE_COMMON_MODES,
+  "NAV LAUNCH",
+]);
+const PLANE_VEHICLE_TYPES = new Set([1, 19, 20, 21]);
 
 export function normalizedName(value) {
   const candidate =
@@ -86,116 +97,6 @@ export function normalizedName(value) {
   return String(candidate ?? "")
     .trim()
     .toUpperCase();
-}
-
-function integerOrNull(value) {
-  const number = Number(value);
-  return Number.isInteger(number) ? number : null;
-}
-
-export { FLIGHT_COMMANDER_KNOWN_CAPABILITY_MASK };
-
-export function resolveCachedFlightCommanderIdentity(profileStore, state = {}) {
-  // Firmware 4.0.8 predates the MAVLink AUTOPILOT_VERSION FCFW payload.
-  // Accept only one controller-matched profile that was captured through
-  // Flight Commander's wired MSP setup path. Signed MAVLink identity remains
-  // authoritative and will replace this fallback when present.
-  if (Number(state.autopilot) !== 0 || state.systemId == null) return null;
-  const resolution = profileStore?.resolve?.(state.systemId);
-  if (resolution?.status !== "resolved" || !resolution.profile) return null;
-  const profile = resolution.profile;
-  const family = String(profile.firmwareFamily ?? "").trim().toLowerCase();
-  if (family && family !== "flight-commander") return null;
-  const board = String(profile.boardIdentifier ?? "")
-    .trim()
-    .replace(/[\s_-]/g, "")
-    .toUpperCase();
-  if (board !== "MICOAIR743" && board !== "MICROAIR743") return null;
-
-  const recordedCapabilities = Number(profile.flightCommanderCapabilities);
-  const capabilities =
-    Number.isInteger(recordedCapabilities) &&
-    recordedCapabilities >= 0 &&
-    recordedCapabilities <= 0xffffffff
-      ? recordedCapabilities >>> 0
-      : FLIGHT_COMMANDER_KNOWN_CAPABILITY_MASK;
-  return Object.freeze({
-    capabilities,
-    source: family === "flight-commander"
-      ? "cached-fcfw-profile"
-      : "legacy-msp-profile",
-    profileId: profile.profileId ?? null,
-    firmwareVersion: profile.flightCommanderFirmwareVersion ?? "4.0.8",
-  });
-}
-
-export function rangeIsConfigured(range) {
-  return Number(range?.range?.end) > Number(range?.range?.start);
-}
-
-export function configuredModeRanges(ranges = []) {
-  return ranges.filter(rangeIsConfigured).map((range) => ({
-    ...range,
-    name:
-      normalizedName(range.name) ||
-      MODE_NAMES_BY_ID.get(Number(range.id)) ||
-      `MODE ${range.id}`,
-    rcChannelIndex: Number.isInteger(Number(range.rcChannelIndex))
-      ? Number(range.rcChannelIndex)
-      : 4 + Number(range.auxChannelIndex),
-  }));
-}
-
-export function modeRangeForName(ranges, name) {
-  const wanted = normalizedName(name);
-  return (
-    configuredModeRanges(ranges).find((range) => range.name === wanted) ?? null
-  );
-}
-
-export function activationValue(range) {
-  return Math.round((Number(range.range.start) + Number(range.range.end)) / 2);
-}
-
-export function valueActivatesRange(value, range) {
-  return value >= Number(range.range.start) && value < Number(range.range.end);
-}
-
-export function inactiveValueForChannel(ranges, channelIndex) {
-  const channelRanges = configuredModeRanges(ranges).filter(
-    (range) => range.rcChannelIndex === channelIndex,
-  );
-  return (
-    [1000, 1500, 2000, 900, 2100].find((value) =>
-      channelRanges.every((range) => !valueActivatesRange(value, range)),
-    ) ?? 1000
-  );
-}
-
-function settingValueName(setting) {
-  const value = Number(setting?.value);
-  return setting?.setting?.table?.values?.[value] ?? "";
-}
-
-export function buildRcOverrideFrame(
-  baseChannels,
-  overrides,
-  channelCount = 8,
-) {
-  const highestOverride = Math.max(-1, ...overrides.keys());
-  const count = Math.max(
-    channelCount,
-    baseChannels.length,
-    highestOverride + 1,
-  );
-  const frame = Array.from({ length: count }, (_unused, index) => {
-    const value = Number(baseChannels[index]);
-    return Number.isFinite(value) && value >= 750 && value <= 2250
-      ? value
-      : SAFE_NEUTRAL_PWM;
-  });
-  for (const [index, value] of overrides) frame[index] = value;
-  return frame;
 }
 
 function stateCopy(session) {
@@ -220,938 +121,325 @@ function normalizeSetModeArguments(active, options) {
       };
 }
 
-export class InavMavlinkCommandAdapter {
-  constructor(session, profile, options = {}) {
-    if (!session?.state || typeof session.send !== "function") {
+export class FlightCommanderMavlinkCommandAdapter {
+  constructor(session) {
+    if (
+      !session?.state ||
+      typeof session.sendCommandLong !== "function" ||
+      typeof session.waitForState !== "function"
+    ) {
       throw new Error(
-        "An active MAVLink session is required for Flight Commander commands.",
+        "An active MAVLink command session is required for Flight Commander commands.",
       );
     }
     this.session = session;
-    this.profile = profile ?? {};
-    this.modeOverrides = new Map();
-    this.armOverrides = new Map();
-    this.activeModeName = null;
-    this.commandStreamEnabled = false;
-    this.overrideTimer = null;
-    this.sendInFlight = null;
-    this.intervalMs = options.intervalMs ?? OVERRIDE_INTERVAL_MS;
-    this.setIntervalFn =
-      options.setIntervalFn ?? bindHostTimer("setInterval");
-    this.clearIntervalFn =
-      options.clearIntervalFn ?? bindHostTimer("clearInterval");
   }
 
-  stop() {
-    if (this.overrideTimer != null) this.clearIntervalFn(this.overrideTimer);
-    this.overrideTimer = null;
-    this.modeOverrides.clear();
-    this.armOverrides.clear();
-    this.activeModeName = null;
-    this.commandStreamEnabled = false;
-  }
+  stop() {}
 
-  profileCapability() {
-    const profileSystemId = integerOrNull(this.profile.systemId);
-    const connectedSystemId = integerOrNull(this.session.state.systemId);
-    if (
-      profileSystemId == null ||
-      connectedSystemId == null ||
-      profileSystemId !== connectedSystemId
-    ) {
-      return {
-        available: false,
-        reason: `The cached Flight Commander command profile does not match MAVLink system ID ${this.session.state.systemId ?? "unknown"}.`,
-      };
-    }
-    if (normalizedName(this.profile.receiverType) !== "SERIAL") {
-      return {
-        available: false,
-        reason:
-          "Flight Commander receiver_type must be SERIAL for MAVLink RC command control.",
-      };
-    }
-    if (normalizedName(this.profile.serialRxProvider) !== "MAVLINK") {
-      return {
-        available: false,
-        reason:
-          "Flight Commander serialrx_provider must be MAVLINK for MAVLink RC command control.",
-      };
-    }
-
-    const mappedChannels = new Set();
-    for (let logical = 0; logical < MAVLINK_V2_CHANNEL_COUNT; logical += 1) {
-      const raw = this.rawChannelIndex(logical);
-      if (mappedChannels.has(raw)) {
-        return {
-          available: false,
-          reason:
-            "The cached Flight Commander RC map contains duplicate channels and cannot be used safely.",
-        };
-      }
-      mappedChannels.add(raw);
-    }
-    const auxChannels = new Set(
-      configuredModeRanges(this.profile.modeRanges ?? []).map(
-        ({ rcChannelIndex }) => Number(rcChannelIndex),
-      ),
-    );
-    for (const channel of auxChannels) {
-      if (this.safeInactiveValue(channel) == null) {
-        return {
-          available: false,
-          reason: `RC channel ${channel + 1} has no PWM value outside its configured Flight Commander AUX ranges.`,
-        };
-      }
-    }
-    return { available: true, reason: "" };
-  }
-
-  rawChannelIndex(logicalIndex) {
-    const mapped = integerOrNull(this.profile.rcMap?.[logicalIndex]);
-    return mapped != null && mapped >= 0 && mapped < MAVLINK_V2_CHANNEL_COUNT
-      ? mapped
-      : logicalIndex;
-  }
-
-  effectiveProtocolVersion() {
-    return (
-      integerOrNull(this.session.state.protocolVersion) ??
-      integerOrNull(this.profile.mavlinkVersion) ??
-      2
+  gcsNavEnabled() {
+    return Boolean(
+      this.session.state.gcsNavEnabled ??
+        (Number(this.session.state.baseMode) & MAV_MODE_FLAG_GUIDED_ENABLED),
     );
   }
 
-  confirmationNames(modeName) {
-    const profileNames = this.profile.modeConfirmations?.[modeName];
-    return (
-      (Array.isArray(profileNames)
-        ? profileNames
-        : MODE_CONFIRMATIONS[modeName]) ?? []
-    )
-      .map(normalizedName)
-      .filter(Boolean);
+  isPlane() {
+    return PLANE_VEHICLE_TYPES.has(Number(this.session.state.vehicleType));
   }
 
-  confirmationCapability(modeName, confirmationNames) {
-    if (!confirmationNames.length) {
-      return {
-        confirmable: false,
-        reason: `${modeName} can be sent by MAVLink RC override, but Flight Commander heartbeat telemetry cannot uniquely confirm that mode.`,
-      };
+  assertAuthorized() {
+    if (!this.gcsNavEnabled()) {
+      const error = new Error(GCS_NAV_DISABLED_REASON);
+      error.code = "FLIGHT_COMMANDER_GCS_NAV_DISABLED";
+      throw error;
     }
-    const wanted = new Set(confirmationNames);
-    const collision = configuredModeRanges(this.profile.modeRanges ?? [])
-      .map(({ name }) => normalizedName(name))
-      .filter((name) => name && name !== modeName)
-      .flatMap((name) => this.confirmationNames(name))
-      .find((name) => wanted.has(name));
-    return collision
-      ? {
-          confirmable: false,
-          reason: `${modeName} is being transmitted, but Flight Commander heartbeat mode ${collision} also represents another configured AUX mode and cannot uniquely confirm this selection.`,
-        }
-      : { confirmable: true, reason: "" };
+  }
+
+  availableModes() {
+    return [...(this.isPlane() ? NATIVE_PLANE_MODES : NATIVE_COMMON_MODES)];
   }
 
   capabilityForMode(mode) {
     const name = normalizedName(mode);
-    const profileCapability = this.profileCapability();
-    if (!profileCapability.available) return profileCapability;
-    const range = modeRangeForName(this.profile.modeRanges ?? [], name);
-    if (!range) {
+    if (!this.availableModes().includes(name)) {
       return {
         available: false,
-        reason: `${name} has no configured AUX range in the cached Flight Commander command profile.`,
+        reason: `${name || "The requested mode"} is not exposed as a native Flight Commander mode command for this vehicle.`,
       };
     }
-
-    const activation = activationValue(range);
-    const overlapping = configuredModeRanges(this.profile.modeRanges ?? [])
-      .filter(
-        (candidate) =>
-          normalizedName(candidate.name) !== name &&
-          Number(candidate.rcChannelIndex) === Number(range.rcChannelIndex) &&
-          valueActivatesRange(activation, candidate),
-      )
-      .map(({ name: candidateName }) => normalizedName(candidateName));
-    if (overlapping.length) {
-      return {
-        available: false,
-        reason: `${name} overlaps ${overlapping.join(", ")} on RC channel ${range.rcChannelIndex + 1}; Flight Commander will not assert multiple unintended AUX modes.`,
-      };
+    if (!this.gcsNavEnabled()) {
+      return { available: false, reason: GCS_NAV_DISABLED_REASON };
     }
-
-    const rawChannelIndex = this.rawChannelIndex(range.rcChannelIndex);
-    if (
-      this.effectiveProtocolVersion() === 1 &&
-      rawChannelIndex >= MAVLINK_V1_CHANNEL_COUNT
-    ) {
-      return {
-        available: false,
-        reason: `${name} uses RC channel ${rawChannelIndex + 1}, but MAVLink 1 RC override carries only channels 1 through 8. Configure MAVLink 2 or move the AUX range.`,
-      };
-    }
-    const confirmationNames =
-      name === "ARM" ? ["ARMED"] : this.confirmationNames(name);
-    const confirmation =
-      name === "ARM"
-        ? { confirmable: true, reason: "" }
-        : this.confirmationCapability(name, confirmationNames);
     return {
       available: true,
-      confirmable: confirmation.confirmable,
-      confirmationNames,
-      modeRange: range,
-      rawChannelIndex,
-      reason: confirmation.reason,
-    };
-  }
-
-  availableModes() {
-    const hidden = new Set(["ARM", "MSP RC OVERRIDE"]);
-    return [
-      ...new Set(
-        (this.profile.modeRanges ?? [])
-          .map(
-            ({ name, id }) =>
-              normalizedName(name) || MODE_NAMES_BY_ID.get(Number(id)),
-          )
-          .filter((name) => name && !hidden.has(name))
-          .filter((name) => this.capabilityForMode(name).available),
-      ),
-    ];
-  }
-
-  missionResumeAbortCapability() {
-    const candidates = MISSION_RESUME_ABORT_MODES.map((modeName) => ({
-      modeName,
-      capability: this.capabilityForMode(modeName),
-    }));
-    const selected = candidates.find(
-      ({ capability }) => capability.available && capability.confirmable,
-    );
-    if (selected) {
-      return {
-        available: true,
-        modeName: selected.modeName,
-        capability: selected.capability,
-        reason:
-          selected.modeName === "NAV RTH"
-            ? "A failed Flight Commander mission resume can be replaced with configured NAV RTH and confirmed from heartbeat telemetry."
-            : "Configured NAV RTH cannot be confirmed; a failed Flight Commander mission resume can be replaced with NAV POSHOLD and confirmed from heartbeat telemetry.",
-      };
-    }
-    return {
-      available: false,
-      modeName: null,
-      capability: null,
+      confirmable: true,
+      confirmationNames: MODE_CONFIRMATIONS[name] ?? [],
       reason:
-        "Flight Commander cannot safely abort a mission resume because no " +
-        "configured non-mission AUX mode has unique heartbeat confirmation. " +
-        candidates
-          .map(
-            ({ modeName, capability }) => `${modeName}: ${capability.reason}`,
-          )
-          .join(" "),
-    };
-  }
-
-  missionAbortCapability() {
-    const candidates = MISSION_ABORT_MODES.map((modeName) => ({
-      modeName,
-      capability: this.capabilityForMode(modeName),
-    }));
-    const selected = candidates.find(
-      ({ capability }) => capability.available && capability.confirmable,
-    );
-    if (selected) {
-      return {
-        available: true,
-        modeName: selected.modeName,
-        capability: selected.capability,
-        reason:
-          selected.modeName === "NAV POSHOLD"
-            ? "Abort Mission exits AUTO into the configured, heartbeat-confirmed NAV POSHOLD mode."
-            : "NAV POSHOLD is unavailable; Abort Mission exits AUTO into configured, heartbeat-confirmed NAV RTH.",
-      };
-    }
-    return {
-      available: false,
-      modeName: null,
-      capability: null,
-      reason:
-        "Flight Commander cannot safely abort a mission because no configured " +
-        "hold or return-home AUX mode has unique heartbeat confirmation. " +
-        candidates
-          .map(
-            ({ modeName, capability }) => `${modeName}: ${capability.reason}`,
-          )
-          .join(" "),
+        "Native MAVLink command; GCS NAV remains the pilot authorization gate.",
     };
   }
 
   capabilities() {
-    const arm = this.capabilityForMode("ARM");
-    const mission = this.capabilityForMode("NAV WP");
-    const hold = this.capabilityForMode("NAV POSHOLD");
-    const rtl = this.capabilityForMode("NAV RTH");
-    const takeoff = this.capabilityForMode("NAV LAUNCH");
-    const abort = this.missionResumeAbortCapability();
-    const missionAbort = this.missionAbortCapability();
-    const configured = (this.profile.modeRanges ?? []).map(({ name, id }) =>
-      this.capabilityForMode(
-        normalizedName(name) || MODE_NAMES_BY_ID.get(Number(id)),
-      ),
-    );
-    const firstUnavailable = [
-      arm,
-      mission,
-      hold,
-      rtl,
-      takeoff,
-      ...configured,
-    ].find(({ available }) => !available);
+    if (!this.gcsNavEnabled()) {
+      return {
+        ...UNAVAILABLE_CAPABILITIES,
+        takeoffReason: GCS_NAV_DISABLED_REASON,
+        rtlReason: GCS_NAV_DISABLED_REASON,
+        landReason: GCS_NAV_DISABLED_REASON,
+        missionHoldReason: GCS_NAV_DISABLED_REASON,
+        missionAbortReason: GCS_NAV_DISABLED_REASON,
+        missionResumeAbortReason: GCS_NAV_DISABLED_REASON,
+        missionResumeReason: GCS_NAV_DISABLED_REASON,
+        reason: GCS_NAV_DISABLED_REASON,
+      };
+    }
+
+    const armed = Boolean(this.session.state.armed);
+    const takeoffSupported = this.isPlane();
+    const takeoffReady = takeoffSupported && !armed;
+    const activeFlightReason = armed
+      ? ""
+      : "Arm the aircraft before sending this in-flight command.";
+    const takeoffReason = !takeoffSupported
+      ? "Flight Commander does not synthesize multirotor auto-takeoff; use a pilot-controlled takeoff."
+      : armed
+        ? "Select native NAV LAUNCH before arming a fixed-wing aircraft."
+        : "Native NAV LAUNCH will be staged before normal fixed-wing arming checks.";
+
     return {
-      canArm: arm.available,
-      canSetMode: configured.some(({ available }) => available),
-      canStartMission: mission.available,
-      canAbortMission: missionAbort.available,
-      canResumeMission: mission.available && mission.confirmable,
-      canAbortMissionResume: abort.available,
-      canSetMissionCurrent: false,
-      canHoldMission: hold.available,
-      canPauseMission: hold.available,
-      canTakeoff: takeoff.available,
-      canRtl: rtl.available,
-      canLand: false,
-      takeoffReason: takeoff.available
-        ? "Launch / Takeoff uses the configured Flight Commander NAV LAUNCH AUX range."
-        : takeoff.reason,
-      rtlReason: rtl.available
-        ? "Return Home uses the configured Flight Commander NAV RTH AUX range."
-        : rtl.reason,
-      landReason:
-        "The current Flight Commander Firmware does not expose a separately confirmable generic Land command. Use Return Home or a configured landing mission.",
-      missionHoldMode: hold.available ? "NAV POSHOLD" : null,
-      missionHoldReason: hold.available
-        ? "Mission hold uses the configured Flight Commander NAV POSHOLD AUX range."
-        : hold.reason,
-      missionResumeAbortMode: abort.modeName,
-      missionResumeAbortReason: abort.reason,
-      missionAbortMode: missionAbort.modeName,
-      missionAbortReason: missionAbort.reason,
+      canArm: true,
+      canSetMode: true,
+      canStartMission: true,
+      canAbortMission: armed,
+      canAbortMissionResume: armed,
+      canSetMissionCurrent: true,
+      canResumeMission: true,
+      canHoldMission: armed,
+      canPauseMission: armed,
+      canTakeoff: takeoffReady,
+      canRtl: armed,
+      canLand: armed,
+      takeoffReason,
+      rtlReason: armed
+        ? "Native return-to-launch command authorized by GCS NAV."
+        : activeFlightReason,
+      landReason: armed
+        ? "Native emergency landing command authorized by GCS NAV."
+        : activeFlightReason,
+      missionHoldMode: armed ? "NAV POSHOLD" : null,
+      missionHoldReason: armed
+        ? "Native mission pause enters NAV POSHOLD/loiter."
+        : activeFlightReason,
+      missionResumeAbortMode: armed ? "NAV RTH" : null,
+      missionResumeAbortReason: armed
+        ? "A failed resume is replaced with native return-to-launch."
+        : activeFlightReason,
+      missionAbortMode: armed ? "NAV POSHOLD" : null,
+      missionAbortReason: armed
+        ? "Abort Mission sends native pause and confirms a safe hold mode."
+        : activeFlightReason,
       missionResumeReason:
-        mission.available && mission.confirmable
-          ? "NAV WP can be selected and uniquely confirmed from heartbeat telemetry."
-          : mission.reason,
+        "The mission item and native mission-start request can be staged before arming.",
       reason:
-        firstUnavailable?.reason ??
-        "Flight Commander commands use a safe receiver baseline plus sustained MAVLink RC_CHANNELS_OVERRIDE frames.",
+        "GCS NAV is enabled. Commands use native MAVLink acknowledgements.",
     };
   }
 
-  safeInactiveValue(channelIndex) {
-    const channelRanges = configuredModeRanges(
-      this.profile.modeRanges ?? [],
-    ).filter(({ rcChannelIndex }) => Number(rcChannelIndex) === channelIndex);
-    if (!channelRanges.length) return SAFE_LOW_PWM;
-    const value = inactiveValueForChannel(
-      this.profile.modeRanges ?? [],
-      channelIndex,
+  async sendNativeCommand(command, parameters = {}, options = {}) {
+    this.assertAuthorized();
+    try {
+      return await this.session.sendCommandLong(command, parameters, {
+        timeoutMs: options.timeoutMs ?? COMMAND_TIMEOUT_MS,
+      });
+    } catch (cause) {
+      if (cause?.commandResult === 2) {
+        const error = new Error(
+          "Flight Commander denied the command. Keep GCS NAV enabled and verify the vehicle's arming and flight-safety conditions.",
+        );
+        error.code = "FLIGHT_COMMANDER_COMMAND_DENIED";
+        error.cause = cause;
+        throw error;
+      }
+      throw cause;
+    }
+  }
+
+  async waitForMode(modeName, options = {}) {
+    const confirmations = new Set(
+      (MODE_CONFIRMATIONS[modeName] ?? []).map(normalizedName),
     );
-    return channelRanges.every((range) => !valueActivatesRange(value, range))
-      ? value
-      : null;
-  }
-
-  safeLogicalChannels() {
-    const channels = new Array(MAVLINK_V2_CHANNEL_COUNT).fill(SAFE_LOW_PWM);
-    channels[0] = SAFE_NEUTRAL_PWM;
-    channels[1] = SAFE_NEUTRAL_PWM;
-    channels[2] = SAFE_NEUTRAL_PWM;
-    channels[3] = SAFE_LOW_PWM;
-    for (let index = 4; index < MAVLINK_V2_CHANNEL_COUNT; index += 1) {
-      const inactive = this.safeInactiveValue(index);
-      if (inactive == null) {
-        throw new Error(
-          `RC channel ${index + 1} has no safe inactive PWM value outside its configured AUX ranges.`,
-        );
-      }
-      channels[index] = inactive;
+    if (!confirmations.size) {
+      return commandResult(stateCopy(this.session), {
+        commandMode: modeName,
+        confirmed: true,
+        confirmation: "COMMAND_ACK",
+      });
     }
-    return channels;
-  }
-
-  rawBaseChannels() {
-    const raw = new Array(MAVLINK_V2_CHANNEL_COUNT).fill(SAFE_LOW_PWM);
-    this.safeLogicalChannels().forEach((value, logicalIndex) => {
-      const rawIndex = this.rawChannelIndex(logicalIndex);
-      if (rawIndex >= 0 && rawIndex < MAVLINK_V2_CHANNEL_COUNT)
-        raw[rawIndex] = value;
+    const state = await this.session.waitForState(
+      (candidate) => confirmations.has(normalizedName(candidate.modeName)),
+      options.timeoutMs ?? COMMAND_TIMEOUT_MS,
+      `Flight Commander ${modeName} activation`,
+    );
+    return commandResult(state, {
+      commandMode: modeName,
+      confirmed: true,
+      confirmation: "HEARTBEAT",
     });
-    return raw;
-  }
-
-  combinedOverrides() {
-    const combined = new Map(this.modeOverrides);
-    for (const [channel, value] of this.armOverrides) {
-      const existing = combined.get(channel);
-      if (existing != null && existing !== value) {
-        throw new Error(
-          `The configured ARM range and ${this.activeModeName ?? "flight mode"} share RC channel ${channel + 1}; they cannot be asserted independently.`,
-        );
-      }
-      combined.set(channel, value);
-    }
-    return combined;
-  }
-
-  currentFrame() {
-    return buildRcOverrideFrame(
-      this.rawBaseChannels(),
-      this.combinedOverrides(),
-      MAVLINK_V2_CHANNEL_COUNT,
-    ).slice(0, MAVLINK_V2_CHANNEL_COUNT);
-  }
-
-  payloadForCurrentFrame() {
-    const systemId = integerOrNull(this.session.state.systemId);
-    if (systemId == null) throw new Error("No MAVLink autopilot is connected.");
-    const payload = {
-      targetSystem: systemId,
-      targetComponent: integerOrNull(this.session.state.componentId) ?? 1,
-    };
-    this.currentFrame().forEach((value, index) => {
-      payload[`chan${index + 1}Raw`] = value;
-    });
-    return payload;
-  }
-
-  sendCurrentFrame() {
-    if (!this.commandStreamEnabled) return Promise.resolve(null);
-    if (this.sendInFlight) return this.sendInFlight;
-    this.sendInFlight = Promise.resolve(
-      this.session.send("RcChannelsOverride", this.payloadForCurrentFrame()),
-    ).finally(() => {
-      this.sendInFlight = null;
-    });
-    return this.sendInFlight;
-  }
-
-  ensureOverrideLoop() {
-    if (this.overrideTimer != null) return;
-    this.overrideTimer = this.setIntervalFn(() => {
-      this.sendCurrentFrame().catch(() => {});
-    }, this.intervalMs);
-    this.overrideTimer?.unref?.();
-  }
-
-  waitForMode(modeName, active, capability, options = {}) {
-    if (!capability.confirmable) {
-      return Promise.resolve(
-        commandResult(stateCopy(this.session), {
-          commandMode: modeName,
-          confirmed: false,
-          warning: capability.reason,
-        }),
-      );
-    }
-    if (modeName === "ARM") {
-      return this.session
-        .waitForState(
-          (state) => state.armed === active,
-          options.timeoutMs ?? COMMAND_TIMEOUT_MS,
-          active ? "Flight Commander armed state" : "Flight Commander disarmed state",
-        )
-        .then((state) =>
-          commandResult(state, {
-            commandMode: modeName,
-            confirmed: true,
-          }),
-        );
-    }
-    const confirmations = new Set(capability.confirmationNames);
-    return this.session
-      .waitForState(
-        (state) =>
-          active
-            ? confirmations.has(normalizedName(state.modeName))
-            : !confirmations.has(normalizedName(state.modeName)),
-        options.timeoutMs ?? COMMAND_TIMEOUT_MS,
-        `Flight Commander ${modeName} ${active ? "activation" : "deactivation"}`,
-      )
-      .then((state) =>
-        commandResult(state, {
-          commandMode: modeName,
-          confirmed: true,
-        }),
-      );
   }
 
   async setMode(mode, active = true, options = {}) {
     const name = normalizedName(mode);
     const normalized = normalizeSetModeArguments(active, options);
+    if (!normalized.active) {
+      throw new Error(
+        "Native Flight Commander mode commands select a replacement mode instead of deactivating the current mode.",
+      );
+    }
     const capability = this.capabilityForMode(name);
     if (!capability.available) throw new Error(capability.reason);
-    if (name === "ARM")
-      return this.setArmed(normalized.active, normalized.options);
-
-    if (normalized.active) {
-      this.modeOverrides.clear();
-      this.activeModeName = name;
-      this.modeOverrides.set(
-        capability.rawChannelIndex,
-        activationValue(capability.modeRange),
-      );
-    } else if (this.activeModeName === name) {
-      this.modeOverrides.clear();
-      this.activeModeName = null;
-    }
-    this.commandStreamEnabled = true;
-    this.ensureOverrideLoop();
-    await this.sendCurrentFrame();
-    return this.waitForMode(
-      name,
-      normalized.active,
-      capability,
+    await this.sendNativeCommand(
+      MAV_CMD_DO_SET_MODE,
+      {
+        param1: MAV_MODE_FLAG_CUSTOM_MODE_ENABLED,
+        param2: INAV_MODE_IDS[name],
+      },
       normalized.options,
     );
+    return this.waitForMode(name, normalized.options);
   }
 
   async setArmed(armed, options = {}) {
-    const capability = this.capabilityForMode("ARM");
-    if (!capability.available) throw new Error(capability.reason);
-    this.armOverrides.clear();
-    this.armOverrides.set(
-      capability.rawChannelIndex,
-      armed
-        ? activationValue(capability.modeRange)
-        : inactiveValueForChannel(
-            this.profile.modeRanges ?? [],
-            capability.modeRange.rcChannelIndex,
-          ),
+    await this.sendNativeCommand(
+      MAV_CMD_COMPONENT_ARM_DISARM,
+      { param1: armed ? 1 : 0 },
+      options,
     );
-    this.commandStreamEnabled = true;
-    this.ensureOverrideLoop();
-    await this.sendCurrentFrame();
-    return this.waitForMode("ARM", Boolean(armed), capability, options);
+    const state = await this.session.waitForState(
+      (candidate) => candidate.armed === Boolean(armed),
+      options.timeoutMs ?? COMMAND_TIMEOUT_MS,
+      armed ? "Flight Commander armed state" : "Flight Commander disarmed state",
+    );
+    return commandResult(state, {
+      commandMode: "ARM",
+      confirmed: true,
+      confirmation: "HEARTBEAT",
+    });
   }
 
-  startMission(options = {}) {
-    return this.setMode("NAV WP", true, options);
-  }
-
-  async abortMission(options = {}) {
-    const capability = this.missionAbortCapability();
-    if (!capability.available) {
-      const error = new Error(capability.reason);
-      error.code = "INAV_MISSION_ABORT_UNAVAILABLE";
-      error.safeStateConfirmed = false;
-      throw error;
-    }
-    try {
-      const result = await this.setMode(capability.modeName, true, options);
-      if (result.confirmed !== true) {
-        throw new Error(
-          `Flight Commander heartbeat telemetry did not confirm ${capability.modeName}.`,
-        );
-      }
-      return commandResult(result, {
-        abortMode: capability.modeName,
-        safeStateConfirmed: true,
-        missionAborted: true,
-      });
-    } catch (cause) {
-      const error = new Error(
-        `Flight Commander requested ${capability.modeName} to abort the mission, ` +
-          "but heartbeat telemetry did not confirm the safe non-mission state. " +
-          "Use the dedicated Return Home or Land control only after checking the displayed vehicle mode.",
+  async startMission(options = {}) {
+    const sequence = Number(options.checkpoint?.sequence ?? options.sequence ?? 0);
+    if (!Number.isInteger(sequence) || sequence < 0 || sequence > 255) {
+      throw new RangeError(
+        "Flight Commander mission start sequence must be an integer from 0 through 255.",
       );
-      error.code = "INAV_MISSION_ABORT_UNCONFIRMED";
-      error.cause = cause;
-      error.abortMode = capability.modeName;
-      error.safeStateConfirmed = false;
-      throw error;
     }
-  }
-
-  async abortMissionResume(options = {}) {
-    const capability = this.missionResumeAbortCapability();
-    if (!capability.available) {
-      const error = new Error(capability.reason);
-      error.code = "INAV_MISSION_RESUME_ABORT_UNAVAILABLE";
-      error.safeStateConfirmed = false;
-      error.missionOverrideReplaced = false;
-      throw error;
-    }
-    try {
-      const result = await this.setMode(capability.modeName, true, options);
-      if (result.confirmed !== true) {
-        throw new Error(
-          `Flight Commander heartbeat telemetry did not confirm ${capability.modeName}.`,
-        );
-      }
-      return commandResult(result, {
-        abortMode: capability.modeName,
-        safeStateConfirmed: true,
-        missionOverrideReplaced: true,
+    await this.sendNativeCommand(
+      MAV_CMD_MISSION_START,
+      { param1: sequence },
+      options,
+    );
+    if (!this.session.state.armed) {
+      return commandResult(stateCopy(this.session), {
+        commandMode: "NAV WP",
+        confirmed: true,
+        confirmation: "COMMAND_ACK",
+        executionPending: true,
       });
-    } catch (cause) {
-      const error = new Error(
-        `Flight Commander replaced the sustained NAV WP override with ${capability.modeName}, ` +
-          "but heartbeat telemetry did not confirm the safe non-mission state. " +
-          "The original mission must not be restored until the aircraft state is confirmed.",
-      );
-      error.code = "INAV_MISSION_RESUME_ABORT_UNCONFIRMED";
-      error.cause = cause;
-      error.abortMode = capability.modeName;
-      error.safeStateConfirmed = false;
-      error.missionOverrideReplaced =
-        this.activeModeName === capability.modeName;
-      throw error;
     }
+    return this.waitForMode("NAV WP", options);
   }
 
-  holdMission(options = {}) {
-    return this.setMode("NAV POSHOLD", true, options);
+  async holdMission(options = {}) {
+    await this.sendNativeCommand(
+      MAV_CMD_DO_PAUSE_CONTINUE,
+      { param1: 0 },
+      options,
+    );
+    return this.waitForMode("NAV POSHOLD", options);
   }
 
   pauseMission(options = {}) {
     return this.holdMission(options);
   }
 
-  takeoff(_altitude, options = {}) {
-    return this.setMode("NAV LAUNCH", true, options);
-  }
-
-  returnToLaunch(options = {}) {
-    return this.setMode("NAV RTH", true, options);
-  }
-
-  land() {
-    throw new Error(
-      "Flight Commander Firmware does not expose a generic Land command over MAVLink. " +
-        "Configure and use NAV RTH; landing behavior follows the controller RTH settings.",
-    );
-  }
-}
-
-function copy(value) {
-  return value == null ? value : JSON.parse(JSON.stringify(value));
-}
-
-function defaultStorage() {
-  return {
-    get(key, fallback) {
-      return (
-        globalThis.window?.electronAPI?.storeGet?.(key, fallback) ?? fallback
-      );
-    },
-    set(key, value) {
-      globalThis.window?.electronAPI?.storeSet?.(key, value);
-    },
-  };
-}
-
-function emptyDocument() {
-  return { schemaVersion: PROFILE_SCHEMA_VERSION, profilesBySystemId: {} };
-}
-
-function normalizeDocument(value) {
-  if (
-    !value ||
-    value.schemaVersion !== PROFILE_SCHEMA_VERSION ||
-    typeof value.profilesBySystemId !== "object" ||
-    Array.isArray(value.profilesBySystemId)
-  )
-    return emptyDocument();
-  const document = emptyDocument();
-  for (const [systemId, profiles] of Object.entries(value.profilesBySystemId)) {
-    if (Array.isArray(profiles)) {
-      document.profilesBySystemId[systemId] = profiles
-        .filter((profile) => profile && typeof profile === "object")
-        .map(copy);
-    }
-  }
-  return document;
-}
-
-function uidString(uid) {
-  if (!Array.isArray(uid) || uid.length === 0) return "";
-  const values = uid.map((value) => Number(value) >>> 0);
-  return values.some((value) => value !== 0) ? values.join("-") : "";
-}
-
-function profileIdentity(FC, systemId) {
-  const uid = uidString(FC?.CONFIG?.uid);
-  if (uid) return `uid:${uid}`;
-  const board = String(FC?.CONFIG?.boardIdentifier ?? "unknown-board").trim();
-  const name = String(FC?.CONFIG?.name ?? "unnamed").trim();
-  const platform = String(FC?.MIXER_CONFIG?.platformType ?? "unknown-platform");
-  return `fallback:${board}:${name}:${platform}:${systemId}`;
-}
-
-function numericSetting(setting) {
-  if (setting == null) return null;
-  const value = Number(setting.value);
-  return Number.isFinite(value) ? value : null;
-}
-
-function namedSetting(setting) {
-  return (
-    settingValueName(setting) ||
-    (setting?.value == null ? "" : String(setting.value))
-  );
-}
-
-function validateSystemId(value) {
-  const systemId = Number(value);
-  if (!Number.isInteger(systemId) || systemId < 1 || systemId > 255) {
-    throw new Error(
-      "Flight Commander mavlink_sysid must be an integer from 1 through 255 before a MAVLink command profile can be saved.",
-    );
-  }
-  return systemId;
-}
-
-function requestMsp(MSP, code, timeoutMs = MSP_TIMEOUT_MS) {
-  return new Promise((resolve, reject) => {
-    let settled = false;
-    const timer = setTimeout(() => {
-      if (settled) return;
-      settled = true;
-      reject(new Error(`Flight Commander Firmware did not respond to MSP command ${code}.`));
-    }, timeoutMs);
-    timer?.unref?.();
-    MSP.send_message(code, false, false, (response) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      if (!response || response.unsupported) {
-        reject(new Error(`Flight Commander Firmware rejected MSP command ${code}.`));
-      } else {
-        resolve(response);
-      }
+  async abortMission(options = {}) {
+    const result = await this.holdMission(options);
+    return commandResult(result, {
+      abortMode: "NAV POSHOLD",
+      safeStateConfirmed: true,
+      missionAborted: true,
     });
-  });
-}
-
-async function defaultCaptureDependencies() {
-  const [
-    { default: FC },
-    { default: MSP },
-    { default: MSPCodes },
-    { default: mspHelper },
-  ] = await Promise.all([
-    import("../fc.js"),
-    import("../msp.js"),
-    import("../msp/MSPCodes.js"),
-    import("../msp/MSPHelper.js"),
-  ]);
-  return {
-    FC,
-    MSPCodes,
-    mspHelper,
-    requestMsp: (code) => requestMsp(MSP, code),
-  };
-}
-
-export class InavMavlinkProfileStore {
-  constructor(options = {}) {
-    this.storage = options.storage ?? defaultStorage();
-    this.now = options.now ?? (() => new Date());
-    this.storageKey = options.storageKey ?? PROFILE_STORAGE_KEY;
-    this.documentCache = null;
   }
 
-  readDocument() {
-    if (this.documentCache == null) {
-      this.documentCache = normalizeDocument(
-        this.storage.get(this.storageKey, emptyDocument()),
+  async abortMissionResume(options = {}) {
+    const result = await this.returnToLaunch(options);
+    return commandResult(result, {
+      abortMode: "NAV RTH",
+      safeStateConfirmed: true,
+      missionOverrideReplaced: true,
+    });
+  }
+
+  async takeoff(altitude, options = {}) {
+    const altitudeM = Number(altitude);
+    if (!Number.isFinite(altitudeM) || altitudeM <= 0 || altitudeM > 1000) {
+      throw new RangeError(
+        "Takeoff altitude must be greater than zero and no more than 1000 metres.",
       );
     }
-    return copy(this.documentCache);
-  }
-
-  writeDocument(value) {
-    const document = normalizeDocument(value);
-    this.documentCache = copy(document);
-    this.storage.set(this.storageKey, document);
-    return copy(document);
-  }
-
-  profilesForSystemId(systemId) {
-    return copy(
-      this.readDocument().profilesBySystemId[
-        String(validateSystemId(systemId))
-      ] ?? [],
+    const capability = this.capabilities();
+    if (!capability.canTakeoff) throw new Error(capability.takeoffReason);
+    await this.sendNativeCommand(
+      MAV_CMD_NAV_TAKEOFF,
+      { param7: altitudeM },
+      options,
     );
+    return commandResult(stateCopy(this.session), {
+      commandMode: "NAV LAUNCH",
+      confirmed: true,
+      confirmation: "COMMAND_ACK",
+      executionPending: true,
+    });
   }
 
-  save(profile) {
-    const systemId = validateSystemId(profile?.systemId);
-    if (!profile?.profileId) {
-      throw new Error(
-        "A Flight Commander MAVLink command profile must have a stable profileId.",
-      );
-    }
-    const document = this.readDocument();
-    for (const [key, profiles] of Object.entries(document.profilesBySystemId)) {
-      const remaining = profiles.filter(
-        ({ profileId }) => profileId !== profile.profileId,
-      );
-      if (remaining.length) document.profilesBySystemId[key] = remaining;
-      else delete document.profilesBySystemId[key];
-    }
-    const key = String(systemId);
-    // A MAVLink system ID identifies one command target. The controller most
-    // recently captured over the wired setup link is authoritative for that
-    // ID. Replacing the old entry prevents profiles left by firmware flashes,
-    // controller renames, or identity-field changes from deadlocking Ground
-    // Control with an ambiguity the UI cannot resolve.
-    document.profilesBySystemId[key] = [
-      copy({
-        ...profile,
-        schemaVersion: PROFILE_SCHEMA_VERSION,
-        systemId,
-      }),
-    ];
-    this.writeDocument(document);
-    return copy(profile);
+  async returnToLaunch(options = {}) {
+    const capability = this.capabilities();
+    if (!capability.canRtl) throw new Error(capability.rtlReason);
+    await this.sendNativeCommand(MAV_CMD_NAV_RETURN_TO_LAUNCH, {}, options);
+    return this.waitForMode("NAV RTH", options);
   }
 
-  resolve(systemId, options = {}) {
-    let profiles;
-    try {
-      profiles = this.profilesForSystemId(systemId);
-    } catch (error) {
-      return {
-        status: "missing",
-        profile: null,
-        profiles: [],
-        reason: error.message,
-      };
+  async land(options = {}) {
+    const capability = this.capabilities();
+    if (!capability.canLand) throw new Error(capability.landReason);
+    await this.sendNativeCommand(MAV_CMD_NAV_LAND, {}, options);
+    if (this.isPlane()) {
+      return commandResult(stateCopy(this.session), {
+        commandMode: "LAND",
+        confirmed: true,
+        confirmation: "COMMAND_ACK",
+      });
     }
-    if (options.profileId) {
-      profiles = profiles.filter(
-        ({ profileId }) => profileId === options.profileId,
-      );
-    }
-    if (options.platformType != null) {
-      profiles = profiles.filter(
-        ({ platformType }) =>
-          Number(platformType) === Number(options.platformType),
-      );
-    }
-    // Releases through 4.1.4 could retain several profiles for one system ID
-    // even though Ground Control had no profile selector. Repair that legacy
-    // state in place by using the last stored entry, which was the most recent
-    // wired capture under the append-only v1 schema.
-    if (profiles.length > 1) {
-      const profile = copy(profiles.at(-1));
-      const document = this.readDocument();
-      document.profilesBySystemId[String(validateSystemId(systemId))] = [profile];
-      this.writeDocument(document);
-      profiles = [profile];
-    }
-    if (profiles.length === 1) {
-      return {
-        status: "resolved",
-        profile: copy(profiles[0]),
-        profiles: copy(profiles),
-        reason: "",
-      };
-    }
-    return {
-      status: "missing",
-      profile: null,
-      profiles: [],
-      reason: options.profileId
-        ? `The selected Flight Commander command profile is not cached for MAVLink system ID ${systemId}.`
-        : `No Flight Commander command profile is cached for MAVLink system ID ${systemId}. ` +
-          "Connect it by USB and capture its MAVLink command profile first.",
-    };
-  }
-
-  async captureFromMsp(dependencies = null) {
-    const {
-      FC,
-      MSPCodes,
-      mspHelper,
-      requestMsp: sendMsp,
-    } = dependencies ?? (await defaultCaptureDependencies());
-    if (!FC || !MSPCodes || !mspHelper || typeof sendMsp !== "function") {
-      throw new Error(
-        "Incomplete MSP dependencies were supplied for Flight Commander profile capture.",
-      );
-    }
-
-    await sendMsp(MSPCodes.MSP_BOXIDS);
-    FC.generateAuxConfig?.();
-    await sendMsp(MSPCodes.MSP_MODE_RANGES);
-    await sendMsp(MSPCodes.MSP_RX_MAP);
-    await sendMsp(MSPCodes.MSP_RC);
-
-    const mavlinkSystemId = await mspHelper.getSetting("mavlink_sysid");
-    const mavlinkVersion = await mspHelper.getSetting("mavlink_version");
-    const receiverType = await mspHelper.getSetting("receiver_type");
-    const serialRxProvider = await mspHelper.getSetting("serialrx_provider");
-    const systemId = validateSystemId(numericSetting(mavlinkSystemId));
-    const activeChannels = Number(FC.RC?.active_channels);
-    const capturedAt = this.now();
-    const profile = {
-      schemaVersion: PROFILE_SCHEMA_VERSION,
-      profileId: profileIdentity(FC, systemId),
-      uid: uidString(FC.CONFIG?.uid),
-      name: String(FC.CONFIG?.name ?? ""),
-      boardIdentifier: String(FC.CONFIG?.boardIdentifier ?? ""),
-      firmwareFamily: String(
-        FC.CONFIG?.firmwareIdentity?.family ?? FC.CONFIG?.firmwareFamily ?? "",
-      ),
-      flightCommanderFirmwareVersion:
-        FC.CONFIG?.flightCommanderFirmware?.firmwareVersion ?? null,
-      flightCommanderIdentitySchema:
-        FC.CONFIG?.flightCommanderFirmware?.schemaVersion ?? null,
-      flightCommanderCapabilities:
-        FC.CONFIG?.flightCommanderFirmware?.capabilities ?? null,
-      platformType: FC.MIXER_CONFIG?.platformType ?? null,
-      systemId,
-      mavlinkVersion: numericSetting(mavlinkVersion),
-      receiverType: namedSetting(receiverType),
-      receiverTypeValue: numericSetting(receiverType),
-      serialRxProvider: namedSetting(serialRxProvider),
-      serialRxProviderValue: numericSetting(serialRxProvider),
-      rcMap: Array.from(FC.RC_MAP ?? [], (value) => Number(value)),
-      rcChannels: Array.from(FC.RC?.channels ?? [], (value) =>
-        Number.isFinite(Number(value)) ? Number(value) : null,
-      ).slice(
-        0,
-        Number.isFinite(activeChannels) && activeChannels > 0
-          ? activeChannels
-          : MAVLINK_V2_CHANNEL_COUNT,
-      ),
-      modeRanges: configuredModeRanges(FC.MODE_RANGES ?? []).map((range) => ({
-        id: Number(range.id),
-        name: range.name,
-        auxChannelIndex: Number(range.auxChannelIndex),
-        rcChannelIndex: Number(range.rcChannelIndex),
-        range: {
-          start: Number(range.range.start),
-          end: Number(range.range.end),
-        },
-      })),
-      capturedAt: (capturedAt instanceof Date
-        ? capturedAt
-        : new Date(capturedAt)
-      ).toISOString(),
-    };
-    this.save(profile);
-    return copy(profile);
+    const state = await this.session.waitForState(
+      (candidate) =>
+        ["LAND", "QLAND", "AUTOLAND"].includes(
+          normalizedName(candidate.modeName),
+        ),
+      options.timeoutMs ?? COMMAND_TIMEOUT_MS,
+      "Flight Commander landing mode",
+    );
+    return commandResult(state, {
+      commandMode: "LAND",
+      confirmed: true,
+      confirmation: "HEARTBEAT",
+    });
   }
 }
 
-export const inavMavlinkProfileStore = new InavMavlinkProfileStore();
+// Keep the historical class name as an import-compatible alias. It is the
+// native COMMAND_LONG implementation, not an AUX/RC override implementation.
+export { FlightCommanderMavlinkCommandAdapter as InavMavlinkCommandAdapter };
 
 function unavailable(reason) {
   return { ...UNAVAILABLE_CAPABILITIES, reason };
@@ -1159,47 +447,33 @@ function unavailable(reason) {
 
 export class MavlinkCommandRouter {
   constructor(session, options = {}) {
-    if (!session?.state)
+    if (!session?.state) {
       throw new Error("A MAVLink session is required for command routing.");
+    }
     this.session = session;
-    this.profileStore = options.profileStore ?? inavMavlinkProfileStore;
     this.adapterFactory =
       options.adapterFactory ??
-      ((adapterSession, profile) =>
-        new InavMavlinkCommandAdapter(adapterSession, profile));
-    this.selectedProfileId = options.profileId ?? null;
+      ((adapterSession) =>
+        new FlightCommanderMavlinkCommandAdapter(adapterSession));
     this.inavAdapter = null;
-    this.inavAdapterProfileId = null;
+    this.inavAdapterTarget = null;
     this.commandBlockReason = null;
-  }
-
-  flightCommanderCommandCapability() {
-    return {
-      available: true,
-      reason:
-        "Ground Control commands are enabled by the Flight Commander product contract; firmware identity metadata is informational.",
-    };
   }
 
   linkCapability() {
     if (this.commandBlockReason) {
-      return {
-        available: false,
-        reason: this.commandBlockReason,
-      };
+      return { available: false, reason: this.commandBlockReason };
     }
     if (!this.session.state.connected) {
       return {
         available: false,
-        reason:
-          "Mission commands require an active MAVLink vehicle connection.",
+        reason: "Mission commands require an active MAVLink vehicle connection.",
       };
     }
     if (this.session.state.linkLost) {
       return {
         available: false,
-        reason:
-          "The MAVLink vehicle link is lost; no mission command was sent.",
+        reason: "The MAVLink vehicle link is lost; no mission command was sent.",
       };
     }
     return { available: true, reason: "" };
@@ -1216,46 +490,38 @@ export class MavlinkCommandRouter {
     this.commandBlockReason = null;
   }
 
-  selectInavProfile(profileId) {
-    this.selectedProfileId = profileId || null;
-    this.releaseInavAdapter();
-  }
-
   releaseInavAdapter() {
     this.inavAdapter?.stop?.();
     this.inavAdapter = null;
-    this.inavAdapterProfileId = null;
+    this.inavAdapterTarget = null;
   }
 
-  inavResolution() {
+  nativeTarget() {
     const systemId = this.session.state.systemId;
-    return systemId == null
-      ? {
-          status: "missing",
-          profile: null,
-          profiles: [],
-          reason: "No MAVLink autopilot is connected.",
-        }
-      : this.profileStore.resolve(systemId, {
-          profileId: this.selectedProfileId,
-        });
+    if (systemId == null) return null;
+    const componentId = this.session.state.componentId ?? 1;
+    return {
+      key: `${systemId}:${componentId}`,
+      systemId,
+      componentId,
+    };
   }
 
   resolveInavAdapter() {
-    const resolution = this.inavResolution();
-    if (resolution.status !== "resolved") {
+    const target = this.nativeTarget();
+    if (!target) {
       this.releaseInavAdapter();
-      return { resolution, adapter: null };
+      return {
+        adapter: null,
+        reason: "No MAVLink autopilot is connected.",
+      };
     }
-    if (
-      !this.inavAdapter ||
-      this.inavAdapterProfileId !== resolution.profile.profileId
-    ) {
+    if (!this.inavAdapter || this.inavAdapterTarget !== target.key) {
       this.releaseInavAdapter();
-      this.inavAdapter = this.adapterFactory(this.session, resolution.profile);
-      this.inavAdapterProfileId = resolution.profile.profileId;
+      this.inavAdapter = this.adapterFactory(this.session, target);
+      this.inavAdapterTarget = target.key;
     }
-    return { resolution, adapter: this.inavAdapter };
+    return { adapter: this.inavAdapter, reason: "" };
   }
 
   capabilities() {
@@ -1264,17 +530,11 @@ export class MavlinkCommandRouter {
       this.releaseInavAdapter();
       return unavailable(link.reason);
     }
-    const commandCapability = this.flightCommanderCommandCapability();
-    const { resolution, adapter } = this.resolveInavAdapter();
-    if (!adapter) return unavailable(resolution.reason);
-    const adapterCapabilities = adapter.capabilities();
+    const { adapter, reason } = this.resolveInavAdapter();
+    if (!adapter) return unavailable(reason);
     return {
       ...UNAVAILABLE_CAPABILITIES,
-      ...adapterCapabilities,
-      canSetMissionCurrent: true,
-      canResumeMission: adapterCapabilities.canResumeMission,
-      missionResumeReason: adapterCapabilities.missionResumeReason,
-      reason: commandCapability.reason,
+      ...adapter.capabilities(),
     };
   }
 
@@ -1292,8 +552,8 @@ export class MavlinkCommandRouter {
       this.releaseInavAdapter();
       throw new Error(link.reason);
     }
-    const { resolution, adapter } = this.resolveInavAdapter();
-    if (!adapter) throw new Error(resolution.reason);
+    const { adapter, reason } = this.resolveInavAdapter();
+    if (!adapter) throw new Error(reason);
     if (typeof adapter[methodName] !== "function") {
       throw new Error(`Flight Commander command ${methodName} is unavailable.`);
     }
@@ -1317,8 +577,6 @@ export class MavlinkCommandRouter {
   }
 
   abortMissionResume(options = {}) {
-    const link = this.linkCapability();
-    if (!link.available) throw new Error(link.reason);
     return this.commandTarget("abortMissionResume").abortMissionResume(options);
   }
 

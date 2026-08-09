@@ -12,6 +12,7 @@ set(FLIGHT_COMMANDER_MICOAIR743_SOURCES
     "${MAIN_SRC_DIR}/flight_commander/external_compass.c"
     "${MAIN_SRC_DIR}/flight_commander/heading_fusion.c"
     "${MAIN_SRC_DIR}/flight_commander/compass_orientation.c"
+    "${MAIN_SRC_DIR}/flight_commander/gcs_commands.c"
     "${FLIGHT_COMMANDER_DSDL_ROOT}/src/ardupilot.gnss.Heading.c"
     "${FLIGHT_COMMANDER_DSDL_ROOT}/src/ardupilot.gnss.RelPosHeading.c"
     "${FLIGHT_COMMANDER_DSDL_ROOT}/src/uavcan.equipment.ahrs.MagneticFieldStrength2.c"

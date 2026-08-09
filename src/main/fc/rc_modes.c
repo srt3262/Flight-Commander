@@ -38,6 +38,10 @@
 
 #include "rx/rx.h"
 
+#ifdef USE_FLIGHT_COMMANDER_GCS_COMMANDS
+#include "flight_commander/gcs_commands.h"
+#endif
+
 static uint8_t specifiedConditionCountPerMode[CHECKBOX_ITEM_COUNT];
 static bool isUsingNAVModes = false;
 
@@ -138,6 +142,16 @@ bool isFwAutoModeActive(boxId_e mode)
 
 bool IS_RC_MODE_ACTIVE(boxId_e boxId)
 {
+    const bool rcModeActive = isRcModeActiveFromInput(boxId);
+#ifdef USE_FLIGHT_COMMANDER_GCS_COMMANDS
+    return rcModeActive || flightCommanderGcsModeIsActive(boxId);
+#else
+    return rcModeActive;
+#endif
+}
+
+bool isRcModeActiveFromInput(boxId_e boxId)
+{
     return bitArrayGet(rcModeActivationMask.bits, boxId);
 }
 
@@ -205,6 +219,9 @@ void updateActivatedModes(void)
         }
     }
 
+#ifdef USE_FLIGHT_COMMANDER_GCS_COMMANDS
+    flightCommanderGcsObserveRcModes(&newMask);
+#endif
     rcModeUpdate(&newMask);
 }
 

@@ -62,6 +62,10 @@
 #include "flight_commander/rtcm.h"
 #endif
 
+#ifdef USE_FLIGHT_COMMANDER_GCS_COMMANDS
+#include "flight_commander/gcs_commands.h"
+#endif
+
 #include "io/adsb.h"
 #include "io/gps.h"
 #include "io/ledstrip.h"
@@ -800,10 +804,25 @@ void mavlinkSendHeartbeat(void)
         mavCustomMode = (uint8_t)inavToArduCopterMap(flm);
     }
 
+#ifdef USE_FLIGHT_COMMANDER_GCS_COMMANDS
+    if (navigationIsExecutingAnEmergencyLanding()) {
+        mavCustomMode = STATE(FIXED_WING_LEGACY)
+            ? (uint8_t)PLANE_MODE_AUTO
+            : (uint8_t)COPTER_MODE_LAND;
+    }
+#endif
+
     if (flm != FLM_MANUAL) {
         mavModes |= MAV_MODE_FLAG_STABILIZE_ENABLED;
     }
+    // Flight Commander uses GUIDED_ENABLED as the live, pilot-controlled GCS
+    // NAV authorization signal. Read only the physical/configured input mask;
+    // a MAVLink command must never be able to authorize itself.
+#ifdef USE_FLIGHT_COMMANDER_GCS_COMMANDS
+    if (isRcModeActiveFromInput(BOXGCSNAV)) {
+#else
     if (flm == FLM_POSITION_HOLD || flm == FLM_RTH || flm == FLM_MISSION) {
+#endif
         mavModes |= MAV_MODE_FLAG_GUIDED_ENABLED;
     }
 
@@ -1220,6 +1239,196 @@ static bool handleIncoming_MISSION_REQUEST(void)
     return false;
 }
 
+#ifdef USE_FLIGHT_COMMANDER_GCS_COMMANDS
+static bool mavlinkTargetMatches(uint8_t targetSystem, uint8_t targetComponent)
+{
+    return (targetSystem == 0 || targetSystem == mavSystemId) &&
+        (targetComponent == 0 || targetComponent == mavComponentId);
+}
+
+static void mavlinkSendCommandAck(uint16_t command, uint8_t result)
+{
+    mavlink_msg_command_ack_pack(mavSystemId, mavComponentId, &mavSendMsg,
+        command,
+        result,
+        0,
+        0,
+        mavRecvMsg.sysid,
+        mavRecvMsg.compid);
+    mavlinkSendMessage();
+}
+
+static bool mavlinkParameterIsUint8(float value)
+{
+    return isfinite(value) && value >= 0.0f && value <= UINT8_MAX && floorf(value) == value;
+}
+
+static bool isFlightCommanderGcsCommand(uint16_t command)
+{
+    switch (command) {
+        case MAV_CMD_DO_SET_MODE:
+        case MAV_CMD_COMPONENT_ARM_DISARM:
+        case MAV_CMD_MISSION_START:
+        case MAV_CMD_DO_PAUSE_CONTINUE:
+        case MAV_CMD_NAV_RETURN_TO_LAUNCH:
+        case MAV_CMD_NAV_LAND:
+        case MAV_CMD_NAV_TAKEOFF:
+            return true;
+        default:
+            return false;
+    }
+}
+
+static uint8_t handleFlightCommanderGcsCommand(const mavlink_command_long_t *msg)
+{
+    if (!isFlightCommanderGcsCommand(msg->command)) {
+        return MAV_RESULT_UNSUPPORTED;
+    }
+    if (!flightCommanderGcsIsEnabled()) {
+        return MAV_RESULT_DENIED;
+    }
+
+    switch (msg->command) {
+        case MAV_CMD_DO_SET_MODE: {
+            if (!mavlinkParameterIsUint8(msg->param1) ||
+                !((uint8_t)msg->param1 & MAV_MODE_FLAG_CUSTOM_MODE_ENABLED) ||
+                !mavlinkParameterIsUint8(msg->param2)) {
+                return MAV_RESULT_DENIED;
+            }
+            return flightCommanderGcsSetModeByPermanentId((uint8_t)msg->param2)
+                ? MAV_RESULT_ACCEPTED
+                : MAV_RESULT_UNSUPPORTED;
+        }
+
+        case MAV_CMD_COMPONENT_ARM_DISARM:
+            if (msg->param1 == 1.0f) {
+                if (!ARMING_FLAG(ARMED)) {
+                    // Take virtual ARM ownership only after normal iNav arming
+                    // checks accept the request. This avoids bypassing the ARM
+                    // switch latch or any other configured safety condition.
+                    tryArm();
+                }
+                if (ARMING_FLAG(ARMED) && flightCommanderGcsTakeArmControl()) {
+                    return MAV_RESULT_ACCEPTED;
+                }
+                return MAV_RESULT_TEMPORARILY_REJECTED;
+            }
+            if (msg->param1 == 0.0f) {
+                if (!ARMING_FLAG(ARMED)) {
+                    flightCommanderGcsReleaseArmControl();
+                    return MAV_RESULT_ACCEPTED;
+                }
+                // Never honor MAVLink's force-disarm magic value. Normal iNav
+                // throttle and failsafe protections remain authoritative.
+                if (!failsafeIsActive() && (armingConfig()->disarm_always || throttleStickIsLow())) {
+                    flightCommanderGcsReleaseArmControl();
+                    disarm(DISARM_GCS);
+                    return ARMING_FLAG(ARMED) ? MAV_RESULT_FAILED : MAV_RESULT_ACCEPTED;
+                }
+                return MAV_RESULT_DENIED;
+            }
+            return MAV_RESULT_DENIED;
+
+        case MAV_CMD_MISSION_START: {
+            if (!isWaypointListValid() || !mavlinkParameterIsUint8(msg->param1)) {
+                return MAV_RESULT_TEMPORARILY_REJECTED;
+            }
+            const uint8_t startIndex = (uint8_t)msg->param1;
+            if (!flightCommanderGcsStartMission(startIndex)) {
+                return MAV_RESULT_DENIED;
+            }
+            return MAV_RESULT_ACCEPTED;
+        }
+
+        case MAV_CMD_DO_PAUSE_CONTINUE:
+            if (!ARMING_FLAG(ARMED)) {
+                return MAV_RESULT_TEMPORARILY_REJECTED;
+            }
+            if (msg->param1 == 0.0f) {
+                return flightCommanderGcsSetMode(BOXNAVPOSHOLD)
+                    ? MAV_RESULT_ACCEPTED
+                    : MAV_RESULT_DENIED;
+            }
+            if (msg->param1 == 1.0f) {
+                return flightCommanderGcsSetMode(BOXNAVWP)
+                    ? MAV_RESULT_ACCEPTED
+                    : MAV_RESULT_DENIED;
+            }
+            return MAV_RESULT_DENIED;
+
+        case MAV_CMD_NAV_RETURN_TO_LAUNCH:
+            return flightCommanderGcsActivateRth()
+                ? MAV_RESULT_ACCEPTED
+                : MAV_RESULT_TEMPORARILY_REJECTED;
+
+        case MAV_CMD_NAV_LAND:
+            return flightCommanderGcsActivateLand()
+                ? MAV_RESULT_ACCEPTED
+                : MAV_RESULT_TEMPORARILY_REJECTED;
+
+        case MAV_CMD_NAV_TAKEOFF:
+            if (!isfinite(msg->param7) || msg->param7 <= 0.0f || msg->param7 > 1000.0f) {
+                return MAV_RESULT_DENIED;
+            }
+            if (STATE(MULTIROTOR)) {
+                // iNav has no native autonomous multirotor takeoff state. Do
+                // not synthesize one from a position-hold altitude setpoint.
+                return MAV_RESULT_UNSUPPORTED;
+            }
+            if (STATE(AIRPLANE)) {
+                // iNav launch mode is deliberately selected before arming.
+                if (ARMING_FLAG(ARMED)) {
+                    return MAV_RESULT_TEMPORARILY_REJECTED;
+                }
+                return flightCommanderGcsSetMode(BOXNAVLAUNCH)
+                    ? MAV_RESULT_ACCEPTED
+                    : MAV_RESULT_DENIED;
+            }
+            return MAV_RESULT_UNSUPPORTED;
+
+        default:
+            return MAV_RESULT_UNSUPPORTED;
+    }
+}
+static bool handleIncoming_COMMAND_LONG(void)
+{
+    mavlink_command_long_t msg;
+    mavlink_msg_command_long_decode(&mavRecvMsg, &msg);
+
+    if (!mavlinkTargetMatches(msg.target_system, msg.target_component)) {
+        return false;
+    }
+
+    const uint8_t result = handleFlightCommanderGcsCommand(&msg);
+    mavlinkSendCommandAck(msg.command, result);
+    return true;
+}
+
+static bool handleIncoming_MISSION_SET_CURRENT(void)
+{
+    mavlink_mission_set_current_t msg;
+    mavlink_msg_mission_set_current_decode(&mavRecvMsg, &msg);
+
+    if (!mavlinkTargetMatches(msg.target_system, msg.target_component)) {
+        return false;
+    }
+
+    if (msg.seq <= UINT8_MAX && flightCommanderGcsStageMissionIndex((uint8_t)msg.seq)) {
+        const bool missionActive = FLIGHT_MODE(NAV_WP_MODE);
+        mavlink_msg_mission_current_pack(mavSystemId, mavComponentId, &mavSendMsg,
+            msg.seq,
+            getWaypointCount(),
+            missionActive ? MISSION_STATE_ACTIVE : MISSION_STATE_PAUSED,
+            missionActive ? 1 : 2,
+            0,
+            0,
+            0);
+        mavlinkSendMessage();
+    }
+    return true;
+}
+#endif
+
 
 static bool handleIncoming_COMMAND_INT(void)
 {
@@ -1229,6 +1438,13 @@ static bool handleIncoming_COMMAND_INT(void)
     if (msg.target_system == mavSystemId) {
 
         if (msg.command == MAV_CMD_DO_REPOSITION) {
+
+#ifdef USE_FLIGHT_COMMANDER_GCS_COMMANDS
+            if (!flightCommanderGcsIsEnabled()) {
+                mavlinkSendCommandAck(msg.command, MAV_RESULT_DENIED);
+                return true;
+            }
+#endif
 
             if (!(msg.frame == MAV_FRAME_GLOBAL)) { //|| msg.frame == MAV_FRAME_GLOBAL_RELATIVE_ALT || msg.frame == MAV_FRAME_GLOBAL_TERRAIN_ALT)) {
 
@@ -1427,14 +1643,19 @@ static bool processMAVLinkIncomingTelemetry(void)
                 case MAVLINK_MSG_ID_MISSION_REQUEST_LIST:
                     return handleIncoming_MISSION_REQUEST_LIST();
 
-                //TODO:
-                //case MAVLINK_MSG_ID_COMMAND_LONG; //up to 7 float parameters
-                    //return handleIncoming_COMMAND_LONG();
+#ifdef USE_FLIGHT_COMMANDER_GCS_COMMANDS
+                case MAVLINK_MSG_ID_COMMAND_LONG:
+                    return handleIncoming_COMMAND_LONG();
+#endif
 
                 case MAVLINK_MSG_ID_COMMAND_INT: //7 parameters: parameters 1-4, 7 are floats, and parameters 5,6 are scaled integers
                     return handleIncoming_COMMAND_INT();
                 case MAVLINK_MSG_ID_MISSION_REQUEST:
                     return handleIncoming_MISSION_REQUEST();
+#ifdef USE_FLIGHT_COMMANDER_GCS_COMMANDS
+                case MAVLINK_MSG_ID_MISSION_SET_CURRENT:
+                    return handleIncoming_MISSION_SET_CURRENT();
+#endif
                 case MAVLINK_MSG_ID_RC_CHANNELS_OVERRIDE:
                     handleIncoming_RC_CHANNELS_OVERRIDE();
                     // Don't set that we handled a message, otherwise RC channel packets will block telemetry messages

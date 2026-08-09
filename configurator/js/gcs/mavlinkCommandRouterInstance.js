@@ -1,15 +1,8 @@
 "use strict";
 
 import mavlinkSession from "../mavlink/mavlinkSession.js";
-import {
-  MavlinkCommandRouter,
-  inavMavlinkProfileStore,
-} from "./mavlinkCommandRouter.js";
+import { MavlinkCommandRouter } from "./mavlinkCommandRouter.js";
 
-export { inavMavlinkProfileStore };
-
-export const mavlinkCommandRouter = new MavlinkCommandRouter(mavlinkSession, {
-  profileStore: inavMavlinkProfileStore,
-});
+export const mavlinkCommandRouter = new MavlinkCommandRouter(mavlinkSession);
 
 export default mavlinkCommandRouter;

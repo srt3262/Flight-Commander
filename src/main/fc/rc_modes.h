@@ -134,6 +134,7 @@ PG_DECLARE_ARRAY(modeActivationCondition_t, MAX_MODE_ACTIVATION_CONDITION_COUNT,
 PG_DECLARE(modeActivationOperatorConfig_t, modeActivationOperatorConfig);
 
 bool IS_RC_MODE_ACTIVE(boxId_e boxId);
+bool isRcModeActiveFromInput(boxId_e boxId);
 void rcModeUpdate(boxBitmask_t *newState);
 
 bool isModeActivationConditionPresent(boxId_e modeId);

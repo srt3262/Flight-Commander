@@ -12,6 +12,7 @@ export const MAV_AUTOPILOT_INVALID = 8;
 export const MAV_AUTOPILOT_GENERIC = 0;
 export const MAV_AUTOPILOT_ARDUPILOTMEGA = 3;
 export const MAV_TYPE_GCS = 6;
+export const MAV_MODE_FLAG_GUIDED_ENABLED = 8;
 export const MAV_MODE_FLAG_SAFETY_ARMED = 128;
 export const MAV_STATE_ACTIVE = 4;
 export const MAV_RESULT_ACCEPTED = 0;
@@ -183,6 +184,7 @@ export function createInitialMavlinkState() {
     vehicleType: null,
     vehicleTypeName: "Unknown",
     armed: false,
+    gcsNavEnabled: false,
     baseMode: 0,
     customMode: 0,
     modeName: "Unknown",
@@ -956,6 +958,9 @@ export class MavlinkSession {
     this.state.linkLost = false;
     this.state.lastHeartbeatAt = this.now();
     this.state.armed = Boolean(baseMode & MAV_MODE_FLAG_SAFETY_ARMED);
+    this.state.gcsNavEnabled = Boolean(
+      baseMode & MAV_MODE_FLAG_GUIDED_ENABLED,
+    );
     this.state.baseMode = baseMode;
     this.state.customMode = customMode;
     this.state.modeName = modeName(this.state.vehicleType, customMode);
@@ -1531,11 +1536,14 @@ startFirmwareDetection() {
           return;
         }
         if (result !== MAV_RESULT_ACCEPTED) {
-          fail(
-            new Error(
-              `Command ${command} was ${MAV_RESULT_NAMES[result] ?? `result ${result}`}.`,
-            ),
+          const error = new Error(
+            `Command ${command} was ${MAV_RESULT_NAMES[result] ?? `result ${result}`}.`,
           );
+          error.command = Number(command);
+          error.commandResult = result;
+          error.commandResultParam2 =
+            Number(field(envelope.data, "resultParam2", "result_param2")) || 0;
+          fail(error);
           return;
         }
         if (settled) return;

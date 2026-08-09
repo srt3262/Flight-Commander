@@ -2,125 +2,93 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 
 import {
+  FlightCommanderMavlinkCommandAdapter,
   InavMavlinkCommandAdapter,
-  InavMavlinkProfileStore,
   MavlinkCommandRouter,
-  FLIGHT_COMMANDER_KNOWN_CAPABILITY_MASK,
-  resolveCachedFlightCommanderIdentity,
 } from "../../../js/gcs/mavlinkCommandRouter.js";
-import { FLIGHT_COMMANDER_CAPABILITIES } from "../../../js/flightCommander/firmwareIdentity.js";
 
-function fakeUnsupportedSession(overrides = {}) {
-  const { state: stateOverrides = {}, ...methodOverrides } = overrides;
+function nativeSession(stateOverrides = {}) {
   const calls = [];
+  const modeByPermanentId = new Map([
+    [1, "STABILIZE"],
+    [2, "STABILIZE"],
+    [3, "ALT_HOLD"],
+    [10, "RTL"],
+    [11, "GUIDED"],
+    [12, "MANUAL"],
+    [28, "AUTO"],
+    [36, "TAKEOFF"],
+  ]);
   const session = {
     state: {
       connected: true,
       linkLost: false,
-      firmwareFamily: "unsupported",
-      systemId: 1,
+      firmwareFamily: "flight-commander",
+      systemId: 9,
       componentId: 1,
       vehicleType: 2,
       vehicleTypeName: "Quadrotor",
+      armed: true,
+      gcsNavEnabled: true,
+      baseMode: 8 | 128,
+      modeName: "GUIDED",
       missionTotal: 3,
+      rcChannels: [],
       ...stateOverrides,
     },
-    availableModes: () =>
-      ["STABILIZE", "AUTO", "GUIDED", "LOITER", "RTL", "LAND"].map(
-        (name, number) => ({ name, number }),
-      ),
-    setMode: async (...args) => {
-      calls.push(["setMode", ...args]);
-      return { modeName: args[0] };
+    snapshot() {
+      return { ...this.state, rcChannels: [...this.state.rcChannels] };
     },
-    setArmed: async (...args) => {
-      calls.push(["setArmed", ...args]);
-      return { armed: args[0] };
+    async sendCommandLong(command, parameters, options) {
+      calls.push({ command, parameters, options });
+      switch (command) {
+        case 176:
+          this.state.modeName =
+            modeByPermanentId.get(Number(parameters.param2)) ??
+            this.state.modeName;
+          break;
+        case 400:
+          this.state.armed = Number(parameters.param1) === 1;
+          break;
+        case 300:
+          if (this.state.armed) this.state.modeName = "AUTO";
+          break;
+        case 193:
+          this.state.modeName =
+            Number(parameters.param1) === 0 ? "GUIDED" : "AUTO";
+          break;
+        case 20:
+          this.state.modeName = "RTL";
+          break;
+        case 21:
+          this.state.modeName = "LAND";
+          break;
+        case 22:
+          this.state.modeName =
+            this.state.vehicleType === 1 ? "TAKEOFF" : "GUIDED";
+          break;
+        default:
+          break;
+      }
+      return { command, result: 0 };
     },
-    startMission: async (...args) => {
-      calls.push(["startMission", ...args]);
-      return { result: 0 };
+    waitForState(predicate, _timeout, description) {
+      const state = this.snapshot();
+      if (!predicate(state)) {
+        return Promise.reject(
+          new Error(`Test state did not satisfy ${description}.`),
+        );
+      }
+      return Promise.resolve(state);
     },
-    setMissionCurrent: async (...args) => {
-      calls.push(["setMissionCurrent", ...args]);
-      return { sequence: args[0] };
-    },
-    resumeMissionFrom: async (...args) => {
-      calls.push(["resumeMissionFrom", ...args]);
-      return { sequence: args[0] };
-    },
-    takeoff: async (...args) => {
-      calls.push(["takeoff", ...args]);
-      return { altitude: args[0] };
-    },
-    returnToLaunch: async (...args) => {
-      calls.push(["returnToLaunch", ...args]);
-      return { modeName: "RTL" };
-    },
-    land: async (...args) => {
-      calls.push(["land", ...args]);
-      return { modeName: "LAND" };
-    },
-    ...methodOverrides,
   };
   session.calls = calls;
   return session;
 }
 
-function inavProfile() {
-  return {
-    profileId: "test-profile",
-    systemId: 9,
-    boardIdentifier: "MICOAIR743",
-    receiverType: "SERIAL",
-    serialRxProvider: "MAVLINK",
-    mavlinkVersion: 2,
-    rcMap: Array.from({ length: 18 }, (_unused, index) => index),
-    modeRanges: [
-      {
-        id: 0,
-        name: "ARM",
-        auxChannelIndex: 0,
-        rcChannelIndex: 4,
-        range: { start: 1700, end: 2100 },
-      },
-      {
-        id: 28,
-        name: "NAV WP",
-        auxChannelIndex: 1,
-        rcChannelIndex: 5,
-        range: { start: 1700, end: 2100 },
-      },
-      {
-        id: 10,
-        name: "NAV RTH",
-        auxChannelIndex: 2,
-        rcChannelIndex: 6,
-        range: { start: 1700, end: 2100 },
-      },
-      {
-        id: 11,
-        name: "NAV POSHOLD",
-        auxChannelIndex: 3,
-        rcChannelIndex: 7,
-        range: { start: 1700, end: 2100 },
-      },
-      {
-        id: 36,
-        name: "NAV LAUNCH",
-        auxChannelIndex: 4,
-        rcChannelIndex: 8,
-        range: { start: 1700, end: 2100 },
-      },
-    ],
-  };
-}
-
 describe("Flight Commander product-policy command access", () => {
   function policyRouter(firmwareFamily = "unsupported") {
-    const session = fakeUnsupportedSession({
-      state: { firmwareFamily, systemId: 9 },
-    });
+    const session = nativeSession({ firmwareFamily });
     const adapter = {
       capabilities: () => ({
         canSetMode: true,
@@ -136,16 +104,6 @@ describe("Flight Commander product-policy command access", () => {
     return {
       session,
       router: new MavlinkCommandRouter(session, {
-        profileStore: {
-          resolve() {
-            return {
-              status: "resolved",
-              profile: inavProfile(),
-              profiles: [inavProfile()],
-              reason: "",
-            };
-          },
-        },
         adapterFactory: () => adapter,
       }),
     };
@@ -161,27 +119,23 @@ describe("Flight Commander product-policy command access", () => {
     }
   });
 
-  test("link loss remains the first failure for every firmware family", () => {
-    const session = fakeUnsupportedSession({ state: { linkLost: true } });
+  test("link loss blocks every command before routing", () => {
+    const session = nativeSession({ linkLost: true });
     const router = new MavlinkCommandRouter(session);
     assert.equal(router.capabilities().canArm, false);
     assert.throws(() => router.setArmed(true), /link is lost/);
     assert.throws(() => router.returnToLaunch(), /link is lost/);
   });
 
-  test("an application transition failure remains blocked after the transient block clears", () => {
+  test("an application transition block remains authoritative", () => {
     const { session, router } = policyRouter();
 
     router.blockCommands(
       "Ground Control transition failed; commands are disabled.",
     );
-    assert.equal(session.state.connected, true);
     assert.equal(router.capabilities().canArm, false);
     assert.match(router.capabilities().reason, /commands are disabled/);
-    assert.throws(
-      () => router.setArmed(true),
-      /commands are disabled/,
-    );
+    assert.throws(() => router.setArmed(true), /commands are disabled/);
     assert.deepEqual(session.calls, []);
 
     router.clearCommandBlock();
@@ -189,358 +143,130 @@ describe("Flight Commander product-policy command access", () => {
   });
 });
 
-describe("Flight Commander command routing", () => {
-  test("default override timers retain the Chromium host receiver", () => {
-    const originalSetInterval = globalThis.setInterval;
-    const originalClearInterval = globalThis.clearInterval;
-    const calls = [];
+describe("Flight Commander native command routing", () => {
+  test("GCS NAV is a live authorization gate for every native command", async () => {
+    const session = nativeSession({
+      gcsNavEnabled: false,
+      baseMode: 128,
+    });
+    const router = new MavlinkCommandRouter(session);
+    const capabilities = router.capabilities();
 
-    try {
-      globalThis.setInterval = function (callback, delay) {
-        assert.equal(this, globalThis);
-        calls.push(["set", delay]);
-        return { callback, delay, unref() {} };
-      };
-      globalThis.clearInterval = function (handle) {
-        assert.equal(this, globalThis);
-        calls.push(["clear", handle.delay]);
-      };
+    assert.equal(capabilities.canArm, false);
+    assert.equal(capabilities.canSetMode, false);
+    assert.equal(capabilities.canStartMission, false);
+    assert.equal(capabilities.canSetMissionCurrent, false);
+    assert.equal(capabilities.canTakeoff, false);
+    assert.equal(capabilities.canRtl, false);
+    assert.equal(capabilities.canLand, false);
+    assert.match(capabilities.reason, /Enable.*GCS NAV/i);
+    await assert.rejects(router.setArmed(true), /GCS NAV/i);
+    await assert.rejects(router.setMode("NAV WP"), /GCS NAV/i);
+    await assert.rejects(router.startMission(), /GCS NAV/i);
+    assert.equal(session.calls.length, 0);
 
-      const adapter = new InavMavlinkCommandAdapter(
-        {
-          state: { systemId: 9, componentId: 1 },
-          async send() {
-            return 1;
-          },
-        },
-        inavProfile(),
-      );
-      assert.doesNotThrow(() => adapter.ensureOverrideLoop());
-      assert.doesNotThrow(() => adapter.stop());
-      assert.deepEqual(calls, [
-        ["set", 125],
-        ["clear", 125],
-      ]);
-    } finally {
-      globalThis.setInterval = originalSetInterval;
-      globalThis.clearInterval = originalClearInterval;
-    }
+    session.state.gcsNavEnabled = true;
+    session.state.baseMode |= 8;
+    assert.equal(router.capabilities().canArm, true);
+    assert.equal(router.capabilities().canSetMode, true);
   });
 
-  test("requires the firmware capability and a matching cached profile", async () => {
-    const sent = [];
-    const session = {
-      state: {
-        connected: true,
-        linkLost: false,
-        firmwareFamily: "flight-commander",
-        flightCommanderCapabilities: FLIGHT_COMMANDER_CAPABILITIES.NATIVE_GCS_COMMANDS,
-        systemId: 9,
-        componentId: 1,
-        protocolVersion: 2,
-        armed: false,
-        modeName: "STABILIZE",
-        rcChannels: [],
-      },
-      snapshot() {
-        return { ...this.state, rcChannels: [] };
-      },
-      async send(name, payload) {
-        sent.push({ name, payload });
-        return 1;
-      },
-      waitForState(predicate, _timeout, label = "") {
-        const next = {
-          ...this.state,
-          armed: true,
-          modeName: label.includes("NAV POSHOLD") ? "POSHOLD" : "AUTO",
-          rcChannels: [],
-        };
-        return predicate(next) ? Promise.resolve(next) : Promise.resolve(next);
-      },
-    };
-    const profileStore = {
-      resolve() {
-        return {
-          status: "resolved",
-          profile: inavProfile(),
-          profiles: [inavProfile()],
-          reason: "",
-        };
-      },
-    };
-    const adapters = [];
-    const router = new MavlinkCommandRouter(session, {
-      profileStore,
-      adapterFactory: (adapterSession, profile) => {
-        const adapter = new InavMavlinkCommandAdapter(adapterSession, profile, {
-          setIntervalFn: () => ({ unref() {} }),
-          clearIntervalFn: () => {},
-        });
-        adapters.push(adapter);
-        return adapter;
-      },
-    });
+  test("a GCS NAV drop between rendering and a click prevents transmission", async () => {
+    const session = nativeSession();
+    const router = new MavlinkCommandRouter(session);
+    assert.equal(router.capabilities().canArm, true);
+
+    session.state.gcsNavEnabled = false;
+    session.state.baseMode &= ~8;
+    await assert.rejects(router.setArmed(false), /GCS NAV/i);
+    assert.equal(session.calls.length, 0);
+  });
+
+  test("routes all flight controls through COMMAND_LONG", async () => {
+    const session = nativeSession();
+    const router = new MavlinkCommandRouter(session);
 
     assert.equal(router.capabilities().canArm, true);
     assert.equal(router.capabilities().canStartMission, true);
     assert.equal(router.capabilities().canAbortMission, true);
     assert.equal(router.capabilities().missionAbortMode, "NAV POSHOLD");
-    assert.equal(router.capabilities().canTakeoff, true);
-    assert.equal(router.capabilities().canLand, false);
-    assert.match(router.capabilities().takeoffReason, /NAV LAUNCH AUX range/);
-    assert.match(router.capabilities().rtlReason, /NAV RTH AUX range/);
-    assert.match(
-      router.capabilities().landReason,
-      /does not expose a separately confirmable generic Land command/,
-    );
+    assert.equal(router.capabilities().canTakeoff, false);
+    assert.equal(router.capabilities().canLand, true);
+    assert.match(router.capabilities().reason, /native MAVLink/i);
 
+    await router.setMode("NAV WP");
     await router.startMission();
-    assert.equal(sent.at(-1).name, "RcChannelsOverride");
-    assert.equal(sent.at(-1).payload.chan6Raw, 1900);
     const abortResult = await router.abortMission();
+    await router.returnToLaunch();
+    await router.land();
+    await router.setArmed(false);
+
     assert.equal(abortResult.abortMode, "NAV POSHOLD");
     assert.equal(abortResult.safeStateConfirmed, true);
-    assert.equal(sent.at(-1).payload.chan8Raw, 1900);
-    assert.throws(
-      () => router.land(),
-      /does not expose a generic Land command/,
+    assert.deepEqual(
+      session.calls.map(({ command }) => command),
+      [176, 300, 193, 20, 21, 400],
     );
-
-    router.stop();
-    assert.equal(adapters.at(-1).commandStreamEnabled, false);
+    assert.equal(session.calls[0].parameters.param2, 28);
+    assert.equal(session.calls[1].parameters.param1, 0);
   });
 
-  test("rejects an unresolved command-profile lookup", () => {
-    const session = {
-      state: {
-        connected: true,
-        linkLost: false,
-        firmwareFamily: "flight-commander",
-        flightCommanderCapabilities: FLIGHT_COMMANDER_CAPABILITIES.NATIVE_GCS_COMMANDS,
-        systemId: 9,
-      },
-    };
-    const router = new MavlinkCommandRouter(session, {
-      profileStore: {
-        resolve() {
-          return {
-            status: "missing",
-            profile: null,
-            profiles: [],
-            reason: "No command profile is available for system ID 9.",
-          };
-        },
-      },
-    });
-    assert.equal(router.capabilities().canSetMode, false);
-    assert.throws(() => router.setMode("NAV WP"), /No command profile/);
+  test("GCS NAV cannot be enabled by a GCS mode command", async () => {
+    const session = nativeSession();
+    const router = new MavlinkCommandRouter(session);
+
+    await assert.rejects(router.setMode("GCS NAV"), /not exposed/i);
+    assert.equal(session.calls.length, 0);
   });
 
-  test("legacy duplicate profiles no longer disable connected controls", () => {
-    let stored = {
-      schemaVersion: 1,
-      profilesBySystemId: {
-        9: [
-          { ...inavProfile(), profileId: "stale-controller" },
-          { ...inavProfile(), profileId: "latest-wired-controller" },
-        ],
-      },
-    };
-    const profileStore = new InavMavlinkProfileStore({
-      storage: {
-        get: (_key, fallback) => stored ?? fallback,
-        set: (_key, value) => {
-          stored = value;
-        },
-      },
-    });
-    const session = fakeUnsupportedSession({
-      state: { firmwareFamily: "flight-commander", systemId: 9 },
-    });
-    const router = new MavlinkCommandRouter(session, {
-      profileStore,
-      adapterFactory: (_adapterSession, profile) => ({
-        capabilities: () => ({
-          canSetMode: true,
-          canArm: true,
-          canStartMission: true,
-          canResumeMission: true,
-        }),
-        availableModes: () => ["NAV WP"],
-        stop() {},
-        profile,
-      }),
-    });
-
-    assert.equal(router.capabilities().canArm, true);
-    assert.deepEqual(router.availableModes(), ["NAV WP"]);
-    assert.equal(router.inavAdapter.profile.profileId, "latest-wired-controller");
-    assert.equal(stored.profilesBySystemId[9].length, 1);
-  });
-});
-
-describe("Flight Commander command-profile persistence", () => {
-
-test("resolves exactly one MICOAIR743 wired profile as legacy Flight Commander identity", () => {
-  const profile = inavProfile();
-  const resolved = resolveCachedFlightCommanderIdentity(
-    { resolve: () => ({ status: "resolved", profile }) },
-    { autopilot: 0, systemId: 9 },
-  );
-  assert.equal(resolved.source, "legacy-msp-profile");
-  assert.equal(resolved.capabilities, FLIGHT_COMMANDER_KNOWN_CAPABILITY_MASK);
-
-  assert.equal(
-    resolveCachedFlightCommanderIdentity(
-      { resolve: () => ({ status: "ambiguous", profile: null }) },
-      { autopilot: 0, systemId: 9 },
-    ),
-    null,
-  );
-  assert.equal(
-    resolveCachedFlightCommanderIdentity(
-      { resolve: () => ({ status: "resolved", profile }) },
-      { autopilot: 3, systemId: 9 },
-    ),
-    null,
-  );
-});
-
-  test("migrates duplicate 4.1.4 profiles to the latest wired capture", () => {
-    const first = {
-      ...inavProfile(),
-      capturedAt: "2026-08-08T18:00:00.000Z",
-    };
-    const latest = {
-      ...inavProfile(),
-      profileId: "latest-wired-controller",
-      capturedAt: "2026-08-08T20:00:00.000Z",
-    };
-    let stored = {
-      schemaVersion: 1,
-      profilesBySystemId: { 9: [first, latest] },
-    };
-    const storage = {
-      get: (_key, fallback) => stored ?? fallback,
-      set: (_key, value) => {
-        stored = value;
-      },
-    };
-    const store = new InavMavlinkProfileStore({ storage });
-    const migrated = store.resolve(9);
-    assert.equal(migrated.status, "resolved");
-    assert.equal(migrated.profile.profileId, "latest-wired-controller");
-    assert.equal(migrated.profiles.length, 1);
-    assert.equal(stored.profilesBySystemId[9].length, 1);
+  test("the historical adapter name aliases the native implementation", () => {
     assert.equal(
-      stored.profilesBySystemId[9][0].profileId,
-      "latest-wired-controller",
+      InavMavlinkCommandAdapter,
+      FlightCommanderMavlinkCommandAdapter,
     );
-
-    store.writeDocument({
-      schemaVersion: 1,
-      profilesBySystemId: { 9: [latest, latest] },
-    });
-    const explicitlySelected = store.resolve(9, {
-      profileId: "latest-wired-controller",
-    });
-    assert.equal(explicitlySelected.status, "resolved");
-    assert.equal(explicitlySelected.profile.profileId, "latest-wired-controller");
-    assert.equal(stored.profilesBySystemId[9].length, 1);
-
-    store.save({
-      ...inavProfile(),
-      profileId: "new-wired-controller",
-    });
-    const replaced = store.resolve(9);
-    assert.equal(replaced.status, "resolved");
-    assert.equal(replaced.profile.profileId, "new-wired-controller");
-    assert.equal(replaced.profiles.length, 1);
-    assert.doesNotMatch(replaced.reason, /INAV|Multiple profiles/i);
   });
 
-  test("captures the command-safe MSP profile fields used by MAVLink routing", async () => {
-    let stored;
-    const storage = {
-      get: (_key, fallback) => stored ?? fallback,
-      set: (_key, value) => {
-        stored = value;
-      },
-    };
-    const requestedCodes = [];
-    const settings = {
-      mavlink_sysid: { value: 23 },
-      mavlink_version: { value: 2 },
-      receiver_type: {
-        value: 3,
-        setting: { table: { values: { 3: "SERIAL" } } },
-      },
-      serialrx_provider: {
-        value: 8,
-        setting: { table: { values: { 8: "MAVLINK" } } },
-      },
-    };
-    const store = new InavMavlinkProfileStore({
-      storage,
-      now: () => new Date("2026-07-29T12:00:00Z"),
+  test("fixed-wing launch is staged before arming", async () => {
+    const session = nativeSession({
+      vehicleType: 1,
+      vehicleTypeName: "Fixed Wing",
+      armed: false,
+      baseMode: 8,
+      modeName: "MANUAL",
     });
+    const adapter = new FlightCommanderMavlinkCommandAdapter(session);
 
-    const profile = await store.captureFromMsp({
-      FC: {
-        CONFIG: {
-          uid: [1, 2, 3],
-          name: "Survey aircraft",
-          boardIdentifier: "MICOAIR743",
-          firmwareFamily: "flight-commander",
-          firmwareIdentity: { family: "flight-commander" },
-          flightCommanderFirmware: {
-            firmwareVersion: "4.0.8",
-            schemaVersion: 1,
-            capabilities: FLIGHT_COMMANDER_CAPABILITIES.NATIVE_GCS_COMMANDS,
-          },
-        },
-        MIXER_CONFIG: { platformType: 3 },
-        RC_MAP: Array.from({ length: 18 }, (_unused, index) => index),
-        RC: {
-          active_channels: 8,
-          channels: [1500, 1500, 1500, 1000, 1000, 1000, 1000, 1000],
-        },
-        MODE_RANGES: inavProfile().modeRanges,
-        generateAuxConfig() {},
-      },
-      MSPCodes: {
-        MSP_BOXIDS: 1,
-        MSP_MODE_RANGES: 2,
-        MSP_RX_MAP: 3,
-        MSP_RC: 4,
-      },
-      mspHelper: {
-        async getSetting(name) {
-          return settings[name];
-        },
-      },
-      async requestMsp(code) {
-        requestedCodes.push(code);
-        return {};
-      },
+    assert.equal(adapter.capabilities().canTakeoff, true);
+    const result = await adapter.takeoff(60);
+    assert.equal(result.confirmed, true);
+    assert.equal(result.executionPending, true);
+    assert.equal(session.calls.at(-1).command, 22);
+    assert.equal(session.calls.at(-1).parameters.param7, 60);
+  });
+
+  test("multirotor takeoff remains unavailable", async () => {
+    const session = nativeSession({ armed: false, baseMode: 8 });
+    const adapter = new FlightCommanderMavlinkCommandAdapter(session);
+
+    assert.equal(adapter.capabilities().canTakeoff, false);
+    await assert.rejects(adapter.takeoff(20), /multirotor auto-takeoff/i);
+    assert.equal(session.calls.length, 0);
+  });
+
+  test("mission resume selection is acknowledged while disarmed", async () => {
+    const session = nativeSession({
+      armed: false,
+      baseMode: 8,
+      modeName: "STABILIZE",
     });
+    const router = new MavlinkCommandRouter(session);
 
-    assert.deepEqual(requestedCodes, [1, 2, 3, 4]);
-    assert.equal(profile.systemId, 23);
-    assert.equal(profile.receiverType, "SERIAL");
-    assert.equal(profile.serialRxProvider, "MAVLINK");
-    assert.equal(profile.profileId, "uid:1-2-3");
-    assert.equal(profile.firmwareFamily, "flight-commander");
-    assert.equal(profile.flightCommanderFirmwareVersion, "4.0.8");
-    assert.equal(
-      profile.flightCommanderCapabilities,
-      FLIGHT_COMMANDER_CAPABILITIES.NATIVE_GCS_COMMANDS,
-    );
-    assert.equal(
-      profile.modeRanges.find(({ name }) => name === "NAV WP").rcChannelIndex,
-      5,
-    );
-    assert.equal(store.resolve(23).status, "resolved");
+    const result = await router.startMission({
+      checkpoint: { sequence: 2 },
+    });
+    assert.equal(result.confirmed, true);
+    assert.equal(result.executionPending, true);
+    assert.equal(session.calls.at(-1).command, 300);
+    assert.equal(session.calls.at(-1).parameters.param1, 2);
   });
 });

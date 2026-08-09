@@ -24,7 +24,7 @@ has exactly two public assets: the complete four-file bundle and that standalone
 HEX. Publication fails on a version, source identity, checksum, filename, or
 asset-count mismatch.
 
-For 4.1.5, both Configurator and Firmware are 4.1.5 and
-`firmwareChangedInRelease` is `true`. The Configurator repairs the obsolete
-duplicate command-profile gate; the firmware receives the matching release
-identity while retaining the reviewed 4.1.4 flight implementation.
+For 4.1.6, both Configurator and Firmware are 4.1.6 and
+`firmwareChangedInRelease` is `true`. The coordinated release replaces cached
+AUX/RC command emulation with native MAVLink commands and enforces the physical
+GCS NAV authorization mode independently in the Configurator and firmware.

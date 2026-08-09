@@ -124,8 +124,11 @@ other firmware functions. Avoid overlapping ranges that can activate unsafe
 combinations. Use a deliberate prearm/arm scheme and verify the active-mode
 highlight while moving each physical switch.
 
-Ground Control command buttons can depend on cached AUX mappings captured over
-MSP. Configure and save those mappings before relying on MAVLink actions.
+Ground Control actions use native MAVLink commands rather than per-command AUX
+mappings. Configure one deliberate physical **GCS NAV** range: commands remain
+disabled and firmware-rejected while it is off, and a command cannot enable its
+own authorization gate. Bench-test turning GCS NAV off and each pilot override
+before relying on MAVLink actions.
 
 ## Failsafe
 

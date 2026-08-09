@@ -3889,13 +3889,15 @@ int isGCSValid(void)
  * (i.e. the first waypoint in the loaded mission is index 0, regardless of
  * startWpIndex).
  *
- * Returns true on success, false when the preconditions are not met (not armed,
- * not in WP mode, or index out of range).
+ * When a mission is already active, the change is applied immediately. Before
+ * WP mode starts, the index selects the next item while the aircraft is armed.
+ * A command owner that accepts the selection while disarmed must retain and
+ * reapply it after arming because the disarmed navigation loop resets missions.
+ * Returns false when the mission is invalid or the index is out of range.
  */
 bool navSetActiveWaypointIndex(uint8_t index)
 {
-    // Must be armed and actively executing a WP mission
-    if (!ARMING_FLAG(ARMED) || !FLIGHT_MODE(NAV_WP_MODE)) {
+    if (!posControl.waypointListValid) {
         return false;
     }
 
@@ -3909,10 +3911,11 @@ bool navSetActiveWaypointIndex(uint8_t index)
     posControl.activeWaypointIndex = absoluteIndex;
     posControl.wpMissionRestart = false;
 
-    // Transition immediately to WAYPOINT_PRE_ACTION so the new WP is set up
-    // on this navigation tick.  navProcessFSMEvents is safe to call here as
-    // everything runs in the same main-loop task context.
-    navProcessFSMEvents(NAV_FSM_EVENT_SWITCH_TO_WAYPOINT_JUMP);
+    if (FLIGHT_MODE(NAV_WP_MODE)) {
+        // Transition immediately to WAYPOINT_PRE_ACTION so the new WP is set up
+        // on this navigation tick. Everything runs in the same main-loop task.
+        navProcessFSMEvents(NAV_FSM_EVENT_SWITCH_TO_WAYPOINT_JUMP);
+    }
     return true;
 }
 
@@ -4382,7 +4385,9 @@ void applyWaypointNavigationAndAltitudeHold(void)
         posControl.flags.forcedRTHActivated = false;
         posControl.flags.forcedEmergLandingActivated = false;
         posControl.flags.manualEmergLandActive = false;
-        //  ensure WP missions always restart from first waypoint after disarm
+        // Ensure WP missions restart from the first waypoint after disarm.
+        // GCS mission-start staging retains its index separately and reapplies
+        // it only after normal arming checks succeed.
         posControl.activeWaypointIndex = posControl.startWpIndex;
         // Reset RTH trackback
         resetRthTrackBack();

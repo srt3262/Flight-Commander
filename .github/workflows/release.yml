@@ -15,19 +15,19 @@ permissions:
   contents: read
 
 concurrency:
-  group: publish-flight-commander-4.1.5
+  group: publish-flight-commander-4.1.6
   cancel-in-progress: false
 
 env:
-  RELEASE_VERSION: 4.1.5
-  RELEASE_TAG: v4.1.5
+  RELEASE_VERSION: 4.1.6
+  RELEASE_TAG: v4.1.6
 
 jobs:
   authorize:
     name: Authorize official release
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      github.event.head_commit.message == 'Publish Flight Commander 4.1.5 release'
+      github.event.head_commit.message == 'Publish Flight Commander 4.1.6 release'
     runs-on: ubuntu-latest
     outputs:
       release_sha: ${{ steps.release.outputs.sha }}
@@ -54,7 +54,7 @@ jobs:
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
 
   firmware:
-    name: Build verified Firmware 4.1.5
+    name: Build verified Firmware 4.1.6
     needs: authorize
     runs-on: ubuntu-latest
     timeout-minutes: 35
@@ -83,7 +83,7 @@ jobs:
           retention-days: 14
 
   windows:
-    name: Build verified Windows Configurator 4.1.5
+    name: Build verified Windows Configurator 4.1.6
     needs: authorize
     runs-on: windows-latest
     timeout-minutes: 50
@@ -122,13 +122,13 @@ jobs:
           if (@($package).Count -ne 1) {
             throw 'Expected exactly one verified win32-x64 package directory.'
           }
-          Compress-Archive -Path "$($package.FullName)\*" -DestinationPath "$env:RUNNER_TEMP\FC-Windows-v4.1.5.zip" -CompressionLevel Optimal
+          Compress-Archive -Path "$($package.FullName)\*" -DestinationPath "$env:RUNNER_TEMP\FC-Windows-v4.1.6.zip" -CompressionLevel Optimal
 
       - name: Upload verified Windows archive
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: release-windows-${{ needs.authorize.outputs.release_sha }}
-          path: ${{ runner.temp }}/FC-Windows-v4.1.5.zip
+          path: ${{ runner.temp }}/FC-Windows-v4.1.6.zip
           if-no-files-found: error
           retention-days: 14
 
@@ -167,14 +167,14 @@ jobs:
           bundle_dir="$RUNNER_TEMP/bundle"
           mkdir -p "$bundle_dir"
 
-          windows="$candidate/FC-Windows-v4.1.5.zip"
-          firmware="$candidate/Flight-Commander-Firmware-4.1.5-MICOAIR743.hex"
-          firmware_source="$candidate/FC-Firmware-Source-v4.1.5.zip"
+          windows="$candidate/FC-Windows-v4.1.6.zip"
+          firmware="$candidate/Flight-Commander-Firmware-4.1.6-MICOAIR743.hex"
+          firmware_source="$candidate/FC-Firmware-Source-v4.1.6.zip"
           metadata="$candidate/firmware-release-metadata.json"
-          configurator_source="$bundle_dir/FC-Configurator-Source-v4.1.5.zip"
-          online_firmware="$RUNNER_TEMP/Flight-Commander-Firmware-4.1.5-MICOAIR743.hex"
-          short_firmware="$bundle_dir/FC-Firmware-v4.1.5-MICOAIR743.hex"
-          complete_bundle="$RUNNER_TEMP/Flight-Commander-v4.1.5.zip"
+          configurator_source="$bundle_dir/FC-Configurator-Source-v4.1.6.zip"
+          online_firmware="$RUNNER_TEMP/Flight-Commander-Firmware-4.1.6-MICOAIR743.hex"
+          short_firmware="$bundle_dir/FC-Firmware-v4.1.6-MICOAIR743.hex"
+          complete_bundle="$RUNNER_TEMP/Flight-Commander-v4.1.6.zip"
 
           for path in "$windows" "$firmware" "$firmware_source" "$metadata"; do
             test -s "$path" || { echo "Missing release candidate: $path" >&2; exit 1; }
@@ -187,32 +187,32 @@ jobs:
           source = pathlib.Path(sys.argv[4])
           digest = lambda path: hashlib.sha256(path.read_bytes()).hexdigest()
           declaration = package['flightCommander']
-          assert package['version'] == metadata['version'] == '4.1.5'
+          assert package['version'] == metadata['version'] == '4.1.6'
           assert declaration['firmwareChangedInRelease'] is True
-          assert declaration['firmwareReleaseVersion'] == '4.1.5'
+          assert declaration['firmwareReleaseVersion'] == '4.1.6'
           assert declaration['firmwareReleaseSha256'] == metadata['firmware']['sha256'] == digest(firmware)
-          assert declaration['firmwareSourceVersion'] == '4.1.5'
-          assert declaration['firmwareSourceArchive'] == 'FC-Firmware-Source-v4.1.5.zip'
+          assert declaration['firmwareSourceVersion'] == '4.1.6'
+          assert declaration['firmwareSourceArchive'] == 'FC-Firmware-Source-v4.1.6.zip'
           assert declaration['firmwareSourceSha256'] == metadata['source']['sha256'] == digest(source)
           assert declaration['firmwareSourceRevision'] == metadata['source']['revision']
           assert declaration['firmwareSourceTree'] == metadata['source']['tree']
           PY
 
           git archive --format=zip \
-            --prefix="Flight-Commander-Configurator-Source-v4.1.5/" \
+            --prefix="Flight-Commander-Configurator-Source-v4.1.6/" \
             --output="$configurator_source" \
             "$RELEASE_SHA:configurator"
-          cp "$windows" "$bundle_dir/FC-Windows-v4.1.5.zip"
+          cp "$windows" "$bundle_dir/FC-Windows-v4.1.6.zip"
           cp "$firmware" "$short_firmware"
           cp "$firmware" "$online_firmware"
-          cp "$firmware_source" "$bundle_dir/FC-Firmware-Source-v4.1.5.zip"
+          cp "$firmware_source" "$bundle_dir/FC-Firmware-Source-v4.1.6.zip"
 
           mapfile -t canonical < <(find "$bundle_dir" -maxdepth 1 -type f -printf '%f\n' | sort)
           expected=(
-            FC-Configurator-Source-v4.1.5.zip
-            FC-Firmware-Source-v4.1.5.zip
-            FC-Firmware-v4.1.5-MICOAIR743.hex
-            FC-Windows-v4.1.5.zip
+            FC-Configurator-Source-v4.1.6.zip
+            FC-Firmware-Source-v4.1.6.zip
+            FC-Firmware-v4.1.6-MICOAIR743.hex
+            FC-Windows-v4.1.6.zip
           )
           if [[ "${canonical[*]}" != "${expected[*]}" ]]; then
             echo "Complete release bundle does not contain exactly the four canonical files." >&2
@@ -229,7 +229,7 @@ jobs:
               "$(basename "$online_firmware")"
           ) > "$RUNNER_TEMP/SHA256SUMS.txt"
           {
-            cat docs/releases/v4.1.5.md
+            cat docs/releases/v4.1.6.md
             printf '\n## Verified release assets\n\n```text\n'
             cat "$RUNNER_TEMP/SHA256SUMS.txt"
             printf '```\n'
@@ -252,11 +252,11 @@ jobs:
             exit 1
           fi
           gh release create "$RELEASE_TAG" \
-            "$COMPLETE_BUNDLE#Flight Commander 4.1.5 complete release bundle" \
-            "$ONLINE_FIRMWARE#Flight Commander Firmware 4.1.5 for MICOAIR743" \
+            "$COMPLETE_BUNDLE#Flight Commander 4.1.6 complete release bundle" \
+            "$ONLINE_FIRMWARE#Flight Commander Firmware 4.1.6 for MICOAIR743" \
             --repo "$GITHUB_REPOSITORY" \
             --target "$RELEASE_SHA" \
-            --title "Flight Commander 4.1.5" \
+            --title "Flight Commander 4.1.6" \
             --notes-file "$NOTES" \
             --latest
 
@@ -264,8 +264,8 @@ jobs:
             "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG" \
             --jq '.assets[].name' | sort)
           expected=(
-            Flight-Commander-Firmware-4.1.5-MICOAIR743.hex
-            Flight-Commander-v4.1.5.zip
+            Flight-Commander-Firmware-4.1.6-MICOAIR743.hex
+            Flight-Commander-v4.1.6.zip
           )
           if [[ "${assets[*]}" != "${expected[*]}" ]]; then
             echo "Published release does not contain exactly the two public assets." >&2

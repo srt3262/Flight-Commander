@@ -61,7 +61,7 @@ If auto protocol cannot identify the controller, use
 5. **Mixer** and **Outputs** — verify airframe type, motor order, direction, and
    output protocol with propellers removed.
 6. **Receiver** and **Modes** — check channel order/endpoints, arm/prearm, flight
-   modes, and command AUX mappings.
+   modes, and a deliberate physical **GCS NAV** authorization switch.
 7. **Failsafe** — configure and bench-test loss of RC and navigation sources.
 8. **GPS** — configure UART or DroneCAN receivers, primary navigation source,
    RTK correction paths, and heading sources.

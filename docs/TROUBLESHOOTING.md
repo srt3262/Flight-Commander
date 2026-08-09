@@ -77,10 +77,10 @@ error with magnetic declination.
 ## Ground Control command is visible but disabled
 
 Hover/read the disabled reason. Common causes are MSP instead of MAVLink, no
-heartbeat, multiple systems on the link, no current cached MSP command profile,
-missing AUX mapping, link loss, or an unconfirmable target mode. Configurator
-4.1.5 automatically repairs the duplicate-profile state created by earlier
-releases. Firmware
+heartbeat, link loss, or the pilot-controlled **GCS NAV** mode being off. Native
+commands do not require cached MSP command profiles or per-command AUX mappings.
+If GCS NAV is on and a command is denied, check the displayed arming,
+navigation, GPS/home, mission, throttle, and failsafe conditions. Firmware
 identity metadata is not a command gate. Do not bypass an operational safety
 check with a raw command.
 

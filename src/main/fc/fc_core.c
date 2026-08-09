@@ -80,6 +80,10 @@
 
 #include "scheduler/scheduler.h"
 
+#ifdef USE_FLIGHT_COMMANDER_GCS_COMMANDS
+#include "flight_commander/gcs_commands.h"
+#endif
+
 #include "telemetry/telemetry.h"
 
 #include "flight/mixer_profile.h"
@@ -455,6 +459,9 @@ void disarm(disarmReason_t disarmReason)
         lastDisarmReason = disarmReason;
         lastDisarmTimeUs = micros();
         DISABLE_ARMING_FLAG(ARMED);
+#ifdef USE_FLIGHT_COMMANDER_GCS_COMMANDS
+        flightCommanderGcsReset();
+#endif
         DISABLE_STATE(IN_FLIGHT_EMERG_REARM);
 #ifdef USE_DSHOT
         if (FLIGHT_MODE(TURTLE_MODE)) {

@@ -11,9 +11,9 @@ The header identifies the active Flight Commander transport and vehicle.
 - **Flight Commander MSP wired** is the bench setup link. It supplies live
   telemetry, but airborne command buttons require a validated MAVLink link.
 - **MAVLink · Flight Commander** supplies live telemetry and mission transport
-  as soon as a valid aircraft heartbeat establishes the link. Commands that use
-  configured AUX ranges use the most recently captured wired command profile
-  for the connected MAVLink system ID.
+  as soon as a valid aircraft heartbeat establishes the link. Vehicle actions
+  use native MAVLink commands; cached AUX ranges and RC mappings are not command
+  inputs.
 - **Offline RTK setup** means the aircraft is disconnected but the lower RTK
   workspace can still operate an independent USB base.
 
@@ -79,23 +79,30 @@ The command deck includes:
   route and aircraft identity are revalidated.
 - **Abort Mission** — confirms before leaving AUTO for a supported hold/loiter
   mode, with return-home fallback only when hold is unavailable.
-- **Launch / Takeoff** — uses the entered altitude after converting it to the
-  protocol's canonical units.
+- **Launch / Takeoff** — stages the controller's native fixed-wing NAV LAUNCH
+  mode before arming. Multirotor auto-takeoff remains disabled because iNav has
+  no equivalent native autonomous takeoff state.
 - **Return Home (RTH / RTL)** — requests the configured return mode.
-- **Land** — appears even when disabled; the configured aircraft must expose a
-  safe, confirmable landing command path.
+- **Land** — requests Flight Commander's native emergency-landing path while
+  preserving firmware navigation and disarm protections.
 
 Flight Commander does not infer operational safety from a visible button. A
 command can require a live MAVLink heartbeat, known system/component ID,
-exactly one intended aircraft, a current MSP command profile, valid AUX
-mappings, and a confirmable resulting state. Firmware identity is not one of
-those gates. Assign every aircraft a unique `mavlink_sysid`; a wired capture for
-that ID replaces any older cached mapping instead of creating a blocking
-duplicate.
+exactly one intended aircraft, the pilot-controlled **GCS NAV** mode enabled,
+normal arming/navigation preconditions, and a confirmable resulting state.
+Firmware identity and cached command profiles are not gates. Assign every
+aircraft a unique `mavlink_sysid` so commands target the intended controller.
+
+**GCS NAV is the authorization switch.** The firmware reads it from the saved
+physical mode-input configuration, reports it in the live heartbeat, and
+rejects every native command when it is off. A MAVLink command cannot enable
+GCS NAV for itself. Switching GCS NAV off revokes active GCS mode ownership;
+physical arm and flight-mode switch changes remain independent pilot overrides.
 
 Never use Ground Control commands as the first test of arm, launch, mission,
-return, or land behavior. Verify equivalent RC/AUX behavior on the bench and
-keep a pilot-controlled abort path.
+return, or land behavior. Bench-test the GCS NAV authorization switch, every
+native action, and the pilot-controlled override/abort path with propellers
+removed.
 
 ## Mission status and messages
 
@@ -124,6 +131,8 @@ aircraft is off. See [USB RTK base and NTRIP](RTK_BASE_NTRIP.md).
 - Confirm the intended aircraft identity and link type.
 - Confirm map position, heading, both altitudes, battery, and GPS state.
 - Confirm the expected mission and route before Start/Resume.
+- Confirm GCS NAV is on only for the period in which remote commands are
+  intentionally authorized.
 - Read every disabled reason and active arming flag.
 - Verify the RC pilot can override or abort the selected action.
 - Test link loss and telemetry recovery on the bench.

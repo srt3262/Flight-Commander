@@ -30,7 +30,7 @@ match the installed Flight Commander interface and its operational checks.
 - [Heading fusion, compass sources, calibration, and moving-baseline yaw](HEADING_FUSION.md)
 - [Configurator and firmware versioning](FLIGHT_COMMANDER_VERSIONING.md)
 - [Source reconstruction and upstream provenance](RECONSTRUCTION.md)
-- [Flight Commander 4.1.5 release notes](releases/v4.1.5.md)
+- [Flight Commander 4.1.6 release notes](releases/v4.1.6.md)
 - [Verified Windows, Configurator source, firmware HEX, and firmware source downloads](https://github.com/srt3262/Flight-Commander/releases)
 
 ## Documentation boundaries

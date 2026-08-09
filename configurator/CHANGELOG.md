@@ -1,5 +1,20 @@
 # Flight Commander
 
+## Unreleased
+
+## 4.1.6
+
+- Replace sustained MAVLink RC override/AUX command emulation with native
+  acknowledged Flight Commander commands for arm/disarm, modes, missions,
+  takeoff, return-to-launch, and land.
+- Remove cached MSP command profiles and per-command AUX ranges from the live
+  command path.
+- Require the saved physical **GCS NAV** mode for every native command. The
+  heartbeat drives the disabled state in Ground Control, firmware enforces the
+  same gate independently, and no command can enable its own authorization.
+- Publish matching Configurator and MICOAIR743 Firmware 4.1.6 identities with
+  the native-command implementation at both ends of the MAVLink link.
+
 ## 4.1.5
 
 - Repair command-profile records accumulated by Configurator 4.1.4 and earlier

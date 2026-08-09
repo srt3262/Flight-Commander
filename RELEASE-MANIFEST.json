@@ -1,20 +1,20 @@
 {
   "schema": 1,
   "product": "Flight Commander Firmware",
-  "version": "4.1.5",
+  "version": "4.1.6",
   "target": "MICOAIR743",
   "inav_release": "9.1.0",
   "inav_commit": "e519b69b02e27c8bdc03b4a0889f1baaae211a54",
-  "source_revision": "b99d059b6d85cce36235f8586897bcd8e5d830e3",
-  "source_tree": "540ca746246634e7927fff876552b624f90ae1a2",
+  "source_revision": "8a330837e4aee6830c026091e17b85a85504eb0a",
+  "source_tree": "67c4bf51ca159cf9b16f531813b0bcc12131ba6c",
   "source_hash_scheme": "sha1(sorted sha256sum records, excluding RELEASE-MANIFEST.json)",
   "source_tree_hash_scheme": "sha1('flight-commander-source-tree-v1\\n' plus sorted sha256sum records, excluding RELEASE-MANIFEST.json)",
-  "source_date_epoch": 1786234800,
+  "source_date_epoch": 1786294800,
   "capabilities": "0x0000ffff",
   "artifact": {
-    "filename": "Flight-Commander-Firmware-4.1.5-MICOAIR743.hex",
-    "sha256": "c1312007a6bf7c13fa4f93f0a289664458626a5bb2253ecb74678927581db026",
-    "bytes": 1937279
+    "filename": "Flight-Commander-Firmware-4.1.6-MICOAIR743.hex",
+    "sha256": "b1ff49f1953481d64cb9d57adb298195342b24acdce4d0ded3c540386fa2cd6c",
+    "bytes": 1951287
   },
   "bench_acceptance": {
     "workflow": "select one enabled compass, complete its six-side learned orientation, then calibrate only that source's field offsets and gains",
