@@ -734,7 +734,7 @@ for (const marker of [
   "Abort Mission",
   "Launch / Takeoff",
   "Return Home (RTH / RTL)",
-  "The current Flight Commander Firmware does not expose a separately confirmable generic Land command",
+  "Native emergency landing command authorized by GCS NAV.",
   "Direct NTRIP → Aircraft",
   "Survey-in USB Base → Aircraft",
   "NTRIP-refined USB Base → Aircraft",
