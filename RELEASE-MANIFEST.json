@@ -8,8 +8,8 @@
   ],
   "inav_release": "9.1.0",
   "inav_commit": "e519b69b02e27c8bdc03b4a0889f1baaae211a54",
-  "source_revision": "7909ca42b9bae6780b1e6e9d6f77cd3c31debd5a",
-  "source_tree": "c709e27ac088507886548d3972ee70c7ce2ff96f",
+  "source_revision": "3b252dc097a457f3f7536acda0a1ff5dbee9c197",
+  "source_tree": "15d3c1483c056db82ca80394da6cb31d48c0d28c",
   "source_hash_scheme": "sha1(sorted sha256sum records, excluding RELEASE-MANIFEST.json)",
   "source_tree_hash_scheme": "sha1('flight-commander-source-tree-v1\\n' plus sorted sha256sum records, excluding RELEASE-MANIFEST.json)",
   "source_date_epoch": 1786310400,
@@ -17,12 +17,12 @@
   "artifacts": {
     "MICOAIR743": {
       "filename": "Flight-Commander-Firmware-4.1.8-MICOAIR743.hex",
-      "sha256": "020fd1a3e57cf5103116875d5ee0d7fb6a7a81e76fbf4011c6bc9416c02cba4f",
+      "sha256": "4b9d89d0e3dcc5efdd472d4671702fd37ff102cc2c5ac6cb7abf9788daccc768",
       "bytes": 1951176
     },
     "CUBEORANGEPLUS": {
       "filename": "Flight-Commander-Firmware-4.1.8-CUBEORANGEPLUS.hex",
-      "sha256": "d877baf061ba0839f1091892ec577358a5cfe3858796e729a55e50c090e7618b",
+      "sha256": "2f6f5422b436d9729159445717db417dccca771d2761f70429f3ac6ae677c236",
       "bytes": 1947232
     }
   },

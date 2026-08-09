@@ -36,24 +36,24 @@
     "inavConfiguratorCommit": "4c343e38aba4ef655afd88e8339ef21d0c3c53ac",
     "firmwareMajor": 4,
     "firmwareReleaseVersion": "4.1.8",
-    "firmwareReleaseSha256": "020fd1a3e57cf5103116875d5ee0d7fb6a7a81e76fbf4011c6bc9416c02cba4f",
+    "firmwareReleaseSha256": "4b9d89d0e3dcc5efdd472d4671702fd37ff102cc2c5ac6cb7abf9788daccc768",
     "firmwareReleaseArtifacts": {
       "MICOAIR743": {
         "filename": "Flight-Commander-Firmware-4.1.8-MICOAIR743.hex",
-        "sha256": "020fd1a3e57cf5103116875d5ee0d7fb6a7a81e76fbf4011c6bc9416c02cba4f"
+        "sha256": "4b9d89d0e3dcc5efdd472d4671702fd37ff102cc2c5ac6cb7abf9788daccc768"
       },
       "CUBEORANGEPLUS": {
         "filename": "Flight-Commander-Firmware-4.1.8-CUBEORANGEPLUS.hex",
-        "sha256": "d877baf061ba0839f1091892ec577358a5cfe3858796e729a55e50c090e7618b"
+        "sha256": "2f6f5422b436d9729159445717db417dccca771d2761f70429f3ac6ae677c236"
       }
     },
     "firmwareChangedInRelease": true,
     "firmwareSourceAvailable": true,
     "firmwareSourceVersion": "4.1.8",
     "firmwareSourceArchive": "FC-Firmware-Source-v4.1.8.zip",
-    "firmwareSourceSha256": "23a28c1b5417086fa9be804cff2d3d345fcb218780aeb8e890615f68153e11d4",
-    "firmwareSourceRevision": "7909ca42b9bae6780b1e6e9d6f77cd3c31debd5a",
-    "firmwareSourceTree": "c709e27ac088507886548d3972ee70c7ce2ff96f",
+    "firmwareSourceSha256": "e671e25f12045bd22d76da91bdaffda3a856d185c2c9fc32f28393301f69fb8a",
+    "firmwareSourceRevision": "3b252dc097a457f3f7536acda0a1ff5dbee9c197",
+    "firmwareSourceTree": "15d3c1483c056db82ca80394da6cb31d48c0d28c",
     "reconstructionRelease": false,
     "binaryOracleVersion": "1.3.5"
   },
