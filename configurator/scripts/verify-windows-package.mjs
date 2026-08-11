@@ -473,25 +473,25 @@ if (packageManifest.version !== sourcePackage.version) {
 if (packageManifest.main !== ".vite/build/main.js") {
   fail(`packaged main entry is ${packageManifest.main}`);
 }
-if (sourcePackage.version !== "4.1.9") {
-  fail(`source version is ${sourcePackage.version}; expected 4.1.9`);
+if (sourcePackage.version !== "4.2.0") {
+  fail(`source version is ${sourcePackage.version}; expected 4.2.0`);
 }
-if (sourcePackage.flightCommander?.firmwareReleaseVersion !== "4.1.9") {
+if (sourcePackage.flightCommander?.firmwareReleaseVersion !== "4.2.0") {
   fail(
-    `published firmware version is ${sourcePackage.flightCommander?.firmwareReleaseVersion}; expected 4.1.9`,
+    `published firmware version is ${sourcePackage.flightCommander?.firmwareReleaseVersion}; expected 4.2.0`,
   );
 }
 if (
   JSON.stringify(Object.keys(sourcePackage.flightCommander?.firmwareReleaseArtifacts ?? {})) !==
   JSON.stringify(["MICOAIR743", "CUBEORANGEPLUS"])
 ) {
-  fail("Flight Commander 4.1.9 must declare both official firmware targets");
+  fail("Flight Commander 4.2.0 must declare both official firmware targets");
 }
 if (sourcePackage.flightCommander?.firmwareChangedInRelease !== true) {
-  fail("Flight Commander 4.1.9 must publish coordinated Firmware 4.1.9");
+  fail("Flight Commander 4.2.0 must publish coordinated Firmware 4.2.0");
 }
-if (sourcePackage.flightCommander?.firmwareSourceVersion !== "4.1.9") {
-  fail("Flight Commander 4.1.9 must publish the Firmware 4.1.9 source archive");
+if (sourcePackage.flightCommander?.firmwareSourceVersion !== "4.2.0") {
+  fail("Flight Commander 4.2.0 must publish the Firmware 4.2.0 source archive");
 }
 if (!sourcePackage.description.includes("flight controller")) {
   fail(`package description is ${sourcePackage.description}`);

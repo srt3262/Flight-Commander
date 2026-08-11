@@ -115,6 +115,9 @@
 #ifdef USE_FLIGHT_COMMANDER_COMPASS_ORIENTATION
 #include "flight_commander/compass_orientation.h"
 #endif
+#ifdef USE_FLIGHT_COMMANDER_SLCAN_BRIDGE
+#include "flight_commander/slcan_bridge.h"
+#endif
 
 #include "io/osd/custom_elements.h"
 
@@ -311,6 +314,29 @@ static mspResult_e mspFcRebootCommand(sbuf_t *src, mspPostProcessFnPtr *mspPostP
 
     return MSP_RESULT_ACK;
 }
+
+#ifdef USE_FLIGHT_COMMANDER_SLCAN_BRIDGE
+static void mspFcEnterSlcanBridge(serialPort_t *serialPort)
+{
+    slcanBridgeEnter(serialPort);
+}
+
+static mspResult_e mspFcSlcanBridgeCommand(sbuf_t *dst, sbuf_t *src, mspPostProcessFnPtr *mspPostProcessFn)
+{
+    if (sbufBytesRemaining(src) != 1U || sbufReadU8(src) != 1U) {
+        return MSP_RESULT_ERROR;
+    }
+
+    const slcanBridgeEntryResult_e result = slcanBridgeCheckEntry();
+    sbufWriteU8(dst, FLIGHT_COMMANDER_SLCAN_BRIDGE_SCHEMA);
+    sbufWriteU8(dst, result);
+    sbufWriteU16(dst, (uint16_t)dronecanGetBitrateKbps());
+    if (result == SLCAN_BRIDGE_ENTRY_ACCEPTED && mspPostProcessFn) {
+        *mspPostProcessFn = mspFcEnterSlcanBridge;
+    }
+    return MSP_RESULT_ACK;
+}
+#endif
 
 static void serializeSDCardSummaryReply(sbuf_t *dst)
 {
@@ -4940,6 +4966,10 @@ mspResult_e mspFcProcessCommand(mspPacket_t *cmd, mspPacket_t *reply, mspPostPro
         } else {
             ret = MSP_RESULT_ERROR;
         }
+#ifdef USE_FLIGHT_COMMANDER_SLCAN_BRIDGE
+    } else if (cmdMSP == MSP2_FLIGHT_COMMANDER_SLCAN_BRIDGE) {
+        ret = mspFcSlcanBridgeCommand(dst, src, mspPostProcessFn);
+#endif
     } else {
         if (!mspFCProcessInOutCommand(cmdMSP, dst, src, &ret)) {
             ret = mspFcProcessInCommand(cmdMSP, src);

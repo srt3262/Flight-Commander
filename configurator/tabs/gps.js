@@ -24,6 +24,7 @@ import MSP from './../js/msp';
 import interval from './../js/intervals';
 import GUI from './../js/gui';
 import FC from './../js/fc';
+import BitHelper from './../js/bitHelper';
 import i18n from './../js/localization';
 import Settings from './../js/settings';
 import serialPortHelper from './../js/serialPortHelper';
@@ -63,6 +64,7 @@ import {
     detectUartGpsPreset,
     uartRtkRoverNextAction,
 } from '../js/flightCommander/uartGpsPresets';
+import { decodeSlcanBridgeResponse } from '../js/flightCommander/slcanBridge';
 
 
 const gpsTab = {};
@@ -74,6 +76,7 @@ gpsTab.initialize = function (callback) {
     const supportsHeadingFusion = true;
     const supportsMovingBaseline = true;
     const supportsDronecanPairManager = true;
+    const supportsSlcanBridge = true;
 
     if (GUI.active_tab !== this) {
         GUI.active_tab = this;
@@ -178,6 +181,7 @@ gpsTab.initialize = function (callback) {
     let vehicleVectorSource;
     let vehiclesCursorInitialized = false;
     let arrowIcon;
+    let slcanBridgeRequestPending = false;
 
     async function process_html(settingsPromise) {
         // Wait for settings to finish loading to avoid race conditions
@@ -332,6 +336,38 @@ gpsTab.initialize = function (callback) {
                 `${FC.DRONECAN_STATUS.bitrateKbps || '--'} kbit/s · ` +
                 `${FC.DRONECAN_STATUS.nodes.length} node(s) detected`,
             );
+            updateSlcanBridgeUi();
+        }
+
+        function slcanBridgeEntryState() {
+            if (!supportsSlcanBridge) {
+                return { ready: false, message: 'This firmware does not provide the SLCAN maintenance bridge.' };
+            }
+            if (slcanBridgeRequestPending) {
+                return { ready: false, message: 'Entering the SLCAN maintenance bridge…' };
+            }
+            if (BitHelper.bit_check(FC.CONFIG.armingFlags, 2)) {
+                return { ready: false, message: 'Disarm the aircraft before entering maintenance mode.' };
+            }
+            if (FC.DRONECAN_STATUS.state !== 1) {
+                return { ready: false, message: 'The DroneCAN bus must be Online before bridge entry.' };
+            }
+            if (![125, 250, 500, 1000].includes(FC.DRONECAN_STATUS.bitrateKbps)) {
+                return { ready: false, message: 'The active DroneCAN bitrate is not supported.' };
+            }
+            return {
+                ready: true,
+                message: `Ready on ${FC.DRONECAN_STATUS.bitrateKbps} kbit/s. The bridge will use this live bitrate.`,
+            };
+        }
+
+        function updateSlcanBridgeUi() {
+            const state = slcanBridgeEntryState();
+            $('#gpsSlcanBridge').toggleClass('is-hidden', !supportsSlcanBridge);
+            $('#gpsSlcanBridgeStatus').text(state.message);
+            $('#gpsSlcanBridgeEnter')
+                .prop('disabled', !state.ready)
+                .attr('title', state.ready ? '' : state.message);
         }
 
         function collectDronecanGpsConfig() {
@@ -560,6 +596,59 @@ gpsTab.initialize = function (callback) {
                     mspHelper.loadDronecanPairStatus(renderDronecanPairStatus);
                 }
                 $button.prop('disabled', false);
+            });
+        });
+        $('#gpsSlcanBridgeEnter').on('click.gpsTab', async function (event) {
+            event.preventDefault();
+            const entryState = slcanBridgeEntryState();
+            if (!entryState.ready) {
+                updateSlcanBridgeUi();
+                return;
+            }
+
+            const serialPortName = GUI.connected_to || 'the current USB serial port';
+            const bitrateKbps = FC.DRONECAN_STATUS.bitrateKbps;
+            const confirmed = await dialog.confirm(
+                `Enter the volatile SLCAN maintenance bridge on ${serialPortName} at ${bitrateKbps} kbit/s?\n\n` +
+                'The aircraft must remain disarmed. Flight Commander will suspend normal DroneCAN processing, ' +
+                'block arming, and Configurator will disconnect this port.\n\n' +
+                `In DroneCAN GUI choose SLCAN, open ${serialPortName}, and use ${bitrateKbps * 1000} bit/s. ` +
+                'Keep the powered CAN hub and flight controller powered during node access or firmware updates. ' +
+                'Reboot the flight controller to exit bridge mode.\n\nContinue?',
+            );
+            if (!confirmed) return;
+
+            slcanBridgeRequestPending = true;
+            updateSlcanBridgeUi();
+            mspHelper.enterSlcanBridge((response) => {
+                if (!response) {
+                    slcanBridgeRequestPending = false;
+                    updateSlcanBridgeUi();
+                    dialog.alert('Flight Commander did not acknowledge SLCAN bridge entry. The bridge was not entered.');
+                    return;
+                }
+
+                let result;
+                try {
+                    result = decodeSlcanBridgeResponse(response);
+                } catch (error) {
+                    slcanBridgeRequestPending = false;
+                    updateSlcanBridgeUi();
+                    dialog.alert(`Flight Commander returned an invalid SLCAN bridge response: ${error.message}`);
+                    return;
+                }
+                if (!result.accepted) {
+                    slcanBridgeRequestPending = false;
+                    updateSlcanBridgeUi();
+                    dialog.alert(result.message);
+                    return;
+                }
+
+                GUI.log(
+                    `SLCAN bridge active on ${serialPortName} at ${result.bitrateKbps} kbit/s. ` +
+                    'Opening the port in DroneCAN GUI is now safe; reboot the flight controller to exit.',
+                );
+                $('div.connect_controls a.connect').trigger('click');
             });
         });
         $('#gpsPairConfigure').on('click.gpsTab', (event) => {
@@ -1016,6 +1105,10 @@ gpsTab.initialize = function (callback) {
             }, 500, true);
         }
 
+        if (supportsSlcanBridge) {
+            interval.add('flight_commander_slcan_bridge_ui', updateSlcanBridgeUi, 500, true);
+        }
+
         if (supportsHeadingFusion) {
             interval.add('flight_commander_heading_pull', function () {
                 mspHelper.loadFlightCommanderHeadingStatus(updateHeadingUi);
@@ -1126,6 +1219,7 @@ gpsTab.cleanup = function (callback) {
     $('#gps_apply_optimal').off('.gpsTab');
     $('#center_button').off('.gpsTab');
     $('#gpsDronecanRefresh').off('.gpsTab');
+    $('#gpsSlcanBridgeEnter').off('.gpsTab');
     $('#gpsPairConfigure, #gpsPairVerify, #gpsPairAbort').off('.gpsTab');
     $('#headingSourceEnabled3, #movingBaselineEnabled').off('.gpsTab');
     $('a.save').off('.gpsTab');

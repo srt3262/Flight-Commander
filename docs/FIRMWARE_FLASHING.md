@@ -81,7 +81,7 @@ flight-controller target.
 
 The `CUBEORANGEPLUS` HEX begins at `0x08020000` so it does not overwrite the
 Cube vendor bootloader at `0x08000000`-`0x0801FFFF`. Use local-sector erase and
-never perform a global/full-chip erase. Configurator 4.1.9 enforces this for a
+never perform a global/full-chip erase. Configurator 4.2.0 enforces this for a
 selected or embedded Cube Orange+ target. See the
 [Cube Orange+ target guide](CUBEORANGEPLUS.md) for its output, receiver,
 compass, and propeller-off acceptance limits.

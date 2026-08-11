@@ -972,6 +972,8 @@ static const char * osdArmingDisabledReasonMessage(void)
             return OSD_MESSAGE_STR(OSD_MSG_HW_FAIL);
         case ARMING_DISABLED_BOXFAILSAFE:
             return OSD_MESSAGE_STR(OSD_MSG_FS_EN);
+        case ARMING_DISABLED_DRONECAN_BRIDGE:
+            return OSD_MESSAGE_STR(OSD_MSG_DRONECAN_BRIDGE);
         case ARMING_DISABLED_RC_LINK:
             return OSD_MESSAGE_STR(OSD_MSG_NO_RC_LINK);
         case ARMING_DISABLED_THROTTLE:

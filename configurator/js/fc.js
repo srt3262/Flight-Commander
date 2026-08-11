@@ -91,6 +91,7 @@ var FC = {
     DRONECAN_CONFIG: null,
     DRONECAN_STATUS: null,
     DRONECAN_PAIR_STATUS: null,
+    SLCAN_BRIDGE_STATUS: null,
     RTK_STATUS: null,
     DUAL_GPS_STATUS: null,
     HEADING_CONFIG: null,
@@ -277,6 +278,14 @@ var FC = {
             state: 0,
             bitrateKbps: 0,
             nodes: []
+        };
+
+        this.SLCAN_BRIDGE_STATUS = {
+            schema: 1,
+            result: null,
+            accepted: false,
+            bitrateKbps: 0,
+            message: ''
         };
 
         this.DRONECAN_PAIR_STATUS = {

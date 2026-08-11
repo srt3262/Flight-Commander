@@ -20,7 +20,7 @@ the CubePilot Cube Orange+ (STM32H757). It is a distinct image from
 | Power monitor | Power Brick 1 voltage and current inputs |
 | Outputs | AUX1-AUX6, the six direct FMU timer outputs |
 
-The onboard AK09916 is not enabled in 4.1.9. Flight Commander does not yet
+The onboard AK09916 is not enabled in 4.2.0. Flight Commander does not yet
 have the required driver/alignment path for that Cube-mounted sensor, so an
 external I2C or DroneCAN compass is required for magnetic heading. The second
 onboard MS5611 is retained as a cold spare because the inherited barometer
@@ -29,7 +29,7 @@ driver currently supports one device of that type.
 ## IOMCU boundary
 
 The Cube's STM32F100 IOMCU owns MAIN1-MAIN8 and the physical RC input. Flight
-Commander 4.1.9 does not implement the PX4IO protocol and deliberately keeps
+Commander 4.2.0 does not implement the PX4IO protocol and deliberately keeps
 USART6 reserved rather than pretending those connections are direct H757
 resources. Therefore:
 
@@ -47,7 +47,7 @@ not use this release.
 ## Bootloader-safe flashing
 
 The Cube vendor bootloader occupies `0x08000000` through `0x0801FFFF`. The
-4.1.9 image has its vector table at `0x08020000`, code beginning at
+4.2.0 image has its vector table at `0x08020000`, code beginning at
 `0x08040000`, and persistent configuration in the final 128 KiB sector at
 `0x081E0000`.
 
@@ -62,7 +62,7 @@ Safe first installation:
    that can back-power the carrier board.
 2. Save a Configurator backup and CLI `diff all` if another firmware is still
    reachable.
-3. Select **CubePilot Cube Orange+**, load the official 4.1.9 online image, and
+3. Select **CubePilot Cube Orange+**, load the official 4.2.0 online image, and
    verify that **Full chip erase** is unavailable.
 4. Enter STM32 DFU using the Cube/carrier board's documented boot procedure,
    select the DFU device, and flash once without disconnecting power.
@@ -73,7 +73,7 @@ Safe first installation:
 
 Before any armed test, verify all of the following with propellers removed:
 
-- target reports `CUBEORANGEPLUS` and Firmware 4.1.9;
+- target reports `CUBEORANGEPLUS` and Firmware 4.2.0;
 - both IMU selections produce the correct roll, pitch, and yaw directions;
 - the primary barometer, external compass, GNSS, CAN devices, and microSD are
   detected and remain healthy after repeated cold starts;

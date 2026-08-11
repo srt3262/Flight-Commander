@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Structural verification for Flight Commander 4.1.9 release images."""
+"""Structural verification for Flight Commander 4.2.0 release images."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import hashlib
 from pathlib import Path
 import sys
 
-EXPECTED_IDENTITY = b"FCFW" + bytes((1, 4, 1, 9, 9, 1, 0, 0xFF, 0xFF, 0, 0))
+EXPECTED_IDENTITY = b"FCFW" + bytes((1, 4, 2, 0, 9, 1, 0, 0xFF, 0xFF, 0x01, 0))
 TARGET_CONTRACTS = {
     "MICOAIR743": {
         "base": 0x08000000,
@@ -114,7 +114,7 @@ def main() -> int:
     path = Path(sys.argv[1]).resolve()
     memory, start_addresses = parse_intel_hex(path)
     if not contains(memory, EXPECTED_IDENTITY):
-        fail("HEX does not contain the Flight Commander 4.1.9 identity and 0x0000ffff capability mask")
+        fail("HEX does not contain the Flight Commander 4.2.0 identity and 0x0001ffff capability mask")
 
     matched_targets = [target for target in TARGET_CONTRACTS if contains(memory, target.encode())]
     if len(matched_targets) != 1:
@@ -137,7 +137,7 @@ def main() -> int:
         fail(f"{target} vector table has invalid reset handler 0x{reset_handler:08x}")
 
     digest = hashlib.sha256(path.read_bytes()).hexdigest()
-    print(f"Verified Flight Commander 4.1.9 {target} HEX: {path}")
+    print(f"Verified Flight Commander 4.2.0 {target} HEX: {path}")
     print(f"SHA-256: {digest}")
     return 0
 

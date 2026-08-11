@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## 4.2.0
+
+- Add a guarded, standards-compatible USB LAWICEL/SLCAN bridge on MICOAIR743
+  and CUBEORANGEPLUS for DroneCAN GUI AP_Periph parameter inspection and node
+  firmware updates.
+- Require a disarmed aircraft and online CAN bus before entry, suspend the
+  normal Flight Commander DroneCAN node, block arming, retain the live bus
+  bitrate, and require a flight-controller reboot to exit maintenance mode.
+- Add the GPS-tab maintenance handoff with live bitrate guidance, explicit
+  powered-hub warning, and automatic Configurator serial disconnect.
+
 ## 4.1.9
 
 - Accept both DroneCAN `uavcan.equipment.ahrs.MagneticFieldStrength` and

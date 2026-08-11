@@ -39,6 +39,10 @@
 #include "msp/msp.h"
 #include "msp/msp_serial.h"
 
+#ifdef USE_FLIGHT_COMMANDER_SLCAN_BRIDGE
+#include "flight_commander/slcan_bridge.h"
+#endif
+
 static mspPort_t mspPorts[MAX_MSP_PORT_COUNT];
 
 
@@ -453,6 +457,12 @@ static void mspProcessPendingRequest(mspPort_t * mspPort)
 
 void mspSerialProcessOnePort(mspPort_t * const mspPort, mspEvaluateNonMspData_e evaluateNonMspData, mspProcessCommandFnPtr mspProcessCommandFn)
 {
+#ifdef USE_FLIGHT_COMMANDER_SLCAN_BRIDGE
+    if (slcanBridgeOwnsPort(mspPort->port)) {
+        slcanBridgeProcessSerial(mspPort->port);
+        return;
+    }
+#endif
     mspPostProcessFnPtr mspPostProcessFn = NULL;
 
     if (serialRxBytesWaiting(mspPort->port)) {
