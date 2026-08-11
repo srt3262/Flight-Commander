@@ -25,6 +25,10 @@
 #include "sensors/battery_sensor_dronecan.h"
 #include "sensors/diagnostics.h"
 
+#if defined(USE_FLIGHT_COMMANDER_SLCAN_BRIDGE)
+#include "flight_commander/slcan_bridge.h"
+#endif
+
 #include "drivers/dronecan/dronecan.h"
 #include "drivers/dronecan/dronecan_allocator.h"
 #include "drivers/dronecan/dronecan_pair.h"
@@ -416,10 +420,39 @@ void dronecanUpdate(timeUs_t currentTimeUs)
             busOffSince = currentTimeUs;
             if (!protocolStatus.BusOff) {
                 state = STATE_DRONECAN_NORMAL;
+#if defined(USE_FLIGHT_COMMANDER_SLCAN_BRIDGE)
+                slcanBridgeSetBusOff(false);
+#endif
             }
         }
         return;
     }
+
+#if defined(USE_FLIGHT_COMMANDER_SLCAN_BRIDGE)
+    if (slcanBridgeIsActive()) {
+        CanardCANFrame bridgeFrame;
+        while (slcanBridgePeekTxFrame(&bridgeFrame)) {
+            const int16_t result = canardSTM32Transmit(&bridgeFrame);
+            if (result == 0) {
+                break;
+            }
+            slcanBridgePopTxFrame(result > 0);
+        }
+        int32_t bridgePending = canardSTM32GetRxFifoFillLevel();
+        while (bridgePending-- > 0) {
+            if (canardSTM32Recieve(&bridgeFrame) > 0) {
+                slcanBridgeCaptureRxFrame(&bridgeFrame);
+            }
+        }
+        canardSTM32GetProtocolStatus(&protocolStatus);
+        slcanBridgeSetBusOff(protocolStatus.BusOff);
+        if (protocolStatus.BusOff) {
+            state = STATE_DRONECAN_BUS_OFF;
+            busOffSince = currentTimeUs;
+        }
+        return;
+    }
+#endif
 
     processTxQueue();
     CanardCANFrame frame;
@@ -450,6 +483,11 @@ void dronecanUpdate(timeUs_t currentTimeUs)
 
 bool dronecanBroadcastRtcm(const uint8_t *data, uint16_t length)
 {
+#if defined(USE_FLIGHT_COMMANDER_SLCAN_BRIDGE)
+    if (slcanBridgeIsActive()) {
+        return false;
+    }
+#endif
     if (!initialized || !data || !length) {
         return false;
     }
@@ -496,6 +534,11 @@ const dronecanNodeInfo_t *dronecanGetNode(uint8_t index)
 bool dronecanSendServiceRequest(uint8_t destinationNodeID, uint64_t signature,
     uint8_t dataTypeID, uint8_t *transferID, const void *payload, uint16_t payloadLength)
 {
+#if defined(USE_FLIGHT_COMMANDER_SLCAN_BRIDGE)
+    if (slcanBridgeIsActive()) {
+        return false;
+    }
+#endif
     if (!initialized || destinationNodeID < 1 || destinationNodeID > 127 || !transferID) {
         return false;
     }
@@ -512,6 +555,11 @@ const dronecanNodeInfo_t *dronecanGetNodeById(uint8_t nodeID)
 bool dronecanBroadcastTransfer(uint64_t signature, uint16_t dataTypeID,
     uint8_t *transferID, uint8_t priority, const void *payload, uint16_t payloadLength)
 {
+#if defined(USE_FLIGHT_COMMANDER_SLCAN_BRIDGE)
+    if (slcanBridgeIsActive()) {
+        return false;
+    }
+#endif
     if (!initialized || !transferID) {
         return false;
     }

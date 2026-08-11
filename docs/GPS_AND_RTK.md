@@ -57,6 +57,32 @@ If the module also publishes a compass, treat its node-bound compass as a
 separate calibration/alignment target. Do not transfer calibration coefficients
 between node IDs.
 
+### DroneCAN GUI maintenance through USB SLCAN
+
+Flight Commander 4.2.0 can temporarily expose its USB virtual COM port as a
+standards-compatible LAWICEL/SLCAN adapter. This provides direct DroneCAN GUI
+access to AP_Periph parameters and node firmware update services without a
+separate USB-to-CAN adapter.
+
+1. Remove propellers, power the flight controller and powered CAN hub, and keep
+   the aircraft disarmed.
+2. Connect Configurator by USB, open **GPS**, and confirm the DroneCAN bus says
+   **Online** at the intended bitrate (Holybro DroneCAN H-RTK F9P normally uses
+   1000 kbit/s).
+3. Select **Enter SLCAN bridge and disconnect** and accept the warning.
+4. In DroneCAN GUI choose the **SLCAN** driver, select the same COM port, and
+   select the same bitrate. The adapter accepts the standard `C`, `S`, `O`,
+   `F`, `V`, `N`, `Z`, `t`/`T`, and `r`/`R` LAWICEL commands used by DroneCAN
+   GUI.
+5. Inspect or change AP_Periph parameters, or perform a node firmware update.
+   Do not interrupt flight-controller, hub, or node power during an update.
+6. Close DroneCAN GUI and reboot the flight controller before reconnecting
+   Configurator. Reboot is the only way to exit bridge mode.
+
+Bridge entry fails while armed, while the CAN bus is offline, or at an
+unsupported bitrate. Once active, Flight Commander suspends its normal
+DroneCAN node and correction traffic and latches an arming blocker until reboot.
+
 
 ### Two-node Holybro/AP_Periph moving-baseline pair
 

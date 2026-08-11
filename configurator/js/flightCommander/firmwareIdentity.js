@@ -29,6 +29,7 @@ export const FLIGHT_COMMANDER_CAPABILITIES = Object.freeze({
   DRONECAN_MOVING_BASELINE_MANAGER: 1 << 13,
   COMPASS_ORIENTATION_LEARNING: 1 << 14,
   INDIVIDUAL_COMPASS_CALIBRATION: 1 << 15,
+  SLCAN_DRONECAN_BRIDGE: 1 << 16,
 });
 
 export const FLIGHT_COMMANDER_FEATURES = Object.freeze({
@@ -111,6 +112,11 @@ export const FLIGHT_COMMANDER_FEATURES = Object.freeze({
     capability: FLIGHT_COMMANDER_CAPABILITIES.INDIVIDUAL_COMPASS_CALIBRATION,
     capabilityName: "INDIVIDUAL_COMPASS_CALIBRATION",
     label: "Per-source compass orientation and field calibration",
+  }),
+  slcanDronecanBridge: Object.freeze({
+    capability: FLIGHT_COMMANDER_CAPABILITIES.SLCAN_DRONECAN_BRIDGE,
+    capabilityName: "SLCAN_DRONECAN_BRIDGE",
+    label: "USB SLCAN DroneCAN maintenance bridge",
   }),
 });
 

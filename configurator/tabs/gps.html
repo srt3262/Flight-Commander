@@ -153,6 +153,23 @@
                             receive RTCM corrections. Battery-node assignments remain available in Ports.
                         </p>
 
+                        <section id="gpsSlcanBridge" class="gps-slcan-bridge">
+                            <div>
+                                <h3>DroneCAN GUI maintenance bridge</h3>
+                                <p>
+                                    Temporarily expose this USB port as a standards-compatible LAWICEL/SLCAN adapter.
+                                    Use it with DroneCAN GUI to inspect AP_Periph parameters or update node firmware.
+                                </p>
+                                <p id="gpsSlcanBridgeStatus">Checking whether bridge entry is safe…</p>
+                            </div>
+                            <button id="gpsSlcanBridgeEnter" type="button">Enter SLCAN bridge and disconnect</button>
+                            <p class="gps-slcan-warning">
+                                Maintenance mode blocks arming and suspends Flight Commander's normal DroneCAN node.
+                                It exits only when the flight controller reboots. Keep the powered CAN hub connected
+                                throughout any node firmware update.
+                            </p>
+                        </section>
+
                         <section id="dronecanMovingBaselinePair" class="gps-moving-baseline-pair is-hidden">
                             <h3>Holybro / AP_Periph two-node moving-baseline setup</h3>
                             <p>

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify the Flight Commander 4.1.9 source and official target images."""
+"""Verify the Flight Commander 4.2.0 source and official target images."""
 
 from __future__ import annotations
 
@@ -11,11 +11,11 @@ import re
 import subprocess
 import sys
 
-VERSION = "4.1.9"
+VERSION = "4.2.0"
 TARGETS = ("MICOAIR743", "CUBEORANGEPLUS")
 UPSTREAM_RELEASE = "9.1.0"
 UPSTREAM_COMMIT = "e519b69b02e27c8bdc03b4a0889f1baaae211a54"
-CAPABILITIES = "0x0000ffff"
+CAPABILITIES = "0x0001ffff"
 
 
 def fail(message: str) -> None:
@@ -64,7 +64,7 @@ def require_text(path: Path, patterns: list[str]) -> None:
     text = path.read_text(encoding="utf-8")
     for pattern in patterns:
         if not re.search(pattern, text, re.MULTILINE | re.DOTALL):
-            fail(f"{path}: required 4.1.9 source contract is missing: {pattern}")
+            fail(f"{path}: required {VERSION} source contract is missing: {pattern}")
 
 
 def verify_upstream_baseline(root: Path) -> None:
@@ -111,15 +111,41 @@ def verify_upstream_baseline(root: Path) -> None:
 def verify_source(root: Path) -> None:
     verify_upstream_baseline(root)
     require_text(root / "CMakeLists.txt", [
-        r"set\(FLIGHT_COMMANDER_FIRMWARE_VERSION 4\.1\.9\)",
+        r"set\(FLIGHT_COMMANDER_FIRMWARE_VERSION 4\.2\.0\)",
         r"FLIGHT_COMMANDER_SOURCE_REVISION",
     ])
     require_text(root / "src/main/build/flight_commander.h", [
         r"FLIGHT_COMMANDER_VERSION_MAJOR 4",
-        r"FLIGHT_COMMANDER_VERSION_MINOR 1",
-        r"FLIGHT_COMMANDER_VERSION_PATCH 9",
+        r"FLIGHT_COMMANDER_VERSION_MINOR 2",
+        r"FLIGHT_COMMANDER_VERSION_PATCH 0",
         r"FLIGHT_COMMANDER_CAPABILITY_INDIVIDUAL_COMPASS_CALIBRATION = \(1U << 15\)",
-        r"FLIGHT_COMMANDER_CAPABILITIES \(\(uint32_t\)0xFFFFU\)",
+        r"FLIGHT_COMMANDER_CAPABILITY_SLCAN_DRONECAN_BRIDGE = \(1U << 16\)",
+        r"FLIGHT_COMMANDER_CAPABILITIES \(\(uint32_t\)0x1FFFFU\)",
+    ])
+    require_text(root / "src/main/flight_commander/slcan_bridge.h", [
+        r"FLIGHT_COMMANDER_SLCAN_BRIDGE_SCHEMA 1U",
+        r"SLCAN_BRIDGE_ENTRY_ARMED",
+        r"SLCAN_BRIDGE_ENTRY_DRONECAN_OFFLINE",
+        r"slcanBridgeEnter",
+        r"slcanBridgeCaptureRxFrame",
+    ])
+    require_text(root / "src/main/flight_commander/slcan_bridge.c", [
+        r"SLCAN_HOST_TX_QUEUE_SIZE 32U",
+        r"SLCAN_BUS_RX_QUEUE_SIZE 64U",
+        r"case 'C':",
+        r"case 'S':",
+        r"case 'O':",
+        r"case 'Z':",
+        r"case 'F':",
+        r"case 'T':",
+        r"dronecanGetState\(\) != STATE_DRONECAN_NORMAL",
+        r"ENABLE_ARMING_FLAG\(ARMING_DISABLED_DRONECAN_BRIDGE\)",
+    ])
+    require_text(root / "cmake/flight-commander-micoair743.cmake", [
+        r"flight_commander/slcan_bridge\.c",
+        r"USE_FLIGHT_COMMANDER_SLCAN_BRIDGE",
+        r"configure_flight_commander_target\(MICOAIR743 PB8 PB9\)",
+        r"configure_flight_commander_target\(CUBEORANGEPLUS PD0 PD1\)",
     ])
     require_text(root / "src/main/flight_commander/compass_orientation.h", [
         r"FLIGHT_COMMANDER_COMPASS_ORIENTATION_CONFIG_SCHEMA 2U",
@@ -155,17 +181,21 @@ def verify_source(root: Path) -> None:
         r"flightCommanderHeadingOnboardCalibrationFinished\(true\)",
     ])
     require_text(root / "src/main/msp/msp_protocol_v2_flight_commander.h", [
+        r"MSP2_FLIGHT_COMMANDER_SLCAN_BRIDGE\s+0x2F15",
         r"MSP2_FLIGHT_COMMANDER_COMPASS_ORIENTATION_STATUS 0x2F23",
         r"MSP2_FLIGHT_COMMANDER_COMPASS_ORIENTATION_COMMAND 0x2F24",
         r"MSP2_FLIGHT_COMMANDER_COMPASS_CALIBRATION_COMMAND 0x2F25",
     ])
     require_text(root / "src/main/fc/fc_msp.c", [
+        r"MSP2_FLIGHT_COMMANDER_SLCAN_BRIDGE",
+        r"\*mspPostProcessFn = mspFcEnterSlcanBridge",
         r"case MSP2_FLIGHT_COMMANDER_COMPASS_ORIENTATION_STATUS:",
         r"case MSP2_FLIGHT_COMMANDER_COMPASS_ORIENTATION_COMMAND:",
         r"case MSP2_FLIGHT_COMMANDER_COMPASS_CALIBRATION_COMMAND:",
         r"flightCommanderHeadingReadCompassCalibrationCommand\(src\)",
     ])
     require_text(root / "src/main/fc/runtime_config.c", [
+        r"ARMING_DISABLED_DRONECAN_BRIDGE",
         r"flightCommanderPrimaryModeForTelemetry\(void\)",
         r"isRcModeActiveFromInput\(BOXNAVRTH\)",
         r"isRcModeActiveFromInput\(BOXNAVWP\)",
@@ -173,6 +203,16 @@ def verify_source(root: Path) -> None:
         r"isRcModeActiveFromInput\(BOXNAVPOSHOLD\)",
         r"angleRequested && altitudeHoldRequested",
         r"return FLM_ACRO;",
+    ])
+    require_text(root / "src/main/msp/msp_serial.c", [
+        r"slcanBridgeOwnsPort",
+        r"slcanBridgeProcessSerial",
+        r"waitForSerialPortToFinishTransmitting",
+    ])
+    require_text(root / "src/main/drivers/dronecan/dronecan.c", [
+        r"slcanBridgeIsActive",
+        r"canardSTM32Transmit\(&bridgeFrame\)",
+        r"slcanBridgeCaptureRxFrame",
     ])
     require_text(root / "src/main/fc/fc_msp_box.c", [
         r"PRIMARY_MODE_ACTIVE_OR_SELECTED\(ANGLE_MODE, BOXANGLE\)",
@@ -261,6 +301,9 @@ def verify_manifest(root: Path, hex_paths: list[Path], manifest_path: Path) -> N
     requirement = str(manifest.get("bench_acceptance", {}).get("propeller_requirement", "")).lower()
     if "propellers removed" not in requirement:
         fail("manifest does not preserve the propeller-off acceptance requirement")
+    bridge = manifest.get("slcan_bridge", {})
+    if bridge.get("targets") != list(TARGETS) or "reboot" not in str(bridge.get("exit", "")).lower():
+        fail("manifest does not preserve the two-target reboot-only SLCAN bridge contract")
 
 
 def main() -> int:

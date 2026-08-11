@@ -213,6 +213,51 @@
     line-height: 1.4;
 }
 
+.tab-gps .gps-slcan-bridge {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) max-content;
+    align-items: center;
+    gap: 10px 16px;
+    margin-top: 14px;
+    padding: 12px;
+    border: 1px solid rgba(55, 168, 219, 0.55);
+    border-left-width: 4px;
+    border-radius: 4px;
+    background: rgba(55, 168, 219, 0.1);
+}
+
+.tab-gps .gps-slcan-bridge h3,
+.tab-gps .gps-slcan-bridge p {
+    margin: 0;
+}
+
+.tab-gps .gps-slcan-bridge h3 {
+    margin-bottom: 5px;
+}
+
+.tab-gps .gps-slcan-bridge button {
+    min-height: 36px;
+}
+
+.tab-gps .gps-slcan-bridge #gpsSlcanBridgeStatus {
+    margin-top: 7px;
+    font-weight: 600;
+}
+
+.tab-gps .gps-slcan-bridge .gps-slcan-warning {
+    grid-column: 1 / -1;
+    padding-top: 9px;
+    border-top: 1px solid rgba(255, 183, 77, 0.45);
+    color: #ffb74d;
+    line-height: 1.4;
+}
+
+@media (max-width: 720px) {
+    .tab-gps .gps-slcan-bridge {
+        grid-template-columns: 1fr;
+    }
+}
+
 .tab-gps .heading-fusion-config {
     display: grid;
     gap: 14px;

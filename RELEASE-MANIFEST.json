@@ -1,29 +1,29 @@
 {
   "schema": 2,
   "product": "Flight Commander Firmware",
-  "version": "4.1.9",
+  "version": "4.2.0",
   "targets": [
     "MICOAIR743",
     "CUBEORANGEPLUS"
   ],
   "inav_release": "9.1.0",
   "inav_commit": "e519b69b02e27c8bdc03b4a0889f1baaae211a54",
-  "source_revision": "7b4d63b4edf66d051b7e6b98e6947dcde53a24b0",
-  "source_tree": "67f2192bd2fe3219a6c640343710d1c35ab96797",
+  "source_revision": "11e12f527d7721220641e0fb6225fd09e85b45bc",
+  "source_tree": "ec2b491f7954925875fc732ee9327ec2d520445b",
   "source_hash_scheme": "sha1(sorted sha256sum records, excluding RELEASE-MANIFEST.json)",
   "source_tree_hash_scheme": "sha1('flight-commander-source-tree-v1\\n' plus sorted sha256sum records, excluding RELEASE-MANIFEST.json)",
   "source_date_epoch": 1786406400,
-  "capabilities": "0x0000ffff",
+  "capabilities": "0x0001ffff",
   "artifacts": {
     "MICOAIR743": {
-      "filename": "Flight-Commander-Firmware-4.1.9-MICOAIR743.hex",
-      "sha256": "c6ab580f66e76404489f1f1c7f936e182b233aa910af3cefbf17bd3aae9e51e7",
-      "bytes": 1951851
+      "filename": "Flight-Commander-Firmware-4.2.0-MICOAIR743.hex",
+      "sha256": "4f85fb1bc67c82e7a186203bb342aefc4b1985e2d605555601da03f2a00802b5",
+      "bytes": 1958707
     },
     "CUBEORANGEPLUS": {
-      "filename": "Flight-Commander-Firmware-4.1.9-CUBEORANGEPLUS.hex",
-      "sha256": "48ab5f47c0d0913a480009eddc2911b91fdb26bc9b75573860d4131b87d8c7c0",
-      "bytes": 1947682
+      "filename": "Flight-Commander-Firmware-4.2.0-CUBEORANGEPLUS.hex",
+      "sha256": "2130cb5dda51e39e29a3bc0fc54ac5dc423b764c75fc09960c1e079fc850671d",
+      "bytes": 1954686
     }
   },
   "bench_acceptance": {
@@ -50,6 +50,17 @@
     "relative_heading_message": "ardupilot.gnss.RelPosHeading",
     "configuration": "one-stage remote parameter setup and verification",
     "dynamic_node_allocation": "Flight Commander non-redundant DroneCAN allocator; temporary IDs are persisted to AP_Periph CAN_NODE during pair setup"
+  },
+  "slcan_bridge": {
+    "protocol": "LAWICEL/SLCAN over the requesting USB CDC serial port",
+    "bitrate_contract": "The adapter retains the configured live DroneCAN bitrate and acknowledges S0-S8 only when the requested bitrate matches it.",
+    "entry_gate": "Entry requires a disarmed aircraft and an online DroneCAN bus at 125, 250, 500 or 1000 kbit/s.",
+    "flight_safety": "Bridge mode suspends normal Flight Commander DroneCAN processing and latches an arming-disable flag.",
+    "exit": "Reboot the flight controller to exit bridge mode.",
+    "targets": [
+      "MICOAIR743",
+      "CUBEORANGEPLUS"
+    ]
   },
   "calibration_persistence": {
     "compass_parameter_group_version": 8,
@@ -111,5 +122,5 @@
     "secondary_modes_ignored": true,
     "selected_input_reported_before_navigation_availability": true
   },
-  "capability_mask": "0x0000ffff"
+  "capability_mask": "0x0001ffff"
 }

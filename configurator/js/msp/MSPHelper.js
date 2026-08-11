@@ -32,6 +32,10 @@ import {
     encodeDronecanPairCommand,
 } from './../flightCommander/dronecanMovingBaseline';
 import {
+    decodeSlcanBridgeResponse,
+    encodeSlcanBridgeEnter,
+} from './../flightCommander/slcanBridge';
+import {
     decodeHeadingConfig,
     decodeHeadingStatus,
     encodeHeadingConfig,
@@ -829,6 +833,10 @@ var mspHelper = (function () {
 
             case MSPCodes.MSP2_FLIGHT_COMMANDER_DRONECAN_PAIR_COMMAND:
                 // Empty ACK confirms that the disarmed pair-management command was accepted.
+                break;
+
+            case MSPCodes.MSP2_FLIGHT_COMMANDER_SLCAN_BRIDGE:
+                Object.assign(FC.SLCAN_BRIDGE_STATUS, decodeSlcanBridgeResponse(data));
                 break;
 
             case MSPCodes.MSP2_FLIGHT_COMMANDER_DRONECAN_NODES:
@@ -3811,6 +3819,17 @@ var mspHelper = (function () {
             [...encodeDronecanPairCommand(command)],
             false,
             callback,
+        );
+    };
+
+    self.enterSlcanBridge = function (callback) {
+        MSP.send_message(
+            MSPCodes.MSP2_FLIGHT_COMMANDER_SLCAN_BRIDGE,
+            [...encodeSlcanBridgeEnter()],
+            false,
+            callback,
+            undefined,
+            { retryCounter: 0 },
         );
     };
 

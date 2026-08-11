@@ -13,6 +13,7 @@ set(FLIGHT_COMMANDER_TARGET_SOURCES
     "${MAIN_SRC_DIR}/flight_commander/heading_fusion.c"
     "${MAIN_SRC_DIR}/flight_commander/compass_orientation.c"
     "${MAIN_SRC_DIR}/flight_commander/gcs_commands.c"
+    "${MAIN_SRC_DIR}/flight_commander/slcan_bridge.c"
     "${FLIGHT_COMMANDER_DSDL_ROOT}/src/ardupilot.gnss.Heading.c"
     "${FLIGHT_COMMANDER_DSDL_ROOT}/src/ardupilot.gnss.RelPosHeading.c"
     "${FLIGHT_COMMANDER_DSDL_ROOT}/src/uavcan.equipment.ahrs.MagneticFieldStrength.c"
@@ -74,6 +75,7 @@ function(configure_flight_commander_target target can_rx can_tx)
         USE_FLIGHT_COMMANDER_COMPASS_ORIENTATION
         USE_FLIGHT_COMMANDER_DRONECAN_PAIR_MANAGER
         USE_FLIGHT_COMMANDER_DRONECAN_DNA_ALLOCATOR
+        USE_FLIGHT_COMMANDER_SLCAN_BRIDGE
     )
 endfunction()
 
