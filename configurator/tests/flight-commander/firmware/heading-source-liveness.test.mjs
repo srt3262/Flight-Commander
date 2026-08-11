@@ -15,6 +15,8 @@ const taskSource = source('src/main/fc/fc_tasks.c');
 const driver = source('src/main/drivers/compass/compass_ist8310.c');
 const compass = source('src/main/sensors/compass.c');
 const fusion = source('src/main/flight_commander/heading_fusion.c');
+const dronecan = source('src/main/drivers/dronecan/dronecan.c');
+const targetCmake = source('cmake/flight-commander-micoair743.cmake');
 const imu = source('src/main/flight/imu.c');
 
 test('heading fusion retains the reviewed time-based IST8310 recovery', () => {
@@ -50,4 +52,31 @@ test('disabled sources use zero weight in reset, migration and MSP input paths',
   assert.match(fusion, /\{ false, 4, 0, 0 \}/);
   assert.match(fusion, /if \(!config->sources\[index\]\.enabled\) \{\s*config->sources\[index\]\.weight = 0;/);
   assert.match(fusion, /if \(!value\.sources\[index\]\.enabled\) \{\s*value\.sources\[index\]\.weight = 0;/);
+});
+
+test('DroneCAN compass accepts AP_Periph legacy and sensor-ID magnetic field messages', () => {
+  assert.match(
+    dronecan,
+    /case UAVCAN_EQUIPMENT_AHRS_MAGNETICFIELDSTRENGTH_ID:\s*\*signature = UAVCAN_EQUIPMENT_AHRS_MAGNETICFIELDSTRENGTH_SIGNATURE;/,
+  );
+  assert.match(
+    dronecan,
+    /case UAVCAN_EQUIPMENT_AHRS_MAGNETICFIELDSTRENGTH_ID: handleLegacyMagneticField\(transfer\); break;/,
+  );
+  assert.match(
+    dronecan,
+    /case UAVCAN_EQUIPMENT_AHRS_MAGNETICFIELDSTRENGTH2_ID: handleMagneticField\(transfer\); break;/,
+  );
+  assert.match(
+    dronecan,
+    /dronecanMarkNodeCapability\(transfer->source_node_id, DRONECAN_NODE_CAPABILITY_MAG\);/,
+  );
+  assert.match(
+    targetCmake,
+    /uavcan\.equipment\.ahrs\.MagneticFieldStrength\.c/,
+  );
+  assert.match(
+    targetCmake,
+    /uavcan\.equipment\.ahrs\.MagneticFieldStrength2\.c/,
+  );
 });
