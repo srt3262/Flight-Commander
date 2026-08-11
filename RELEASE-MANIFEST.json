@@ -1,29 +1,29 @@
 {
   "schema": 2,
   "product": "Flight Commander Firmware",
-  "version": "4.1.8",
+  "version": "4.1.9",
   "targets": [
     "MICOAIR743",
     "CUBEORANGEPLUS"
   ],
   "inav_release": "9.1.0",
   "inav_commit": "e519b69b02e27c8bdc03b4a0889f1baaae211a54",
-  "source_revision": "3b252dc097a457f3f7536acda0a1ff5dbee9c197",
-  "source_tree": "15d3c1483c056db82ca80394da6cb31d48c0d28c",
+  "source_revision": "7b4d63b4edf66d051b7e6b98e6947dcde53a24b0",
+  "source_tree": "67f2192bd2fe3219a6c640343710d1c35ab96797",
   "source_hash_scheme": "sha1(sorted sha256sum records, excluding RELEASE-MANIFEST.json)",
   "source_tree_hash_scheme": "sha1('flight-commander-source-tree-v1\\n' plus sorted sha256sum records, excluding RELEASE-MANIFEST.json)",
-  "source_date_epoch": 1786310400,
+  "source_date_epoch": 1786406400,
   "capabilities": "0x0000ffff",
   "artifacts": {
     "MICOAIR743": {
-      "filename": "Flight-Commander-Firmware-4.1.8-MICOAIR743.hex",
-      "sha256": "4b9d89d0e3dcc5efdd472d4671702fd37ff102cc2c5ac6cb7abf9788daccc768",
-      "bytes": 1951176
+      "filename": "Flight-Commander-Firmware-4.1.9-MICOAIR743.hex",
+      "sha256": "c6ab580f66e76404489f1f1c7f936e182b233aa910af3cefbf17bd3aae9e51e7",
+      "bytes": 1951851
     },
     "CUBEORANGEPLUS": {
-      "filename": "Flight-Commander-Firmware-4.1.8-CUBEORANGEPLUS.hex",
-      "sha256": "2f6f5422b436d9729159445717db417dccca771d2761f70429f3ac6ae677c236",
-      "bytes": 1947232
+      "filename": "Flight-Commander-Firmware-4.1.9-CUBEORANGEPLUS.hex",
+      "sha256": "48ab5f47c0d0913a480009eddc2911b91fdb26bc9b75573860d4131b87d8c7c0",
+      "bytes": 1947682
     }
   },
   "bench_acceptance": {
@@ -31,6 +31,17 @@
     "source_isolation": "onboard, external I2C/UART GPS-module and DroneCAN GPS-module compasses retain independent transforms and field calibrations",
     "fusion_gate": "a magnetic source remains unavailable to heading fusion until both its own learned transform and field calibration are valid",
     "propeller_requirement": "propellers removed for all calibration and bench verification"
+  },
+  "dronecan_compass": {
+    "compatible_messages": [
+      "uavcan.equipment.ahrs.MagneticFieldStrength (1001)",
+      "uavcan.equipment.ahrs.MagneticFieldStrength2 (1002)"
+    ],
+    "node_capability": "the source node is marked magnetometer-capable after either message decodes successfully",
+    "targets": [
+      "MICOAIR743",
+      "CUBEORANGEPLUS"
+    ]
   },
   "moving_baseline": {
     "module_family": "Holybro DroneCAN H-RTK F9P / AP_Periph compatible",

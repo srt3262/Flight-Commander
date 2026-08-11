@@ -15,6 +15,7 @@ set(FLIGHT_COMMANDER_TARGET_SOURCES
     "${MAIN_SRC_DIR}/flight_commander/gcs_commands.c"
     "${FLIGHT_COMMANDER_DSDL_ROOT}/src/ardupilot.gnss.Heading.c"
     "${FLIGHT_COMMANDER_DSDL_ROOT}/src/ardupilot.gnss.RelPosHeading.c"
+    "${FLIGHT_COMMANDER_DSDL_ROOT}/src/uavcan.equipment.ahrs.MagneticFieldStrength.c"
     "${FLIGHT_COMMANDER_DSDL_ROOT}/src/uavcan.equipment.ahrs.MagneticFieldStrength2.c"
     "${FLIGHT_COMMANDER_DSDL_ROOT}/src/uavcan.equipment.gnss.Auxiliary.c"
     "${FLIGHT_COMMANDER_DSDL_ROOT}/src/uavcan.equipment.gnss.Fix.c"

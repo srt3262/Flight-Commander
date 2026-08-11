@@ -9,6 +9,7 @@
 
 #include "build/flight_commander.h"
 #include "build/version.h"
+#include "common/axis.h"
 #include "common/log.h"
 #include "common/maths.h"
 #include "common/time.h"
@@ -169,6 +170,21 @@ static void handleMagneticField(const CanardRxTransfer *transfer)
     }
 }
 
+static void handleLegacyMagneticField(const CanardRxTransfer *transfer)
+{
+    struct uavcan_equipment_ahrs_MagneticFieldStrength message;
+    if (!uavcan_equipment_ahrs_MagneticFieldStrength_decode(transfer, &message)) {
+        dronecanMarkNodeCapability(transfer->source_node_id, DRONECAN_NODE_CAPABILITY_MAG);
+#if defined(USE_FLIGHT_COMMANDER_HEADING_FUSION)
+        struct uavcan_equipment_ahrs_MagneticFieldStrength2 normalized = { 0 };
+        for (unsigned axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
+            normalized.magnetic_field_ga[axis] = message.magnetic_field_ga[axis];
+        }
+        flightCommanderHeadingReceiveDronecanMag(transfer->source_node_id, &normalized);
+#endif
+    }
+}
+
 static void handleHeading(const CanardRxTransfer *transfer)
 {
     struct ardupilot_gnss_Heading message;
@@ -258,6 +274,9 @@ static bool shouldAcceptTransfer(const CanardInstance *instance, uint64_t *signa
     case UAVCAN_EQUIPMENT_POWER_BATTERYINFO_ID:
         *signature = UAVCAN_EQUIPMENT_POWER_BATTERYINFO_SIGNATURE;
         return true;
+    case UAVCAN_EQUIPMENT_AHRS_MAGNETICFIELDSTRENGTH_ID:
+        *signature = UAVCAN_EQUIPMENT_AHRS_MAGNETICFIELDSTRENGTH_SIGNATURE;
+        return true;
     case UAVCAN_EQUIPMENT_AHRS_MAGNETICFIELDSTRENGTH2_ID:
         *signature = UAVCAN_EQUIPMENT_AHRS_MAGNETICFIELDSTRENGTH2_SIGNATURE;
         return true;
@@ -301,6 +320,7 @@ static void onTransferReceived(CanardInstance *instance, CanardRxTransfer *trans
     case UAVCAN_EQUIPMENT_GNSS_FIX2_ID: handleGnssFix2(transfer); break;
     case UAVCAN_EQUIPMENT_GNSS_RTCMSTREAM_ID: handleRtcmStream(transfer); break;
     case UAVCAN_EQUIPMENT_POWER_BATTERYINFO_ID: handleBatteryInfo(transfer); break;
+    case UAVCAN_EQUIPMENT_AHRS_MAGNETICFIELDSTRENGTH_ID: handleLegacyMagneticField(transfer); break;
     case UAVCAN_EQUIPMENT_AHRS_MAGNETICFIELDSTRENGTH2_ID: handleMagneticField(transfer); break;
     case ARDUPILOT_GNSS_HEADING_ID: handleHeading(transfer); break;
     case ARDUPILOT_GNSS_RELPOSHEADING_ID: handleRelPosHeading(transfer); break;

@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 4.1.9
+
+- Accept both DroneCAN `uavcan.equipment.ahrs.MagneticFieldStrength` and
+  `MagneticFieldStrength2` compass broadcasts so Holybro/AP_Periph GPS-module
+  compasses are discovered, exposed for calibration, and available to heading
+  fusion after their independent orientation and field calibration.
+- Rebuild both official MICOAIR743 and CUBEORANGEPLUS firmware images with the
+  shared DroneCAN compass compatibility correction.
+
 ## 4.1.8
 
 - Add the official `CUBEORANGEPLUS` firmware target for CubePilot Cube Orange+
