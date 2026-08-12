@@ -104,7 +104,15 @@ test("RTK correction forwarder times out an unacknowledged packet and recovers w
   forwarder.enqueue(frameForType(1077, 1));
   await Promise.resolve();
   forwarder.enqueue(frameForType(1077, 2));
-  const state = await forwarder.waitForIdle();
+  // Production deadline timers are deliberately unreferenced. Keep this
+  // isolated Node test worker alive long enough to observe the deadline.
+  const keepAlive = setTimeout(() => {}, 1000);
+  let state;
+  try {
+    state = await forwarder.waitForIdle();
+  } finally {
+    clearTimeout(keepAlive);
+  }
 
   assert.deepEqual(markers, [1, 2]);
   assert.equal(state.timedOutPackets, 1);

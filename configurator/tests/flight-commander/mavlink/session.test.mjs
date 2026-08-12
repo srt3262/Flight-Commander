@@ -636,12 +636,19 @@ describe("commands, acknowledgements and cleanup", () => {
     sessions.add(session);
     session.attach(connection);
 
-    await assert.rejects(
-      session.send("GpsRtcmData", { flags: 0, len: 1, data: [1] }, {
-        writeTimeoutMs: 10,
-      }),
-      /transport write timed out after 10 ms/,
-    );
+    // Production deadline timers are deliberately unreferenced. Keep this
+    // isolated Node test worker alive long enough to observe the deadline.
+    const keepAlive = setTimeout(() => {}, 1000);
+    try {
+      await assert.rejects(
+        session.send("GpsRtcmData", { flags: 0, len: 1, data: [1] }, {
+          writeTimeoutMs: 10,
+        }),
+        /transport write timed out after 10 ms/,
+      );
+    } finally {
+      clearTimeout(keepAlive);
+    }
     assert.equal(canceled, true);
   });
 
