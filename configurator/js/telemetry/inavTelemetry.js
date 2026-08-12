@@ -1,4 +1,5 @@
 import { primaryModeFromActiveModes } from "./primaryFlightMode.js";
+import { canonicalFlightCommanderMspGpsFix } from "../gcs/gpsFixStatus.js";
 
 const PLATFORM_NAMES = {
   0: "Multirotor",
@@ -18,11 +19,7 @@ function finiteNumber(value) {
 }
 
 export function normalizeInavGpsFix(value) {
-  const fix = finiteNumber(value);
-  if (fix === null || fix <= 0) {
-    return 1;
-  }
-  return fix === 1 ? 2 : 3;
+  return canonicalFlightCommanderMspGpsFix(value);
 }
 
 export function canonicalInavPitch(value) {

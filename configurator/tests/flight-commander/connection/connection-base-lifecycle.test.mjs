@@ -189,3 +189,93 @@ test("a failed replacement cannot restore a connection whose close is pending", 
   assert.equal(connection._activeConnectionId, false);
   assert.deepEqual(completions, [["replacement", false]]);
 });
+
+function createBufferedConnection(Connection) {
+  return new class extends Connection {
+    constructor() {
+      super();
+      this.writes = [];
+      this.writeCallbacks = [];
+    }
+
+    connectImplementation() {}
+    disconnectImplementation() {}
+    addOnReceiveCallback() {}
+    removeOnReceiveCallback() {}
+    addOnReceiveErrorCallback() {}
+    removeOnReceiveErrorCallback() {}
+
+    sendImplementation(data, callback) {
+      this.writes.push(Array.from(data));
+      this.writeCallbacks.push(() => callback({
+        bytesSent: data.byteLength,
+        resultCode: 0,
+      }));
+    }
+
+    completeWrite() {
+      this.writeCallbacks.shift()();
+    }
+  }();
+}
+
+test("outbound connection scheduling preserves the active write and prioritizes control then RTCM", () => {
+  const Connection = loadConnectionClass();
+  const connection = createBufferedConnection(Connection);
+
+  connection.send(Uint8Array.of(1), () => {});
+  connection.send(Uint8Array.of(2), () => {});
+  connection.send(Uint8Array.of(3), () => {}, { priority: 50 });
+  connection.send(Uint8Array.of(4), () => {}, { priority: 100 });
+
+  assert.deepEqual(connection.writes, [[1]]);
+  connection.completeWrite();
+  assert.deepEqual(connection.writes, [[1], [4]]);
+  connection.completeWrite();
+  assert.deepEqual(connection.writes, [[1], [4], [3]]);
+  connection.completeWrite();
+  assert.deepEqual(connection.writes, [[1], [4], [3], [2]]);
+});
+
+test("a fresh correction replaces an unsent correction in the transport queue", () => {
+  const Connection = loadConnectionClass();
+  const connection = createBufferedConnection(Connection);
+  const replaced = [];
+
+  connection.send(Uint8Array.of(1), () => {});
+  connection.send(Uint8Array.of(2), (result) => replaced.push(result), {
+    priority: 50,
+    replaceKey: "rtcm",
+  });
+  connection.send(Uint8Array.of(3), () => {}, {
+    priority: 50,
+    replaceKey: "rtcm",
+  });
+
+  assert.equal(connection._outputBuffer.length, 2);
+  assert.equal(replaced.length, 1);
+  assert.equal(replaced[0].replaced, true);
+  connection.completeWrite();
+  assert.deepEqual(connection.writes, [[1], [3]]);
+});
+
+test("RTCM is admitted by displacing lower-priority backlog when the transport queue is saturated", () => {
+  const Connection = loadConnectionClass();
+  const connection = createBufferedConnection(Connection);
+  let preempted = 0;
+
+  connection.send(Uint8Array.of(1), () => {});
+  for (let value = 2; value <= 100; value += 1) {
+    connection.send(Uint8Array.of(value), (result) => {
+      if (result.preempted) preempted += 1;
+    });
+  }
+  connection.send(Uint8Array.of(200), () => {}, {
+    priority: 50,
+    replaceKey: "rtcm",
+  });
+
+  assert.equal(connection._outputBuffer.length, 100);
+  assert.equal(connection._outputBuffer[1].data[0], 200);
+  assert.equal(preempted, 1);
+});

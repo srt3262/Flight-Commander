@@ -5,6 +5,7 @@ import MSPCodes from './msp/MSPCodes';
 import SimpleSmoothFilter from './simple_smooth_filter';
 import eventFrequencyAnalyzer from './eventFrequencyAnalyzer';
 import mspDeduplicationQueue from './msp/mspDeduplicationQueue';
+import { insertMspRequestByPriority } from './msp/mspPriorityQueue';
 
 var mspQueue = function () {
 
@@ -104,6 +105,35 @@ var mspQueue = function () {
         }
     };
 
+    privateScope.getRequestTimeout = function (request) {
+        return Number.isFinite(request?.timeoutMs) && request.timeoutMs > 0
+            ? request.timeoutMs
+            : privateScope.getTimeout(request.code);
+    };
+
+    privateScope.failRequestAttempt = function (request, transportGeneration) {
+        if (
+            request.transportGeneration !== transportGeneration
+            || request.transportAttemptFinished === true
+        ) {
+            return false;
+        }
+        request.transportAttemptFinished = true;
+        clearTimeout(request.timer);
+        mspDeduplicationQueue.remove(request.code);
+        privateScope.removeCallback(request.code);
+        publicScope.freeSoftLock();
+        publicScope.freeHardLock();
+
+        if (request.retryCounter > 0) {
+            request.retryCounter--;
+            publicScope.put(request);
+        } else if (request.onFinish) {
+            request.onFinish(false);
+        }
+        return true;
+    };
+
     /**
      * This method is periodically executed and moves MSP request
      * from a queue to serial port. This allows to throttle requests,
@@ -136,6 +166,10 @@ var mspQueue = function () {
 
         if (request !== undefined) {
 
+            request.transportGeneration = (request.transportGeneration ?? 0) + 1;
+            request.transportAttemptFinished = false;
+            const transportGeneration = request.transportGeneration;
+
             /*
              * Lock serial port as being in use right now
              */
@@ -144,37 +178,11 @@ var mspQueue = function () {
 
             request.timer = setTimeout(function () {
                 console.log('MSP data request timed-out: ' + request.code);
-                mspDeduplicationQueue.remove(request.code);
-                /*
-                 * Remove current callback
-                 */
-                
-                privateScope.removeCallback(request.code);
-
-                /*
-                 * To prevent infinite retry situation, allow retry only while counter is positive
-                 */
-                if (request.retryCounter > 0) {
-                    request.retryCounter--;
-
-                    /*
-                     * Create new entry in the queue
-                     */
-                    publicScope.put(request);
-                } else {
-                    /*
-                     * A terminal timeout must finish the caller's operation.
-                     * Historically the callback was simply discarded here,
-                     * leaving preset dialogs and save chains blocked forever.
-                     */
-                    publicScope.freeSoftLock();
-                    publicScope.freeHardLock();
-                    if (request.onFinish) {
-                        request.onFinish(false);
-                    }
+                const transportHandle = request.transportHandle;
+                if (privateScope.failRequestAttempt(request, transportGeneration)) {
+                    transportHandle?.cancel?.();
                 }
-
-            }, privateScope.getTimeout(request.code));
+            }, privateScope.getRequestTimeout(request));
 
             if (request.sentOn === null) {
                 request.sentOn = new Date().getTime();
@@ -190,7 +198,7 @@ var mspQueue = function () {
             /*
              * Send data to serial port
              */
-            CONFIGURATOR.connection.send(request.messageBody, function (sendInfo) {
+            request.transportHandle = CONFIGURATOR.connection.send(request.messageBody, function (sendInfo) {
                 if (sendInfo.bytesSent == request.messageBody.byteLength) {
                     /*
                      * message has been sent, check callbacks and free resource
@@ -199,7 +207,12 @@ var mspQueue = function () {
                         request.onSend();
                     }
                     publicScope.freeSoftLock();
+                } else {
+                    privateScope.failRequestAttempt(request, transportGeneration);
                 }
+            }, {
+                priority: request.transportPriority,
+                replaceKey: request.replaceKey,
             });
         }
     };
@@ -231,8 +244,9 @@ var mspQueue = function () {
         }
 
         mspDeduplicationQueue.put(mspRequest.code);
-
-        privateScope.queue.push(mspRequest);
+        // Preserve FIFO order within the priority lane while placing
+        // time-sensitive RTCM fragments ahead of ordinary telemetry polls.
+        insertMspRequestByPriority(privateScope.queue, mspRequest);
         return true;
     };
 

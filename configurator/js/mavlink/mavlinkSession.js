@@ -23,6 +23,42 @@ export const MAV_CMD_REQUEST_AUTOPILOT_CAPABILITIES = 520;
 export const MAVLINK_MSG_ID_AUTOPILOT_VERSION = 148;
 export const MAV_DATA_STREAM_ALL = 0;
 
+const MAVLINK_TRANSPORT_PRIORITY_NORMAL = 0;
+const MAVLINK_TRANSPORT_PRIORITY_RTCM = 50;
+const MAVLINK_TRANSPORT_PRIORITY_CONTROL = 100;
+const MAVLINK_CONTROL_MESSAGE_KEYS = new Set([
+  "commandcancel",
+  "commandint",
+  "commandlong",
+  "heartbeat",
+  "manualcontrol",
+  "rcchannelsoverride",
+  "setmode",
+]);
+
+function mavlinkMessageKey(messageName) {
+  return String(messageName ?? "").replace(/[^a-z0-9]/gi, "").toLowerCase();
+}
+
+export function mavlinkTransportOptions(messageName, options = {}) {
+  const messageKey = mavlinkMessageKey(messageName);
+  let priority = options.transportPriority == null
+    ? Number.NaN
+    : Number(options.transportPriority);
+  if (!Number.isFinite(priority)) {
+    if (messageKey === "gpsrtcmdata") priority = MAVLINK_TRANSPORT_PRIORITY_RTCM;
+    else if (MAVLINK_CONTROL_MESSAGE_KEYS.has(messageKey)) {
+      priority = MAVLINK_TRANSPORT_PRIORITY_CONTROL;
+    } else priority = MAVLINK_TRANSPORT_PRIORITY_NORMAL;
+  }
+  return {
+    priority,
+    replaceKey:
+      options.replaceKey ??
+      (messageKey === "gpsrtcmdata" ? "mavlink-rtcm" : null),
+  };
+}
+
 export const FIRMWARE_FAMILY_UNKNOWN = "unknown";
 export const FIRMWARE_FAMILY_INAV = "inav";
 export const FIRMWARE_FAMILY_FLIGHT_COMMANDER = "flight-commander";
@@ -1283,7 +1319,11 @@ startFirmwareDetection() {
     return new Promise((resolve, reject) => {
       let settled = false;
       let unsubscribeDetached = () => {};
+      let writeTimeout = null;
+      let sendHandle = null;
       const cleanup = () => {
+        if (writeTimeout != null) this.clearTimeoutFn(writeTimeout);
+        writeTimeout = null;
         unsubscribeDetached();
       };
       const fail = (error) => {
@@ -1310,7 +1350,25 @@ startFirmwareDetection() {
         fail(createMavlinkAttachmentError(attachment.description));
       });
       try {
-        const returned = attachment.connection.send(bytes, finish);
+        const writeTimeoutMs = Number(options.writeTimeoutMs);
+        if (Number.isFinite(writeTimeoutMs) && writeTimeoutMs > 0) {
+          writeTimeout = timerUnref(
+            this.setTimeoutFn(() => {
+              const error = new Error(
+                `MAVLink ${messageName} transport write timed out after ${writeTimeoutMs} ms.`,
+              );
+              error.code = "MAVLINK_WRITE_TIMEOUT";
+              fail(error);
+              sendHandle?.cancel?.();
+            }, writeTimeoutMs),
+          );
+        }
+        sendHandle = attachment.connection.send(
+          bytes,
+          finish,
+          mavlinkTransportOptions(messageName, options),
+        );
+        const returned = sendHandle;
         if (returned?.then) returned.then(finish, fail);
         else if (attachment.connection.send.length < 2 && returned != null) {
           finish(

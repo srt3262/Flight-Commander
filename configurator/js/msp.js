@@ -21,6 +21,10 @@ var MspMessageClass = function () {
     publicScope.createdOn = new Date().getTime();
     publicScope.sentOn = null;
     publicScope.retryCounter = 5;
+    publicScope.priority = false;
+    publicScope.timeoutMs = null;
+    publicScope.transportPriority = 0;
+    publicScope.replaceKey = null;
 
     return publicScope;
 };
@@ -372,6 +376,16 @@ var MSP = {
         message.messageBody = buffer;
         message.onFinish = callback_msp;
         message.onSend = callback_sent;
+        message.priority = options.priority === true;
+        message.timeoutMs = options.timeoutMs != null
+            && Number.isFinite(Number(options.timeoutMs))
+            ? Math.max(1, Math.trunc(Number(options.timeoutMs)))
+            : null;
+        message.transportPriority = options.transportPriority != null
+            && Number.isFinite(Number(options.transportPriority))
+            ? Number(options.transportPriority)
+            : (message.priority ? 50 : 0);
+        message.replaceKey = options.replaceKey ?? null;
 
         /*
          * In case of MSP_REBOOT special procedure is required
@@ -425,7 +439,7 @@ var MSP = {
         }
         return crc;
     },
-    promise(code, data, protocolVersion) {
+    promise(code, data, protocolVersion, options = {}) {
         var self = this;
         return new Promise(function(resolve, reject) {
             self.send_message(code, data, false, function(data) {
@@ -434,7 +448,7 @@ var MSP = {
                     return;
                 }
                 resolve(data);
-            }, protocolVersion);
+            }, protocolVersion, options);
         });
     },
     callbacks_cleanup() {

@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## 4.2.2
+
+- Keep NTRIP RTCM injection live over MSP and MAVLink by prioritizing
+  correction writes, bounding their acknowledgement time, and continuously
+  coalescing queued messages to the newest frame of each RTCM type. A saturated
+  lower-priority transmit buffer now yields to corrections instead of stalling
+  the stream, while flight-control and heartbeat MAVLink messages retain the
+  highest transport priority.
+- Show the aircraft GPS state consistently as No Fix, 3D Fix, RTK Float, or
+  RTK Fix on both the live HUD and GPS telemetry tile over MSP and MAVLink.
+
 ## 4.2.1
 
 - Rank NTRIP mountpoints nearest-first using the connected USB base position,

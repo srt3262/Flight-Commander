@@ -60,6 +60,7 @@ class FakeConnection {
   constructor() {
     this.listeners = new Set();
     this.sent = [];
+    this.sendOptions = [];
   }
 
   addOnReceiveListener(listener) {
@@ -76,8 +77,9 @@ class FakeConnection {
     }
   }
 
-  send(bytes, callback) {
+  send(bytes, callback, options) {
     this.sent.push(Array.from(bytes));
+    this.sendOptions.push(options);
     callback({ resultCode: 0, bytesSent: bytes.length });
   }
 }
@@ -593,6 +595,56 @@ describe("MAVLink state normalization and firmware detection", () => {
 });
 
 describe("commands, acknowledgements and cleanup", () => {
+  test("marks RTCM writes as replaceable real-time transport traffic", async () => {
+    const { session, connection } = createAttachedSession();
+
+    await session.send("GpsRtcmData", {
+      flags: 0,
+      len: 1,
+      data: [1],
+    });
+
+    assert.deepEqual(connection.sendOptions.at(-1), {
+      priority: 50,
+      replaceKey: "mavlink-rtcm",
+    });
+
+    await session.send("CommandLong", {
+      targetSystem: 1,
+      targetComponent: 1,
+      command: 400,
+    });
+    assert.deepEqual(connection.sendOptions.at(-1), {
+      priority: 100,
+      replaceKey: null,
+    });
+  });
+
+  test("a MAVLink write deadline cancels an unsent transport entry", async () => {
+    const bridge = new FakeBridge();
+    let canceled = false;
+    const connection = new FakeConnection();
+    connection.send = function (_bytes, _callback) {
+      return {
+        cancel() {
+          canceled = true;
+          return true;
+        },
+      };
+    };
+    const session = new MavlinkSession({ bridge, discoveryDelayMs: 1000 });
+    sessions.add(session);
+    session.attach(connection);
+
+    await assert.rejects(
+      session.send("GpsRtcmData", { flags: 0, len: 1, data: [1] }, {
+        writeTimeoutMs: 10,
+      }),
+      /transport write timed out after 10 ms/,
+    );
+    assert.equal(canceled, true);
+  });
+
   test("drops queued bytes and decoded frames from an earlier attachment", () => {
     const {
       session,

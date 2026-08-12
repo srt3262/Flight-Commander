@@ -43,6 +43,10 @@ import {
 } from "./ubloxF9Base.js";
 
 const ACK_TIMEOUT_MS = 4000;
+// The firmware abandons an incomplete fragmented correction after 500 ms.
+// Recover before that window expires instead of retrying a stale fragment.
+const RTCM_TRANSPORT_WRITE_TIMEOUT_MS = 400;
+const RTCM_TRANSPORT_PRIORITY = 50;
 
 function byteView(value) {
   if (value instanceof Uint8Array) return value;
@@ -554,6 +558,10 @@ class RtkBaseStationService {
         flags: packet.flags,
         len: packet.len,
         data: paddedMavlinkRtcmData(packet.data),
+      }, {
+        transportPriority: RTCM_TRANSPORT_PRIORITY,
+        replaceKey: "mavlink-rtcm",
+        writeTimeoutMs: RTCM_TRANSPORT_WRITE_TIMEOUT_MS,
       });
       return { transport: "MAVLink" };
     }
@@ -561,7 +569,15 @@ class RtkBaseStationService {
       packet.flags,
       packet.len,
       ...packet.data,
-    ]);
+    ], undefined, {
+      priority: true,
+      transportPriority: RTCM_TRANSPORT_PRIORITY,
+      replaceKey: "msp-rtcm",
+      timeoutMs: RTCM_TRANSPORT_WRITE_TIMEOUT_MS,
+      // A delayed retry can outlive the firmware's 500 ms fragment assembly
+      // window. Fail this frame promptly so the next fresh sequence can start.
+      retryCounter: 0,
+    });
     return { transport: "MSP" };
   }
 

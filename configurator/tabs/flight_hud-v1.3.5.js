@@ -5,6 +5,7 @@ import {
     normalizeGroundControlUnitSystem,
     toGroundControlDisplayState,
 } from './../js/gcs/groundControlUnits.js';
+import { groundControlGpsFixStatus } from './../js/gcs/gpsFixStatus.js';
 
 const STORAGE_KEY = 'flightCommanderGroundControlPrimaryView';
 const PRIMARY_VIEWS = new Set(['map', 'hud']);
@@ -41,18 +42,6 @@ function headingLabel(value) {
     if (heading === 180) return 'S';
     if (heading === 270) return 'W';
     return String(heading).padStart(3, '0');
-}
-
-function gpsFixLabel(value) {
-    if (value >= 8) return 'PPP';
-    if (value === 7) return 'STATIC';
-    if (value === 6) return 'RTK';
-    if (value === 5) return 'RTK F';
-    if (value === 4) return 'DGPS';
-    if (value === 3) return '3D';
-    if (value === 2) return '2D';
-    if (value === 1) return 'NO FIX';
-    return 'NO GPS';
 }
 
 function roundedPath(context, x, y, width, height, radius) {
@@ -398,7 +387,7 @@ function drawStatus(context, width, height, state, compact, unitProfile) {
     context.textAlign = 'center';
     context.font = `${compact ? 8 : 10}px "Segoe UI", sans-serif`;
     context.fillStyle = state.gpsFix >= 3 ? '#7cff6b' : '#ffd166';
-    const gps = `GPS ${gpsFixLabel(state.gpsFix)} · ${state.satellites ?? '--'}`;
+    const gps = `GPS ${groundControlGpsFixStatus(state.gpsFix).hudLabel} · ${state.satellites ?? '--'}`;
     context.fillText(gps, width * (compact ? 0.4 : 0.36), y + barHeight / 2);
 
     context.fillStyle = '#ffffff';

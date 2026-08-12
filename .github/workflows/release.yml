@@ -15,19 +15,19 @@ permissions:
   contents: read
 
 concurrency:
-  group: publish-flight-commander-4.2.1
+  group: publish-flight-commander-4.2.2
   cancel-in-progress: false
 
 env:
-  RELEASE_VERSION: 4.2.1
-  RELEASE_TAG: v4.2.1
+  RELEASE_VERSION: 4.2.2
+  RELEASE_TAG: v4.2.2
 
 jobs:
   authorize:
     name: Authorize official release
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      github.event.head_commit.message == 'Publish Flight Commander 4.2.1 release'
+      github.event.head_commit.message == 'Publish Flight Commander 4.2.2 release'
     runs-on: ubuntu-latest
     outputs:
       release_sha: ${{ steps.release.outputs.sha }}
@@ -105,7 +105,7 @@ jobs:
           retention-days: 14
 
   windows:
-    name: Build verified Windows Configurator 4.2.1
+    name: Build verified Windows Configurator 4.2.2
     needs: authorize
     runs-on: windows-latest
     timeout-minutes: 50
@@ -144,13 +144,13 @@ jobs:
           if (@($package).Count -ne 1) {
             throw 'Expected exactly one verified win32-x64 package directory.'
           }
-          Compress-Archive -Path "$($package.FullName)\*" -DestinationPath "$env:RUNNER_TEMP\FC-Windows-v4.2.1.zip" -CompressionLevel Optimal
+          Compress-Archive -Path "$($package.FullName)\*" -DestinationPath "$env:RUNNER_TEMP\FC-Windows-v4.2.2.zip" -CompressionLevel Optimal
 
       - name: Upload verified Windows archive
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: release-windows-${{ needs.authorize.outputs.release_sha }}
-          path: ${{ runner.temp }}/FC-Windows-v4.2.1.zip
+          path: ${{ runner.temp }}/FC-Windows-v4.2.2.zip
           if-no-files-found: error
           retention-days: 14
 
@@ -189,16 +189,16 @@ jobs:
           bundle_dir="$RUNNER_TEMP/bundle"
           mkdir -p "$bundle_dir"
 
-          windows="$candidate/FC-Windows-v4.2.1.zip"
+          windows="$candidate/FC-Windows-v4.2.2.zip"
           firmware_mico="$candidate/Flight-Commander-Firmware-4.2.0-MICOAIR743.hex"
           firmware_cube="$candidate/Flight-Commander-Firmware-4.2.0-CUBEORANGEPLUS.hex"
           firmware_source="$candidate/FC-Firmware-Source-v4.2.0.zip"
-          configurator_source="$bundle_dir/FC-Configurator-Source-v4.2.1.zip"
+          configurator_source="$bundle_dir/FC-Configurator-Source-v4.2.2.zip"
           online_mico="$RUNNER_TEMP/Flight-Commander-Firmware-4.2.0-MICOAIR743.hex"
           online_cube="$RUNNER_TEMP/Flight-Commander-Firmware-4.2.0-CUBEORANGEPLUS.hex"
           short_mico="$bundle_dir/FC-Firmware-v4.2.0-MICOAIR743.hex"
           short_cube="$bundle_dir/FC-Firmware-v4.2.0-CUBEORANGEPLUS.hex"
-          complete_bundle="$RUNNER_TEMP/Flight-Commander-v4.2.1.zip"
+          complete_bundle="$RUNNER_TEMP/Flight-Commander-v4.2.2.zip"
 
           for path in "$windows" "$firmware_mico" "$firmware_cube" "$firmware_source"; do
             test -s "$path" || { echo "Missing release candidate: $path" >&2; exit 1; }
@@ -213,7 +213,7 @@ jobs:
           source = pathlib.Path(sys.argv[4])
           digest = lambda path: hashlib.sha256(path.read_bytes()).hexdigest()
           declaration = package['flightCommander']
-          assert package['version'] == '4.2.1'
+          assert package['version'] == '4.2.2'
           assert declaration['firmwareChangedInRelease'] is False
           assert declaration['firmwareReleaseVersion'] == '4.2.0'
           for target, path in firmware.items():
@@ -227,10 +227,10 @@ jobs:
           PY
 
           git archive --format=zip \
-            --prefix="Flight-Commander-Configurator-Source-v4.2.1/" \
+            --prefix="Flight-Commander-Configurator-Source-v4.2.2/" \
             --output="$configurator_source" \
             "$RELEASE_SHA:configurator"
-          cp "$windows" "$bundle_dir/FC-Windows-v4.2.1.zip"
+          cp "$windows" "$bundle_dir/FC-Windows-v4.2.2.zip"
           cp "$firmware_mico" "$short_mico"
           cp "$firmware_cube" "$short_cube"
           cp "$firmware_mico" "$online_mico"
@@ -239,11 +239,11 @@ jobs:
 
           mapfile -t canonical < <(find "$bundle_dir" -maxdepth 1 -type f -printf '%f\n' | sort)
           expected=(
-            FC-Configurator-Source-v4.2.1.zip
+            FC-Configurator-Source-v4.2.2.zip
             FC-Firmware-Source-v4.2.0.zip
             FC-Firmware-v4.2.0-CUBEORANGEPLUS.hex
             FC-Firmware-v4.2.0-MICOAIR743.hex
-            FC-Windows-v4.2.1.zip
+            FC-Windows-v4.2.2.zip
           )
           if [[ "${canonical[*]}" != "${expected[*]}" ]]; then
             echo "Complete release bundle does not contain exactly the five canonical files." >&2
@@ -261,7 +261,7 @@ jobs:
               "$(basename "$online_mico")"
           ) > "$RUNNER_TEMP/SHA256SUMS.txt"
           {
-            cat docs/releases/v4.2.1.md
+            cat docs/releases/v4.2.2.md
             printf '\n## Verified release assets\n\n```text\n'
             cat "$RUNNER_TEMP/SHA256SUMS.txt"
             printf '```\n'
@@ -286,12 +286,12 @@ jobs:
             exit 1
           fi
           gh release create "$RELEASE_TAG" \
-            "$COMPLETE_BUNDLE#Flight Commander 4.2.1 complete release bundle" \
+            "$COMPLETE_BUNDLE#Flight Commander 4.2.2 complete release bundle" \
             "$ONLINE_CUBE#Flight Commander Firmware 4.2.0 for CubePilot Cube Orange+" \
             "$ONLINE_MICO#Flight Commander Firmware 4.2.0 for MICOAIR743" \
             --repo "$GITHUB_REPOSITORY" \
             --target "$RELEASE_SHA" \
-            --title "Flight Commander 4.2.1" \
+            --title "Flight Commander 4.2.2" \
             --notes-file "$NOTES" \
             --latest
 
@@ -301,7 +301,7 @@ jobs:
           expected=(
             Flight-Commander-Firmware-4.2.0-CUBEORANGEPLUS.hex
             Flight-Commander-Firmware-4.2.0-MICOAIR743.hex
-            Flight-Commander-v4.2.1.zip
+            Flight-Commander-v4.2.2.zip
           )
           if [[ "${assets[*]}" != "${expected[*]}" ]]; then
             echo "Published release does not contain exactly the three public assets." >&2

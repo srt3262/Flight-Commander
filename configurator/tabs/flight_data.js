@@ -17,6 +17,7 @@ import View from 'ol/View.js';
 import CONFIGURATOR from './../js/data_storage';
 import FC from './../js/fc';
 import { estimateInavMissionProgress } from './../js/gcs/inavMissionProgress';
+import { groundControlGpsFixStatus } from './../js/gcs/gpsFixStatus';
 import {
   convertGroundControlValue,
   DEFAULT_GROUND_CONTROL_UNIT_SYSTEM,
@@ -54,18 +55,6 @@ import normalizeInavTelemetry from './../js/telemetry/inavTelemetry';
 import normalizeLtmTelemetry from './../js/telemetry/ltmTelemetry';
 import { primaryModeForDisplay } from './../js/telemetry/primaryFlightMode';
 import rtkBasePanel from './rtk_base';
-
-const GPS_FIX_NAMES = {
-  0: 'No GPS',
-  1: 'No fix',
-  2: '2D',
-  3: '3D',
-  4: 'DGPS',
-  5: 'RTK float',
-  6: 'RTK fixed',
-  7: 'Static',
-  8: 'PPP',
-};
 
 const MISSION_STATE_NAMES = {
   0: 'Unknown',
@@ -964,7 +953,7 @@ flightData.render = function (state) {
     { decimals: 1 },
   ));
   $('#flightDataGps').text(
-    `${GPS_FIX_NAMES[state.gpsFix] ?? `Fix ${state.gpsFix}`} · ${Number.isFinite(state.satellites) ? state.satellites : '--'} sats`,
+    `${groundControlGpsFixStatus(state.gpsFix).label} · ${Number.isFinite(state.satellites) ? state.satellites : '--'} sats`,
   );
   $('#flightDataBattery').text(
     `${format(state.voltage, 1, ' V')} · ${format(state.batteryRemaining, 0, '%')}`,

@@ -9,6 +9,15 @@ const ConnectionType = {
     BLE:    3
 }
 
+const CONNECTION_SEND_PRIORITY_NORMAL = 0;
+const CONNECTION_SEND_PRIORITY_RTCM = 50;
+
+function normalizedSendPriority(value) {
+    if (value === true) return CONNECTION_SEND_PRIORITY_RTCM;
+    const priority = Number(value);
+    return Number.isFinite(priority) ? priority : CONNECTION_SEND_PRIORITY_NORMAL;
+}
+
 class Connection {
 
     constructor() {       
@@ -210,20 +219,69 @@ class Connection {
         throw new TypeError("Abstract method");
     }
 
-    send(data, callback) {
-        if (this._outputBuffer.length >= 100) {
-            console.log('Send buffer full, rejected one entry');
-            if (callback) {
-                callback({bytesSent: 0, resultCode: 1});
-            }
-            return;
-        }
+    send(data, callback, options = {}) {
         const entry = {
             data,
             callback,
             generation: this._outputGeneration,
+            priority: normalizedSendPriority(options.priority),
+            replaceKey: options.replaceKey ?? null,
         };
-        this._outputBuffer.push(entry);
+
+        const firstQueuedIndex = this._transmitting ? 1 : 0;
+        let replacedEntry = null;
+        if (entry.replaceKey != null) {
+            const replaceIndex = this._outputBuffer.findIndex(
+                (queuedEntry, index) => (
+                    index >= firstQueuedIndex
+                    && queuedEntry.replaceKey === entry.replaceKey
+                ),
+            );
+            if (replaceIndex >= 0) {
+                [replacedEntry] = this._outputBuffer.splice(replaceIndex, 1);
+            }
+        }
+
+        let displacedEntry = null;
+        if (this._outputBuffer.length >= 100) {
+            let displacedIndex = -1;
+            for (
+                let index = this._outputBuffer.length - 1;
+                index >= firstQueuedIndex;
+                index--
+            ) {
+                if (this._outputBuffer[index].priority < entry.priority) {
+                    displacedIndex = index;
+                    break;
+                }
+            }
+            if (displacedIndex >= 0) {
+                [displacedEntry] = this._outputBuffer.splice(displacedIndex, 1);
+            } else {
+                console.log('Send buffer full, rejected one entry');
+                callback?.({bytesSent: 0, resultCode: 1});
+                return null;
+            }
+        }
+
+        let insertIndex = this._outputBuffer.length;
+        for (let index = firstQueuedIndex; index < this._outputBuffer.length; index++) {
+            if (this._outputBuffer[index].priority < entry.priority) {
+                insertIndex = index;
+                break;
+            }
+        }
+        this._outputBuffer.splice(insertIndex, 0, entry);
+        replacedEntry?.callback?.({
+            bytesSent: 0,
+            resultCode: 3,
+            replaced: true,
+        });
+        displacedEntry?.callback?.({
+            bytesSent: 0,
+            resultCode: 2,
+            preempted: true,
+        });
 
         const send = currentEntry => {
             if (
@@ -264,8 +322,22 @@ class Connection {
 
         if (!this._transmitting) {
             this._transmitting = true;
-            send(entry);
+            send(this._outputBuffer[0]);
         }
+
+        return {
+            cancel: () => {
+                const index = this._outputBuffer.indexOf(entry);
+                if (index < 0 || (this._transmitting && index === 0)) return false;
+                this._outputBuffer.splice(index, 1);
+                entry.callback?.({
+                    bytesSent: 0,
+                    resultCode: 4,
+                    canceled: true,
+                });
+                return true;
+            },
+        };
     }
     
     abort() {
