@@ -742,7 +742,7 @@ test("release policy reuses verified Firmware 4.2.0 without rebuilding it", () =
   assert.match(releaseWorkflow, /branches:/);
   assert.match(releaseWorkflow, /- master/);
   assert.match(releaseWorkflow, /Reuse verified Firmware 4\.2\.0/);
-  assert.match(releaseWorkflow, /gh release download v4\.2\.0/);
+  assert.match(releaseWorkflow, /gh release download v4\.2\.2/);
   assert.doesNotMatch(releaseWorkflow, /flight-commander\/package-release\.py/);
   assert.doesNotMatch(releaseWorkflow, /flight-commander\/install-toolchain\.sh/);
 });

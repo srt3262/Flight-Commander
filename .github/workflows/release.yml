@@ -71,11 +71,11 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/firmware" "$RUNNER_TEMP/previous"
-          gh release download v4.2.0 \
+          gh release download v4.2.2 \
             --repo "$GITHUB_REPOSITORY" \
             --dir "$RUNNER_TEMP/previous" \
-            --pattern 'Flight-Commander-v4.2.0.zip'
-          unzip -q "$RUNNER_TEMP/previous/Flight-Commander-v4.2.0.zip" \
+            --pattern 'Flight-Commander-v4.2.2.zip'
+          unzip -q "$RUNNER_TEMP/previous/Flight-Commander-v4.2.2.zip" \
             -d "$RUNNER_TEMP/previous/bundle"
           cp "$RUNNER_TEMP/previous/bundle/FC-Firmware-v4.2.0-MICOAIR743.hex" \
             "$RUNNER_TEMP/firmware/Flight-Commander-Firmware-4.2.0-MICOAIR743.hex"
