@@ -42,6 +42,8 @@ export function parseNtripSourcetable(value) {
 }
 
 export function mountpointDistanceKm(record, position) {
+  if (position?.latitude == null || position?.longitude == null ||
+      record?.latitude == null || record?.longitude == null) return null;
   const lat1 = Number(position?.latitude);
   const lon1 = Number(position?.longitude);
   const lat2 = Number(record?.latitude);
@@ -54,6 +56,79 @@ export function mountpointDistanceKm(record, position) {
     Math.cos(lat1 * radians) * Math.cos(lat2 * radians) *
     Math.sin(deltaLon / 2) ** 2;
   return 6371.0088 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+const F9P_OBSERVATION_MESSAGES = /\b(?:1004|1012|10[789][4-7]|11[12][4-7])\b/;
+const F9P_REFERENCE_MESSAGES = /\b100[56]\b/;
+const F9P_NAVIGATION_SYSTEMS = /\b(?:GPS|GLO(?:NASS)?|GAL(?:ILEO)?|BDS|BEIDOU|QZSS)\b/i;
+
+export function f9pMountpointCompatibility(record = {}) {
+  if (!/RTCM\s*3(?:\b|\.)/i.test(String(record.format ?? ""))) {
+    return Object.freeze({
+      compatible: false,
+      level: "incompatible",
+      label: "Not F9P compatible",
+      reason: "not RTCM3",
+    });
+  }
+  const compression = String(record.compression ?? "none").trim().toLowerCase();
+  if (compression && compression !== "none") {
+    return Object.freeze({
+      compatible: false,
+      level: "incompatible",
+      label: "Not F9P compatible",
+      reason: `unsupported ${compression} compression`,
+    });
+  }
+  const systems = String(record.navigationSystems ?? "").trim();
+  if (systems && !F9P_NAVIGATION_SYSTEMS.test(systems)) {
+    return Object.freeze({
+      compatible: false,
+      level: "incompatible",
+      label: "Not F9P compatible",
+      reason: "no F9P-supported constellation",
+    });
+  }
+  if (Number(record.carrier) === 1) {
+    return Object.freeze({
+      compatible: true,
+      level: "limited",
+      label: "F9P limited",
+      reason: "single-frequency corrections",
+    });
+  }
+
+  const details = String(record.formatDetails ?? "").trim();
+  if (!details) {
+    return Object.freeze({
+      compatible: true,
+      level: "unknown",
+      label: "F9P compatibility unknown",
+      reason: "caster does not publish RTCM message details",
+    });
+  }
+  if (!F9P_REFERENCE_MESSAGES.test(details)) {
+    return Object.freeze({
+      compatible: false,
+      level: "incompatible",
+      label: "Not F9P compatible",
+      reason: "missing reference-station position message 1005/1006",
+    });
+  }
+  if (!F9P_OBSERVATION_MESSAGES.test(details)) {
+    return Object.freeze({
+      compatible: false,
+      level: "incompatible",
+      label: "Not F9P compatible",
+      reason: "missing supported observation messages",
+    });
+  }
+  return Object.freeze({
+    compatible: true,
+    level: "compatible",
+    label: "F9P compatible",
+    reason: "RTCM3 reference and carrier observations available",
+  });
 }
 
 export function sortNtripMountpoints(records = [], position = null) {

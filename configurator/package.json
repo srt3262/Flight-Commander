@@ -2,7 +2,7 @@
   "name": "flight-commander",
   "productName": "Flight Commander",
   "description": "Flight Commander flight controller configurator, mission planner, firmware flasher, and ground control station.",
-  "version": "4.2.0",
+  "version": "4.2.1",
   "packageManager": "yarn@1.22.22",
   "main": ".vite/build/main.js",
   "type": "module",
@@ -47,7 +47,7 @@
         "sha256": "2130cb5dda51e39e29a3bc0fc54ac5dc423b764c75fc09960c1e079fc850671d"
       }
     },
-    "firmwareChangedInRelease": true,
+    "firmwareChangedInRelease": false,
     "firmwareSourceAvailable": true,
     "firmwareSourceVersion": "4.2.0",
     "firmwareSourceArchive": "FC-Firmware-Source-v4.2.0.zip",

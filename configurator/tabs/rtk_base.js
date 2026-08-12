@@ -12,7 +12,11 @@ import {
   normalizeGroundControlUnitSystem,
 } from "../js/gcs/groundControlUnits.js";
 import rtkBaseStation from "../js/rtk/rtkBaseStation.js";
-import { mountpointDistanceKm } from "../js/rtk/ntripSourcetable.js";
+import {
+  f9pMountpointCompatibility,
+  mountpointDistanceKm,
+  sortNtripMountpoints,
+} from "../js/rtk/ntripSourcetable.js";
 import {
   NTRIP_PROVIDER_PRESETS,
   NTRIP_PROVIDER_RTK2GO,
@@ -618,32 +622,36 @@ rtkBaseTab.processHtml = async function processHtml(callback, mountToken = this.
   const renderMountpoints = () => {
     const $list = $("#rtkNtripMountpointList").empty();
     const freeOnly = $("#rtkNtripFreeOnly").is(":checked");
-    const position = rtkBaseStation.snapshot().receiverPosition;
-    const compatible = this.mountpoints.filter((record) =>
-      /RTCM\s*3/i.test(record.format) && (!freeOnly || !record.fee),
+    const position = rtkBaseStation.mountpointReferencePosition();
+    const candidates = sortNtripMountpoints(
+      this.mountpoints.filter((record) => !freeOnly || !record.fee),
+      position,
     );
-    if (!compatible.length) {
+    if (!candidates.length) {
       $("<option>")
         .val("")
-        .text(`No compatible ${freeOnly ? "no-fee " : ""}RTCM3 streams found`)
+        .text(`No ${freeOnly ? "no-fee " : ""}streams found`)
         .appendTo($list);
       $list.prop("disabled", true);
       return;
     }
-    for (const record of compatible) {
+    for (const record of candidates) {
       const distance = mountpointDistanceKm(record, position);
+      const compatibility = f9pMountpointCompatibility(record);
       const details = [
+        compatibility.label,
         record.format,
         record.navigationSystems,
         record.country,
         distance == null
-          ? null
+          ? "distance unavailable"
           : formatGroundControlLongDistance(distance * 1000, this.unitSystem),
         record.requiresNmea ? "GGA required" : null,
         record.authentication && record.authentication !== "N"
           ? `auth ${record.authentication}`
           : "anonymous",
         record.fee ? "fee" : "no fee",
+        compatibility.reason,
       ].filter(Boolean).join(" · ");
       $("<option>")
         .val(record.mountpoint)
@@ -652,7 +660,7 @@ rtkBaseTab.processHtml = async function processHtml(callback, mountToken = this.
         .appendTo($list);
     }
     const current = String($("#rtkNtripMountpoint").val() ?? "").trim();
-    if (compatible.some((record) => record.mountpoint === current)) $list.val(current);
+    if (candidates.some((record) => record.mountpoint === current)) $list.val(current);
     else {
       $list.prop("selectedIndex", 0);
       $("#rtkNtripMountpoint").val($list.val());

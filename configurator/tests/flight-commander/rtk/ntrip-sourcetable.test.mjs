@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  f9pMountpointCompatibility,
   mountpointDistanceKm,
   parseNtripSourcetable,
   sortNtripMountpoints,
@@ -47,4 +48,22 @@ test("NTRIP mountpoints sort by distance from the surveyed base", () => {
   });
   assert.equal(sorted[0].mountpoint, "NEAR");
   assert.ok(mountpointDistanceKm(sorted[0], { latitude: 40, longitude: -105 }) < 20);
+  assert.equal(mountpointDistanceKm({ latitude: null, longitude: null }, {
+    latitude: 40,
+    longitude: -105,
+  }), null);
+});
+
+test("F9P compatibility requires RTCM3 reference and observation messages", () => {
+  const [compatible] = parseNtripSourcetable(source);
+  assert.deepEqual(f9pMountpointCompatibility(compatible), {
+    compatible: true,
+    level: "compatible",
+    label: "F9P compatible",
+    reason: "RTCM3 reference and carrier observations available",
+  });
+  assert.equal(f9pMountpointCompatibility({ ...compatible, format: "RTCM 2.3" }).compatible, false);
+  assert.equal(f9pMountpointCompatibility({ ...compatible, formatDetails: "1230(10)" }).compatible, false);
+  assert.equal(f9pMountpointCompatibility({ ...compatible, carrier: 1 }).level, "limited");
+  assert.equal(f9pMountpointCompatibility({ ...compatible, formatDetails: "" }).level, "unknown");
 });

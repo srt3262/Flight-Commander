@@ -294,7 +294,7 @@ class RtkBaseStationService {
     if (!records.length) {
       throw new Error("The caster sourcetable does not contain any selectable data streams.");
     }
-    return sortNtripMountpoints(records, this.state.receiverPosition);
+    return sortNtripMountpoints(records, this.mountpointReferencePosition());
   }
 
   async connect(settings = {}) {
@@ -858,6 +858,35 @@ class RtkBaseStationService {
     this.ntripGgaTimer = null;
   }
 
+  aircraftPosition() {
+    if (mavlinkSession.state.connected && Number.isFinite(mavlinkSession.state.latitude)) {
+      return {
+        latitude: mavlinkSession.state.latitude,
+        longitude: mavlinkSession.state.longitude,
+        altitudeMsl: mavlinkSession.state.altitudeMsl ?? 0,
+        fixQuality: Number(mavlinkSession.state.gpsFix) >= 6 ? 4 : Number(mavlinkSession.state.gpsFix) === 5 ? 5 : 1,
+        satellites: mavlinkSession.state.satellites ?? 0,
+      };
+    }
+    if (Number(FC.GPS_DATA?.fix) >= 2) {
+      return {
+        latitude: FC.GPS_DATA.lat / 1e7,
+        longitude: FC.GPS_DATA.lon / 1e7,
+        altitudeMsl: Number(FC.GPS_DATA.alt ?? 0),
+        fixQuality: Number(FC.GPS_DATA.fix) >= 4 ? 4 : Number(FC.GPS_DATA.fix) === 3 ? 5 : 1,
+        satellites: FC.GPS_DATA.numSat ?? 0,
+      };
+    }
+    return null;
+  }
+
+  mountpointReferencePosition() {
+    if (this.state.connected && this.state.receiverPosition?.fixOk) {
+      return this.state.receiverPosition;
+    }
+    return this.aircraftPosition();
+  }
+
   ntripGgaPosition() {
     const source = this.state.ntrip.ggaSource;
     if (source === "none") return null;
@@ -879,25 +908,8 @@ class RtkBaseStationService {
         fixQuality: position.carrierSolution === 2 ? 4 : position.carrierSolution === 1 ? 5 : 1,
       };
     }
-    if (mavlinkSession.state.connected && Number.isFinite(mavlinkSession.state.latitude)) {
-      const fix = Number(mavlinkSession.state.gpsFix);
-      return {
-        latitude: mavlinkSession.state.latitude,
-        longitude: mavlinkSession.state.longitude,
-        altitudeMsl: mavlinkSession.state.altitudeMsl ?? 0,
-        fixQuality: fix >= 6 ? 4 : fix === 5 ? 5 : 1,
-        satellites: mavlinkSession.state.satellites ?? 0,
-      };
-    }
-    if (Number(FC.GPS_DATA?.fix) >= 2) {
-      return {
-        latitude: FC.GPS_DATA.lat / 1e7,
-        longitude: FC.GPS_DATA.lon / 1e7,
-        altitudeMsl: Number(FC.GPS_DATA.alt ?? 0),
-        fixQuality: Number(FC.GPS_DATA.fix) >= 4 ? 4 : Number(FC.GPS_DATA.fix) === 3 ? 5 : 1,
-        satellites: FC.GPS_DATA.numSat ?? 0,
-      };
-    }
+    const aircraftPosition = this.aircraftPosition();
+    if (aircraftPosition) return aircraftPosition;
     throw new Error("The aircraft does not have a valid position for NTRIP GGA.");
   }
 

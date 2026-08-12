@@ -603,7 +603,7 @@ test("application remains dark-only", () => {
 
 test("firmware is release-only and the flasher exposes local, online, then flash", () => {
   assert.equal(packageManifest.flightCommander.firmwareReleaseVersion, "4.2.0");
-  assert.equal(packageManifest.flightCommander.firmwareChangedInRelease, true);
+  assert.equal(packageManifest.flightCommander.firmwareChangedInRelease, false);
   assert.equal(packageManifest.flightCommander.firmwareSourceAvailable, true);
   assert.equal(packageManifest.flightCommander.firmwareSourceVersion, "4.2.0");
   assert.equal(
@@ -717,7 +717,7 @@ test("all requested large-prop INAV presets are wired into the release source", 
 });
 
 test("landing page describes Flight Commander capabilities without retirement copy", () => {
-  assert.equal(packageManifest.version, "4.2.0");
+  assert.equal(packageManifest.version, "4.2.1");
   assert.equal(manifest.version, packageManifest.version);
   assert.match(landingHtml, /Flight Commander capabilities/);
   assert.match(landingHtml, /same-session mission resume/);
@@ -735,27 +735,23 @@ test("guarded official publication uses the verified release workflow", () => {
   assert.doesNotMatch(releaseOrchestrator, /--prerelease/);
 });
 
-test("release policy requires a coordinated reproducible Firmware 4.2.0 build", () => {
-  assert.equal(packageManifest.flightCommander.firmwareChangedInRelease, true);
-  assert.equal(packageManifest.flightCommander.firmwareReleaseVersion, packageManifest.version);
-  assert.equal(packageManifest.flightCommander.firmwareSourceVersion, packageManifest.version);
+test("release policy reuses verified Firmware 4.2.0 without rebuilding it", () => {
+  assert.equal(packageManifest.flightCommander.firmwareChangedInRelease, false);
+  assert.equal(packageManifest.flightCommander.firmwareReleaseVersion, "4.2.0");
+  assert.equal(packageManifest.flightCommander.firmwareSourceVersion, "4.2.0");
   assert.match(releaseWorkflow, /branches:/);
   assert.match(releaseWorkflow, /- master/);
-  assert.match(releaseWorkflow, /Build verified Firmware 4\.2\.0/);
-  assert.match(releaseWorkflow, /flight-commander\/package-release\.py/);
-  assert.match(releaseWorkflow, /flight-commander\/install-toolchain\.sh/);
-  assert.match(firmwareRebuildScript, /arm-gnu-toolchain-13\.2\.rel1/);
-  assert.match(
-    firmwareRebuildScript,
-    /6cd1bbc1d9ae57312bcd169ae283153a9572bd6a8e4eeae2fedfbc33b115fdbb/,
-  );
+  assert.match(releaseWorkflow, /Reuse verified Firmware 4\.2\.0/);
+  assert.match(releaseWorkflow, /gh release download v4\.2\.0/);
+  assert.doesNotMatch(releaseWorkflow, /flight-commander\/package-release\.py/);
+  assert.doesNotMatch(releaseWorkflow, /flight-commander\/install-toolchain\.sh/);
 });
 
 test("official release publishes one complete bundle plus both online-flasher HEX files", () => {
   for (const filename of [
-    "Flight-Commander-v4.2.0.zip",
-    "FC-Windows-v4.2.0.zip",
-    "FC-Configurator-Source-v4.2.0.zip",
+    "Flight-Commander-v4.2.1.zip",
+    "FC-Windows-v4.2.1.zip",
+    "FC-Configurator-Source-v4.2.1.zip",
     "FC-Firmware-v4.2.0-MICOAIR743.hex",
     "FC-Firmware-v4.2.0-CUBEORANGEPLUS.hex",
     "FC-Firmware-Source-v4.2.0.zip",

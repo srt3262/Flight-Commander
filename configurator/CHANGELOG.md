@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 4.2.1
+
+- Rank NTRIP mountpoints nearest-first using the connected USB base position,
+  falling back to the aircraft rover position, and show u-blox F9P RTCM
+  compatibility details for every listed stream.
+
 ## 4.2.0
 
 - Add a guarded, standards-compatible USB LAWICEL/SLCAN bridge on MICOAIR743
