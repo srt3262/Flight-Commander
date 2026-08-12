@@ -38,6 +38,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   serialConnect: (path, options) => ipcRenderer.invoke('serialConnect', path, options),
   serialClose: (connectionId) => ipcRenderer.invoke('serialClose', connectionId),
   serialSend: (data, connectionId) => ipcRenderer.invoke('serialSend', data, connectionId),
+  serialCancelWrite: (connectionId) => ipcRenderer.invoke('serialCancelWrite', connectionId),
   onSerialError: (callback) => {
     const handler = (_event, error) => callback(error);
     ipcRenderer.on('serialError', handler);

@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 4.2.3
+
+- Pace complete RTCM frames to the aircraft so fast NTRIP casters cannot fill
+  a slower radio's hidden transmit buffer. Corrections continue to coalesce to
+  the newest frame while pacing, and a genuinely stalled native serial write
+  is purged so MSP or MAVLink forwarding can resume automatically.
+- Replace the overly aggressive 400 ms RTCM transport deadline with a bounded
+  stall deadline that tolerates normal radio backpressure.
+
 ## 4.2.2
 
 - Keep NTRIP RTCM injection live over MSP and MAVLink by prioritizing

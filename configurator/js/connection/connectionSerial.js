@@ -278,9 +278,10 @@ class ConnectionSerial extends Connection {
         }  
     }
 
-    sendImplementation(data, callback) {        
-        if (this._connectionId) {
-            window.electronAPI.serialSend(data, this._connectionId).then(response => {
+    sendImplementation(data, callback) {
+        const connectionId = this._connectionId;
+        if (connectionId) {
+            window.electronAPI.serialSend(data, connectionId).then(response => {
                 var result = 0;
                 var sent = response.bytesWritten;
                 if (response.error) {
@@ -294,8 +295,25 @@ class ConnectionSerial extends Connection {
                         resultCode: result
                     });
                 }
+            }).catch(error => {
+                console.log("Serial write error: " + (error?.message || error));
+                callback?.({
+                    bytesSent: 0,
+                    resultCode: 1,
+                });
             });
+
+            return {
+                cancel: async () => {
+                    const response = await window.electronAPI.serialCancelWrite(
+                        connectionId,
+                    );
+                    return response?.error === false;
+                },
+            };
         }
+        callback?.({bytesSent: 0, resultCode: 1});
+        return null;
     }
 
     addOnReceiveCallback(callback){

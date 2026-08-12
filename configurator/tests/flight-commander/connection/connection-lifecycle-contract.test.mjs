@@ -198,7 +198,15 @@ test("serial IPC data, close and error events are scoped to one connection ID", 
   );
   assert.match(
     connectionSerial,
-    /serialSend\(data, this\._connectionId\)/,
+    /const connectionId = this\._connectionId;/,
+  );
+  assert.match(
+    connectionSerial,
+    /serialSend\(data, connectionId\)/,
+  );
+  assert.match(
+    connectionSerial,
+    /serialCancelWrite\(\s*connectionId,\s*\)/,
   );
   assert.match(
     connectionSerial,

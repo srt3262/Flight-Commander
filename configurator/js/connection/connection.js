@@ -226,6 +226,9 @@ class Connection {
             generation: this._outputGeneration,
             priority: normalizedSendPriority(options.priority),
             replaceKey: options.replaceKey ?? null,
+            completed: false,
+            implementationHandle: null,
+            canceling: false,
         };
 
         const firstQueuedIndex = this._transmitting ? 1 : 0;
@@ -239,6 +242,7 @@ class Connection {
             );
             if (replaceIndex >= 0) {
                 [replacedEntry] = this._outputBuffer.splice(replaceIndex, 1);
+                replacedEntry.completed = true;
             }
         }
 
@@ -257,6 +261,7 @@ class Connection {
             }
             if (displacedIndex >= 0) {
                 [displacedEntry] = this._outputBuffer.splice(displacedIndex, 1);
+                displacedEntry.completed = true;
             } else {
                 console.log('Send buffer full, rejected one entry');
                 callback?.({bytesSent: 0, resultCode: 1});
@@ -291,7 +296,9 @@ class Connection {
                 return;
             }
 
-            this.sendImplementation(currentEntry.data, sendInfo => {
+            const complete = sendInfo => {
+                if (currentEntry.completed) return;
+                currentEntry.completed = true;
                 // Always settle the callback which belongs to the attempted
                 // write, but never let a delayed callback from a detached
                 // connection mutate the new connection's queue.
@@ -306,7 +313,7 @@ class Connection {
                 }
 
                 // track sent bytes for statistics
-                this._bytesSent += sendInfo.bytesSent;
+                this._bytesSent += Number(sendInfo?.bytesSent) || 0;
 
                 // remove data for current transmission from the buffer
                 this._outputBuffer.shift();
@@ -317,7 +324,12 @@ class Connection {
                 } else {
                     this._transmitting = false;
                 }
-            });
+            };
+
+            currentEntry.implementationHandle = this.sendImplementation(
+                currentEntry.data,
+                complete,
+            );
         }
 
         if (!this._transmitting) {
@@ -328,8 +340,48 @@ class Connection {
         return {
             cancel: () => {
                 const index = this._outputBuffer.indexOf(entry);
-                if (index < 0 || (this._transmitting && index === 0)) return false;
+                if (index < 0 || entry.completed) return false;
+                if (this._transmitting && index === 0) {
+                    const cancelActive = entry.implementationHandle?.cancel;
+                    if (typeof cancelActive !== 'function') return false;
+                    if (entry.canceling) return true;
+                    entry.canceling = true;
+                    Promise.resolve()
+                        .then(() => cancelActive())
+                        .then(cancelled => {
+                            entry.canceling = false;
+                            if (
+                                cancelled === false
+                                || entry.completed
+                                || entry.generation !== this._outputGeneration
+                                || this._outputBuffer[0] !== entry
+                            ) {
+                                return;
+                            }
+                            entry.completed = true;
+                            entry.callback?.({
+                                bytesSent: 0,
+                                resultCode: 4,
+                                canceled: true,
+                            });
+                            this._outputBuffer.shift();
+                            if (this._outputBuffer.length) {
+                                send(this._outputBuffer[0]);
+                            } else {
+                                this._transmitting = false;
+                            }
+                        })
+                        .catch(error => {
+                            entry.canceling = false;
+                            console.log(
+                                'Unable to cancel active connection write: ' +
+                                (error?.message || error),
+                            );
+                        });
+                    return true;
+                }
                 this._outputBuffer.splice(index, 1);
+                entry.completed = true;
                 entry.callback?.({
                     bytesSent: 0,
                     resultCode: 4,

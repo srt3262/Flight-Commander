@@ -43,9 +43,10 @@ import {
 } from "./ubloxF9Base.js";
 
 const ACK_TIMEOUT_MS = 4000;
-// The firmware abandons an incomplete fragmented correction after 500 ms.
-// Recover before that window expires instead of retrying a stale fragment.
-const RTCM_TRANSPORT_WRITE_TIMEOUT_MS = 400;
+// Normal radio backpressure can exceed the firmware's fragment window before
+// the first byte of a frame has even left the PC. Pace whole frames upstream,
+// and reserve this deadline for a genuinely stalled native transport write.
+const RTCM_TRANSPORT_WRITE_TIMEOUT_MS = 2500;
 const RTCM_TRANSPORT_PRIORITY = 50;
 
 function byteView(value) {

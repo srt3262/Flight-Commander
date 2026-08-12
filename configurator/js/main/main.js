@@ -441,6 +441,10 @@ app.whenReady().then(() => {
     return serial.send(data, connectionId);
   });
 
+  ipcMain.handle('serialCancelWrite', (_event, connectionId) => {
+    return serial.cancelWrite(connectionId);
+  });
+
   ipcMain.handle('serialClose', (_event, connectionId) => {
     return serial.close(connectionId);
   });

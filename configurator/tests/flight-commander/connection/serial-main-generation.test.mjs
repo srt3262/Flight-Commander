@@ -28,11 +28,26 @@ function loadMainSerial({ prepareSerialPort, disposeSerialPort, ports }) {
       this.opening = true;
       this.isOpen = false;
       this.writes = [];
+      this.writeCallbacks = [];
+      this.flushCallbacks = [];
       ports.push(this);
     }
 
     write(data, callback) {
       this.writes.push(Buffer.from(data));
+      if (this.deferWrites) {
+        this.writeCallbacks.push(callback);
+        return;
+      }
+      callback(null);
+    }
+
+    flush(callback) {
+      this.flushCount = (this.flushCount ?? 0) + 1;
+      if (this.deferFlush) {
+        this.flushCallbacks.push(callback);
+        return;
+      }
       callback(null);
     }
 
@@ -140,6 +155,88 @@ test("a late old control-line setup cannot replace the current main-process conn
   const write = await serial.send(Uint8Array.of(0xfe, 0x01), secondResult.id);
   assert.equal(write.error, false);
   assert.equal(write.bytesWritten, 2);
+});
+
+test("cancelWrite purges one stalled native serial write without closing the link", async () => {
+  const ports = [];
+  const serial = loadMainSerial({
+    ports,
+    prepareSerialPort: async () => {},
+    async disposeSerialPort(port) {
+      port.opening = false;
+      port.isOpen = false;
+    },
+  });
+  const window = {
+    isDestroyed: () => false,
+    webContents: { send() {} },
+  };
+
+  const opening = serial.connect(
+    "COM8",
+    { bitrate: 460800, forceDtrLow: true },
+    window,
+  );
+  const port = ports[0];
+  port.opening = false;
+  port.isOpen = true;
+  port.emit("open");
+  const opened = await opening;
+
+  const canceled = await serial.cancelWrite(opened.id);
+
+  assert.equal(canceled.error, false);
+  assert.equal(port.flushCount, 1);
+  assert.equal(port.isOpen, true);
+  assert.equal(serial._connectionId, opened.id);
+});
+
+test("a replacement write waits until the stale native purge is complete", async () => {
+  const ports = [];
+  const serial = loadMainSerial({
+    ports,
+    prepareSerialPort: async () => {},
+    async disposeSerialPort(port) {
+      port.opening = false;
+      port.isOpen = false;
+    },
+  });
+  const window = {
+    isDestroyed: () => false,
+    webContents: { send() {} },
+  };
+
+  const opening = serial.connect(
+    "COM8",
+    { bitrate: 460800, forceDtrLow: true },
+    window,
+  );
+  const port = ports[0];
+  port.opening = false;
+  port.isOpen = true;
+  port.emit("open");
+  const opened = await opening;
+  port.deferWrites = true;
+  port.deferFlush = true;
+
+  const staleWrite = serial.send(Uint8Array.of(1), opened.id);
+  assert.equal(port.writes.length, 1);
+  const purge = serial.cancelWrite(opened.id);
+  port.writeCallbacks.shift()(null);
+  await staleWrite;
+
+  const replacementWrite = serial.send(Uint8Array.of(2), opened.id);
+  await Promise.resolve();
+  assert.equal(port.writes.length, 1);
+
+  port.flushCallbacks.shift()(null);
+  await purge;
+  await Promise.resolve();
+  assert.equal(port.writes.length, 2);
+  port.writeCallbacks.shift()(null);
+  const replacementResult = await replacementWrite;
+  assert.equal(replacementResult.error, false);
+  assert.equal(replacementResult.bytesWritten, 1);
 });
 
 test("an active native close preserves its phase and disconnected error details", async () => {

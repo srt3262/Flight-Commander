@@ -15,6 +15,7 @@ function loadConnectionSerial() {
   const consoleLogs = [];
   const handlers = new Map();
   const closeCalls = [];
+  const cancelWriteCalls = [];
   const GUI = {
     connected_to: false,
     connecting_to: false,
@@ -32,6 +33,10 @@ function loadConnectionSerial() {
       error: false,
       bytesWritten: data.byteLength,
     }),
+    serialCancelWrite: async (connectionId) => {
+      cancelWriteCalls.push(connectionId);
+      return { error: false };
+    },
     onSerialData(handler) {
       handlers.set("data", handler);
       return handler;
@@ -122,6 +127,7 @@ function loadConnectionSerial() {
 
   return {
     ConnectionSerial: context.__ConnectionSerial,
+    cancelWriteCalls,
     closeCalls,
     consoleLogs,
     handlers,
@@ -138,6 +144,16 @@ async function openConnection(connection) {
     );
   });
 }
+
+test("serial writes expose native cancellation for a stalled active entry", async () => {
+  const { ConnectionSerial, cancelWriteCalls } = loadConnectionSerial();
+  const connection = new ConnectionSerial();
+  await openConnection(connection);
+
+  const handle = connection.sendImplementation(Uint8Array.of(1, 2), () => {});
+  assert.equal(await handle.cancel(), true);
+  assert.deepEqual(cancelWriteCalls, [41]);
+});
 
 test("native error and close are deduplicated and expose one structured cause", async () => {
   const {

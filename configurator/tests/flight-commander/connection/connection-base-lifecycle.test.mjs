@@ -279,3 +279,54 @@ test("RTCM is admitted by displacing lower-priority backlog when the transport q
   assert.equal(connection._outputBuffer[1].data[0], 200);
   assert.equal(preempted, 1);
 });
+
+test("canceling a stalled active write advances directly to the newest queued correction", async () => {
+  const Connection = loadConnectionClass();
+  let nativeCancels = 0;
+  const completions = [];
+  const connection = new class extends Connection {
+    constructor() {
+      super();
+      this.writes = [];
+    }
+
+    connectImplementation() {}
+    disconnectImplementation() {}
+    addOnReceiveCallback() {}
+    removeOnReceiveCallback() {}
+    addOnReceiveErrorCallback() {}
+    removeOnReceiveErrorCallback() {}
+
+    sendImplementation(data, callback) {
+      this.writes.push({ data: Array.from(data), callback });
+      return {
+        async cancel() {
+          nativeCancels += 1;
+          return true;
+        },
+      };
+    }
+  }();
+
+  const active = connection.send(
+    Uint8Array.of(1),
+    (result) => completions.push([1, result]),
+    { priority: 50, replaceKey: "rtcm" },
+  );
+  connection.send(Uint8Array.of(2), () => {}, {
+    priority: 50,
+    replaceKey: "rtcm",
+  });
+  connection.send(Uint8Array.of(3), () => {}, {
+    priority: 50,
+    replaceKey: "rtcm",
+  });
+
+  assert.equal(active.cancel(), true);
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.equal(nativeCancels, 1);
+  assert.equal(completions.length, 1);
+  assert.equal(completions[0][1].canceled, true);
+  assert.deepEqual(connection.writes.map((write) => write.data), [[1], [3]]);
+});

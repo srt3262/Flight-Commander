@@ -56,6 +56,7 @@ const serial = {
     _connectionId: null,
     _id: 1,
     _openGeneration: 0,
+    _writePurgePromise: null,
 
     getActivePath: function() {
         return this._serialport && this._connectionId
@@ -65,6 +66,7 @@ const serial = {
 
     connect: async function(path, options, window) {
         const openGeneration = ++this._openGeneration;
+        this._writePurgePromise = null;
         // Clean up any existing serial port to prevent handle leaks
         if (this._serialport) {
             try {
@@ -242,6 +244,7 @@ const serial = {
         const port = this._serialport;
         this._serialport = null;
         this._connectionId = null;
+        this._writePurgePromise = null;
         if (!port) {
             return {error: false};
         }
@@ -252,7 +255,12 @@ const serial = {
             return {error: true, msg: error.message || String(error)};
         }
     },
-    send: function(data, connectionId) {
+    send: async function(data, connectionId) {
+        // A timed-out write may finish just before its native purge does. Do
+        // not let the replacement enter the driver until that purge has
+        // completed, or it could discard bytes from the fresh correction.
+        const pendingPurge = this._writePurgePromise;
+        if (pendingPurge) await pendingPurge;
         return new Promise(resolve => {
             if (
                 this._serialport
@@ -274,6 +282,46 @@ const serial = {
                 });
             }
         });
+    },
+    cancelWrite: function(connectionId) {
+        const port = this._serialport;
+        if (
+            !port
+            || !port.isOpen
+            || connectionId !== this._connectionId
+        ) {
+            return Promise.resolve({
+                error: true,
+                msg: 'Invalid, stale, or closed serial connection',
+            });
+        }
+        if (this._writePurgePromise) return this._writePurgePromise;
+
+        const purgePromise = new Promise(resolve => {
+            // Connection serializes renderer writes, so at most one native
+            // write is pending here. SerialPort.flush aborts that write and
+            // clears bytes which the OS has not transmitted, allowing the
+            // renderer to advance directly to the newest queued correction.
+            try {
+                port.flush(error => {
+                    resolve(error
+                        ? {error: true, msg: `Unable to cancel serial write: ${error}`}
+                        : {error: false});
+                });
+            } catch (error) {
+                resolve({
+                    error: true,
+                    msg: `Unable to cancel serial write: ${error?.message || error}`,
+                });
+            }
+        });
+        this._writePurgePromise = purgePromise;
+        purgePromise.finally(() => {
+            if (this._writePurgePromise === purgePromise) {
+                this._writePurgePromise = null;
+            }
+        });
+        return purgePromise;
     },
     getDeviceInfo: async function() {
         return (await SerialPort.list())

@@ -121,3 +121,78 @@ test("RTK correction forwarder times out an unacknowledged packet and recovers w
   assert.equal(state.lastTransport, "MSP");
   assert.equal(state.lastError, null);
 });
+
+test("RTK correction forwarder paces complete frames and replaces data while waiting", async () => {
+  let now = 0;
+  let releasePacing;
+  const pacingDelays = [];
+  const markers = [];
+  const forwarder = new RtkCorrectionForwarder({
+    maxBytesPerSecond: 100,
+    nowFn: () => now,
+    sleepFn: (delayMs) => {
+      pacingDelays.push(delayMs);
+      return new Promise((resolve) => {
+        releasePacing = () => {
+          now += delayMs;
+          resolve();
+        };
+      });
+    },
+    sendPacket: async (packet) => {
+      markers.push(packet.data[5]);
+      return { transport: "MAVLink" };
+    },
+  });
+
+  forwarder.enqueue(frameForType(1005, 1));
+  forwarder.enqueue(frameForType(1077, 2));
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(typeof releasePacing, "function");
+
+  for (let marker = 3; marker <= 20; marker += 1) {
+    forwarder.enqueue(frameForType(1077, marker));
+  }
+  releasePacing();
+  const state = await forwarder.waitForIdle();
+
+  assert.deepEqual(markers, [1, 20]);
+  assert.equal(pacingDelays.length, 1);
+  assert.ok(pacingDelays[0] >= 200);
+  assert.equal(state.replacedFrames, 18);
+  assert.equal(state.forwardedFrames, 2);
+  assert.ok(state.pacingDelayMs >= 200);
+});
+
+test("RTK pacing includes the terminator for exact 180-byte fragment multiples", async () => {
+  let now = 0;
+  let releasePacing;
+  let pacingDelay = null;
+  const forwarder = new RtkCorrectionForwarder({
+    maxBytesPerSecond: 100,
+    nowFn: () => now,
+    sleepFn: (delayMs) => {
+      pacingDelay = delayMs;
+      return new Promise((resolve) => {
+        releasePacing = () => {
+          now += delayMs;
+          resolve();
+        };
+      });
+    },
+    sendPacket: async () => ({ transport: "MAVLink" }),
+  });
+  const exactMultipleFrame = createRtcm3Frame(new Uint8Array(354));
+  assert.equal(exactMultipleFrame.length, 360);
+
+  forwarder.enqueue(exactMultipleFrame);
+  forwarder.enqueue(frameForType(1077, 1));
+  await new Promise((resolve) => setImmediate(resolve));
+
+  // 360 RTCM bytes plus three MAVLink packets, including the required empty
+  // terminator, at 100 bytes per second.
+  assert.equal(pacingDelay, 4200);
+  releasePacing();
+  const state = await forwarder.waitForIdle();
+  assert.equal(state.forwardedFrames, 2);
+});
