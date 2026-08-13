@@ -80,8 +80,23 @@ flight-controller target.
 ## Cube Orange+ exception
 
 The `CUBEORANGEPLUS` HEX begins at `0x08020000` so it does not overwrite the
-Cube vendor bootloader at `0x08000000`-`0x0801FFFF`. Use local-sector erase and
-never perform a global/full-chip erase. Configurator 4.2.0 enforces this for a
-selected or embedded Cube Orange+ target. See the
+Cube vendor bootloader at `0x08000000`-`0x0801FFFF`. The Configurator flashes
+this target through the Cube/Pixhawk serial bootloader, verifies Cube Orange+
+board ID `1063` before erasing, and does not use the STM32 ROM bootloader's
+global/full-chip erase path. The Cube/Pixhawk bootloader's application erase
+operation leaves its protected vendor bootloader intact.
+
+Select the Cube USB serial port and click **Flash Firmware**. For the first
+installation, the Configurator asks a running ArduPilot application to reboot
+into the vendor bootloader over MAVLink. For later updates, it identifies the
+running Flight Commander target over MSP, requests a normal reset, and catches
+the same vendor bootloader before the application starts. This means updating
+Flight Commander does not depend on the application implementing a new Cube
+flashing protocol.
+
+If neither running application answers, follow the Configurator prompt to
+unplug and reconnect USB while it watches for the bootloader. Close Mission
+Planner and every other program that could hold the serial port first. Never
+perform a global/full-chip erase. See the
 [Cube Orange+ target guide](CUBEORANGEPLUS.md) for its output, receiver,
 compass, and propeller-off acceptance limits.

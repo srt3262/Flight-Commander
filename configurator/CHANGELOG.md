@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+## 4.2.4
+
+- Flash CubePilot Cube Orange+ through its protected Cube/Pixhawk serial
+  bootloader instead of requiring an unavailable STM32 DFU button.
+- Request the vendor bootloader from a running ArduPilot installation over
+  MAVLink, and request a normal MSP reboot when Flight Commander is already
+  installed so later firmware updates use the same protected path.
+- Require Cube Orange+ bootloader board ID 1063 and a firmware image beginning
+  at `0x08020000` before application erase, preserve the first 128 KiB vendor
+  bootloader, program the image, and verify the bootloader CRC before reboot.
+- Watch for a USB unplug/reconnect bootloader recovery when neither running
+  application acknowledges the automatic handoff.
+- Explain disabled Flash clicks and missing-port selections instead of leaving
+  the firmware-flasher action apparently unresponsive.
+
 ## 4.2.3
 
 - Pace complete RTCM frames to the aircraft so fast NTRIP casters cannot fill

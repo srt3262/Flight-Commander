@@ -58,7 +58,8 @@ uses those formats; they do not provide a stock-firmware compatibility mode.
   imperial Ground Control displays.
 - INAV 10, 12, 15, and 17-inch multirotor presets with prop-size-tuned EZ Tune
   baselines and explicit generated P/I/D/FF values.
-- Flight Commander online firmware through the proven STM32/DFU path.
+- Flight Commander online firmware through target-appropriate bootloader
+  paths, including Cube/Pixhawk serial flashing for Cube Orange+.
   Official and beta GitHub release assets are identity, target, size, and
   SHA-256 verified. A local Intel HEX is an explicit operator-controlled source
   and is written as selected without firmware-family or target classification.
@@ -83,7 +84,7 @@ persistent `nav_wp_mission_restart` policy is managed over MSP. Resume is
 intended for the same powered flight controller; power loss invalidates the
 checkpoint.
 
-Firmware flashing is a separate bootloader operation, not an airborne MAVLink command. Online Flight Commander assets must contain `FCFW`, match the selected target, and pass the published size and SHA-256 checks. A local Intel HEX bypasses those suitability checks and is flashed exactly as selected, so the operator must verify its target. Raw STM32 DFU cannot report a complete board model.
+Firmware flashing is a separate bootloader operation, not an airborne MAVLink command. Online Flight Commander assets must contain `FCFW`, match the selected target, and pass the published size and SHA-256 checks. A local Intel HEX bypasses those suitability checks and is flashed exactly as selected, so the operator must verify its target. Raw STM32 DFU cannot report a complete board model. Cube Orange+ uses its protected vendor bootloader instead; the Configurator requires that bootloader to report board ID `1063` before erasing the application area.
 
 ### USB MAVLink radios
 

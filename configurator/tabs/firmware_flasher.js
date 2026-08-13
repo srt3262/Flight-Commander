@@ -40,6 +40,7 @@ import {
     isInavCompatibleFirmwareVariant,
     probeFlightCommanderFirmware,
 } from './../js/flightCommander/firmwareIdentity';
+import { flashCubeOrangePlusViaVendorBootloader } from './../js/flightCommander/cubeOrangePlusFlasher';
 
 const firmwareFlasherTab = {};
 
@@ -505,7 +506,7 @@ firmwareFlasherTab.initialize = function (callback) {
                 erase.prop('checked', false);
                 store.set('erase_chip', false);
                 description.text(
-                    'Unavailable for Cube Orange+: local sector erase preserves its protected 128 KiB vendor bootloader.',
+                    'Unavailable for Cube Orange+: its Cube/Pixhawk bootloader erases only the application region and preserves the protected 128 KiB vendor bootloader.',
                 );
             } else {
                 description.text(description.data('flightCommanderDefaultText'));
@@ -879,6 +880,22 @@ function acceptParsedFirmware(data, { filename, descriptor = null, local = false
             });
         });
 
+        $('a.flash_firmware').on('click.flashGuard', function (event) {
+            if ($(this).hasClass('disabled')) {
+                event.preventDefault();
+                $('span.progressLabel').text(
+                    parsed_hex === false
+                        ? 'Firmware is not loaded. Select a target and click Load Firmware [Online], or load a local HEX file.'
+                        : 'Flashing is unavailable until the current firmware selection is valid.',
+                );
+            } else if (GUI.connect_lock) {
+                event.preventDefault();
+                $('span.progressLabel').text(
+                    'Another connection or firmware operation is already in progress.',
+                );
+            }
+        });
+
         $('a.flash_firmware').on('click', function () {
             if (!$(this).hasClass('disabled')) {
                 if (!GUI.connect_lock) { // button disabled while flashing is in progress
@@ -984,6 +1001,79 @@ function acceptParsedFirmware(data, { filename, descriptor = null, local = false
                             disconnectSafely,
                         });
 
+                        const selectedPortOption = $('div#port-picker #port option:selected');
+                        const selectedPort = selectedPortOption.data('isManual')
+                            ? String($('#port-override').val() ?? '').trim()
+                            : String(selectedPortOption.val() ?? '0');
+
+                        if (cubeOrangePlusImageIsActive() && selectedPort !== 'DFU') {
+                            if (!selectedPort || selectedPort === '0') {
+                                $('span.progressLabel').text(
+                                    'Select the Cube Orange+ USB serial port before flashing.',
+                                );
+                                GUI.log(i18n.getMessage('selectValidSerialPort'));
+                                return;
+                            }
+
+                            GUI.connect_lock = true;
+                            $('a.flash_firmware').addClass('disabled');
+                            $('.progress').val(0).removeClass('valid invalid');
+                            const progressLabels = {
+                                identify: 'Identifying the protected Cube bootloader',
+                                erase: 'Erasing the Cube application area',
+                                program: 'Programming Flight Commander Firmware',
+                                verify: 'Verifying the programmed firmware CRC',
+                                reboot: 'Rebooting the Cube Orange+',
+                                complete: 'Cube Orange+ firmware flash complete',
+                            };
+
+                            flashCubeOrangePlusViaVendorBootloader({
+                                path: selectedPort,
+                                runtimeBaudRate: Number.isInteger(originalBaud) && originalBaud > 0
+                                    ? originalBaud
+                                    : 115200,
+                                parsedHex: parsed_hex,
+                                onStatus(message, type = 'neutral') {
+                                    const messageType = type === 'action'
+                                        ? firmwareFlasherTab.FLASH_MESSAGE_TYPES.ACTION
+                                        : firmwareFlasherTab.FLASH_MESSAGE_TYPES.NEUTRAL;
+                                    firmwareFlasherTab.flashingMessage(message, messageType);
+                                    GUI.log(message);
+                                },
+                                onProgress(event) {
+                                    const percent = Math.round(
+                                        (event.overallRatio ?? event.ratio ?? 0) * 100,
+                                    );
+                                    firmwareFlasherTab.flashProgress(percent);
+                                    const label = progressLabels[event.phase] ?? 'Flashing Cube Orange+';
+                                    $('span.progressLabel').text(`${label}… ${percent}%`);
+                                },
+                            }).then((result) => {
+                                firmwareFlasherTab.flashProgress(100);
+                                $('.progress').addClass('valid').removeClass('invalid');
+                                firmwareFlasherTab.flashingMessage(
+                                    `Cube Orange+ flash verified (${result.bytesProgrammed} bytes) and the controller rebooted. ` +
+                                    'Reconnect after its USB port returns.',
+                                    firmwareFlasherTab.FLASH_MESSAGE_TYPES.VALID,
+                                );
+                                restoreFlow.onFlashComplete();
+                            }).catch((error) => {
+                                console.error('Cube Orange+ vendor-bootloader flash failed:', error);
+                                $('.progress').addClass('invalid').removeClass('valid');
+                                firmwareFlasherTab.flashingMessage(
+                                    `Cube Orange+ flash failed: ${error.message}`,
+                                    firmwareFlasherTab.FLASH_MESSAGE_TYPES.INVALID,
+                                );
+                                GUI.log(`Cube Orange+ flash failed: ${error.message}`);
+                            }).finally(() => {
+                                GUI.connect_lock = false;
+                                if (parsed_hex !== false) {
+                                    $('a.flash_firmware').removeClass('disabled');
+                                }
+                            });
+                            return;
+                        }
+
                         if (String($('div#port-picker #port').val()) != 'DFU') {
                             if (String($('div#port-picker #port').val()) != '0') {
                                 var port = String($('div#port-picker #port').val()),
@@ -1024,6 +1114,9 @@ function acceptParsedFirmware(data, { filename, descriptor = null, local = false
                             } else {
                                 console.log('Please select valid serial port');
                                 GUI.log(i18n.getMessage('selectValidSerialPort'));
+                                $('span.progressLabel').text(
+                                    'Select a valid serial port or DFU before flashing.',
+                                );
                             }
                         } else {
                             STM32DFU.connect(usbDevices, parsed_hex, options, success => {

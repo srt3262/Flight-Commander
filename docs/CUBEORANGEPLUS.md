@@ -9,7 +9,7 @@ the CubePilot Cube Orange+ (STM32H757). It is a distinct image from
 | Function | Flight Commander mapping |
 | --- | --- |
 | Processor | STM32H757 CM7, 24 MHz HSE, direct-SMPS supply |
-| USB | Virtual COM and STM32 DFU flashing |
+| USB | Virtual COM and protected Cube/Pixhawk bootloader flashing |
 | IMUs | Two isolated SPI4 positions populated by ICM42688-P or ICM45686, selected with `gyro_to_use` 0 or 1 |
 | Barometer | Primary isolated MS5611 on SPI4 |
 | Compass | External I2C1 or DroneCAN compass required |
@@ -53,8 +53,8 @@ The Cube vendor bootloader occupies `0x08000000` through `0x0801FFFF`. The
 
 The Configurator disables **Full chip erase** whenever Cube Orange+ is selected
 or detected. Leave it disabled. A full-chip erase would remove the vendor
-bootloader. Normal local-sector erase writes only sectors touched by the HEX
-and preserves the first 128 KiB.
+bootloader. The Cube/Pixhawk protocol's normal application erase preserves the
+first 128 KiB.
 
 Safe first installation:
 
@@ -64,10 +64,21 @@ Safe first installation:
    reachable.
 3. Select **CubePilot Cube Orange+**, load the official 4.2.0 online image, and
    verify that **Full chip erase** is unavailable.
-4. Enter STM32 DFU using the Cube/carrier board's documented boot procedure,
-   select the DFU device, and flash once without disconnecting power.
-5. Reconnect, apply target defaults, and configure an external compass,
+4. Select the Cube USB serial port and click **Flash Firmware**. The
+   Configurator asks ArduPilot over MAVLink to enter the protected vendor
+   bootloader, verifies bootloader board ID `1063`, erases the application
+   area, programs the image, and verifies its CRC.
+5. If automatic entry is not acknowledged, close Mission Planner and other
+   serial programs, then unplug and reconnect USB while the Configurator's
+   20-second bootloader watch is active.
+6. Reconnect, apply target defaults, and configure an external compass,
    MAVLink receiver path, mixer, failsafe, battery calibration, and ports.
+
+Later Flight Commander updates use the same protected vendor bootloader. The
+Configurator first identifies `CUBEORANGEPLUS` over MSP and sends a normal
+reset; it does not ask the application to enter STM32 ROM DFU. On every path,
+the board ID is checked before application erase and the vendor bootloader is
+left intact.
 
 ## Propeller-off acceptance
 
@@ -80,7 +91,7 @@ Before any armed test, verify all of the following with propellers removed:
 - Power Brick 1 voltage/current scales are calibrated against instruments;
 - only AUX1-AUX6 move and every mixer output reaches the intended actuator;
 - MAVLink receiver loss triggers the configured failsafe; and
-- reboot, configuration save, DFU re-entry, and recovery all preserve the
+- reboot, configuration save, vendor-bootloader re-entry, and recovery all preserve the
   Cube bootloader.
 
 The release pipeline compiles with warnings as errors and verifies the HEX
