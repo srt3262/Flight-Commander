@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 58943)
-Total output lines: 6807
-
 {
     "translation_version": {
         "message": "0"
@@ -2823,7 +2820,857 @@ Total output lines: 6807
     "failsafeSubTitle1": {
         "message": "Procedure"
     },
-    "failsafeProcedureItemSelect1":…8943 tokens truncated… the last phase of landing is executed."
+    "failsafeProcedureItemSelect1": {
+        "message": "Land"
+    },
+    "failsafeProcedureItemSelect2": {
+        "message": "Drop"
+    },
+    "failsafeProcedureItemSelect3": {
+        "message": "RTH"
+    },
+    "failsafeProcedureItemSelect4": {
+        "message": "Do nothing"
+    },
+    "failsafeKillSwitchItem": {
+        "message": "Failsafe Kill Switch (instantly disarm aircraft on failsafe)"
+    },
+    "failsafeKillSwitchHelp": {
+        "message": "Set this option to make the failsafe switch, configured in the modes tab, act as a direct kill switch, bypassing the selected failsafe procedure. <strong>Note:</strong> Arming is blocked with the failsafe kill switch in the ON position"
+    },
+    "failsafeUseMinimumDistanceItem": {
+        "message": "Use alternate Minimum Distance Failsafe Procedure when close to Home"
+    },
+    "failsafeUseMinimumDistanceHelp": {
+        "message": "Set this option if you need an alternate failsafe behavior when the craft is close to Home. For example the author of the feature has a plane that failsafes when the wings detach on landing, when the RTH failsafe behavior normally desired in flight is no longer wanted or needed."
+    },
+    "failsafeMinDistanceItem": {
+        "message": "Failsafe Minimum Distance"
+    },
+    "failsafeMinDistanceHelp": {
+        "message": "The craft will use the alternate failsafe behavior when it is between 0 and this minimum distance in centimeters away from Home. For example if set to 2000 centimeters (20 meters), and the craft is at 13 meters, the Failsafe Minimum Distance Procedure will be followed. When the craft is at 25 meters, the normal failsafe procedure will be followed. If set to 0, the normal failsafe procedure will be used at all times. "
+    },
+    "failsafeMinDistanceProcedureItem": {
+        "message": "Failsafe Minimum Distance Procedure"
+    },
+    "failsafeMinDistanceProcedureHelp": {
+        "message": "This is the failsafe procedure that will be followed when the craft is closer than the Failsafe Minimum Distance from Home."
+    },
+    "mainHelpArmed": {
+        "message": "Motor Arming"
+    },
+    "mainHelpFailsafe": {
+        "message": "Failsafe Mode"
+    },
+    "mainHelpLink": {
+        "message": "Serial Link Status"
+    },
+    "warning": {
+        "message": "Warning"
+    },
+    "escProtocol": {
+        "message": "ESC protocol"
+    },
+    "escRefreshRate": {
+        "message": "ESC refresh rate"
+    },
+    "escProtocolHelp": {
+        "message": "ESC has to support chosen protocol. Change only if you know that ESC supports it!"
+    },
+    "escRefreshRatelHelp": {
+        "message": "ESC has to support refresh rate. Change only if you know that ESC supports it!"
+    },
+    "servoRefreshRate": {
+        "message": "Servo refresh rate"
+    },
+    "servoRefreshRatelHelp": {
+        "message": "Servo has to support refresh rate. Change only if you know that servo supports it. Too high refresh rate might damage servos!"
+    },
+    "logPwmOutputDisabled": {
+        "message": "PWM output is disabled. Motors and servos will not work. Use <u>Outputs</u> tab to enable!"
+    },
+    "configurationGyroSyncTitle": {
+        "message": "Synchronize looptime with gyroscope"
+    },
+    "configurationGyroLpfTitle": {
+        "message": "Gyroscope LPF cutoff frequency"
+    },
+    "configurationGyroSyncDenominator": {
+        "message": "Gyroscope denominator"
+    },
+    "yawJumpPreventionLimit": {
+        "message": "Yaw jump prevention"
+    },
+    "yawJumpPreventionLimitHelp": {
+        "message": "Prevent yaw jumps during yaw stops and rapid YAW input. To disable set to 500. Adjust this if your aircraft 'skids out'. Higher values increases YAW authority but can cause roll/pitch instability in case of underpowered UAVs. Lower values makes yaw adjustments more gentle but can cause UAV unable to keep heading"
+    },
+    "yawPLimit": {
+        "message": "Yaw P limit"
+    },
+    "yawPLimitHelp": {
+        "message": "Limiter for yaw P term. Increasing it improves yaw authority but can cause instability on ROLL and PITCH."
+    },
+    "tabFiltering": {
+        "message": "Filtering"
+    },
+    "gyroLpfCutoffFrequency": {
+        "message": "Gyro LPF cutoff frequency"
+    },
+    "gyroLpfCutoffFrequencyHelp": {
+        "message": "Software-based filter to remove mechanical vibrations from the gyro signal. Value is cutoff frequency (Hz). For larger frames with bigger props set to lower value. Too high value can cause motor and ESC overheating."
+    },
+    "accLpfCutoffFrequency": {
+        "message": "Accelerometer LPF cutoff frequency"
+    },
+    "yawLpfCutoffFrequency": {
+        "message": "Yaw LPF cutoff frequency"
+    },
+    "yawLpfCutoffFrequencyHelp": {
+        "message": "Yaw P-term LPF cutoff frequency"
+    },
+    "rollPitchItermIgnoreRate": {
+        "message": "Roll/Pitch I-term ignore rate"
+    },
+    "rollPitchItermIgnoreRateHelp": {
+        "message": "PID I-Term is ignored above this rotation rate. This prevents I-term from accumulation during maneuvers"
+    },
+    "yawItermIgnoreRate": {
+        "message": "Yaw I-term ignore rate"
+    },
+    "yawItermIgnoreRateHelp": {
+        "message": "PID I-Term is ignored above this rotation rate. This prevents I-term from accumulation during maneuvers"
+    },
+    "axisAccelerationLimitRollPitch": {
+        "message": "Roll/Pitch acceleration limit"
+    },
+    "axisAccelerationLimitRollPitchHelp": {
+        "message": "This is maximum angular acceleration rate pilot is allowed to require from UAV. UAV should be able to satisfy this accelaration rate. As a rule of thumb, the bigger the UAV, to lower acceleration it can handle"
+    },
+    "axisAccelerationLimitYaw": {
+        "message": "Yaw acceleration limit"
+    },
+    "axisAccelerationLimitYawHelp": {
+        "message": "This is maximum angular acceleration rate pilot is allowed to require from UAV. UAV should be able to satisfy this accelaration rate. As a rule of thumb, the bigger the UAV, to lower acceleration it can handle"
+    },
+    "pidTuningTPAHelp": {
+        "message": "Throttle PID Attenuation factor. PID gains will be reduced lineary starting from 0 at TPA Breakpoint (Throttle) to TPA factor at max throttle"
+    },
+    "pidTuningTPABreakPointHelp": {
+        "message": "Throttle PID Attenuation begins when Throttle position exceeds this value. "
+    },
+    "configurationAsyncMode": {
+        "message": "Asynchronous mode"
+    },
+    "configurationGyroFrequencyTitle": {
+        "message": "Gyroscope task frequency"
+    },
+    "configurationAccelerometerFrequencyTitle": {
+        "message": "Accelerometer task frequency"
+    },
+    "configurationAttitudeFrequencyTitle": {
+        "message": "Attitude task frequency"
+    },
+    "configurationGyroLpfHelp": {
+        "message": "Hardware based cutoff frequency for gyroscope. In general, bigger value is better but makes UAV more sensitive to vibrations"
+    },
+    "configurationAsyncModeHelp": {
+        "message": "See Firmware \"Looptime\" documentation for details"
+    },
+    "configurationGyroFrequencyHelp": {
+        "message": "In general, higher value is better but makes UAV more sensitive to vibrations. Should be kept above 'Flight Controller Loop Time' frequency. Maximal practical value is hardware dependant. If set too high, board might not run properly. Observe CPU usage."
+    },
+    "configurationAccelerometerFrequencyHelp": {
+        "message": "For Acro purposes, this value can be lowered from default"
+    },
+    "configurationAttitudeFrequencyHelp": {
+        "message": "For Acro purposes, this value can be lowered from default"
+    },
+    "configurationLoopTimeHelp": {
+        "message": "In general, higher value is better. With asynchronous gyroscope, should be kept below gyro update frequency. Maximal practical value is hardware dependant. If set too high, board might not run properly. Observe CPU usage."
+    },
+    "tabOSD": {
+        "message": "OSD"
+    },
+    "configurationSensors": {
+        "message": "Sensors & Buses"
+    },
+    "sensorAccelerometer": {
+        "message": "Accelerometer"
+    },
+    "sensorMagnetometer": {
+        "message": "Magnetometer"
+    },
+    "sensorBarometer": {
+        "message": "Barometer"
+    },
+    "sensorPitot": {
+        "message": "Pitot tube"
+    },
+    "sensorRangefinder": {
+        "message": "Rangefinder"
+    },
+    "sensorOpflow": {
+        "message": "Optical flow"
+    },
+    "manualEnablingTemplate": {
+        "message": "To enable via CLI use <strong>feature {name}</strong> command"
+    },
+    "armingFailureReasonTitle": {
+        "message": "Pre-arming checks"
+    },
+    "BLOCKED_UAV_NOT_LEVEL": {
+        "message": "UAV is levelled"
+    },
+    "BLOCKED_SENSORS_CALIBRATING": {
+        "message": "Run-time calibration"
+    },
+    "BLOCKED_SYSTEM_OVERLOADED": {
+        "message": "CPU load"
+    },
+    "BLOCKED_NAVIGATION_SAFETY": {
+        "message": "Navigation is safe"
+    },
+    "BLOCKED_COMPASS_NOT_CALIBRATED": {
+        "message": "Compass calibrated"
+    },
+    "BLOCKED_ACCELEROMETER_NOT_CALIBRATED": {
+        "message": "Accelerometer calibrated"
+    },
+    "BLOCKED_HARDWARE_FAILURE": {
+        "message": "Hardware health"
+    },
+    "BLOCKED_INVALID_SETTING": {
+        "message": "Settings validated"
+    },
+    "armingCheckPass": {
+        "message": "<div class=\"checkspass\"></div>"
+    },
+    "armingCheckFail": {
+        "message": "<div class=\"checksfail\"></div>"
+    },
+    "calibrationHead1": {
+        "message": "Accelerometer Calibration"
+    },
+    "calibrationHead2": {
+        "message": "Accelerometer Values"
+    },
+    "calibrationHead3": {
+        "message": "Level Calibration"
+    },
+    "calibrationHead4": {
+        "message": "Compass Calibration"
+    },
+    "calibrationHead5": {
+        "message": "Optic Flow Calibration"
+    },
+    "OpflowCalText": {
+        "message": "After pressing the button you have 30 seconds to hold the model in the air and tilt it to sides without moving it horizontally. Note that optic flow sensor needs to observe the surface at all times."
+    },
+    "OpflowCalBtn": {
+        "message": "Calibrate Optic Flow sensor"
+    },
+    "accZero": {
+        "message": "Acc Zero"
+    },
+    "accGain": {
+        "message": "Acc Gain"
+    },
+    "NoteCalibration": {
+        "message": "Note: If the IMU is mounted in another angle or on the underside of the flight controller. Do the calibration steps with the IMU pointing as shown in the pictures, not the quad (otherwise calibration won´t work)."
+    },
+    "AccBtn": {
+        "message": "Calibrate Accelerometer"
+    },
+    "stepTitle1": {
+        "message": "Step 1"
+    },
+    "stepTitle2": {
+        "message": "Step 2"
+    },
+    "stepTitle3": {
+        "message": "Step 3"
+    },
+    "stepTitle4": {
+        "message": "Step 4"
+    },
+    "stepTitle5": {
+        "message": "Step 5"
+    },
+    "stepTitle6": {
+        "message": "Step 6"
+    },
+    "MagXText": {
+        "message": "Zero X"
+    },
+    "MagYText": {
+        "message": "Zero Y"
+    },
+    "MagZText": {
+        "message": "Zero Z"
+    },
+    "MagGainXText": {
+        "message": "Gain X"
+    },
+    "MagGainYText": {
+        "message": "Gain Y"
+    },
+    "MagGainZText": {
+        "message": "Gain Z"
+    },
+    "OpflowScaleText": {
+        "message": "Scale"
+    },
+    "AccResetBtn": {
+        "message": "Reset Accelerometer Calibration"
+    },
+    "MagCalText": {
+        "message": "After pressing the button you have 30 seconds to hold the model in the air and rotate it so that each side (front, back, left, right, top and bottom) points down towards the earth. Be sure that your compass is not near magnets or electromagnets when installed in the craft or performing the calibration."
+    },
+    "MagBtn": {
+        "message": "Calibrate Compass"
+    },
+    "LevCalText": {
+        "message": "Please put some Text here…"
+    },
+    "LevBtn": {
+        "message": "Level calibration"
+    },
+    "tabMixer": {
+        "message": "Mixer"
+    },
+    "presetsApplyHeader": {
+        "message": "Warning"
+    },
+    "presetApplyDescription": {
+        "message": "<p style='color: darkred;'>Make sure that <strong>mixer</strong> was configured before applying any Presets!</p><p>Preset overwrites selected configuration values including mixer, filtering, PIDs and other. Settings like: flight modes, radio settings, failsafe and OSD are not changed. Applied values should <strong>NOT</strong> treated as final values, but entry points for final tuning. <br> Always check new configuration before flying!</p>"
+    },
+    "OK": {
+        "message": "OK"
+    },
+    "accCalibrationStartTitle": {
+        "message": "Accelerometer Calibration"
+    },
+    "accCalibrationStartBody": {
+        "message": "Place flight controller in a position showed in image, then press <strong>Calibrate</strong> button again. Repeat for each of 6 position. Keep it stable during calibration."
+    },
+    "accCalibrationStopTitle": {
+        "message": "Calibration finished"
+    },
+    "accCalibrationStopBody": {
+        "message": "Accelerometer calibration finished, check if values have been saved."
+    },
+    "accCalibrationProcessing": {
+        "message": "Processing..."
+    },
+    "tabProgramming": {
+        "message": "Programming"
+    },
+    "tabAdvancedTuning": {
+        "message": "Advanced Tuning"
+    },
+    "advancedTuningSave": {
+        "message": "Save and Reboot"
+    },
+    "tabAdvancedTuningTitle": {
+        "message": "Advanced Tuning"
+    },
+    "tabAdvancedTuningAirplaneTuningTitle": {
+        "message": ": Fixed Wing"
+    },
+    "tabAdvancedTuningMultirotorTuningTitle": {
+        "message": ": Multirotors"
+    },
+    "tabAdvancedTuningGenericTitle": {
+        "message": "Generic settings"
+    },
+    "presetApplyHead": {
+        "message": "Applies following settings:"
+    },
+    "gyroNotchHz1": {
+        "message": "First gyro notch filter freq."
+    },
+    "gyroNotchCutoff1": {
+        "message": "First gyro notch filter cutoff freq."
+    },
+    "gyroNotchHz2": {
+        "message": "Second gyro notch filter freq."
+    },
+    "gyroNotchCutoff2": {
+        "message": "Second gyro notch filter cutoff freq."
+    },
+    "gyroNotchHz1Help": {
+        "message": "Should be tuned to propeller harmonic frequency. Usually equals <i>[motor_frequency] * [propeller_blades_number]</i><br><br>Has to be above cutoff frequency<br><br><i>0</i> disables the filter"
+    },
+    "gyroNotchHz2Help": {
+        "message": "Should be tuned to motor frequency.<br><br>Has to be above cutoff frequency and below first gyro notch filter frequency.<br><br><i>0</i> disables the filter"
+    },
+    "gyroNotchCutoff1Help": {
+        "message": "Defines band of notch filter. <br><br>Has to be kept below notch filter frequency."
+    },
+    "gyroNotchCutoff2Help": {
+        "message": "Defines band of notch filter. <br><br>Has to be kept below notch filter frequency."
+    },
+    "dtermNotchHz": {
+        "message": "Dterm notch filter freq."
+    },
+    "dtermNotchCutoff": {
+        "message": "Dterm notch filter cutoff freq."
+    },
+    "dtermNotchHzHelp": {
+        "message": "Should be placed between first and second gyro notch filter frequency<br><br>Has to be above cutoff frequency<br><br><i>0</i> disables the filter"
+    },
+    "dtermNotchCutoffHelp": {
+        "message": "Defines band of filter. <br><br>Has to be kept below notch filter frequency."
+    },
+    "multiRotorNavigationConfiguration": {
+        "message": "Multirotor Navigation Settings"
+    },
+    "userControlMode": {
+        "message": "User Control Mode"
+    },
+    "posholdDefaultSpeed": {
+        "message": "Default navigation speed"
+    },
+    "posholdDefaultSpeedHelp": {
+        "message": "Default speed during RTH, also used for WP navigation if no speed set for WP leg. Limited to Max. navigation speed"
+    },
+    "posholdMaxSpeed": {
+        "message": "Max. navigation speed"
+    },
+    "posholdMaxManualSpeed": {
+        "message": "Max. CRUISE speed"
+    },
+    "posholdMaxManualSpeedHelp": {
+        "message": "Maximum horizonal velocity allowed for pilot manual control during POSHOLD/CRUISE mode"
+    },
+    "posholdMaxClimbRate": {
+        "message": "Max. navigation climb rate [cm/s]"
+    },
+    "posholdMaxManualClimbRate": {
+        "message": "Max. ALTHOLD climb rate [cm/s]"
+    },
+    "posholdMaxBankAngle": {
+        "message": "Multirotor max. banking angle"
+    },
+    "posholdMaxBankAngleHelp": {
+        "message": "Maximum banking angle in navigation modes. Constrained by maximum ROLL angle in PID tuning tab."
+    },
+    "posholdHoverThrottle": {
+        "message": "Hover throttle"
+    },
+    "navmcAltholdThrottle": {
+        "message": "Stick position for althold hover"
+    },
+    "mcWpSlowdown": {
+        "message": "Slow down when approaching waypoint"
+    },
+    "mcWpSlowdownHelp": {
+        "message": "When enabled, NAV engine will slow down when switching to the next waypoint. This prioritizes turning over forward movement. When disabled, NAV engine will continue to the next waypoint and turn as it goes."
+    },
+    "positionEstimatorConfiguration": {
+        "message": "Position Estimator"
+    },
+    "w_z_baro_p": {
+        "message": "Vertical position barometer weight"
+    },
+    "w_z_gps_p": {
+        "message": "Vertical position GPS weight"
+    },
+    "w_z_gps_v": {
+        "message": "Vertical speed GPS weight"
+    },
+    "w_xy_gps_p": {
+        "message": "Horizontal position GPS weight"
+    },
+    "w_xy_gps_v": {
+        "message": "Horizontal speed GPS weight"
+    },
+    "positionEstimatorConfigurationDisclaimer": {
+        "message": "These values should be changed very carefully. In most cases there is no need to change them. For advanced users only!"
+    },
+    "gps_min_sats": {
+        "message": "Min. GPS satellites for a valid fix"
+    },
+    "w_z_baro_p_help": {
+        "message": "When this value is set to <strong>0</strong>, barometer is not used for altitude computation"
+    },
+    "w_z_gps_p_help": {
+        "message": "This setting is only used when no barometer is installed and <strong>inav_use_gps_no_baro</strong> is configured."
+    },
+    "wirelessModeSwitch": {
+        "message": "Wireless mode"
+    },
+    "rthConfiguration": {
+        "message": "RTH Settings"
+    },
+    "autoLandingSettings": {
+        "message": "Automatic Landing Settings"
+    },
+    "minRthDistance": {
+        "message": "Min. RTH distance"
+    },
+    "minRthDistanceHelp": {
+        "message": "If UAV is within this distance from the home point, it will land instead of RTH then land"
+    },
+    "rthClimbFirst": {
+        "message": "Climb before RTH"
+    },
+    "rthClimbFirstHelp": {
+        "message": "If set to ON or ON_FW_SPIRAL, aircraft will climb to nav_rth_altitude first before turning to head home. If set to OFF, aircraft will turn and head home immediately climbing on the way. For a fixed wing, ON will use a linear climb, ON_FW_SPIRAL will use a loiter turning climb with climb rate set by nav_auto_climb_rate and turn rate set by nav_fw_loiter_radius (ON_FW_SPIRAL is a fixed wing setting and behaves the same as ON for a multirotor)."
+    },
+    "rthClimbIgnoreEmergency": {
+        "message": "Climb regardless of position sensors health"
+    },
+    "rthAltControlOverride": {
+        "message": "Override RTH altitude and climb setting with roll/pitch stick"
+    },
+    "rthAltControlOverrideHELP": {
+        "message": "When enabled, the climb on RTH can be canceled by holding full pitch down for >1 second so aircraft will fly home at the current altitude. On fixed wing aircraft, the 'Climb before RTH' setting can be overriden by holding full roll left or right for >1 second so that the plane will turn towards home immediately."
+    },
+    "rthTailFirst": {
+        "message": "Tail first"
+    },
+    "rthAllowLanding": {
+        "message": "Land after RTH"
+    },
+    "rthAltControlMode": {
+        "message": "RTH altitude mode"
+    },
+    "rthAbortThreshold": {
+        "message": "RTH abort threshold"
+    },
+    "rthAbortThresholdHelp": {
+        "message": "RTH sanity checking feature will notice if the distance to home is increasing during RTH and if it exceeds the threshold defined by this parameter, instead of continuing RTH the UAV will enter emergency landing. Default is 500m which is safe enough for both multirotors and airplanes."
+    },
+    "fsMissionDelay": {
+        "message": "Failsafe Mission Delay"
+    },
+    "fsMissionDelayHelp": {
+        "message": "Defines a delay in seconds, how long INAV has to wait before Failsafe RTH is engaged, if the Aircraft is in a waypoint mission. Set to -1 to disable Failsafe entirely [0-600s]"
+    },
+    "drNavigation": {
+        "message": "Dead Reckoning Navigation"
+    },
+    "drNavigationHelp": {
+        "message": "Allows INAV to continue navigation (Waypoint, Return to Home, Cruise, Coursehold, etc.) during short GPS outages. This feature needs compass and airspeed sensor enabled on Fixed Wing aircraft."
+    },
+    "rthAltitude": {
+        "message": "RTH altitude"
+    },
+    "rthAltitudeHelp": {
+        "message": "Used in Extra, Fixed and 'At Least' RTH altitude modes"
+    },
+    "rthTrackBack": {
+        "message": "RTH Track Back Mode"
+    },
+    "rthTrackBackHelp": {
+        "message": "When enabled, the aircraft will follow its last path backwards first before flying home directly. Fixed Wing crafts will fly back the path with climbing but not descending. Usage modes for RTH Track Back. OFF = disabled, ON = Normal and Failsafe RTH, FS = Failsafe RTH only."
+    },
+    "rthTrackBackDistance": {
+        "message": "RTH Track Back Distance"
+    },
+    "rthTrackBackDistanceHelp": {
+        "message": "Distance flown during Track Back. Normal RTH is executed once this total flight distance is exceeded [m]."
+    },
+    "rthSafeHome": {
+        "message": "Safe Home Mode"
+    },
+    "rthSafeHomeHelp": {
+        "message": "Used to control when safehomes will be used. Possible values are OFF, RTH and RTH_FS. See Safehome documentation for more information."
+    },
+    "rthSafeHomeDistance": {
+        "message": "Safe Home Max Distance"
+    },
+    "rthSafeHomeDistanceHelp": {
+        "message": "In order for a safehome to be used, it must be less than this distance [in cm] from the arming point."
+    },
+    "navMaxAltitude": {
+        "message": "Max Altitude for Navigation"
+    },
+    "navMaxAltitudeHelp": {
+        "message": "Max allowed altitude (above Home Point) that applies to all NAV modes (including Altitude Hold). 0 means limit is disabled"
+    },
+    "rthHomeAltitudeLabel": {
+        "message": "RTH Home altitude"
+    },
+    "rthHomeAltitudeHelp": {
+        "message": "Used when not landing at the home point. Upon arriving at home, the plane will loiter and change altitude to the RTH Home Altitude. Default is 0, which is feature disabled."
+    },
+    "rthTwoStage": {
+        "message": "Climb First Stage Method"
+    },
+    "rthTwoStageHelp": {
+        "message": "Staged Return To Home Function if Climb First is enabled. Set Climb First Stage Altitude to 0, to use classic Single-Stage RTH."
+    },
+    "rthTwoStageAlt": {
+        "message": "Climb First Stage Altitude"
+    },
+    "rthTwoStageAltHelp": {
+        "message": "Altitude Setting for the first Stage of Staged RTH. Set to 0 to Disable Two-Stage RTH [0-65000cm]"
+    },
+    "rthUseLinearDescent": {
+        "message": "Use Linear Descent"
+    },
+    "rthUseLinearDescentHelp": {
+        "message": "If enabled, the aircraft will slowly descent to the RTH Home Altitude on the heading home leg of RTH."
+    },
+    "rthLinearDescentStart": {
+        "message": "Linear Descent Start Distance"
+    },
+    "rthLinearDescentStartHelp": {
+        "message": "This is the distance away from the home position to start the linear descent. If set to 0, the linear descent will start immediately."
+    },
+    "landMaxAltVspd": {
+        "message": "The craft will start to descend at this speed, once it reaches the <strong>Home</strong> location."
+    },
+    "landMaxAltVspdHelp": {
+        "message": "After RTH if autolanding is enabled the aircraft will start to descend at this speed until reaching <strong>Slow down altitude</strong>"
+    },
+    "landSlowdownMaxAlt": {
+        "message": "When the craft has descended to <i>this</i> altitude. It will begin to slow down for landing."
+    },
+    "landSlowdownMaxAltHelp": {
+        "message": "When the aircraft reaches this altitude it will start to slow down linearly between the <strong>Initial landing speed</strong> and <strong>Final landing speed</strong> to reach it at <strong>Final approach altitude</strong>"
+    },
+    "landSlowdownMinAlt": {
+        "message": "When the craft has descended to <i>this</i> altitude, it will have slowed to the touch down speed."
+    },
+    "landMinAltVspd": {
+        "message": "This is the touch down speed."
+    },
+    "landMinAltVspdHelp": {
+        "message": "The aircraft vertical speed target will be this value when the aircraft reaches the <strong>Final approach altitude</strong> after having slowed down linearly from the <strong>Slow down altitude</strong> at <strong>Initial landing speed</strong>"
+    },
+    "emergencyDescentRate": {
+        "message": "Emergency landing speed"
+    },
+    "cruiseThrottle": {
+        "message": "Cruise throttle"
+    },
+    "cruiseYawRateLabel": {
+        "message": "Cruise Yaw Rate"
+    },
+    "cruiseYawRateHelp": {
+        "message": "This is the turning rate in Cruise and 3D Cruise."
+    },
+    "cruiseManualThrottleLabel": {
+        "message": "Allow manual throttle increase"
+    },
+    "cruiseManualThrottleHelp": {
+        "message": "Turning this on, will allow you to override automatic throttle control in all navigation modes. You cannot go below the automatic throttle value, except with motor stop on zero throttle."
+    },
+    "minThrottle": {
+        "message": "Min. throttle"
+    },
+    "maxThrottle": {
+        "message": "Max. throttle"
+    },
+    "maxBankAngle": {
+        "message": "Max. navigation bank angle"
+    },
+    "maxBankAngleHelp": {
+        "message": "Maximum banking angle in navigation modes. Constrained by maximum ROLL angle in PID tuning tab."
+    },
+    "maxClimbAngle": {
+        "message": "Max. navigation climb angle"
+    },
+    "maxClimbAngleHelp": {
+        "message": "Maximum climb angle in navigation modes. Constrained by maximum PITCH angle in PID tuning tab."
+    },
+    "navManualClimbRate": {
+        "message": "Max. Alt-hold climb rate"
+    },
+    "navManualClimbRateHelp": {
+        "message": "Maximum climb/descent rate firmware is allowed when processing pilot input for ALTHOLD control mode [cm/s]"
+    },
+    "navAutoClimbRate": {
+        "message": "Max. navigation climb rate"
+    },
+    "navAutoClimbRateHelp": {
+        "message": "Maximum climb/descent rate that UAV is allowed to reach during navigation modes. [cm/s]"
+    },
+    "maxDiveAngle": {
+        "message": "Max. navigation dive angle"
+    },
+    "maxDiveAngleHelp": {
+        "message": "Maximum dive angle in navigation modes. Constrained by maximum PITCH angle in PID tuning tab."
+    },
+    "pitchToThrottle": {
+        "message": "Pitch to throttle ratio"
+    },
+    "pitchToThrottleHelp": {
+        "message": "In navigation modes, each degree of climb will add this many units to the cruise throttle. Conversely, each degree of diving will substract from it."
+    },
+    "minThrottleDownPitch": {
+        "message": "Min Throttle Down Pitch"
+    },
+    "minThrottleDownPitchHelp": {
+        "message": "Automatic pitch down angle when throttle is at 0 in angle mode. Progressively applied between cruise throttle and zero throttle."
+    },
+    "pitchToThrottleSmoothing": {
+        "message": "Throttle smoothing"
+    },
+    "pitchToThrottleSmoothingHelp": {
+        "message": "How smoothly the autopilot adjusts the throttle level in response to pitch angle changes [0-9]."
+    },
+    "pitchToThrottleThreshold": {
+        "message": "Instantaneous throttle adjustment threshold"
+    },
+    "pitchToThrottleThresholdHelp": {
+        "message": "The autopilot will instantly adjust the throttle level without smoothing according to pitch to throttle if the pitch angle is more this many centidegrees from the filtered value."
+    },
+    "loiterRadius": {
+        "message": "Loiter radius"
+    },
+    "loiterDirectionLabel": {
+        "message": "Loiter direction"
+    },
+    "loiterDirectionHelp": {
+        "message": "This setting allows you to choose the loiter direction. Selecting YAW allows you to change the loiter direction with the yaw stick."
+    },
+    "controlSmoothness": {
+        "message": "Control Smoothness"
+    },
+    "controlSmoothnessHelp": {
+        "message": "How smoothly the autopilot controls the airplane to correct the navigation error [0-9]."
+    },
+    "wpTrackingAccuracy": {
+        "message": "Waypoint Tracking Accuracy"
+    },
+    "wpTrackingAccuracyHelp": {
+        "message": "Tracking deadband - how closely the craft follows a waypoint track in meters. Lower values track more closely but cause more control corrections. 2 is a good starting point [0-10]."
+    },
+    "wpTrackingAngle": {
+        "message": "Waypoint Tracking Angle"
+    },
+    "wpTrackingAngleHelp": {
+        "message": "The angle the craft approaches the waypoint track. Lower values make the approach longer while higher values can cause overshoot. 60° is a good starting point [30-80]."
+    },
+    "powerConfiguration": {
+        "message": "Battery Estimation Settings"
+    },
+    "idlePower": {
+        "message": "Idle power"
+    },
+    "idlePowerHelp": {
+        "message": "Power draw at zero throttle used for remaining flight time/distance estimation in 0.01W unit"
+    },
+    "cruisePower": {
+        "message": "Cruise power"
+    },
+    "cruisePowerHelp": {
+        "message": "Power draw at cruise throttle used for remaining flight time/distance estimation in 0.01W unit"
+    },
+    "cruiseSpeed": {
+        "message": "Cruise speed"
+    },
+    "cruiseSpeedHelp": {
+        "message": "Speed for the plane/wing at cruise throttle used for remaining flight time/distance estimation in cm/s"
+    },
+    "rthEnergyMargin": {
+        "message": "RTH energy margin"
+    },
+    "rthEnergyMarginHelp": {
+        "message": "Energy margin wanted after getting home (percent of battery energy capacity). Use for the remaining flight time/distance calculation."
+    },
+    "generalNavigationSettings": {
+        "message": "General Navigation Settings"
+    },
+    "waypointConfiguration": {
+        "message": "Waypoint Navigation Settings"
+    },
+    "wpLoadBoot": {
+        "message": "Load Waypoints on Boot"
+    },
+    "wpLoadBootHelp": {
+        "message": "If enabled, Waypoint Missions in EEPROM will be loaded automatically after bootup."
+    },
+    "wpEnforceAlt": {
+        "message": "Enforce Altitude at Waypoint"
+    },
+    "wpEnforceAltHelp": {
+        "message": "Ensures that the altitude at each waypoint is reached before continue to the next one. Craft will hold position [loiter for fixed wing] and climb/decent until the altitude is within the set range [1-2000 cm] from the waypoint altitude. Set to [0] to disable. Fixed wing crafts should not be set below 500cm."
+    },
+    "waypointRadius": {
+        "message": "Waypoint radius"
+    },
+    "wpRestartMission": {
+        "message": "Restart Waypoint Mission"
+    },
+    "wpRestartMissionHelp": {
+        "message": "Sets restart behaviour for a WP mission when interrupted mid mission. START from first WP, RESUME from last active WP or SWITCH between START and RESUME each time WP Mode is reselected ON. SWITCH effectively allows resuming once only from a previous mid mission waypoint after which the mission will restart from the first waypoint."
+    },
+    "wpTurnSmoothing": {
+        "message": "Waypoint Turn Smoothing"
+    },
+    "wpTurnSmoothingHelp": {
+        "message": "Smooths turns during WP missions by switching to a loiter turn at waypoints. When set to ON the craft will reach the waypoint during the turn. When set to ON-CUT the craft will turn inside the waypoint without actually reaching it (cuts the corner)."
+    },
+    "navMotorStop": {
+        "message": "Navigation Motor Stop Override"
+    },
+    "navMotorStopHelp": {
+        "message": "When set to OFF the navigation system will not take over the control of the motor if the throttle is low (motor will stop). When set to OFF_ALWAYS the navigation system will not take over the control of the motor if the throttle was low even when failsafe is triggered. When set to AUTO_ONLY the navigation system will only take over the control of the throttle in autonomous navigation modes (NAV WP and NAV RTH). When set to ALL_NAV (default) the navigation system will take over the control of the motor completely and never allow the motor to stop even when the throttle is low. This setting only has an effect on NAV modes which take control of the throttle when combined with MOTOR_STOP and is likely to cause a stall if fw_min_throttle_down_pitch isn't set correctly or the pitch estimation is wrong for fixed wing models when not set to ALL_NAV."
+    },
+    "soarMotorStop": {
+        "message": "Soaring Mode Motor Stop"
+    },
+    "soarMotorStopHelp": {
+        "message": "Stops motor when Soaring mode enabled."
+    },
+    "soarPitchDeadband": {
+        "message": "Soaring Mode Pitch Deadband"
+    },
+    "soarPitchDeadbandHelp": {
+        "message": "Pitch Angle deadband when soaring mode enabled (deg). Angle mode inactive within deadband allowing pitch to free float whilst soaring."
+    },
+    "altControlResponse": {
+        "message": "Altitude Control Response Factor"
+    },
+    "altControlResponseHelp": {
+        "message": "Adjusts the response of fixed wing altitude control as the target altitude is approached. Higher values will sharpen altitude control response but may also cause excessive overshoot or pitch instability if set too high."
+    },
+    "waypointRadiusHelp": {
+        "message": "This sets the distance away from a waypoint that triggers the waypoint as reached."
+    },
+    "waypointSafeDistance": {
+        "message": "Waypoint safe distance"
+    },
+    "waypointSafeDistanceHelp": {
+        "message": "The maximum distance between the home point and the first waypoint."
+    },
+    "fixedWingNavigationConfiguration": {
+        "message": "Fixed Wing Navigation Settings"
+    },
+    "fixedWingLandingConfiguration": {
+        "message": "Fixed Wing Landing Settings"
+    },
+    "MissionPlannerOnlyOneLandWp": {
+        "message": "You can set only one LAND Waypoint per mission."
+    },
+    "fwLandApproachLength": {
+        "message": "Final approach length"
+    },
+    "fwLandApproachLengthHelp": {
+        "message": "Length of the final approach, also includes the glide and intercept phase. This is the length from the safe home point to the final turn point."
+    },
+    "fwLandFinalApproachPitch2throttle": {
+        "message": "Modifier for pitch to throttle ratio at final approach"
+    },
+    "fwLandFinalApproachPitch2throttleHelp": {
+        "message": "This value is multiplied by the \"pitch to throttle ratio\" value during the final approach. Allows the velocity to be reduced."
+    },
+    "fwLandGlideAlt": {
+        "message": "Initial altitude of the glide phase"
+    },
+    "fwLandGlideAltHelp": {
+        "message": "At this altitude (measured from the altitude of the landing point) the engine is switched off and the aircraft glides from here."
+    },
+    "fwLandFlareAlt": {
+        "message": "Initial altitude of the flare phase"
+    },
+    "fwLandFlareAltHelp": {
+        "message": "At this altitude (measured from the altitude of the landing point) the last phase of landing is executed."
     },
     "fwLandGlidePitch": {
         "message": "Pitch value for glide phase"
