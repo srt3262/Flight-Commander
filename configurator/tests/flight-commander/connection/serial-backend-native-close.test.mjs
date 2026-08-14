@@ -13,6 +13,9 @@ import {
 } from "../../../js/connection/connectionPreferences.js";
 import {
   INAV_REBOOT_RECONNECT_DELAY_MS,
+  INAV_REBOOT_OPEN_RETRY_DELAY_MS,
+  INAV_REBOOT_PORT_REAPPEAR_TIMEOUT_MS,
+  INAV_REBOOT_MAX_OPEN_ATTEMPTS,
   createInavRebootRecoveryAttempt,
   nextInavRebootRecoveryAttempt,
 } from "../../../js/connection/inavRebootRecovery.js";
@@ -57,6 +60,9 @@ function createBackendHarness({ deferDisconnect = false, protocol = "mavlink" } 
   let nextConnectionId = 41;
   let failBatteryRender = false;
   let pendingDisconnectCallback = null;
+  const availablePorts = new Set(["COM8"]);
+  const portWaiters = [];
+  const openResults = [];
 
   const portOptions = [
     "COM8",
@@ -281,13 +287,18 @@ function createBackendHarness({ deferDisconnect = false, protocol = "mavlink" } 
     disconnectCalls: 0,
     connect(path, options, callback) {
       const connectionId = nextConnectionId++;
-      this.connectionId = connectionId;
       this.bitrate = options.bitrate;
       connectCalls.push({
         connectionId,
         path,
         options: { ...options },
       });
+      if ((openResults.shift() ?? true) === false) {
+        this.connectionId = false;
+        callback(false);
+        return;
+      }
+      this.connectionId = connectionId;
       callback({
         bitrate: options.bitrate,
         connectionId,
@@ -417,6 +428,9 @@ function createBackendHarness({ deferDisconnect = false, protocol = "mavlink" } 
     },
     GUI,
     INAV_REBOOT_RECONNECT_DELAY_MS,
+    INAV_REBOOT_OPEN_RETRY_DELAY_MS,
+    INAV_REBOOT_PORT_REAPPEAR_TIMEOUT_MS,
+    INAV_REBOOT_MAX_OPEN_ATTEMPTS,
     MSP: {
       constants: { PROTOCOL_V2: 2 },
       disconnect_cleanup() {},
@@ -425,7 +439,30 @@ function createBackendHarness({ deferDisconnect = false, protocol = "mavlink" } 
       send_message() {},
     },
     MSPCodes: {},
-    PortHandler: { initialize() {} },
+    PortHandler: {
+      initialize() {},
+      is_port_available(port) {
+        return availablePorts.has(String(port));
+      },
+      port_detected_exact(name, port, callback, timeoutMs) {
+        const handle = {
+          callback,
+          canceled: false,
+          name,
+          port: String(port),
+          timeoutMs,
+        };
+        portWaiters.push(handle);
+        return handle;
+      },
+      cancel_port_detected(handle) {
+        if (!handle) return false;
+        handle.canceled = true;
+        const index = portWaiters.indexOf(handle);
+        if (index >= 0) portWaiters.splice(index, 1);
+        return index >= 0;
+      },
+    },
     Promise,
     SERIAL_STARTUP_RECOVERY_DELAY_MS,
     SERIAL_TERMINAL_OPERATOR_GUARD_MS,
@@ -665,6 +702,23 @@ function createBackendHarness({ deferDisconnect = false, protocol = "mavlink" } 
     runNamedTimeout,
     runRecoveryTimer,
     runTimerByDelay,
+    queueOpenResult(result) {
+      openResults.push(Boolean(result));
+    },
+    setPortAvailable(port, available = true) {
+      const normalizedPort = String(port);
+      if (!available) {
+        availablePorts.delete(normalizedPort);
+        return;
+      }
+      availablePorts.add(normalizedPort);
+      for (const waiter of [...portWaiters]) {
+        if (waiter.canceled || waiter.port !== normalizedPort) continue;
+        waiter.canceled = true;
+        portWaiters.splice(portWaiters.indexOf(waiter), 1);
+        waiter.callback([normalizedPort]);
+      }
+    },
     setFailBatteryRender(value = true) {
       failBatteryRender = value;
     },
@@ -705,7 +759,7 @@ test("an unresponsive Flight Commander reboot performs bounded full serial reope
   assert.equal(harness.GUI.connecting_to, false);
   assert.ok(
     harness.logs.some((message) =>
-      message.includes("Flight Commander Firmware did not respond after three post-reboot"),
+      message.includes("Flight Commander Firmware could not reconnect to COM8 after reboot"),
     ),
   );
   for (const attempt of harness.connectCalls.slice(1)) {
@@ -713,6 +767,59 @@ test("an unresponsive Flight Commander reboot performs bounded full serial reope
     assert.equal(attempt.options.bitrate, 460800);
   }
   assert.equal(harness.element("#protocol").val(), "msp");
+});
+
+test("save and reboot waits for the exact Windows COM port to reappear", () => {
+  const harness = createBackendHarness({ protocol: "msp" });
+
+  harness.connect();
+  harness.CONFIGURATOR.connectionValid = true;
+  harness.setPortAvailable("COM8", false);
+
+  harness.GUI.handleReconnect(false);
+  harness.runTimerByDelay(100);
+  harness.runTimerByDelay(INAV_REBOOT_RECONNECT_DELAY_MS);
+
+  assert.equal(harness.connectCalls.length, 1);
+  assert.equal(harness.GUI.connected_to, false);
+  assert.ok(
+    harness.logs.some((message) =>
+      message.includes("Waiting for COM8 to reappear after reboot"),
+    ),
+  );
+
+  harness.setPortAvailable("COM9", true);
+  assert.equal(harness.connectCalls.length, 1);
+
+  harness.setPortAvailable("COM8", true);
+  assert.equal(harness.connectCalls.length, 2);
+  assert.equal(harness.connectCalls[1].path, "COM8");
+  assert.equal(harness.connectCalls[1].options.bitrate, 460800);
+  assert.equal(harness.GUI.connected_to, "COM8");
+});
+
+test("a listed but not-yet-openable reboot COM port is retried automatically", () => {
+  const harness = createBackendHarness({ protocol: "msp" });
+
+  harness.connect();
+  harness.CONFIGURATOR.connectionValid = true;
+  harness.queueOpenResult(false);
+  harness.queueOpenResult(true);
+
+  harness.GUI.handleReconnect(false);
+  harness.runTimerByDelay(100);
+  harness.runTimerByDelay(INAV_REBOOT_RECONNECT_DELAY_MS);
+
+  assert.equal(harness.connectCalls.length, 2);
+  assert.equal(harness.GUI.connected_to, false);
+
+  harness.runTimerByDelay(INAV_REBOOT_OPEN_RETRY_DELAY_MS);
+  assert.equal(harness.connectCalls.length, 3);
+  assert.equal(harness.GUI.connected_to, "COM8");
+  for (const attempt of harness.connectCalls.slice(1)) {
+    assert.equal(attempt.path, "COM8");
+    assert.equal(attempt.options.bitrate, 460800);
+  }
 });
 
 test("native MAVLink close forces cleanup through connect lock without a false success and retries once", () => {

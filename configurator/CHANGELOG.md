@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+## 4.3.0
+
+- Wait for the exact Windows COM port to reappear after Save and Reboot, then
+  reconnect automatically with the preserved MSP protocol and baud. A port
+  that is listed before its native driver is ready is retried without operator
+  input, within the existing bounded recovery policy.
+- Label CubePilot Cube Orange+ Ports-tab rows by the physical carrier-board
+  connection: TELEM1, TELEM2, GPS1, CONS/ADS-B, and GPS2, while retaining the
+  STM32 UART number in parentheses.
+- Rebuild and publish both MICOAIR743 and CUBEORANGEPLUS firmware images with
+  the same embedded 4.3.0 identity as the Configurator.
+
 ## 4.2.4
 
 - Flash CubePilot Cube Orange+ through its protected Cube/Pixhawk serial

@@ -15,19 +15,19 @@ permissions:
   contents: read
 
 concurrency:
-  group: publish-flight-commander-4.2.4
+  group: publish-flight-commander-4.3.0
   cancel-in-progress: false
 
 env:
-  RELEASE_VERSION: 4.2.4
-  RELEASE_TAG: v4.2.4
+  RELEASE_VERSION: 4.3.0
+  RELEASE_TAG: v4.3.0
 
 jobs:
   authorize:
     name: Authorize official release
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      github.event.head_commit.message == 'Publish Flight Commander 4.2.4 release'
+      github.event.head_commit.message == 'Publish Flight Commander 4.3.0 release'
     runs-on: ubuntu-latest
     outputs:
       release_sha: ${{ steps.release.outputs.sha }}
@@ -54,7 +54,7 @@ jobs:
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
 
   firmware:
-    name: Reuse verified Firmware 4.2.0
+    name: Build verified Firmware 4.3.0
     needs: authorize
     runs-on: ubuntu-latest
     timeout-minutes: 35
@@ -65,36 +65,14 @@ jobs:
           ref: ${{ needs.authorize.outputs.release_sha }}
           persist-credentials: false
 
-      - name: Download and verify unchanged Firmware 4.2.0 assets
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          mkdir -p "$RUNNER_TEMP/firmware" "$RUNNER_TEMP/previous"
-          gh release download v4.2.3 \
-            --repo "$GITHUB_REPOSITORY" \
-            --dir "$RUNNER_TEMP/previous" \
-            --pattern 'Flight-Commander-v4.2.3.zip'
-          unzip -q "$RUNNER_TEMP/previous/Flight-Commander-v4.2.3.zip" \
-            -d "$RUNNER_TEMP/previous/bundle"
-          cp "$RUNNER_TEMP/previous/bundle/FC-Firmware-v4.2.0-MICOAIR743.hex" \
-            "$RUNNER_TEMP/firmware/Flight-Commander-Firmware-4.2.0-MICOAIR743.hex"
-          cp "$RUNNER_TEMP/previous/bundle/FC-Firmware-v4.2.0-CUBEORANGEPLUS.hex" \
-            "$RUNNER_TEMP/firmware/Flight-Commander-Firmware-4.2.0-CUBEORANGEPLUS.hex"
-          cp "$RUNNER_TEMP/previous/bundle/FC-Firmware-Source-v4.2.0.zip" \
-            "$RUNNER_TEMP/firmware/FC-Firmware-Source-v4.2.0.zip"
-          python3 - configurator/package.json "$RUNNER_TEMP/firmware" <<'PY'
-          import hashlib, json, pathlib, sys
-          package = json.loads(pathlib.Path(sys.argv[1]).read_text())['flightCommander']
-          directory = pathlib.Path(sys.argv[2])
-          assert package['firmwareChangedInRelease'] is False
-          assert package['firmwareReleaseVersion'] == package['firmwareSourceVersion'] == '4.2.0'
-          for target, artifact in package['firmwareReleaseArtifacts'].items():
-              path = directory / artifact['filename']
-              assert hashlib.sha256(path.read_bytes()).hexdigest() == artifact['sha256'], target
-          source = directory / package['firmwareSourceArchive']
-          assert hashlib.sha256(source.read_bytes()).hexdigest() == package['firmwareSourceSha256']
-          PY
+      - name: Install pinned Arm GNU toolchain
+        run: bash flight-commander/install-toolchain.sh
+
+      - name: Build and package the firmware
+        run: >-
+          python3 flight-commander/package-release.py
+          --output "$RUNNER_TEMP/firmware"
+          --build-dir "$RUNNER_TEMP/firmware-build"
 
       - name: Upload verified firmware
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -105,7 +83,7 @@ jobs:
           retention-days: 14
 
   windows:
-    name: Build verified Windows Configurator 4.2.4
+    name: Build verified Windows Configurator 4.3.0
     needs: authorize
     runs-on: windows-latest
     timeout-minutes: 50
@@ -144,13 +122,13 @@ jobs:
           if (@($package).Count -ne 1) {
             throw 'Expected exactly one verified win32-x64 package directory.'
           }
-          Compress-Archive -Path "$($package.FullName)\*" -DestinationPath "$env:RUNNER_TEMP\FC-Windows-v4.2.4.zip" -CompressionLevel Optimal
+          Compress-Archive -Path "$($package.FullName)\*" -DestinationPath "$env:RUNNER_TEMP\FC-Windows-v4.3.0.zip" -CompressionLevel Optimal
 
       - name: Upload verified Windows archive
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: release-windows-${{ needs.authorize.outputs.release_sha }}
-          path: ${{ runner.temp }}/FC-Windows-v4.2.4.zip
+          path: ${{ runner.temp }}/FC-Windows-v4.3.0.zip
           if-no-files-found: error
           retention-days: 14
 
@@ -189,61 +167,66 @@ jobs:
           bundle_dir="$RUNNER_TEMP/bundle"
           mkdir -p "$bundle_dir"
 
-          windows="$candidate/FC-Windows-v4.2.4.zip"
-          firmware_mico="$candidate/Flight-Commander-Firmware-4.2.0-MICOAIR743.hex"
-          firmware_cube="$candidate/Flight-Commander-Firmware-4.2.0-CUBEORANGEPLUS.hex"
-          firmware_source="$candidate/FC-Firmware-Source-v4.2.0.zip"
-          configurator_source="$bundle_dir/FC-Configurator-Source-v4.2.4.zip"
-          online_mico="$RUNNER_TEMP/Flight-Commander-Firmware-4.2.0-MICOAIR743.hex"
-          online_cube="$RUNNER_TEMP/Flight-Commander-Firmware-4.2.0-CUBEORANGEPLUS.hex"
-          short_mico="$bundle_dir/FC-Firmware-v4.2.0-MICOAIR743.hex"
-          short_cube="$bundle_dir/FC-Firmware-v4.2.0-CUBEORANGEPLUS.hex"
-          complete_bundle="$RUNNER_TEMP/Flight-Commander-v4.2.4.zip"
+          windows="$candidate/FC-Windows-v4.3.0.zip"
+          firmware_mico="$candidate/Flight-Commander-Firmware-4.3.0-MICOAIR743.hex"
+          firmware_cube="$candidate/Flight-Commander-Firmware-4.3.0-CUBEORANGEPLUS.hex"
+          firmware_source="$candidate/FC-Firmware-Source-v4.3.0.zip"
+          metadata="$candidate/firmware-release-metadata.json"
+          configurator_source="$bundle_dir/FC-Configurator-Source-v4.3.0.zip"
+          online_mico="$RUNNER_TEMP/Flight-Commander-Firmware-4.3.0-MICOAIR743.hex"
+          online_cube="$RUNNER_TEMP/Flight-Commander-Firmware-4.3.0-CUBEORANGEPLUS.hex"
+          short_mico="$bundle_dir/FC-Firmware-v4.3.0-MICOAIR743.hex"
+          short_cube="$bundle_dir/FC-Firmware-v4.3.0-CUBEORANGEPLUS.hex"
+          complete_bundle="$RUNNER_TEMP/Flight-Commander-v4.3.0.zip"
 
-          for path in "$windows" "$firmware_mico" "$firmware_cube" "$firmware_source"; do
+          for path in "$windows" "$firmware_mico" "$firmware_cube" "$firmware_source" "$metadata"; do
             test -s "$path" || { echo "Missing release candidate: $path" >&2; exit 1; }
           done
-          python3 - configurator/package.json "$firmware_mico" "$firmware_cube" "$firmware_source" <<'PY'
+          python3 - "$metadata" configurator/package.json "$firmware_mico" "$firmware_cube" "$firmware_source" <<'PY'
           import hashlib, json, pathlib, sys
-          package = json.loads(pathlib.Path(sys.argv[1]).read_text())
+          metadata = json.loads(pathlib.Path(sys.argv[1]).read_text())
+          package = json.loads(pathlib.Path(sys.argv[2]).read_text())
           firmware = {
-              'MICOAIR743': pathlib.Path(sys.argv[2]),
-              'CUBEORANGEPLUS': pathlib.Path(sys.argv[3]),
+              'MICOAIR743': pathlib.Path(sys.argv[3]),
+              'CUBEORANGEPLUS': pathlib.Path(sys.argv[4]),
           }
-          source = pathlib.Path(sys.argv[4])
+          source = pathlib.Path(sys.argv[5])
           digest = lambda path: hashlib.sha256(path.read_bytes()).hexdigest()
           declaration = package['flightCommander']
-          assert package['version'] == '4.2.4'
-          assert declaration['firmwareChangedInRelease'] is False
-          assert declaration['firmwareReleaseVersion'] == '4.2.0'
+          assert package['version'] == metadata['version'] == '4.3.0'
+          assert declaration['firmwareChangedInRelease'] is True
+          assert declaration['firmwareReleaseVersion'] == '4.3.0'
+          assert metadata['targets'] == ['MICOAIR743', 'CUBEORANGEPLUS']
           for target, path in firmware.items():
               artifact = declaration['firmwareReleaseArtifacts'][target]
-              assert artifact['filename'] == path.name
-              assert artifact['sha256'] == digest(path)
+              assert artifact['filename'] == path.name == metadata['firmware'][target]['name']
+              assert artifact['sha256'] == metadata['firmware'][target]['sha256'] == digest(path)
           assert declaration['firmwareReleaseSha256'] == declaration['firmwareReleaseArtifacts']['MICOAIR743']['sha256']
-          assert declaration['firmwareSourceVersion'] == '4.2.0'
-          assert declaration['firmwareSourceArchive'] == 'FC-Firmware-Source-v4.2.0.zip'
-          assert declaration['firmwareSourceSha256'] == digest(source)
+          assert declaration['firmwareSourceVersion'] == '4.3.0'
+          assert declaration['firmwareSourceArchive'] == 'FC-Firmware-Source-v4.3.0.zip'
+          assert declaration['firmwareSourceSha256'] == metadata['source']['sha256'] == digest(source)
+          assert declaration['firmwareSourceRevision'] == metadata['source']['revision']
+          assert declaration['firmwareSourceTree'] == metadata['source']['tree']
           PY
 
           git archive --format=zip \
-            --prefix="Flight-Commander-Configurator-Source-v4.2.4/" \
+            --prefix="Flight-Commander-Configurator-Source-v4.3.0/" \
             --output="$configurator_source" \
             "$RELEASE_SHA:configurator"
-          cp "$windows" "$bundle_dir/FC-Windows-v4.2.4.zip"
+          cp "$windows" "$bundle_dir/FC-Windows-v4.3.0.zip"
           cp "$firmware_mico" "$short_mico"
           cp "$firmware_cube" "$short_cube"
           cp "$firmware_mico" "$online_mico"
           cp "$firmware_cube" "$online_cube"
-          cp "$firmware_source" "$bundle_dir/FC-Firmware-Source-v4.2.0.zip"
+          cp "$firmware_source" "$bundle_dir/FC-Firmware-Source-v4.3.0.zip"
 
           mapfile -t canonical < <(find "$bundle_dir" -maxdepth 1 -type f -printf '%f\n' | sort)
           expected=(
-            FC-Configurator-Source-v4.2.4.zip
-            FC-Firmware-Source-v4.2.0.zip
-            FC-Firmware-v4.2.0-CUBEORANGEPLUS.hex
-            FC-Firmware-v4.2.0-MICOAIR743.hex
-            FC-Windows-v4.2.4.zip
+            FC-Configurator-Source-v4.3.0.zip
+            FC-Firmware-Source-v4.3.0.zip
+            FC-Firmware-v4.3.0-CUBEORANGEPLUS.hex
+            FC-Firmware-v4.3.0-MICOAIR743.hex
+            FC-Windows-v4.3.0.zip
           )
           if [[ "${canonical[*]}" != "${expected[*]}" ]]; then
             echo "Complete release bundle does not contain exactly the five canonical files." >&2
@@ -261,7 +244,7 @@ jobs:
               "$(basename "$online_mico")"
           ) > "$RUNNER_TEMP/SHA256SUMS.txt"
           {
-            cat docs/releases/v4.2.4.md
+            cat docs/releases/v4.3.0.md
             printf '\n## Verified release assets\n\n```text\n'
             cat "$RUNNER_TEMP/SHA256SUMS.txt"
             printf '```\n'
@@ -286,12 +269,12 @@ jobs:
             exit 1
           fi
           gh release create "$RELEASE_TAG" \
-            "$COMPLETE_BUNDLE#Flight Commander 4.2.4 complete release bundle" \
-            "$ONLINE_CUBE#Flight Commander Firmware 4.2.0 for CubePilot Cube Orange+" \
-            "$ONLINE_MICO#Flight Commander Firmware 4.2.0 for MICOAIR743" \
+            "$COMPLETE_BUNDLE#Flight Commander 4.3.0 complete release bundle" \
+            "$ONLINE_CUBE#Flight Commander Firmware 4.3.0 for CubePilot Cube Orange+" \
+            "$ONLINE_MICO#Flight Commander Firmware 4.3.0 for MICOAIR743" \
             --repo "$GITHUB_REPOSITORY" \
             --target "$RELEASE_SHA" \
-            --title "Flight Commander 4.2.4" \
+            --title "Flight Commander 4.3.0" \
             --notes-file "$NOTES" \
             --latest
 
@@ -299,9 +282,9 @@ jobs:
             "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG" \
             --jq '.assets[].name' | sort)
           expected=(
-            Flight-Commander-Firmware-4.2.0-CUBEORANGEPLUS.hex
-            Flight-Commander-Firmware-4.2.0-MICOAIR743.hex
-            Flight-Commander-v4.2.4.zip
+            Flight-Commander-Firmware-4.3.0-CUBEORANGEPLUS.hex
+            Flight-Commander-Firmware-4.3.0-MICOAIR743.hex
+            Flight-Commander-v4.3.0.zip
           )
           if [[ "${assets[*]}" != "${expected[*]}" ]]; then
             echo "Published release does not contain exactly the three public assets." >&2

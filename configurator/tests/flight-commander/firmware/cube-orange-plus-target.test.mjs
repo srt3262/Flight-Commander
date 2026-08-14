@@ -44,9 +44,9 @@ test('Cube Orange+ exposes only the six direct FMU AUX outputs', () => {
   assert.match(targetHeader, /USART6 is reserved for the onboard IOMCU/);
 });
 
-test('4.2.0 release manifest independently identifies both official targets', () => {
+test('4.3.0 release manifest independently identifies both official targets', () => {
   assert.equal(releaseManifest.schema, 2);
-  assert.equal(releaseManifest.version, '4.2.0');
+  assert.equal(releaseManifest.version, '4.3.0');
   assert.deepEqual(releaseManifest.targets, ['MICOAIR743', 'CUBEORANGEPLUS']);
   assert.deepEqual(Object.keys(releaseManifest.artifacts), releaseManifest.targets);
 });

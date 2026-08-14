@@ -9,6 +9,7 @@ import i18n from './../js/localization';
 import serialPortHelper from './../js/serialPortHelper';
 import jBox from 'jbox';
 import { encodeDronecanConfig } from './../js/flightCommander/dualGps';
+import { targetSerialPortLabel } from './../js/flightCommander/targetSerialPortLabels';
 
 const portsTab = {};
 
@@ -134,7 +135,15 @@ portsTab.initialize = function (callback) {
                 port_configuration_e.find('select.sensors_baudrate').val(serialPort.sensors_baudrate);
                 port_configuration_e.find('select.peripherals_baudrate').val(serialPort.peripherals_baudrate);
 
-                port_configuration_e.find('.identifier').text(serialPortHelper.getPortName(serialPort.identifier));
+                const targetPort = targetSerialPortLabel({
+                    identifier: serialPort.identifier,
+                    target: FC.CONFIG.target,
+                    boardIdentifier: FC.CONFIG.boardIdentifier,
+                    fallback: serialPortHelper.getPortName(serialPort.identifier),
+                });
+                port_configuration_e.find('.identifier')
+                    .text(targetPort.label)
+                    .attr('title', targetPort.description);
                 if (serialPort.identifier >= 30) {
                     port_configuration_e.find('.softSerialWarning').css("display", "inline")
                 } else {

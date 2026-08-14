@@ -36,6 +36,9 @@ import {
     serialOptionsForProtocol,
 } from './connection/connectionPreferences';
 import {
+    INAV_REBOOT_MAX_OPEN_ATTEMPTS,
+    INAV_REBOOT_OPEN_RETRY_DELAY_MS,
+    INAV_REBOOT_PORT_REAPPEAR_TIMEOUT_MS,
     INAV_REBOOT_RECONNECT_DELAY_MS,
     createInavRebootRecoveryAttempt,
     nextInavRebootRecoveryAttempt,
@@ -99,6 +102,10 @@ var SerialBackend = (function () {
     privateScope.disconnectInProgress = false;
     privateScope.pendingDisconnectFinish = null;
     privateScope.pendingReconnectRequest = null;
+    privateScope.inavRebootPortWait = null;
+    privateScope.inavRebootOpenRetryTimer = null;
+    privateScope.inavRebootRecoveryDeadline = null;
+    privateScope.inavRebootRecoveryModal = null;
     privateScope.unexpectedTerminalOperatorGuardUntil = 0;
     privateScope.sitlDemoConnectTimer = null;
     privateScope.mavlinkWaitingRefreshTimer = null;
@@ -126,6 +133,101 @@ var SerialBackend = (function () {
             return true;
         }
         return false;
+    };
+
+    privateScope.clearInavRebootPortWait = function () {
+        if (privateScope.inavRebootPortWait) {
+            PortHandler.cancel_port_detected?.(
+                privateScope.inavRebootPortWait,
+            );
+            privateScope.inavRebootPortWait = null;
+        }
+        if (privateScope.inavRebootOpenRetryTimer != null) {
+            clearTimeout(privateScope.inavRebootOpenRetryTimer);
+            privateScope.inavRebootOpenRetryTimer = null;
+        }
+    };
+
+    privateScope.finishInavRebootRecovery = function () {
+        privateScope.clearInavRebootPortWait();
+        privateScope.inavRebootRecoveryDeadline = null;
+        if (privateScope.inavRebootRecoveryModal) {
+            privateScope.inavRebootRecoveryModal.close();
+            privateScope.inavRebootRecoveryModal = null;
+        }
+    };
+
+    privateScope.failInavRebootRecovery = function (port) {
+        const safePort = $('<div>').text(port || 'the selected serial port').html();
+        privateScope.finishInavRebootRecovery();
+        GUI.log(
+            `<span style="color: red">Flight Commander Firmware could not reconnect to ${safePort} ` +
+            `after reboot. The port did not reappear within ${INAV_REBOOT_PORT_REAPPEAR_TIMEOUT_MS / 1000} seconds ` +
+            `or did not respond after ${INAV_REBOOT_MAX_OPEN_ATTEMPTS} open attempts. ` +
+            'The serial port has been closed; reconnect manually after checking the USB connection.</span>',
+        );
+    };
+
+    privateScope.waitForInavRebootPort = function (openAttempt) {
+        privateScope.clearInavRebootPortWait();
+        const deadline = privateScope.inavRebootRecoveryDeadline;
+        const remainingMs = Number.isFinite(deadline)
+            ? deadline - Date.now()
+            : 0;
+        if (remainingMs <= 0) {
+            privateScope.failInavRebootRecovery(openAttempt?.port);
+            return;
+        }
+
+        const safePort = $('<div>').text(openAttempt.port).html();
+        const openWhenReady = function () {
+            privateScope.clearInavRebootPortWait();
+            if (
+                !Number.isFinite(privateScope.inavRebootRecoveryDeadline) ||
+                Date.now() >= privateScope.inavRebootRecoveryDeadline
+            ) {
+                privateScope.failInavRebootRecovery(openAttempt.port);
+                return;
+            }
+            if (privateScope.inavRebootRecoveryModal) {
+                privateScope.inavRebootRecoveryModal.close();
+                privateScope.inavRebootRecoveryModal = null;
+            }
+            privateScope.reConnect({openAttempt});
+        };
+
+        if (PortHandler.is_port_available?.(openAttempt.port)) {
+            const retryDelay = openAttempt.rebootRecoveryAttempt > 1
+                ? INAV_REBOOT_OPEN_RETRY_DELAY_MS
+                : 0;
+            if (retryDelay > 0) {
+                privateScope.inavRebootOpenRetryTimer = setTimeout(
+                    openWhenReady,
+                    Math.min(retryDelay, remainingMs),
+                );
+            } else {
+                openWhenReady();
+            }
+            return;
+        }
+
+        GUI.log(
+            `<span style="color: #d98f00">Waiting for ${safePort} to reappear after reboot. ` +
+            'Flight Commander will reconnect automatically as soon as Windows lists it.</span>',
+        );
+        privateScope.inavRebootPortWait = PortHandler.port_detected_exact(
+            'flight-commander-reboot-reconnect',
+            openAttempt.port,
+            function (newPorts) {
+                privateScope.inavRebootPortWait = null;
+                if (newPorts === false) {
+                    privateScope.failInavRebootRecovery(openAttempt.port);
+                    return;
+                }
+                openWhenReady();
+            },
+            remainingMs,
+        );
     };
 
     privateScope.clearMavlinkWaitingRefreshTimer = function () {
@@ -349,6 +451,14 @@ var SerialBackend = (function () {
                 privateScope.activeOpenAttempt,
             );
 
+            privateScope.finishInavRebootRecovery();
+            if (rebootOpenAttempt) {
+                privateScope.inavRebootRecoveryDeadline =
+                    Date.now() +
+                    INAV_REBOOT_RECONNECT_DELAY_MS +
+                    INAV_REBOOT_PORT_REAPPEAR_TIMEOUT_MS;
+            }
+
             let modal = new jBox('Modal', {
                 width: 400,
                 height: 120,
@@ -357,6 +467,9 @@ var SerialBackend = (function () {
                 closeOnEsc: false,
                 content: '<div id="modal-reconnect"><div data-i18n="deviceRebooting">Device - <span style="color: red">Rebooting</span></div></div>'
             }).open();
+            if (rebootOpenAttempt) {
+                privateScope.inavRebootRecoveryModal = modal;
+            }
 
             if (typeof reopenLastTab === 'boolean') {
                 const $anchor = $('#tabs > ul li.active a');
@@ -383,10 +496,12 @@ var SerialBackend = (function () {
             Connect again
             */
             setTimeout(function start_connection() {
+                if (rebootOpenAttempt) {
+                    privateScope.waitForInavRebootPort(rebootOpenAttempt);
+                    return;
+                }
                 modal.close();
-                privateScope.reConnect(
-                    rebootOpenAttempt ? {openAttempt: rebootOpenAttempt} : {},
-                );
+                privateScope.reConnect();
             }, INAV_REBOOT_RECONNECT_DELAY_MS);
         };
 
@@ -436,6 +551,7 @@ var SerialBackend = (function () {
         };
 
         publicScope.$portOverride.on('change', function () {
+            privateScope.finishInavRebootRecovery();
             privateScope.cancelUnexpectedSerialRecovery();
             privateScope.cancelMavlinkWaitingRefresh();
             store.set('portOverride', publicScope.$portOverride.val());
@@ -444,12 +560,14 @@ var SerialBackend = (function () {
         publicScope.$portOverride.val(store.get('portOverride', ''));        
 
         privateScope.$port.on('change', function (target) {
+            privateScope.finishInavRebootRecovery();
             privateScope.cancelUnexpectedSerialRecovery();
             privateScope.cancelMavlinkWaitingRefresh();
             GUI.updateManualPortVisibility();
         });
 
     $('div.connect_controls a.connect').on('click', () => {
+        privateScope.finishInavRebootRecovery();
         privateScope.reopenTab = null;
         privateScope.reConnect({operatorClick: true});
     });
@@ -765,6 +883,7 @@ var SerialBackend = (function () {
     if (!privateScope.selectProtocol('msp')) {
         return;
     }
+    privateScope.finishInavRebootRecovery();
     privateScope.rememberValidatedBaud();
     MSP.send_message(MSPCodes.MSP_BUILD_INFO, false, false, function () {
 
@@ -803,20 +922,20 @@ var SerialBackend = (function () {
 
     privateScope.retryInavRebootConnection = function (openAttempt) {
         const nextAttempt = nextInavRebootRecoveryAttempt(openAttempt);
-        if (nextAttempt) {
+        if (
+            nextAttempt &&
+            Number.isFinite(privateScope.inavRebootRecoveryDeadline) &&
+            Date.now() < privateScope.inavRebootRecoveryDeadline
+        ) {
             const safePort = $('<div>').text(nextAttempt.port).html();
             GUI.log(
                 `<span style="color: #d98f00">Flight Commander Firmware is not responding after reboot. ` +
                 `Flight Commander will close and reopen ${safePort} ` +
-                `(attempt ${nextAttempt.rebootRecoveryAttempt} of 3).</span>`,
+                `(attempt ${nextAttempt.rebootRecoveryAttempt} of ${INAV_REBOOT_MAX_OPEN_ATTEMPTS}).</span>`,
             );
             privateScope.pendingReconnectRequest = {openAttempt: nextAttempt};
         } else {
-            GUI.log(
-                '<span style="color: red">Flight Commander Firmware did not respond after three post-reboot ' +
-                'connection attempts. The serial port has been closed; reconnect manually ' +
-                'after checking the USB connection.</span>',
-            );
+            privateScope.failInavRebootRecovery(openAttempt?.port);
         }
         privateScope.reConnect({forceDisconnect: true});
     };
@@ -1089,6 +1208,25 @@ var SerialBackend = (function () {
 
             // unlock port select & baud
             $('#port, #baud, #protocol, #delay').prop('disabled', false);
+
+            if (openAttempt?.rebootRecoveryAttempt > 0) {
+                const nextAttempt = nextInavRebootRecoveryAttempt(openAttempt);
+                if (
+                    nextAttempt &&
+                    Number.isFinite(privateScope.inavRebootRecoveryDeadline) &&
+                    Date.now() < privateScope.inavRebootRecoveryDeadline
+                ) {
+                    const safePort = $('<div>').text(nextAttempt.port).html();
+                    GUI.log(
+                        `<span style="color: #d98f00">${safePort} is listed but is not ready to open yet. ` +
+                        `Flight Commander will retry automatically ` +
+                        `(attempt ${nextAttempt.rebootRecoveryAttempt} of ${INAV_REBOOT_MAX_OPEN_ATTEMPTS}).</span>`,
+                    );
+                    privateScope.waitForInavRebootPort(nextAttempt);
+                } else {
+                    privateScope.failInavRebootRecovery(openAttempt.port);
+                }
+            }
         }
     }
 

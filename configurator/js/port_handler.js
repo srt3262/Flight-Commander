@@ -192,6 +192,13 @@ PortHandler.check = function () {
             for (var i = (self.port_detected_callbacks.length - 1); i >= 0; i--) {
                 var obj = self.port_detected_callbacks[i];
 
+                if (
+                    obj.expectedPort &&
+                    new_ports.indexOf(obj.expectedPort) === -1
+                ) {
+                    continue;
+                }
+
                 // remove timeout
                 clearTimeout(obj.timer);
 
@@ -269,9 +276,14 @@ PortHandler.update_port_select = function (ports) {
     $('div#port-picker #port').append($("<option/>", {value: 'sitl-demo', text: 'Demo mode', data: {isSitl: true}}));
 };
 
-PortHandler.port_detected = function(name, code, timeout, ignore_timeout) {
+PortHandler.port_detected = function(name, code, timeout, ignore_timeout, expectedPort) {
     var self = this;
-    var obj = {'name': name, 'code': code, 'timeout': (timeout) ? timeout : 10000};
+    var obj = {
+        'name': name,
+        'code': code,
+        'timeout': (timeout) ? timeout : 10000,
+        'expectedPort': expectedPort ? String(expectedPort) : null,
+    };
 
     if (!ignore_timeout) {
         obj.timer = setTimeout(function() {
@@ -292,6 +304,44 @@ PortHandler.port_detected = function(name, code, timeout, ignore_timeout) {
     this.port_detected_callbacks.push(obj);
 
     return obj;
+};
+
+PortHandler.is_port_available = function (port) {
+    const normalizedPort = String(port || '').trim();
+    return Boolean(
+        normalizedPort &&
+        Array.isArray(this.initial_ports) &&
+        this.initial_ports.indexOf(normalizedPort) !== -1
+    );
+};
+
+PortHandler.port_detected_exact = function (name, port, code, timeout) {
+    const normalizedPort = String(port || '').trim();
+    if (!normalizedPort) {
+        throw new Error('An exact serial port is required.');
+    }
+    return this.port_detected(
+        name,
+        code,
+        timeout,
+        false,
+        normalizedPort,
+    );
+};
+
+PortHandler.cancel_port_detected = function (obj) {
+    if (!obj) {
+        return false;
+    }
+    if (obj.timer) {
+        clearTimeout(obj.timer);
+    }
+    const index = this.port_detected_callbacks.indexOf(obj);
+    if (index === -1) {
+        return false;
+    }
+    this.port_detected_callbacks.splice(index, 1);
+    return true;
 };
 
 PortHandler.port_removed = function (name, code, timeout, ignore_timeout) {

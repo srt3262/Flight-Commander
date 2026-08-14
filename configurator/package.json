@@ -2,7 +2,7 @@
   "name": "flight-commander",
   "productName": "Flight Commander",
   "description": "Flight Commander flight controller configurator, mission planner, firmware flasher, and ground control station.",
-  "version": "4.2.4",
+  "version": "4.3.0",
   "packageManager": "yarn@1.22.22",
   "main": ".vite/build/main.js",
   "type": "module",
@@ -35,25 +35,25 @@
     "inavConfiguratorBase": "9.1.1",
     "inavConfiguratorCommit": "4c343e38aba4ef655afd88e8339ef21d0c3c53ac",
     "firmwareMajor": 4,
-    "firmwareReleaseVersion": "4.2.0",
-    "firmwareReleaseSha256": "4f85fb1bc67c82e7a186203bb342aefc4b1985e2d605555601da03f2a00802b5",
+    "firmwareReleaseVersion": "4.3.0",
+    "firmwareReleaseSha256": "225c717b96056e63ebf63947d4ffcd2769400ee93252507522e431277f55674a",
     "firmwareReleaseArtifacts": {
       "MICOAIR743": {
-        "filename": "Flight-Commander-Firmware-4.2.0-MICOAIR743.hex",
-        "sha256": "4f85fb1bc67c82e7a186203bb342aefc4b1985e2d605555601da03f2a00802b5"
+        "filename": "Flight-Commander-Firmware-4.3.0-MICOAIR743.hex",
+        "sha256": "225c717b96056e63ebf63947d4ffcd2769400ee93252507522e431277f55674a"
       },
       "CUBEORANGEPLUS": {
-        "filename": "Flight-Commander-Firmware-4.2.0-CUBEORANGEPLUS.hex",
-        "sha256": "2130cb5dda51e39e29a3bc0fc54ac5dc423b764c75fc09960c1e079fc850671d"
+        "filename": "Flight-Commander-Firmware-4.3.0-CUBEORANGEPLUS.hex",
+        "sha256": "04c6fb2905732bd4d13f6acdfc66a6989bcfa8e3790fd75ba0065c8aca5d4e18"
       }
     },
-    "firmwareChangedInRelease": false,
+    "firmwareChangedInRelease": true,
     "firmwareSourceAvailable": true,
-    "firmwareSourceVersion": "4.2.0",
-    "firmwareSourceArchive": "FC-Firmware-Source-v4.2.0.zip",
-    "firmwareSourceSha256": "ee1d18aebbbe010807285f9b4d6218cac08dbd8a6ebf91fd91f89a126767ad50",
-    "firmwareSourceRevision": "11e12f527d7721220641e0fb6225fd09e85b45bc",
-    "firmwareSourceTree": "ec2b491f7954925875fc732ee9327ec2d520445b",
+    "firmwareSourceVersion": "4.3.0",
+    "firmwareSourceArchive": "FC-Firmware-Source-v4.3.0.zip",
+    "firmwareSourceSha256": "4d505576c196d30c7f5148b5c4548de40a374d969852afd29674e568c5d84043",
+    "firmwareSourceRevision": "a8a832d42f582c86d2f9a7a6b00786fe64aabc3c",
+    "firmwareSourceTree": "7cd3722ff3fa975a0d46f483f06f87671d771418",
     "reconstructionRelease": false,
     "binaryOracleVersion": "1.3.5"
   },

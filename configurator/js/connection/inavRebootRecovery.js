@@ -1,6 +1,8 @@
 "use strict";
 
 export const INAV_REBOOT_RECONNECT_DELAY_MS = 5000;
+export const INAV_REBOOT_PORT_REAPPEAR_TIMEOUT_MS = 30000;
+export const INAV_REBOOT_OPEN_RETRY_DELAY_MS = 1000;
 export const INAV_REBOOT_MAX_OPEN_ATTEMPTS = 3;
 
 export function createInavRebootRecoveryAttempt(openAttempt) {

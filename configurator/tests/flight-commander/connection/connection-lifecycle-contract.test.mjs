@@ -145,10 +145,14 @@ test("serial open completion uses the immutable protocol captured by the click a
   );
 });
 
-test("Flight Commander save-and-reboot reconnect is bounded and performs a full close/reopen retry", () => {
+test("Flight Commander save-and-reboot waits for COM reappearance and remains bounded", () => {
   assert.match(
     serialBackend,
-    /GUI\.handleReconnect = function[\s\S]*?createInavRebootRecoveryAttempt\([\s\S]*?privateScope\.activeOpenAttempt[\s\S]*?reConnect\(\s*rebootOpenAttempt \? \{openAttempt: rebootOpenAttempt\} : \{\}/,
+    /GUI\.handleReconnect = function[\s\S]*?createInavRebootRecoveryAttempt\([\s\S]*?INAV_REBOOT_PORT_REAPPEAR_TIMEOUT_MS[\s\S]*?waitForInavRebootPort\(rebootOpenAttempt\)/,
+  );
+  assert.match(
+    serialBackend,
+    /waitForInavRebootPort = function[\s\S]*?PortHandler\.is_port_available[\s\S]*?PortHandler\.port_detected_exact\(/,
   );
   assert.match(
     serialBackend,
@@ -164,7 +168,11 @@ test("Flight Commander save-and-reboot reconnect is bounded and performs a full 
   );
   assert.match(
     serialBackend,
-    /Flight Commander Firmware did not respond after three post-reboot[\s\S]*?serial port has been closed/,
+    /openAttempt\?\.rebootRecoveryAttempt > 0[\s\S]*?waitForInavRebootPort\(nextAttempt\)/,
+  );
+  assert.match(
+    serialBackend,
+    /could not reconnect to[\s\S]*?serial port has been closed/,
   );
 });
 

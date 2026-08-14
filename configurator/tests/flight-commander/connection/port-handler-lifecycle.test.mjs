@@ -278,3 +278,35 @@ test("port removal callbacks still run after the native connection is no longer 
   assert.deepEqual(removed, ["COM8"]);
   assert.equal(harness.state.disconnectClicks, 0);
 });
+
+test("exact reboot-port wait ignores unrelated COM arrivals", async () => {
+  const harness = createHarness({
+    snapshots: [[], ["COM9"], ["COM9", "COM16"]],
+    connectedPort: false,
+    connectionId: false,
+  });
+
+  harness.handler.initialize();
+  await harness.settle();
+  assert.equal(harness.handler.is_port_available("COM16"), false);
+
+  const detections = [];
+  const wait = harness.handler.port_detected_exact(
+    "cube-reboot",
+    "COM16",
+    (ports) => detections.push(ports),
+    30000,
+  );
+
+  await harness.runNextPoll();
+  assert.deepEqual(detections, []);
+  assert.ok(harness.handler.port_detected_callbacks.includes(wait));
+
+  await harness.runNextPoll();
+  assert.equal(harness.handler.is_port_available("COM16"), true);
+  assert.deepEqual(
+    detections.map((ports) => Array.from(ports)),
+    [["COM16"]],
+  );
+  assert.equal(harness.handler.port_detected_callbacks.includes(wait), false);
+});

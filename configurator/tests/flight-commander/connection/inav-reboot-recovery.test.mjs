@@ -3,6 +3,8 @@ import test from "node:test";
 
 import {
   INAV_REBOOT_MAX_OPEN_ATTEMPTS,
+  INAV_REBOOT_OPEN_RETRY_DELAY_MS,
+  INAV_REBOOT_PORT_REAPPEAR_TIMEOUT_MS,
   INAV_REBOOT_RECONNECT_DELAY_MS,
   createInavRebootRecoveryAttempt,
   nextInavRebootRecoveryAttempt,
@@ -25,6 +27,8 @@ test("INAV reboot recovery preserves the exact MSP serial endpoint", () => {
   });
   assert.ok(Object.isFrozen(attempt));
   assert.equal(INAV_REBOOT_RECONNECT_DELAY_MS, 5000);
+  assert.equal(INAV_REBOOT_PORT_REAPPEAR_TIMEOUT_MS, 30000);
+  assert.equal(INAV_REBOOT_OPEN_RETRY_DELAY_MS, 1000);
 });
 
 test("INAV reboot recovery is bounded to three full open attempts", () => {

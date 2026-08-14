@@ -25,7 +25,7 @@ release therefore has exactly three public assets: the complete five-file
 bundle and both standalone HEX files. Publication fails on a version, source
 identity, checksum, filename, or asset-count mismatch.
 
-For 4.2.0, both Configurator and Firmware are 4.2.0 and
-`firmwareChangedInRelease` is `true`. The coordinated release adds the guarded
-USB LAWICEL/SLCAN DroneCAN maintenance bridge to both MICOAIR743 and
-CUBEORANGEPLUS and records an independent filename and SHA-256 for each target.
+For 4.3.0, both Configurator and Firmware are 4.3.0 and
+`firmwareChangedInRelease` is `true`. The coordinated release rebuilds both
+MICOAIR743 and CUBEORANGEPLUS images with the same embedded version and records
+an independent filename and SHA-256 for each target.
