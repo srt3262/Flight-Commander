@@ -370,7 +370,8 @@ test("Windows verification follows the active renderer graph and rejects leftove
   assert.match(packageVerifier, /Selecting default control profile 1/);
   assert.match(packageVerifier, /Control profile 1:/);
   assert.match(packageVerifier, /Flight Commander Firmware is not responding after reboot/);
-  assert.match(packageVerifier, /Flight Commander Firmware did not respond after three post-reboot/);
+  assert.match(packageVerifier, /Flight Commander Firmware could not reconnect to/);
+  assert.match(packageVerifier, /The port did not reappear within/);
   assert.match(packageVerifier, /Restoring the selected control profile/);
   assert.match(packageVerifier, /Control profile 2:/);
   assert.match(packageVerifier, /batteryProfileHighlightActive/);
