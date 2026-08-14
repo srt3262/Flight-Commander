@@ -215,10 +215,15 @@
 .tab-onboard_logging .blackboxRate select,
 .tab-onboard_logging .blackboxDevice select {
     float: left;
-    width: 180px;
     height: 20px;
     margin: 0 10px 5px 0;
     border: 1px solid silver;
+}
+.tab-onboard_logging .blackboxRate select {
+    width: 180px;
+}
+.tab-onboard_logging .blackboxDevice select {
+    width: 255px;
 }
 .tab-onboard_logging .blackboxRate span,
 .tab-onboard_logging .blackboxDevice span {
@@ -232,6 +237,12 @@
 .tab-onboard_logging .sdcard-status {
     padding-top: 4px;
     text-align: center;
+}
+.tab-onboard_logging .cube-orange-plus-sdcard-location {
+    display: none;
+}
+.tab-onboard_logging.cube-orange-plus .cube-orange-plus-sdcard-location {
+    display: block;
 }
 .tab-onboard_logging.sdcard-error .sdcard-icon {
     background-color: #e60000;

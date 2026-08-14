@@ -66,6 +66,9 @@
 #include "sensors/battery.h"
 #include "sensors/gyro.h"
 #include "sensors/diagnostics.h"
+#ifdef USE_BARO
+#include "sensors/barometer.h"
+#endif
 
 #include "programming/global_variables.h"
 #include "sensors/rangefinder.h"
@@ -5138,6 +5141,36 @@ float getEstimatedActualVelocity(int axis)
 float getEstimatedActualPosition(int axis)
 {
     return navGetCurrentActualPositionAndVelocity()->pos.v[axis];
+}
+
+static float telemetryRelativeAltitudeArmOffset;
+static bool telemetryRelativeAltitudeArmOffsetValid;
+
+void resetTelemetryRelativeAltitude(void)
+{
+    telemetryRelativeAltitudeArmOffset = getEstimatedActualPosition(Z);
+    telemetryRelativeAltitudeArmOffsetValid = true;
+}
+
+float getTelemetryRelativeAltitude(void)
+{
+    if (ARMING_FLAG(ARMED)) {
+        if (!telemetryRelativeAltitudeArmOffsetValid) {
+            resetTelemetryRelativeAltitude();
+        }
+
+        return getEstimatedActualPosition(Z) - telemetryRelativeAltitudeArmOffset;
+    }
+
+    telemetryRelativeAltitudeArmOffsetValid = false;
+
+#ifdef USE_BARO
+    if (sensors(SENSOR_BARO) && baroIsCalibrationComplete()) {
+        return baroGetLatestAltitude();
+    }
+#endif
+
+    return getEstimatedActualPosition(Z);
 }
 
 /*-----------------------------------------------------------

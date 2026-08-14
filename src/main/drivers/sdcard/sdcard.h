@@ -61,6 +61,7 @@ void sdcardInsertionDetectDeinit(void);
 void sdcardInsertionDetectInit(void);
 
 bool sdcard_isInserted(void);
+bool sdcard_hasInsertionDetect(void);
 bool sdcard_isInitialized(void);
 bool sdcard_isFunctional(void);
 

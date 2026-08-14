@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+## 4.3.1
+
+- Render learned compass orientation with the same dynamic Supported/Disabled
+  state and explanation used by every other Firmware Features tile.
+- Keep the GPS timezone value in its grid column and remove the duplicate
+  `hh:mm` suffix that covered the editable value.
+- Show calibrated barometer movement as relative altitude whenever disarmed,
+  and capture a fresh zero for the normal fused display estimate every time the
+  aircraft is armed, without changing the navigation estimator's control state.
+- Report an empty SDMMC slot as unavailable instead of a fatal card error on
+  boards without a physical detect switch.
+- Show serial, dataflash, and microSD device classes consistently. Dataflash is
+  visibly marked unavailable or not fitted when the connected target lacks a
+  usable chip; it is never presented as writable storage without a real
+  backend.
+- Document that Cube Orange+ uses the removable microSD slot beneath its USB
+  connector and has no separate high-rate Blackbox dataflash device.
+- Rebuild and publish matching Firmware 4.3.1 images for MICOAIR743 and
+  CUBEORANGEPLUS with Configurator 4.3.1.
+
 ## 4.3.0
 
 - Wait for the exact Windows COM port to reappear after Save and Reboot, then

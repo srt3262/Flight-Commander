@@ -59,7 +59,7 @@ between node IDs.
 
 ### DroneCAN GUI maintenance through USB SLCAN
 
-Flight Commander 4.3.0 can temporarily expose its USB virtual COM port as a
+Flight Commander 4.3.1 can temporarily expose its USB virtual COM port as a
 standards-compatible LAWICEL/SLCAN adapter. This provides direct DroneCAN GUI
 access to AP_Periph parameters and node firmware update services without a
 separate USB-to-CAN adapter.

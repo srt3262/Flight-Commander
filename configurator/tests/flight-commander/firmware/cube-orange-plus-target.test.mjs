@@ -168,13 +168,13 @@ test('Cube Orange+ advertises a distinct Flight Commander USB identity', () => {
 
 test('bench builds can override the embedded Flight Commander patch version', () => {
   assert.match(rootBuild, /if\(NOT DEFINED FLIGHT_COMMANDER_FIRMWARE_VERSION\)/);
-  assert.match(rootBuild, /set\(FLIGHT_COMMANDER_FIRMWARE_VERSION 4\.3\.0\)/);
+  assert.match(rootBuild, /set\(FLIGHT_COMMANDER_FIRMWARE_VERSION 4\.3\.1\)/);
   assert.match(rootBuild, /FLIGHT_COMMANDER_VERSION_PATCH=\$\{FLIGHT_COMMANDER_VERSION_PATCH\}/);
 });
 
-test('4.3.0 release manifest independently identifies both official targets', () => {
+test('4.3.1 release manifest independently identifies both official targets', () => {
   assert.equal(releaseManifest.schema, 2);
-  assert.equal(releaseManifest.version, '4.3.0');
+  assert.equal(releaseManifest.version, '4.3.1');
   assert.deepEqual(releaseManifest.targets, ['MICOAIR743', 'CUBEORANGEPLUS']);
   assert.deepEqual(Object.keys(releaseManifest.artifacts), releaseManifest.targets);
 });

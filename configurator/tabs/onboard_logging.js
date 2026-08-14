@@ -83,6 +83,9 @@ onboardLoggingTab.initialize = function (callback) {
 
             var
                 dataflashPresent = FC.DATAFLASH.totalSize > 0,
+                normalizedTarget = String(FC.CONFIG.target || '').trim().toUpperCase(),
+                normalizedBoard = String(FC.CONFIG.boardIdentifier || '').trim().toUpperCase(),
+                cubeOrangePlus = normalizedTarget === 'CUBEORANGEPLUS' || normalizedBoard === 'COPL',
                 blackboxSupport = false;
 
             if ((FC.BLACKBOX.supported || FC.DATAFLASH.supported) && BitHelper.bit_check(FC.FEATURES, 19)) {
@@ -94,6 +97,7 @@ onboardLoggingTab.initialize = function (callback) {
                 .toggleClass("dataflash-supported", FC.DATAFLASH.supported)
                 .toggleClass("dataflash-present", dataflashPresent)
                 .toggleClass("sdcard-supported", FC.SDCARD.supported)
+                .toggleClass("cube-orange-plus", cubeOrangePlus)
                 .toggleClass("blackbox-config-supported", FC.BLACKBOX.supported)
                 .toggleClass("blackbox-supported", blackboxSupport)
                 .toggleClass("blackbox-unsupported", !blackboxSupport);
@@ -169,11 +173,17 @@ onboardLoggingTab.initialize = function (callback) {
             deviceSelect = $(".blackboxDevice select").empty();
 
         deviceSelect.append('<option value="0">Serial port</option>');
-        if (FC.DATAFLASH.ready) {
-            deviceSelect.append('<option value="1">On-board dataflash chip</option>');
-        }
+        const dataflashOption = $('<option></option>')
+            .attr('value', '1')
+            .text(FC.DATAFLASH.ready
+                ? 'On-board dataflash chip'
+                : FC.DATAFLASH.supported
+                    ? 'On-board dataflash chip (unavailable)'
+                    : 'On-board dataflash chip (not fitted)')
+            .prop('disabled', !FC.DATAFLASH.ready);
+        deviceSelect.append(dataflashOption);
         if (FC.SDCARD.supported) {
-            deviceSelect.append('<option value="2">On-board SD card slot</option>');
+            deviceSelect.append('<option value="2">On-board microSD card slot</option>');
         }
 
         deviceSelect.val(FC.BLACKBOX.blackboxDevice);
@@ -277,10 +287,10 @@ onboardLoggingTab.initialize = function (callback) {
 
         switch (FC.SDCARD.state) {
             case MSP.SDCARD_STATE_NOT_PRESENT:
-                $(".sdcard-status").text("No card inserted");
+                $(".sdcard-status").text("No usable microSD card detected");
             break;
             case MSP.SDCARD_STATE_FATAL:
-                $(".sdcard-status").html("Fatal error<br>Reboot to retry");
+                $(".sdcard-status").html("Card/filesystem error<br>Check formatting, then reboot");
             break;
             case MSP.SDCARD_STATE_READY:
                 $(".sdcard-status").text("Card ready");

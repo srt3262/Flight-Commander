@@ -2511,6 +2511,9 @@
     "sdcardNote": {
         "message": "Flight logs can be recorded to your flight controller's onboard SD card slot."
     },
+    "cubeOrangePlusSdcardLocation": {
+        "message": "Cube Orange+ uses a removable microSD card for Blackbox logging. The slot is beneath the USB connector; this controller does not include a separate Blackbox dataflash chip."
+    },
     "dataflashNote": {
         "message": "Flight logs can be recorded to your flight controller's onboard dataflash chip."
     },

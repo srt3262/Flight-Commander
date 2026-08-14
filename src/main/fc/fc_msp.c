@@ -350,7 +350,10 @@ static void serializeSDCardSummaryReply(sbuf_t *dst)
     if (!sdcard_isInserted()) {
         state = MSP_SDCARD_STATE_NOT_PRESENT;
     } else if (!sdcard_isFunctional()) {
-        state = MSP_SDCARD_STATE_FATAL;
+        // Boards without a card-detect switch report the slot as inserted even
+        // when it is empty. Treat an unusable slot with no hardware detect as
+        // unavailable; filesystem failures on an initialized card remain fatal.
+        state = sdcard_hasInsertionDetect() ? MSP_SDCARD_STATE_FATAL : MSP_SDCARD_STATE_NOT_PRESENT;
     } else {
         switch (afatfs_getFilesystemState()) {
             case AFATFS_FILESYSTEM_STATE_READY:
@@ -389,7 +392,7 @@ static void serializeDataflashSummaryReply(sbuf_t *dst)
 {
 #ifdef USE_FLASHFS
     const flashGeometry_t *geometry = flashGetGeometry();
-    sbufWriteU8(dst, flashIsReady() ? 1 : 0);
+    sbufWriteU8(dst, MSP_FLASHFS_BIT_SUPPORTED | (flashIsReady() ? MSP_FLASHFS_BIT_READY : 0));
     sbufWriteU32(dst, geometry->sectors);
     sbufWriteU32(dst, geometry->totalSize);
     sbufWriteU32(dst, flashfsGetOffset()); // Effectively the current number of bytes stored on the volume
@@ -872,7 +875,7 @@ static bool mspFcProcessOutCommand(uint16_t cmdMSP, sbuf_t *dst, mspPostProcessF
         break;
 
     case MSP_ALTITUDE:
-        sbufWriteU32(dst, lrintf(getEstimatedActualPosition(Z)));
+        sbufWriteU32(dst, lrintf(getTelemetryRelativeAltitude()));
         sbufWriteU16(dst, lrintf(getEstimatedActualVelocity(Z)));
 #if defined(USE_BARO)
         sbufWriteU32(dst, baroGetLatestAltitude());

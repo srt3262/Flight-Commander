@@ -2,7 +2,7 @@
   "name": "flight-commander",
   "productName": "Flight Commander",
   "description": "Flight Commander flight controller configurator, mission planner, firmware flasher, and ground control station.",
-  "version": "4.3.0",
+  "version": "4.3.1",
   "packageManager": "yarn@1.22.22",
   "main": ".vite/build/main.js",
   "type": "module",
@@ -35,25 +35,25 @@
     "inavConfiguratorBase": "9.1.1",
     "inavConfiguratorCommit": "4c343e38aba4ef655afd88e8339ef21d0c3c53ac",
     "firmwareMajor": 4,
-    "firmwareReleaseVersion": "4.3.0",
-    "firmwareReleaseSha256": "225c717b96056e63ebf63947d4ffcd2769400ee93252507522e431277f55674a",
+    "firmwareReleaseVersion": "4.3.1",
+    "firmwareReleaseSha256": "1fcb891cd7bcee51e86c6dcf0afcc58bc9228584cc3105406e33d00d9ebb7921",
     "firmwareReleaseArtifacts": {
       "MICOAIR743": {
-        "filename": "Flight-Commander-Firmware-4.3.0-MICOAIR743.hex",
-        "sha256": "225c717b96056e63ebf63947d4ffcd2769400ee93252507522e431277f55674a"
+        "filename": "Flight-Commander-Firmware-4.3.1-MICOAIR743.hex",
+        "sha256": "1fcb891cd7bcee51e86c6dcf0afcc58bc9228584cc3105406e33d00d9ebb7921"
       },
       "CUBEORANGEPLUS": {
-        "filename": "Flight-Commander-Firmware-4.3.0-CUBEORANGEPLUS.hex",
-        "sha256": "afb4ad1bb221652a3374506113f3e6e0c9fb226a69b5db886e1b645ca678d903"
+        "filename": "Flight-Commander-Firmware-4.3.1-CUBEORANGEPLUS.hex",
+        "sha256": "8370b421637226e61d5f50345a21c6e0888943903962377b4a629c5c51ef029f"
       }
     },
     "firmwareChangedInRelease": true,
     "firmwareSourceAvailable": true,
-    "firmwareSourceVersion": "4.3.0",
-    "firmwareSourceArchive": "FC-Firmware-Source-v4.3.0.zip",
-    "firmwareSourceSha256": "ae9d38dd1c81a17a8fa46dd84698891ec0c68a9b37c40e663d747dafdbf28443",
-    "firmwareSourceRevision": "f6bf63eaab030f77cf81ef75ae62e1170c6d2b62",
-    "firmwareSourceTree": "4fede24548dc2c1c7d6211cd52006a8dfa027729",
+    "firmwareSourceVersion": "4.3.1",
+    "firmwareSourceArchive": "FC-Firmware-Source-v4.3.1.zip",
+    "firmwareSourceSha256": "4fb4221af702dd6f3c851d3b6662fb11b11d773877542fd987f34aefc6f42ba2",
+    "firmwareSourceRevision": "ebd330ec7d70c39dfedba2dede676f450709a15e",
+    "firmwareSourceTree": "936510fb0d37af9828db142a5083652708685cab",
     "reconstructionRelease": false,
     "binaryOracleVersion": "1.3.5"
   },

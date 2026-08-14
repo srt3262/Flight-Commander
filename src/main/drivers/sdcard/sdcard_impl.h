@@ -93,6 +93,7 @@ STATIC_ASSERT(sizeof(sdcardCSD_t) == 16, sdcard_csd_bitfields_didnt_pack_properl
 void sdcardInsertionDetectInit(void);
 void sdcardInsertionDetectDeinit(void);
 bool sdcard_isInserted(void);
+bool sdcard_hasInsertionDetect(void);
 
 typedef struct sdcardVTable_s {
     void (*init)(void);

@@ -16,9 +16,14 @@ the CubePilot Cube Orange+ (STM32H757). It is a distinct image from
 | GNSS | GPS1 on UART4; GPS2 on UART8 |
 | Telemetry | TELEM1 on USART2; TELEM2 on USART3 |
 | CAN | CAN1 on the Cube CAN connector |
-| Logging | microSD through SDMMC1 |
+| Logging | Removable microSD through SDMMC1; slot beneath the USB connector |
 | Power monitor | Power Brick 1 voltage and current inputs |
 | Outputs | AUX1-AUX6, the six direct FMU timer outputs |
+
+The Cube Orange+ does not include a separate high-rate Blackbox dataflash
+chip. Its 32 KiB FRAM is reserved for configuration storage, and its MCU flash
+contains the bootloader, application, and configuration sectors. Use the
+removable microSD slot beneath the USB connector for onboard Blackbox logging.
 
 ## Ports-tab connector labels
 
@@ -36,7 +41,7 @@ shows the carrier-board connector first and the STM32 UART in parentheses:
 The labels change only what the Configurator displays; the saved serial-port
 identifiers and firmware pin assignments are unchanged.
 
-The onboard AK09916 is not enabled in 4.3.0. Flight Commander does not yet
+The onboard AK09916 is not enabled in 4.3.1. Flight Commander does not yet
 have the required driver/alignment path for that Cube-mounted sensor, so an
 external I2C or DroneCAN compass is required for magnetic heading. The second
 onboard MS5611 is retained as a cold spare because the inherited barometer
@@ -45,7 +50,7 @@ driver currently supports one device of that type.
 ## IOMCU boundary
 
 The Cube's STM32F100 IOMCU owns MAIN1-MAIN8 and the physical RC input. Flight
-Commander 4.3.0 does not implement the PX4IO protocol and deliberately keeps
+Commander 4.3.1 does not implement the PX4IO protocol and deliberately keeps
 USART6 reserved rather than pretending those connections are direct H757
 resources. Therefore:
 
@@ -63,7 +68,7 @@ not use this release.
 ## Bootloader-safe flashing
 
 The Cube vendor bootloader occupies `0x08000000` through `0x0801FFFF`. The
-4.3.0 image has its vector table at `0x08020000`, code beginning at
+4.3.1 image has its vector table at `0x08020000`, code beginning at
 `0x08040000`, and persistent configuration in the final 128 KiB sector at
 `0x081E0000`.
 
@@ -78,7 +83,7 @@ Safe first installation:
    that can back-power the carrier board.
 2. Save a Configurator backup and CLI `diff all` if another firmware is still
    reachable.
-3. Select **CubePilot Cube Orange+**, load the official 4.3.0 online image, and
+3. Select **CubePilot Cube Orange+**, load the official 4.3.1 online image, and
    verify that **Full chip erase** is unavailable.
 4. Select the Cube USB serial port and click **Flash Firmware**. The
    Configurator asks ArduPilot over MAVLink to enter the protected vendor
@@ -100,7 +105,7 @@ left intact.
 
 Before any armed test, verify all of the following with propellers removed:
 
-- target reports `CUBEORANGEPLUS` and Firmware 4.3.0;
+- target reports `CUBEORANGEPLUS` and Firmware 4.3.1;
 - both IMU selections produce the correct roll, pitch, and yaw directions;
 - the primary barometer, external compass, GNSS, CAN devices, and microSD are
   detected and remain healthy after repeated cold starts;

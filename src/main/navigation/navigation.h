@@ -698,6 +698,10 @@ typedef struct {
 
 float getEstimatedActualVelocity(int axis);
 float getEstimatedActualPosition(int axis);
+/* Relative altitude for ground-station displays. Disarmed displays use the
+ * calibrated barometer; every arm captures a new zero for the fused estimate. */
+float getTelemetryRelativeAltitude(void);
+void resetTelemetryRelativeAltitude(void);
 uint32_t getTotalTravelDistance(void);
 void getEstimatedPositionAndVelocity(navPositionAndVelocity_t * pos);
 
