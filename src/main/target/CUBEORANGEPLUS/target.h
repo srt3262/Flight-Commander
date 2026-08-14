@@ -7,6 +7,8 @@
 
 #define TARGET_BOARD_IDENTIFIER "COPL"
 #define USBD_PRODUCT_STRING      "Flight Commander CubeOrange+"
+#define USE_VENDOR_BOOTLOADER_CLOCK_HANDOFF
+#define USE_USB_CDC_TIMER_CLOCK_PREINIT
 
 /* The amber FMU LED is active-low. */
 #define LED0                     PE12

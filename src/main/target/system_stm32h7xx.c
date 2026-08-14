@@ -595,6 +595,79 @@ void systemCheckResetReason(void);
 
 void SystemInit (void)
 {
+#ifdef USE_CUBEORANGEPLUS_ARDUPILOT_STARTUP
+    memProtReset();
+
+    initialiseMemorySections();
+
+    // Check for a bootloader request before touching clocks or peripherals.
+    checkForBootLoaderRequest();
+
+#if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
+    SCB->CPACR |= ((3UL << 10 * 2) | (3UL << 11 * 2));
+#endif
+
+    SCB->VTOR = FLASH_BANK1_BASE | VECT_TAB_OFFSET;
+
+    // Return every peripheral interrupt source to a known state while the
+    // bootloader interrupt lock is still held.
+    RCC->AHB1RSTR = 0x7FFFFFFFU;
+    RCC->AHB1RSTR = 0U;
+    RCC->AHB2RSTR = 0xFFFFFFFFU;
+    RCC->AHB2RSTR = 0U;
+    RCC->AHB3RSTR = 0x7FFFEFFFU;
+    RCC->AHB3RSTR = 0U;
+    RCC->APB1LRSTR = 0xFFFFFFFFU;
+    RCC->APB1LRSTR = 0U;
+    RCC->APB1HRSTR = 0xFFFFFFFFU;
+    RCC->APB1HRSTR = 0U;
+    RCC->APB2RSTR = 0xFFFFFFFFU;
+    RCC->APB2RSTR = 0U;
+    RCC->APB3RSTR = 0xFFFFFFFFU;
+    RCC->APB3RSTR = 0U;
+    RCC->APB4RSTR = 0xFFFFFFFFU;
+    RCC->APB4RSTR = 0U;
+
+    SysTick->CTRL = 0U;
+    SysTick->LOAD = 0U;
+    SysTick->VAL = 0U;
+    for (unsigned i = 0; i < 8U; i++) {
+        NVIC->ICER[i] = 0xFFFFFFFFU;
+        NVIC->ICPR[i] = 0xFFFFFFFFU;
+    }
+    SCB->ICSR = SCB_ICSR_PENDSTCLR_Msk | SCB_ICSR_PENDSVCLR_Msk;
+
+    SystemCoreClock = 400000000U;
+    SystemD2Clock = 200000000U;
+
+    HAL_Init();
+
+    // CSI and SYSCFG are required by the H7 I/O compensation cell.
+    RCC->CR |= RCC_CR_CSION;
+    while ((RCC->CR & RCC_CR_CSIRDY) == 0U) {
+    }
+    RCC->APB4ENR |= RCC_APB4ENR_SYSCFGEN;
+    HAL_EnableCompensationCell();
+
+    SystemCoreClockUpdate();
+
+    // HAL_Init installs SysTick and NVIC state. Clear inherited pending work
+    // one last time, then release every Cortex interrupt mask in order.
+    SCB->ICSR = SCB_ICSR_PENDSTCLR_Msk | SCB_ICSR_PENDSVCLR_Msk;
+    __set_BASEPRI(0U);
+    __set_FAULTMASK(0U);
+    __enable_irq();
+    __DSB();
+    __ISB();
+
+    HandleStuckSysTick();
+    HAL_Delay(1U);
+
+    memProtConfigure(mpuRegions, mpuRegionCount);
+
+    SCB_EnableICache();
+    SCB_EnableDCache();
+#else
     memProtReset();
 
     initialiseMemorySections();
@@ -692,6 +765,7 @@ void SystemInit (void)
     // Enable CPU L1-Cache
     SCB_EnableICache();
     SCB_EnableDCache();
+#endif
 }
 
 /**

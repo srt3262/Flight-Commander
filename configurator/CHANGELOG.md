@@ -13,6 +13,8 @@
   STM32 UART number in parentheses.
 - Rebuild and publish both MICOAIR743 and CUBEORANGEPLUS firmware images with
   the same embedded 4.3.0 identity as the Configurator.
+- Restore the bench-validated Cube Orange+ 4.2.9 bootloader/USB handoff and
+  layer the corrected 4.3.0 IMU transforms on top of that working baseline.
 
 ## 4.2.4
 

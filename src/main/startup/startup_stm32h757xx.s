@@ -58,9 +58,15 @@ defined in linker script */
   .weak  Reset_Handler
   .type  Reset_Handler, %function
 Reset_Handler:
-  ldr   sp, =_estack      /* set stack pointer */
+  cpsid i
+  ldr   r0, =_estack
+  msr   msp, r0
+  msr   psp, r0
+  movs  r0, #0
+  msr   control, r0
+  isb
 
-  bl persistentObjectInit
+  bl cubeOrangePlusEarlyInit
 
 /* Copy the data segment initializers from flash to SRAM */
   movs  r1, #0
@@ -116,6 +122,8 @@ LoopMarkHeapStack:
   ldr r3, = _heap_stack_end
   cmp r2, r3
   bcc MarkHeapStack
+
+  bl persistentObjectInit
 
 /* Call the clock system initialization function. */
   bl  SystemInit

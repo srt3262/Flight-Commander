@@ -230,18 +230,25 @@ def verify_source(root: Path) -> None:
         r"HSE_MHZ 24",
         r"HEX_START_ADDRESS 0x08020000",
         r"USE_H7_DIRECT_SMPS_SUPPLY",
+        r"USE_CUBEORANGEPLUS_ARDUPILOT_STARTUP",
         r"VECT_TAB_OFFSET=0x00020000",
     ])
     require_text(root / "src/main/target/CUBEORANGEPLUS/target.h", [
         r'TARGET_BOARD_IDENTIFIER "COPL"',
+        r'USBD_PRODUCT_STRING\s+"Flight Commander CubeOrange\+"',
+        r"USE_VENDOR_BOOTLOADER_CLOCK_HANDOFF",
+        r"USE_USB_CDC_TIMER_CLOCK_PREINIT",
         r"USE_TARGET_IMU_HARDWARE_DESCRIPTORS",
         r"MAX_PWM_OUTPUT_PORTS 6",
         r"USART6 is reserved for the onboard IOMCU",
         r"MAG_I2C_BUS\s+BUS_I2C1",
     ])
     require_text(root / "src/main/target/CUBEORANGEPLUS/target.c", [
-        r"PC15.*CW270_DEG",
-        r"PC13.*CW270_DEG_FLIP",
+        r"cube_imu0_icm42688.*PC15.*CW270_DEG_FLIP",
+        r"cube_imu0_icm45686.*PC15.*CW270_DEG_FLIP",
+        r"cube_imu1_icm42688.*PC13.*CW270_DEG\)",
+        r"cube_imu1_icm45686.*PC13.*CW270_DEG\)",
+        r"ArduPilot-to-Flight\s+\* Commander sensor-driver convention adds a 180-degree roll",
         r"PA8",
         r"PE3",
         r"PB4",
@@ -251,14 +258,46 @@ def verify_source(root: Path) -> None:
         fail("Cube Orange+ must expose exactly its six direct FMU AUX outputs")
     if re.search(r"\bUSE_UART6\b", (root / "src/main/target/CUBEORANGEPLUS/target.h").read_text(encoding="utf-8")):
         fail("Cube Orange+ must not expose its IOMCU USART6 as a general serial port")
+    require_text(root / "src/main/target/CUBEORANGEPLUS/startup.c", [
+        r"ArduPilot 4\.7\.0 CubeOrangePlus hwdef\.dat",
+        r"1511f27194f1dcc3728270883047bdf022b3fd53",
+        r"PWR->CR1 = 0xF000C000U",
+        r"RCC->PLLCKSELR = 0x00602032U",
+        r"RCC->PLL1DIVR = 0x01090263U",
+        r"RCC->PLL2DIVR = 0x02050431U",
+        r"RCC->PLL3DIVR = 0x08050E47U",
+        r"RCC->PLLCFGR = 0x01BF0BDDU",
+        r"RCC->D2CCIP2R = 0x00E01009U",
+        r"RCC->D3CCIPR = 0x10010100U",
+    ])
+    require_text(root / "src/main/startup/startup_stm32h757xx.s", [
+        r"Reset_Handler:.*cpsid i.*ldr\s+r0, =_estack.*msr\s+msp, r0.*msr\s+psp, r0",
+        r"msr\s+control, r0.*isb.*bl cubeOrangePlusEarlyInit.*CopyDataInit:",
+        r"LoopMarkHeapStack:.*bl persistentObjectInit.*bl\s+SystemInit",
+    ])
     require_text(root / "src/main/target/link/stm32_flash_h757xi.ld", [
         r"FLASH \(rx\)\s*: ORIGIN = 0x08020000, LENGTH = 128K",
         r"FLASH1 \(rx\)\s*: ORIGIN = 0x08040000, LENGTH = 1664K",
         r"FLASH_CONFIG \(r\)\s*: ORIGIN = 0x081E0000, LENGTH = 128K",
+        r"D2_STACK \(rwx\)\s*: ORIGIN = 0x30000000, LENGTH = 8K",
+        r"D2_RAM \(rwx\)\s*: ORIGIN = 0x30002000, LENGTH = 248K",
+        r'REGION_ALIAS\("STACKRAM", D2_STACK\)',
     ])
     require_text(root / "src/main/target/system_stm32h7xx.c", [
         r"USE_H7_DIRECT_SMPS_SUPPLY",
         r"PWR_DIRECT_SMPS_SUPPLY",
+        r"USE_CUBEORANGEPLUS_ARDUPILOT_STARTUP.*HAL_Init\(\);.*"
+        r"SCB->ICSR = SCB_ICSR_PENDSTCLR_Msk \| SCB_ICSR_PENDSVCLR_Msk;.*"
+        r"__set_BASEPRI\(0U\);.*__set_FAULTMASK\(0U\);.*__enable_irq\(\);.*#else",
+    ])
+    require_text(root / "src/main/vcp_hal/usbd_cdc_interface.c", [
+        r"USE_USB_CDC_TIMER_CLOCK_PREINIT.*TIMx_CLK_ENABLE\(\);.*HAL_TIM_Base_Init",
+        r"#ifndef USE_USB_CDC_TIMER_CLOCK_PREINIT.*TIMx_CLK_ENABLE\(\);",
+    ])
+    require_text(root / "src/main/vcp_hal/usbd_desc.c", [
+        r'USBD_MANUFACTURER_STRING\s+"Flight Commander"',
+        r"#ifdef USBD_PRODUCT_STRING",
+        r"USBD_PRODUCT_FS_STRING\s+USBD_PRODUCT_STRING",
     ])
 
 

@@ -391,6 +391,9 @@ static void TIM_Config(void)
   TimHandle.Init.Prescaler = (SystemCoreClock / 2 / (1000000)) - 1;
   TimHandle.Init.ClockDivision = 0;
   TimHandle.Init.CounterMode = TIM_COUNTERMODE_UP;
+#ifdef USE_USB_CDC_TIMER_CLOCK_PREINIT
+  TIMx_CLK_ENABLE();
+#endif
   if (HAL_TIM_Base_Init(&TimHandle) != HAL_OK)
   {
     /* Initialization Error */
@@ -398,7 +401,9 @@ static void TIM_Config(void)
   }
 
   /*##-6- Enable TIM peripherals Clock #######################################*/
+#ifndef USE_USB_CDC_TIMER_CLOCK_PREINIT
   TIMx_CLK_ENABLE();
+#endif
 
   /*##-7- Configure the NVIC for TIMx ########################################*/
   /* Set Interrupt Group Priority */

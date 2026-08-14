@@ -8,8 +8,8 @@
   ],
   "inav_release": "9.1.0",
   "inav_commit": "e519b69b02e27c8bdc03b4a0889f1baaae211a54",
-  "source_revision": "a8a832d42f582c86d2f9a7a6b00786fe64aabc3c",
-  "source_tree": "7cd3722ff3fa975a0d46f483f06f87671d771418",
+  "source_revision": "f6bf63eaab030f77cf81ef75ae62e1170c6d2b62",
+  "source_tree": "4fede24548dc2c1c7d6211cd52006a8dfa027729",
   "source_hash_scheme": "sha1(sorted sha256sum records, excluding RELEASE-MANIFEST.json)",
   "source_tree_hash_scheme": "sha1('flight-commander-source-tree-v1\\n' plus sorted sha256sum records, excluding RELEASE-MANIFEST.json)",
   "source_date_epoch": 1786665600,
@@ -22,8 +22,8 @@
     },
     "CUBEORANGEPLUS": {
       "filename": "Flight-Commander-Firmware-4.3.0-CUBEORANGEPLUS.hex",
-      "sha256": "04c6fb2905732bd4d13f6acdfc66a6989bcfa8e3790fd75ba0065c8aca5d4e18",
-      "bytes": 1954686
+      "sha256": "afb4ad1bb221652a3374506113f3e6e0c9fb226a69b5db886e1b645ca678d903",
+      "bytes": 1938883
     }
   },
   "bench_acceptance": {
