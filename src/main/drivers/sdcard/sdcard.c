@@ -80,6 +80,11 @@ bool sdcard_isInserted(void)
     }
 }
 
+bool sdcard_hasInsertionDetect(void)
+{
+    return sdcard.cardDetectPin != NULL;
+}
+
 /**
  * Dispatch
  */

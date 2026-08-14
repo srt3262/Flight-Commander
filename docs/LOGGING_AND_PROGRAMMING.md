@@ -6,7 +6,17 @@ other control configuration.
 
 ## Onboard logging
 
-Onboard Logging configures Blackbox capture to supported SD card or flash.
+Onboard Logging configures Blackbox capture to a supported microSD card,
+dataflash chip, or external serial logger. The device list always identifies
+all three storage classes but disables any class that the connected firmware
+does not report as usable; it does not treat MCU program flash or configuration
+memory as Blackbox storage.
+
+Both official Flight Commander targets log onboard through SDMMC1. MICOAIR743
+uses its board microSD slot. Cube Orange+ uses the removable microSD slot
+beneath the USB connector and does not have a separate Blackbox dataflash chip.
+An empty slot is reported as unavailable; a card/filesystem error means a card
+was found but could not be mounted and should be checked or FAT-formatted.
 
 1. Confirm the device is detected and has space.
 2. Choose logging rate and fields suitable for the investigation.

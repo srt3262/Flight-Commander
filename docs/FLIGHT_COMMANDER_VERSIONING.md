@@ -25,7 +25,7 @@ release therefore has exactly three public assets: the complete five-file
 bundle and both standalone HEX files. Publication fails on a version, source
 identity, checksum, filename, or asset-count mismatch.
 
-For 4.3.0, both Configurator and Firmware are 4.3.0 and
+For 4.3.1, both Configurator and Firmware are 4.3.1 and
 `firmwareChangedInRelease` is `true`. The coordinated release rebuilds both
 MICOAIR743 and CUBEORANGEPLUS images with the same embedded version and records
 an independent filename and SHA-256 for each target.

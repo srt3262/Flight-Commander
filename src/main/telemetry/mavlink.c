@@ -699,7 +699,7 @@ void mavlinkSendPosition(timeUs_t currentTimeUs)
         // alt Altitude in 1E3 meters (millimeters) above MSL
         gpsSol.llh.alt * 10,
         // relative_alt Altitude above ground in meters, expressed as * 1000 (millimeters)
-        getEstimatedActualPosition(Z) * 10,
+        getTelemetryRelativeAltitude() * 10,
         // [cm/s] Ground X Speed (Latitude, positive north)
         getEstimatedActualVelocity(X),
         // [cm/s] Ground Y Speed (Longitude, positive east)
@@ -889,7 +889,7 @@ void mavlinkSendHUD(void)
 #endif
 
     // select best source for altitude
-    mavAltitude = getEstimatedActualPosition(Z) / 100.0f;
+    mavAltitude = getTelemetryRelativeAltitude() / 100.0f;
     mavClimbRate = getEstimatedActualVelocity(Z) / 100.0f;
 
     int16_t thr = getThrottlePercent(osdUsingScaledThrottle());

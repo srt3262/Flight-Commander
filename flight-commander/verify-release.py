@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify the Flight Commander 4.3.0 source and official target images."""
+"""Verify the Flight Commander 4.3.1 source and official target images."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ import re
 import subprocess
 import sys
 
-VERSION = "4.3.0"
+VERSION = "4.3.1"
 TARGETS = ("MICOAIR743", "CUBEORANGEPLUS")
 UPSTREAM_RELEASE = "9.1.0"
 UPSTREAM_COMMIT = "e519b69b02e27c8bdc03b4a0889f1baaae211a54"
@@ -111,13 +111,13 @@ def verify_upstream_baseline(root: Path) -> None:
 def verify_source(root: Path) -> None:
     verify_upstream_baseline(root)
     require_text(root / "CMakeLists.txt", [
-        r"set\(FLIGHT_COMMANDER_FIRMWARE_VERSION 4\.3\.0\)",
+        r"set\(FLIGHT_COMMANDER_FIRMWARE_VERSION 4\.3\.1\)",
         r"FLIGHT_COMMANDER_SOURCE_REVISION",
     ])
     require_text(root / "src/main/build/flight_commander.h", [
         r"FLIGHT_COMMANDER_VERSION_MAJOR 4",
         r"FLIGHT_COMMANDER_VERSION_MINOR 3",
-        r"FLIGHT_COMMANDER_VERSION_PATCH 0",
+        r"FLIGHT_COMMANDER_VERSION_PATCH 1",
         r"FLIGHT_COMMANDER_CAPABILITY_INDIVIDUAL_COMPASS_CALIBRATION = \(1U << 15\)",
         r"FLIGHT_COMMANDER_CAPABILITY_SLCAN_DRONECAN_BRIDGE = \(1U << 16\)",
         r"FLIGHT_COMMANDER_CAPABILITIES \(\(uint32_t\)0x1FFFFU\)",
@@ -193,6 +193,27 @@ def verify_source(root: Path) -> None:
         r"case MSP2_FLIGHT_COMMANDER_COMPASS_ORIENTATION_COMMAND:",
         r"case MSP2_FLIGHT_COMMANDER_COMPASS_CALIBRATION_COMMAND:",
         r"flightCommanderHeadingReadCompassCalibrationCommand\(src\)",
+        r"case MSP_ALTITUDE:.*getTelemetryRelativeAltitude\(\)",
+        r"sdcard_hasInsertionDetect\(\) \? MSP_SDCARD_STATE_FATAL : MSP_SDCARD_STATE_NOT_PRESENT",
+        r"MSP_FLASHFS_BIT_SUPPORTED \| \(flashIsReady\(\) \? MSP_FLASHFS_BIT_READY : 0\)",
+    ])
+    require_text(root / "src/main/fc/fc_core.c", [
+        r"ENABLE_ARMING_FLAG\(ARMED\);\s*resetTelemetryRelativeAltitude\(\);",
+    ])
+    require_text(root / "src/main/navigation/navigation.c", [
+        r"resetTelemetryRelativeAltitude\(void\).*telemetryRelativeAltitudeArmOffset = "
+        r"getEstimatedActualPosition\(Z\).*telemetryRelativeAltitudeArmOffsetValid = true",
+        r"getTelemetryRelativeAltitude\(void\).*if \(ARMING_FLAG\(ARMED\)\).*"
+        r"getEstimatedActualPosition\(Z\) - telemetryRelativeAltitudeArmOffset.*"
+        r"telemetryRelativeAltitudeArmOffsetValid = false.*baroIsCalibrationComplete\(\).*"
+        r"return baroGetLatestAltitude\(\)",
+    ])
+    require_text(root / "src/main/telemetry/mavlink.c", [
+        r"relative_alt.*getTelemetryRelativeAltitude\(\) \* 10",
+        r"mavAltitude = getTelemetryRelativeAltitude\(\) / 100\.0f",
+    ])
+    require_text(root / "src/main/drivers/sdcard/sdcard.c", [
+        r"sdcard_hasInsertionDetect\(void\).*return sdcard\.cardDetectPin != NULL",
     ])
     require_text(root / "src/main/fc/runtime_config.c", [
         r"ARMING_DISABLED_DRONECAN_BRIDGE",
@@ -224,6 +245,8 @@ def verify_source(root: Path) -> None:
     require_text(root / "src/main/target/MICOAIR743/target.h", [
         r"IMU_BMI088_ALIGN\s+CW270_DEG",
         r"FLIGHT_COMMANDER_MICOAIR743_ONBOARD_IST8310",
+        r"USE_SDCARD.*USE_SDCARD_SDIO.*SDCARD_SDIO_DEVICE\s+SDIODEV_1.*"
+        r"ENABLE_BLACKBOX_LOGGING_ON_SDCARD_BY_DEFAULT",
     ])
     require_text(root / "src/main/target/CUBEORANGEPLUS/CMakeLists.txt", [
         r"target_stm32h757xi",
@@ -242,6 +265,8 @@ def verify_source(root: Path) -> None:
         r"MAX_PWM_OUTPUT_PORTS 6",
         r"USART6 is reserved for the onboard IOMCU",
         r"MAG_I2C_BUS\s+BUS_I2C1",
+        r"USE_SDCARD.*USE_SDCARD_SDIO.*SDCARD_SDIO_DEVICE\s+SDIODEV_1.*"
+        r"ENABLE_BLACKBOX_LOGGING_ON_SDCARD_BY_DEFAULT",
     ])
     require_text(root / "src/main/target/CUBEORANGEPLUS/target.c", [
         r"cube_imu0_icm42688.*PC15.*CW270_DEG_FLIP",

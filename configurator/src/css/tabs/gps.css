@@ -165,6 +165,27 @@
     box-sizing: border-box;
 }
 
+/* Settings wraps converted values after the page has loaded. Keep that
+ * generated wrapper in the input column instead of letting CSS grid place it
+ * as an extra field. The timezone value already contains its HH:MM format, so
+ * repeating that format as an in-field unit obscures the editable value. */
+.tab-gps .gps-setting-row > .unit_wrapper {
+    grid-column: 1;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+.tab-gps .gps-setting-row > .unit_wrapper > input {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+.tab-gps .gps-setting-row > .unit_wrapper[data-unit="hh:mm"]::after {
+    display: none;
+}
+
 .tab-gps .gps-setting-row > label {
     grid-column: 2;
     width: auto;

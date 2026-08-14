@@ -1,29 +1,29 @@
 {
   "schema": 2,
   "product": "Flight Commander Firmware",
-  "version": "4.3.0",
+  "version": "4.3.1",
   "targets": [
     "MICOAIR743",
     "CUBEORANGEPLUS"
   ],
   "inav_release": "9.1.0",
   "inav_commit": "e519b69b02e27c8bdc03b4a0889f1baaae211a54",
-  "source_revision": "f6bf63eaab030f77cf81ef75ae62e1170c6d2b62",
-  "source_tree": "4fede24548dc2c1c7d6211cd52006a8dfa027729",
+  "source_revision": "0000000000000000000000000000000000000000",
+  "source_tree": "0000000000000000000000000000000000000000",
   "source_hash_scheme": "sha1(sorted sha256sum records, excluding RELEASE-MANIFEST.json)",
   "source_tree_hash_scheme": "sha1('flight-commander-source-tree-v1\\n' plus sorted sha256sum records, excluding RELEASE-MANIFEST.json)",
   "source_date_epoch": 1786665600,
   "capabilities": "0x0001ffff",
   "artifacts": {
     "MICOAIR743": {
-      "filename": "Flight-Commander-Firmware-4.3.0-MICOAIR743.hex",
-      "sha256": "225c717b96056e63ebf63947d4ffcd2769400ee93252507522e431277f55674a",
-      "bytes": 1958707
+      "filename": "Flight-Commander-Firmware-4.3.1-MICOAIR743.hex",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "bytes": 0
     },
     "CUBEORANGEPLUS": {
-      "filename": "Flight-Commander-Firmware-4.3.0-CUBEORANGEPLUS.hex",
-      "sha256": "afb4ad1bb221652a3374506113f3e6e0c9fb226a69b5db886e1b645ca678d903",
-      "bytes": 1938883
+      "filename": "Flight-Commander-Firmware-4.3.1-CUBEORANGEPLUS.hex",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "bytes": 0
     }
   },
   "bench_acceptance": {

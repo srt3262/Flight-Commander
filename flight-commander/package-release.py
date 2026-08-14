@@ -108,8 +108,8 @@ def write_manifest(manifest: dict[str, object]) -> None:
 
 def validate_manifest(manifest: dict[str, object], revision: str, tree: str) -> tuple[str, int]:
     version = str(manifest.get("version", ""))
-    if not version or version != "4.3.0":
-        raise RuntimeError(f"Expected Firmware 4.3.0, received {version or 'missing'}")
+    if not version or version != "4.3.1":
+        raise RuntimeError(f"Expected Firmware 4.3.1, received {version or 'missing'}")
     if manifest.get("product") != "Flight Commander Firmware":
         raise RuntimeError("Firmware manifest product identity is invalid")
     if manifest.get("schema") != 2 or manifest.get("targets") != list(TARGETS):
@@ -153,7 +153,7 @@ def build(output: Path, build_dir: Path, refresh_manifest: bool) -> dict[str, ob
         manifest["source_tree"] = tree
         manifest["artifacts"] = {
             target: {
-                "filename": f"Flight-Commander-Firmware-4.3.0-{target}.hex",
+                "filename": f"Flight-Commander-Firmware-4.3.1-{target}.hex",
                 "sha256": "0" * 64,
                 "bytes": 0,
             }
