@@ -29,8 +29,15 @@ test("release packaging validates source identity before compilation", () => {
 
 test("permanent CI builds firmware directly from the repository source tree", () => {
   const workflow = source(".github/workflows/ci.yml");
+  const packager = source("flight-commander/package-h7-targets.py");
   assert.match(workflow, /Build and package firmware from the repository source tree/);
-  assert.match(workflow, /python3 flight-commander\/package-release\.py/);
+  assert.match(workflow, /python3 flight-commander\/package-h7-targets\.py/);
+  assert.match(workflow, /legacy-regression-build/);
+  assert.match(
+    packager,
+    /configure_and_build\(\s*build_dir,\s*list\(LEGACY_TARGETS\)/,
+  );
+  assert.match(packager, /for target in LEGACY_TARGETS/);
   assert.match(workflow, /working-directory: configurator/);
   assert.match(workflow, /run: yarn test/);
   assert.doesNotMatch(workflow, /source ZIP|rebuild-firmware-source-archive/);

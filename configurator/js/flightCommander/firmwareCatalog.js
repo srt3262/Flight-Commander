@@ -30,17 +30,61 @@ export function isSupportedFlightCommanderFirmwareVersion(version) {
   return true;
 }
 
+function firmwareTarget(id, name = id, aliases = []) {
+  return Object.freeze({ id, name, aliases: Object.freeze(aliases) });
+}
+
 export const FLIGHT_COMMANDER_FIRMWARE_TARGETS = Object.freeze([
-  Object.freeze({
-    id: "MICOAIR743",
-    name: "MICOAIR743 (Aero Selfie H743)",
-    aliases: Object.freeze(["MICROAIR743"]),
-  }),
-  Object.freeze({
-    id: "CUBEORANGEPLUS",
-    name: "CubePilot Cube Orange+",
-    aliases: Object.freeze(["CUBEORANGE+"]),
-  }),
+  firmwareTarget("AEDROXH7"),
+  firmwareTarget("AETH743Basic"),
+  firmwareTarget("AOCODARCH7DUAL"),
+  firmwareTarget("AXISFLYINGH743PRO"),
+  firmwareTarget("BLADE_PRO_H7"),
+  firmwareTarget("BLUEBERRYH743"),
+  firmwareTarget("BLUEBERRYH743HD"),
+  firmwareTarget("BRAHMA_H7"),
+  firmwareTarget("BROTHERHOBBYH743"),
+  firmwareTarget("CORVON743V1"),
+  firmwareTarget("DAKEFPVH743"),
+  firmwareTarget("DAKEFPVH743PRO"),
+  firmwareTarget("DAKEFPVH743_SLIM"),
+  firmwareTarget("FLYWOOH743PRO"),
+  firmwareTarget("FOXEERH743"),
+  firmwareTarget("GEPRC_TAKER_H743"),
+  firmwareTarget("HAKRCH743"),
+  firmwareTarget("IFLIGHT_2RAW_H743"),
+  firmwareTarget("IFLIGHT_BLITZ_H7_PRO"),
+  firmwareTarget("IFLIGHT_BLITZ_H7_WING"),
+  firmwareTarget("JHEMCUH743HD"),
+  firmwareTarget("KAKUTEH7"),
+  firmwareTarget("KAKUTEH7MINI"),
+  firmwareTarget("KAKUTEH7V2"),
+  firmwareTarget("KAKUTEH7WING"),
+  firmwareTarget("MAMBAH743"),
+  firmwareTarget("MAMBAH743_2022B"),
+  firmwareTarget("MAMBAH743_2022B_GYRO2"),
+  firmwareTarget("MATEKH743"),
+  firmwareTarget("MATEKH743HD"),
+  firmwareTarget("MICOAIR743", "MICOAIR743 (Aero Selfie H743)", ["MICROAIR743"]),
+  firmwareTarget("MICOAIR743AIO"),
+  firmwareTarget("MICOAIR743V2"),
+  firmwareTarget("MICOAIR743V2_EXTMAG"),
+  firmwareTarget("MICOAIR743_EXTMAG"),
+  firmwareTarget("NEUTRONRCH7BT"),
+  firmwareTarget("ORBITH743"),
+  firmwareTarget("SDMODELH7V1"),
+  firmwareTarget("SDMODELH7V2"),
+  firmwareTarget("SEQUREH7"),
+  firmwareTarget("SEQUREH7V2"),
+  firmwareTarget("SIMPLIFLYH7"),
+  firmwareTarget("SKYSTARSH743HD"),
+  firmwareTarget("SPEDIXH743"),
+  firmwareTarget("TBS_LUCID_H7"),
+  firmwareTarget("TBS_LUCID_H7_OEM"),
+  firmwareTarget("TBS_LUCID_H7_V3"),
+  firmwareTarget("TBS_LUCID_H7_WING"),
+  firmwareTarget("TBS_LUCID_H7_WING_MINI"),
+  firmwareTarget("CUBEORANGEPLUS", "CubePilot Cube Orange+", ["CUBEORANGE+"]),
 ]);
 
 const FLIGHT_COMMANDER_MARKER = Object.freeze([0x46, 0x43, 0x46, 0x57]);
@@ -52,7 +96,8 @@ export function normalizeFirmwareTarget(value) {
     .toUpperCase();
   const target = FLIGHT_COMMANDER_FIRMWARE_TARGETS.find(
     ({ id, aliases }) =>
-      id === normalized || aliases.includes(normalized),
+      id.toUpperCase() === normalized ||
+      aliases.some((alias) => alias.toUpperCase() === normalized),
   );
   return target?.id ?? normalized;
 }
@@ -63,21 +108,32 @@ function knownFirmwareTarget(value) {
 }
 
 export function parseFlightCommanderFirmwareFilename(filename) {
-  const match = /^Flight-Commander-Firmware-(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)-(MICOAIR743|MICROAIR743|CUBEORANGEPLUS|CUBEORANGE\+)(-BENCH-ONLY)?\.hex$/i.exec(
+  const match = /^Flight-Commander-Firmware-(.+)\.hex$/i.exec(
     String(filename ?? "").trim(),
   );
   if (!match) return null;
-  const targetId = normalizeFirmwareTarget(match[2]);
-  const knownTarget = knownFirmwareTarget(targetId);
-  if (!knownTarget) return null;
-  return Object.freeze({
-    family: "flight-commander",
-    version: match[1],
-    target_id: targetId,
-    target: knownTarget.name,
-    format: "hex",
-    benchOnly: Boolean(match[3]),
-  });
+  let stem = match[1];
+  const benchOnly = /-BENCH-ONLY$/i.test(stem);
+  if (benchOnly) stem = stem.slice(0, -"-BENCH-ONLY".length);
+
+  const candidates = FLIGHT_COMMANDER_FIRMWARE_TARGETS.flatMap((target) =>
+    [target.id, ...target.aliases].map((token) => ({ target, token })),
+  ).sort((left, right) => right.token.length - left.token.length);
+  for (const { target, token } of candidates) {
+    const suffix = `-${token}`;
+    if (!stem.toUpperCase().endsWith(suffix.toUpperCase())) continue;
+    const version = stem.slice(0, -suffix.length);
+    if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(version)) continue;
+    return Object.freeze({
+      family: "flight-commander",
+      version,
+      target_id: target.id,
+      target: target.name,
+      format: "hex",
+      benchOnly,
+    });
+  }
+  return null;
 }
 
 function publishedReleaseChannel(release) {
@@ -255,9 +311,11 @@ export function parsedHexContainsFlightCommanderIdentity(parsedHex) {
 }
 
 export function inferFlightCommanderFirmwareTarget(parsedHex) {
-  for (const target of FLIGHT_COMMANDER_FIRMWARE_TARGETS) {
+  const targets = [...FLIGHT_COMMANDER_FIRMWARE_TARGETS]
+    .sort((left, right) => right.id.length - left.id.length);
+  for (const target of targets) {
     for (const token of [target.id, ...target.aliases]) {
-      if (parsedHexContainsBytes(parsedHex, asciiBytes(token))) {
+      if (parsedHexContainsBytes(parsedHex, asciiBytes(`${token}\0`))) {
         return target.id;
       }
     }

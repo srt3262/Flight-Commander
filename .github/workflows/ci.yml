@@ -18,9 +18,9 @@ concurrency:
 
 jobs:
   firmware:
-    name: Build and verify MICOAIR743 firmware
+    name: Build and verify all 50 H7 firmware targets
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 60
     steps:
       - name: Check out source
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -32,9 +32,10 @@ jobs:
 
       - name: Build and package firmware from the repository source tree
         run: >-
-          python3 flight-commander/package-release.py
+          python3 flight-commander/package-h7-targets.py
           --output "$RUNNER_TEMP/firmware-release"
           --build-dir "$RUNNER_TEMP/firmware-build"
+          --regression-build-dir "$RUNNER_TEMP/legacy-regression-build"
 
       - name: Upload verified firmware outputs
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

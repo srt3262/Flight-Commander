@@ -209,6 +209,14 @@ static bool selectedNode(uint8_t configured, uint8_t source)
         (configured == DRONECAN_NODE_ID_AUTO || configured == source);
 }
 
+#ifdef USE_DRONECAN
+#define configuredDronecanMagNode() (dronecanConfig()->magNodeID)
+#define configuredDronecanMovingRoverNode() (dronecanConfig()->movingRoverNodeID)
+#else
+#define configuredDronecanMagNode() DRONECAN_NODE_ID_DISABLED
+#define configuredDronecanMovingRoverNode() DRONECAN_NODE_ID_DISABLED
+#endif
+
 static void updateLiveSourceStatus(unsigned index, timeMs_t now)
 {
     flightCommanderHeadingSourceStatus_t *status = &headingStatus.sources[index];
@@ -382,7 +390,7 @@ uint8_t flightCommanderHeadingCompassNodeID(uint8_t source)
     if (flightCommanderHeadingConfig()->dronecanMagCalibrationNodeID != 0) {
         return flightCommanderHeadingConfig()->dronecanMagCalibrationNodeID;
     }
-    const uint8_t configured = dronecanConfig()->magNodeID;
+    const uint8_t configured = configuredDronecanMagNode();
     return configured > 0 && configured <= 127 ? configured : 0;
 }
 
@@ -853,11 +861,11 @@ static bool validateConfig(const flightCommanderHeadingConfig_t *config)
         }
     }
     if (config->sources[FLIGHT_COMMANDER_HEADING_DRONECAN_MAG].enabled &&
-        dronecanConfig()->magNodeID == DRONECAN_NODE_ID_DISABLED) {
+        configuredDronecanMagNode() == DRONECAN_NODE_ID_DISABLED) {
         return false;
     }
     if (config->movingBaselineEnabled && config->movingBaselineProvider == FLIGHT_COMMANDER_BASELINE_DRONECAN &&
-        dronecanConfig()->movingRoverNodeID == DRONECAN_NODE_ID_DISABLED) {
+        configuredDronecanMovingRoverNode() == DRONECAN_NODE_ID_DISABLED) {
         return false;
     }
     return true;
@@ -1099,7 +1107,7 @@ void flightCommanderHeadingReceiveDronecanMag(
     const struct uavcan_equipment_ahrs_MagneticFieldStrength2 *message)
 {
     const flightCommanderHeadingConfig_t *config = flightCommanderHeadingConfig();
-    if (!selectedNode(dronecanConfig()->magNodeID, sourceNodeID)) {
+    if (!selectedNode(configuredDronecanMagNode(), sourceNodeID)) {
         return;
     }
     customMagCalibration_t *calibration =
@@ -1226,7 +1234,7 @@ void flightCommanderHeadingReceiveDronecanHeading(
     const struct ardupilot_gnss_Heading *message)
 {
     if (!baselineProviderEnabled(FLIGHT_COMMANDER_BASELINE_DRONECAN) ||
-        !selectedNode(dronecanConfig()->movingRoverNodeID, sourceNodeID) || !message->heading_valid) {
+        !selectedNode(configuredDronecanMovingRoverNode(), sourceNodeID) || !message->heading_valid) {
         return;
     }
     gpsDronecanNodeStatus_t roverStatus;
@@ -1243,7 +1251,7 @@ void flightCommanderHeadingReceiveDronecanRelPosHeading(
     const struct ardupilot_gnss_RelPosHeading *message)
 {
     if (!baselineProviderEnabled(FLIGHT_COMMANDER_BASELINE_DRONECAN) ||
-        !selectedNode(dronecanConfig()->movingRoverNodeID, sourceNodeID)) {
+        !selectedNode(configuredDronecanMovingRoverNode(), sourceNodeID)) {
         return;
     }
     gpsDronecanNodeStatus_t roverStatus;

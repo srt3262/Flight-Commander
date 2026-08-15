@@ -12,6 +12,7 @@ match the installed Flight Commander interface and its operational checks.
 | First use | [Getting started](GETTING_STARTED.md) | Installation, application options, first connection, backup, and initial bench setup |
 | Links | [Connection modes](CONNECTIONS.md) | MSP, MAVLink, USB radios, optional identity metadata, baud rates, and transport limitations |
 | Firmware | [Firmware flashing](FIRMWARE_FLASHING.md) | Online, bundled, and local firmware sources; target checks; DFU recovery |
+| H7 hardware | [H7 and newer targets](H7_TARGETS.md) | Official target inventory, feature tiers, release safeguards, and bench-testing boundary |
 | Cube hardware | [CubePilot Cube Orange+](CUBEORANGEPLUS.md) | Bootloader-safe flashing, ports, sensors, six AUX outputs, IOMCU limits, and bench acceptance |
 | Aircraft setup | [Configuration reference](CONFIGURATION_REFERENCE.md) | Every connected-aircraft configuration tab and save/reboot behavior |
 | Navigation | [GPS and RTK](GPS_AND_RTK.md) | UART F9 RTK rovers, DroneCAN GPS, primary receivers, corrections, and alignment |
