@@ -5,23 +5,63 @@ from __future__ import annotations
 
 import hashlib
 from pathlib import Path
+import re
 import sys
 
-EXPECTED_IDENTITY = b"FCFW" + bytes((1, 4, 3, 1, 9, 1, 0, 0xFF, 0xFF, 0x01, 0))
-TARGET_CONTRACTS = {
-    "MICOAIR743": {
-        "base": 0x08000000,
-        "bootloader_end": 0x08000000,
-    },
-    "CUBEORANGEPLUS": {
-        "base": 0x08020000,
-        "bootloader_end": 0x08020000,
-    },
-}
+ROOT = Path(__file__).resolve().parents[1]
+VERSION = "4.3.1"
+VERSION_PARTS = (4, 3, 1)
+INAV_VERSION_PARTS = (9, 1, 0)
+BASE_CAPABILITIES = 0x0000DECF
+FULL_DRONECAN_CAPABILITIES = 0x0001FFFF
+TARGET_MANIFEST = ROOT / "flight-commander" / "official-targets.txt"
 
 
 def fail(message: str) -> None:
     raise SystemExit(f"verification failed: {message}")
+
+
+def load_target_contracts() -> dict[str, dict[str, int]]:
+    contracts: dict[str, dict[str, int]] = {}
+    for line_number, raw_line in enumerate(
+        TARGET_MANIFEST.read_text(encoding="utf-8").splitlines(), 1
+    ):
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        fields = line.split("|")
+        if len(fields) != 3:
+            fail(f"target manifest line {line_number} is malformed")
+        target, mcu, dronecan_mode = fields
+        if target in contracts:
+            fail(f"target manifest contains duplicate target {target}")
+        if mcu not in {"STM32H743XI", "STM32H757XI"}:
+            fail(f"target manifest uses unsupported MCU {mcu} for {target}")
+        if dronecan_mode != "NONE" and dronecan_mode != "TARGET" and not re.fullmatch(
+            r"P[A-K][0-9]{1,2},P[A-K][0-9]{1,2}", dronecan_mode
+        ):
+            fail(f"target manifest has invalid DroneCAN mapping for {target}")
+        base = 0x08020000 if mcu == "STM32H757XI" else 0x08000000
+        contracts[target] = {
+            "base": base,
+            "bootloader_end": base,
+            "capabilities": (
+                BASE_CAPABILITIES
+                if dronecan_mode == "NONE"
+                else FULL_DRONECAN_CAPABILITIES
+            ),
+        }
+    if len(contracts) != 50:
+        fail(f"target manifest contains {len(contracts)} targets; expected 50")
+    return contracts
+
+
+def expected_identity(capabilities: int) -> bytes:
+    return (
+        b"FCFW"
+        + bytes((1, *VERSION_PARTS, *INAV_VERSION_PARTS))
+        + capabilities.to_bytes(4, "little")
+    )
 
 
 def parse_intel_hex(path: Path) -> tuple[dict[int, int], list[int]]:
@@ -113,14 +153,25 @@ def main() -> int:
 
     path = Path(sys.argv[1]).resolve()
     memory, start_addresses = parse_intel_hex(path)
-    if not contains(memory, EXPECTED_IDENTITY):
-        fail("HEX does not contain the Flight Commander 4.3.1 identity and 0x0001ffff capability mask")
+    filename = re.fullmatch(
+        rf"Flight-Commander-Firmware-{re.escape(VERSION)}-(.+)\.hex", path.name
+    )
+    if filename is None:
+        fail(f"HEX filename does not use the canonical {VERSION} release format")
+    target = filename.group(1)
+    target_contracts = load_target_contracts()
+    contract = target_contracts.get(target)
+    if contract is None:
+        fail(f"HEX filename identifies unknown official target {target}")
+    capabilities = contract["capabilities"]
+    if not contains(memory, expected_identity(capabilities)):
+        fail(
+            f"HEX does not contain the Flight Commander {VERSION} identity "
+            f"and 0x{capabilities:08x} capability mask"
+        )
+    if not contains(memory, target.encode("ascii") + b"\0"):
+        fail(f"HEX does not contain the exact {target} target identity")
 
-    matched_targets = [target for target in TARGET_CONTRACTS if contains(memory, target.encode())]
-    if len(matched_targets) != 1:
-        fail(f"HEX must contain exactly one official target identity; received {matched_targets}")
-    target = matched_targets[0]
-    contract = TARGET_CONTRACTS[target]
     base = contract["base"]
     if min(memory) != base:
         fail(f"{target} image begins at 0x{min(memory):08x}; expected 0x{base:08x}")
@@ -137,7 +188,7 @@ def main() -> int:
         fail(f"{target} vector table has invalid reset handler 0x{reset_handler:08x}")
 
     digest = hashlib.sha256(path.read_bytes()).hexdigest()
-    print(f"Verified Flight Commander 4.3.1 {target} HEX: {path}")
+    print(f"Verified Flight Commander {VERSION} {target} HEX: {path}")
     print(f"SHA-256: {digest}")
     return 0
 

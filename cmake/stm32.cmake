@@ -350,7 +350,7 @@ function(target_stm32)
         list(APPEND target_definitions DEBUG_HARDFAULTS)
     endif()
 
-    if (name STREQUAL "MICOAIR743" OR name STREQUAL "CUBEORANGEPLUS")
+    if (name IN_LIST FLIGHT_COMMANDER_OFFICIAL_TARGETS)
         set(binary_name Flight-Commander-Firmware-${FLIGHT_COMMANDER_FIRMWARE_VERSION}-${name})
     else()
         string(TOLOWER ${PROJECT_NAME} lowercase_project_name)

@@ -54,6 +54,11 @@ string(SUBSTRING ${GIT_SHA1} 0 8 GIT_REV)
 include(main)
 include(settings)
 
+# Load the canonical official target inventory before STM32 targets are
+# declared so target names, output filenames, and feature wiring share one
+# source of truth.
+include(flight-commander-targets)
+
 if(TOOLCHAIN STREQUAL none)
     add_subdirectory(src/test)
 else()
@@ -126,10 +131,12 @@ include(sitl)
 
 add_subdirectory(src)
 
-# Target-scoped Flight Commander integrations are added after the firmware
-# targets are declared. Both official hardware targets receive the same
-# navigation, RTK, DroneCAN, and Ground Control feature set.
+# Keep the original MICOAIR743 and CUBEORANGEPLUS integration path intact, then
+# add the shared integration to every newly supported target. Hardware-
+# dependent DroneCAN support is enabled only for targets with an official CAN
+# mapping in the canonical inventory.
 include(flight-commander-micoair743)
+configure_flight_commander_targets()
 
 collect_targets()
 

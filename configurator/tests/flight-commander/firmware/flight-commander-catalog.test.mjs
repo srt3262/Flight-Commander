@@ -1,9 +1,13 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 import { describe, test } from "node:test";
+import { fileURLToPath } from "node:url";
 
 import {
   FLIGHT_COMMANDER_FIRMWARE_RELEASES_URL,
+  FLIGHT_COMMANDER_FIRMWARE_TARGETS,
   FLIGHT_COMMANDER_KNOWN_GOOD_FIRMWARE_VERSIONS,
   FLIGHT_COMMANDER_MINIMUM_SUPPORTED_FIRMWARE_VERSION,
   catalogByTarget,
@@ -16,6 +20,15 @@ import {
   parsedHexContainsFlightCommanderIdentity,
   verifyFlightCommanderOnlinePayload,
 } from "../../../js/flightCommander/firmwareCatalog.js";
+
+const testDirectory = dirname(fileURLToPath(import.meta.url));
+const officialTargets = readFileSync(
+  resolve(testDirectory, "../../../../flight-commander/official-targets.txt"),
+  "utf8",
+)
+  .split(/\r?\n/)
+  .filter((line) => line && !line.startsWith("#"))
+  .map((line) => line.split("|", 1)[0]);
 
 function asset(version, marker, suffix = "", target = "MICOAIR743") {
   return {
@@ -71,6 +84,12 @@ describe("Flight Commander firmware catalog", () => {
     assert.equal(isSupportedFlightCommanderFirmwareVersion("4.0.8"), true);
     assert.equal(normalizeFirmwareTarget("MICROAIR743"), "MICOAIR743");
     assert.equal(normalizeFirmwareTarget("CubeOrange+"), "CUBEORANGEPLUS");
+    assert.equal(normalizeFirmwareTarget("aeth743basic"), "AETH743Basic");
+    assert.equal(FLIGHT_COMMANDER_FIRMWARE_TARGETS.length, 50);
+    assert.deepEqual(
+      FLIGHT_COMMANDER_FIRMWARE_TARGETS.map(({ id }) => id),
+      officialTargets,
+    );
   });
 
   test("parses canonical release filenames", () => {
@@ -91,6 +110,18 @@ describe("Flight Commander firmware catalog", () => {
         "Flight-Commander-Firmware-4.1.8-CUBEORANGEPLUS.hex",
       ).target_id,
       "CUBEORANGEPLUS",
+    );
+    assert.equal(
+      parseFlightCommanderFirmwareFilename(
+        "Flight-Commander-Firmware-4.3.1-AETH743Basic.hex",
+      ).target_id,
+      "AETH743Basic",
+    );
+    assert.equal(
+      parseFlightCommanderFirmwareFilename(
+        "Flight-Commander-Firmware-4.3.1-MICOAIR743_EXTMAG.hex",
+      ).target_id,
+      "MICOAIR743_EXTMAG",
     );
     assert.equal(parseFlightCommanderFirmwareFilename("arducopter.apj"), null);
   });
@@ -139,7 +170,7 @@ describe("Flight Commander firmware catalog", () => {
   test("keeps identity and target helpers for verified online assets", () => {
     const parsed = parsedFirmwareBytes(
       [0x46, 0x43, 0x46, 0x57],
-      "MICOAIR743",
+      "MICOAIR743\0",
     );
     assert.equal(parsedHexContainsFlightCommanderIdentity(parsed), true);
     assert.equal(inferFlightCommanderFirmwareTarget(parsed), "MICOAIR743");
@@ -153,12 +184,21 @@ describe("Flight Commander firmware catalog", () => {
 
     const cube = parsedFirmwareBytes(
       [0x46, 0x43, 0x46, 0x57],
-      "CUBEORANGEPLUS",
+      "CUBEORANGEPLUS\0",
     );
     assert.equal(inferFlightCommanderFirmwareTarget(cube), "CUBEORANGEPLUS");
     assert.equal(
       localFlightCommanderFirmwareDescriptor(cube).target_id,
       "CUBEORANGEPLUS",
+    );
+
+    const externalMag = parsedFirmwareBytes(
+      [0x46, 0x43, 0x46, 0x57],
+      "MICOAIR743_EXTMAG\0",
+    );
+    assert.equal(
+      inferFlightCommanderFirmwareTarget(externalMag),
+      "MICOAIR743_EXTMAG",
     );
   });
 });
