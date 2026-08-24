@@ -202,7 +202,13 @@ const linuxDesktop = readFileSync(
   resolve(projectRoot, "assets/linux/flight-commander.desktop"),
   "utf8",
 );
-const firmwareTargets = ["MICOAIR743", "CUBEORANGEPLUS"];
+const firmwareTargets = readFileSync(
+  resolve(projectRoot, "../flight-commander/official-targets.txt"),
+  "utf8",
+)
+  .split(/\r?\n/)
+  .filter((line) => line && !line.startsWith("#"))
+  .map((line) => line.split("|", 1)[0]);
 const firmwareReleasePaths = Object.fromEntries(
   firmwareTargets.map((target) => [
     target,
@@ -461,7 +467,7 @@ test("documentation and support stay on Flight Commander-owned resources", () =>
       ])
       .map((match) => match[1]),
   );
-  assert.equal(graphicalSettingNames.size, 246);
+  assert.equal(graphicalSettingNames.size, 248);
   for (const settingName of graphicalSettingNames) {
     const anchor = settingName.toLowerCase().replace(/[^a-z0-9_-]+/g, "-");
     assert.match(settingsReference, new RegExp(`<a id=["']${anchor}["']></a>`));
@@ -603,13 +609,14 @@ test("application remains dark-only", () => {
 });
 
 test("firmware is release-only and the flasher exposes local, online, then flash", () => {
-  assert.equal(packageManifest.flightCommander.firmwareReleaseVersion, "4.3.1");
+  assert.equal(firmwareTargets.length, 50);
+  assert.equal(packageManifest.flightCommander.firmwareReleaseVersion, "4.3.2");
   assert.equal(packageManifest.flightCommander.firmwareChangedInRelease, true);
   assert.equal(packageManifest.flightCommander.firmwareSourceAvailable, true);
-  assert.equal(packageManifest.flightCommander.firmwareSourceVersion, "4.3.1");
+  assert.equal(packageManifest.flightCommander.firmwareSourceVersion, "4.3.2");
   assert.equal(
     packageManifest.flightCommander.firmwareSourceArchive,
-    "FC-Firmware-Source-v4.3.1.zip",
+    "FC-Firmware-Source-v4.3.2.zip",
   );
   const releaseFirmwarePresence = firmwareTargets.map((target) =>
     existsSync(firmwareReleasePaths[target]));
@@ -718,7 +725,7 @@ test("all requested large-prop INAV presets are wired into the release source", 
 });
 
 test("landing page describes Flight Commander capabilities without retirement copy", () => {
-  assert.equal(packageManifest.version, "4.3.1");
+  assert.equal(packageManifest.version, "4.3.2");
   assert.equal(manifest.version, packageManifest.version);
   assert.match(landingHtml, /Flight Commander capabilities/);
   assert.match(landingHtml, /same-session mission resume/);
@@ -736,34 +743,41 @@ test("guarded official publication uses the verified release workflow", () => {
   assert.doesNotMatch(releaseOrchestrator, /--prerelease/);
 });
 
-test("release policy rebuilds both coordinated Firmware 4.3.1 targets", () => {
+test("release policy rebuilds all 50 coordinated Firmware 4.3.2 targets", () => {
   assert.equal(packageManifest.flightCommander.firmwareChangedInRelease, true);
-  assert.equal(packageManifest.flightCommander.firmwareReleaseVersion, "4.3.1");
-  assert.equal(packageManifest.flightCommander.firmwareSourceVersion, "4.3.1");
+  assert.equal(packageManifest.flightCommander.firmwareReleaseVersion, "4.3.2");
+  assert.equal(packageManifest.flightCommander.firmwareSourceVersion, "4.3.2");
+  assert.deepEqual(
+    Object.keys(packageManifest.flightCommander.firmwareReleaseArtifacts),
+    firmwareTargets,
+  );
   assert.match(releaseWorkflow, /branches:/);
   assert.match(releaseWorkflow, /- master/);
-  assert.match(releaseWorkflow, /Build verified Firmware 4\.3\.1/);
+  assert.match(releaseWorkflow, /Build verified Firmware 4\.3\.2 for all 50 targets/);
   assert.match(releaseWorkflow, /flight-commander\/package-release\.py/);
   assert.match(releaseWorkflow, /flight-commander\/install-toolchain\.sh/);
   assert.doesNotMatch(releaseWorkflow, /gh release download/);
 });
 
-test("official release publishes one complete bundle plus both online-flasher HEX files", () => {
+test("official release publishes one complete bundle plus all 50 online-flasher HEX files", () => {
   for (const filename of [
-    "Flight-Commander-v4.3.1.zip",
-    "FC-Windows-v4.3.1.zip",
-    "FC-Configurator-Source-v4.3.1.zip",
-    "FC-Firmware-v4.3.1-MICOAIR743.hex",
-    "FC-Firmware-v4.3.1-CUBEORANGEPLUS.hex",
-    "FC-Firmware-Source-v4.3.1.zip",
-    "Flight-Commander-Firmware-4.3.1-MICOAIR743.hex",
-    "Flight-Commander-Firmware-4.3.1-CUBEORANGEPLUS.hex",
+    "Flight-Commander-v4.3.2.zip",
+    "FC-Windows-v4.3.2.zip",
+    "FC-Configurator-Source-v4.3.2.zip",
+    "FC-Firmware-Source-v4.3.2.zip",
   ]) {
     assert.match(releaseWorkflow, new RegExp(filename.replaceAll(".", "\\.")));
   }
-  assert.match(releaseWorkflow, /exactly the five canonical files/);
-  assert.match(releaseWorkflow, /exactly the three public assets/);
+  assert.match(releaseWorkflow, /official-targets\.txt/);
+  assert.match(releaseWorkflow, /FC-Firmware-v4\.3\.2-\$target\.hex/);
+  assert.match(releaseWorkflow, /Flight-Commander-Firmware-4\.3\.2-\$target\.hex/);
+  assert.match(releaseWorkflow, /len\(expected\) == 53/);
+  assert.match(releaseWorkflow, /len\(expected\) == len\(live\) == 51/);
   assert.match(releaseWorkflow, /gh release create/);
+  assert.match(releaseWorkflow, /--draft/);
+  assert.match(releaseWorkflow, /--method PATCH/);
+  assert.match(releaseWorkflow, /-F draft=false/);
+  assert.match(releaseWorkflow, /-f make_latest=true/);
   assert.doesNotMatch(releaseWorkflow, /--prerelease/);
 });
 

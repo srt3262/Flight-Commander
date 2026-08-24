@@ -1659,6 +1659,11 @@ var mspHelper = (function () {
                     FC.SENSOR_DATA.temperature[i] = temp_decidegrees / 10; // °C
                 }
                 break;
+            // Outputs decodes these payloads in its polling callback so it can
+            // display per-motor status without mutating global FC state.
+            case MSPCodes.MSP2_INAV_ESC_RPM:
+            case MSPCodes.MSP2_INAV_ESC_TELEM:
+                break;
             case MSPCodes.MSP2_INAV_SAFEHOME:
                 var safeHome = new Safehome(
                     data.getUint8(0),

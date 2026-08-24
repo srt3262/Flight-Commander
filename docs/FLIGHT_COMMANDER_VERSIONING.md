@@ -11,21 +11,21 @@ the embedded `FCFW` version and capabilities, and records the resulting HEX
 hash, source archive hash, source revision, and source tree in
 `configurator/package.json` and `RELEASE-MANIFEST.json`.
 
-Every release is delivered as `Flight-Commander-vX.Y.Z.zip` containing exactly:
+Every 50-target release is delivered as `Flight-Commander-vX.Y.Z.zip`
+containing exactly 53 files:
 
 - `FC-Windows-vX.Y.Z.zip`
 - `FC-Configurator-Source-vX.Y.Z.zip`
-- `FC-Firmware-vX.Y.Z-MICOAIR743.hex`
-- `FC-Firmware-vX.Y.Z-CUBEORANGEPLUS.hex`
+- one `FC-Firmware-vX.Y.Z-TARGET.hex` for each of the 50 official targets
 - `FC-Firmware-Source-vX.Y.Z.zip`
 
-The same two verified firmware HEX files are also published under their
+The same 50 verified firmware HEX files are also published under their
 canonical long filenames for the Configurator's online flasher. The GitHub
-release therefore has exactly three public assets: the complete five-file
-bundle and both standalone HEX files. Publication fails on a version, source
-identity, checksum, filename, or asset-count mismatch.
+release therefore has exactly 51 public assets: the complete bundle and 50
+standalone HEX files. Publication fails on a version, source identity,
+checksum, filename, target inventory, or asset-count mismatch.
 
-For 4.3.1, both Configurator and Firmware are 4.3.1 and
-`firmwareChangedInRelease` is `true`. The coordinated release rebuilds both
-MICOAIR743 and CUBEORANGEPLUS images with the same embedded version and records
-an independent filename and SHA-256 for each target.
+For 4.3.2, both Configurator and Firmware are 4.3.2 and
+`firmwareChangedInRelease` is `true`. The coordinated release rebuilds all 50
+images with the same embedded version and records an independent filename,
+size, and SHA-256 for each target.

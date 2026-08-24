@@ -23,7 +23,7 @@ interface. Use `diff all` for a reviewable backup before changing values.
 See the [CLI command reference](CLI.md) for command safety and restore steps, and
 the [configuration reference](CONFIGURATION_REFERENCE.md) for page workflows.
 
-## Graphical setting index (246)
+## Graphical setting index (248)
 
 <a id="acc_hardware"></a>
 ### `acc_hardware`
@@ -109,6 +109,16 @@ Configurator page: OSD.
 ### `dji_use_name_for_messages`
 
 Configurator page: OSD.
+
+<a id="dshot_bidir_enabled"></a>
+### `dshot_bidir_enabled`
+
+Configurator page: Outputs.
+
+<a id="dshot_edt_enabled"></a>
+### `dshot_edt_enabled`
+
+Configurator page: Outputs.
 
 <a id="dterm_lpf_hz"></a>
 ### `dterm_lpf_hz`

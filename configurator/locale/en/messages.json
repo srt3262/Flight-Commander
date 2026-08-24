@@ -1714,7 +1714,10 @@
         "message": "Gyro RPM filters"
     },
     "pidTuning_rpm_gyro_filter_enabled": {
-        "message": "Gyro RPM filter (requires ESC telemetry)"
+        "message": "Gyro RPM filter (requires valid motor RPM telemetry)"
+    },
+    "pidTuning_rpm_gyro_filter_enabled_help": {
+        "message": "Requires valid mechanical RPM feedback from bidirectional DShot or a separate ESC telemetry connection. On Outputs, set the exact motor pole count and confirm live RPM for every motor before enabling this filter. Save and reboot after changing the telemetry setup."
     },
     "pidTuning_rpm_gyro_min_hz": {
         "message": "Gyro RPM filter min. frequency"
@@ -2876,6 +2879,81 @@
     },
     "escProtocolHelp": {
         "message": "ESC has to support chosen protocol. Change only if you know that ESC supports it!"
+    },
+    "dshotBidirectional": {
+        "message": "Bidirectional DShot telemetry"
+    },
+    "dshotBidirectionalHelp": {
+        "message": "Returns eRPM over each DShot motor wire and enables RPM filtering without a separate ESC telemetry UART. Requires a compatible ESC, DSHOT150, DSHOT300, or DSHOT600, and a save and reboot."
+    },
+    "dshotExtendedTelemetry": {
+        "message": "Extended DShot telemetry (EDT)"
+    },
+    "dshotExtendedTelemetryHelp": {
+        "message": "Optionally decodes temperature, voltage, and current from EDT-compatible ESC firmware. It requires bidirectional DShot but is not required for eRPM or the gyro RPM filter."
+    },
+    "dshotStatusReading": {
+        "message": "Reading bidirectional DShot support from the flight controller…"
+    },
+    "dshotStatusUnsupported": {
+        "message": "This firmware does not expose bidirectional DShot settings. Flash a supported Flight Commander firmware build to use this feature."
+    },
+    "dshotStatusProtocolRequired": {
+        "message": "Bidirectional telemetry requires DSHOT150, DSHOT300, or DSHOT600. The telemetry options will remain off for analog motor protocols."
+    },
+    "dshotStatusDisabled": {
+        "message": "Bidirectional DShot is off. Enable it to receive motor RPM on the DShot signal wires."
+    },
+    "dshotStatusInvalidMotorPoles": {
+        "message": "Enter a whole motor pole count from 4 through 255. An incorrect pole count produces incorrect RPM and RPM-filter frequencies."
+    },
+    "dshotStatusRebootRequired": {
+        "message": "Save and reboot to apply these DShot telemetry changes. Live values remain unavailable until the new configuration is running."
+    },
+    "dshotStatusReady": {
+        "message": "Bidirectional DShot is configured. Verify live RPM from every motor below before enabling the gyro RPM filter."
+    },
+    "dshotTelemetryTitle": {
+        "message": "Live DShot motor telemetry"
+    },
+    "dshotTelemetryMotor": {
+        "message": "Motor"
+    },
+    "dshotTelemetryStatus": {
+        "message": "Telemetry"
+    },
+    "dshotTelemetryRpm": {
+        "message": "RPM"
+    },
+    "dshotTelemetryTemperature": {
+        "message": "Temperature"
+    },
+    "dshotTelemetryVoltage": {
+        "message": "Voltage"
+    },
+    "dshotTelemetryCurrent": {
+        "message": "Current"
+    },
+    "dshotTelemetryLive": {
+        "message": "Live"
+    },
+    "dshotTelemetryNoSignal": {
+        "message": "No live data"
+    },
+    "dshotTelemetryWaiting": {
+        "message": "Waiting for motor telemetry…"
+    },
+    "dshotTelemetryReceiving": {
+        "message": "Receiving live telemetry from {{count}} of {{total}} motors."
+    },
+    "dshotTelemetryNoData": {
+        "message": "No live eRPM is being reported. This is normal while motors are stopped or disarmed; verify every motor during a safe bench test."
+    },
+    "dshotTelemetryUnavailable": {
+        "message": "The flight controller did not return motor telemetry. Check the running firmware, connection, and DShot configuration."
+    },
+    "dshotTelemetryRebootRequired": {
+        "message": "Live telemetry will start after these settings are saved and the flight controller reboots."
     },
     "escRefreshRatelHelp": {
         "message": "ESC has to support refresh rate. Change only if you know that ESC supports it!"
@@ -5635,7 +5713,10 @@
         "message": "For analog protocols, IDLE can be lowered below 10% if motors are working smooth without stuttering. If a drone wobbles after pulling throttle low, try increasing IDLE to tune this behavior out."
     },
     "motor_poles": {
-        "message": "Number of motor poles (number of magnets)"
+        "message": "Motor pole count (number of magnets)"
+    },
+    "motor_poles_help": {
+        "message": "Set the exact rotor magnet count used by every motor. Flight Commander uses it to convert electrical RPM to mechanical RPM; a wrong value shifts RPM-filter frequencies and makes the displayed RPM incorrect."
     },
     "motorStopWarning": {
         "message": "Should be enabled on Airplanes, Rovers and Boats. Should not be enabled on Multirotors! On Multirotors, when Airmode is active, motors will not stop."

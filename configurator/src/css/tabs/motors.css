@@ -327,6 +327,25 @@
     text-align: left;
 }
 
+.tab-motors .dshot-telemetry-panel {
+    margin-top: 1em;
+    overflow-x: auto;
+}
+
+.tab-motors .dshot-telemetry-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-variant-numeric: tabular-nums;
+}
+
+.tab-motors .dshot-telemetry-table th,
+.tab-motors .dshot-telemetry-table td {
+    padding: 6px 8px;
+    border-bottom: 1px solid rgba(128, 128, 128, 0.35);
+    text-align: left;
+    white-space: nowrap;
+}
+
 .tab-servos .title {
     margin-top: 0;
     line-height: 30px;

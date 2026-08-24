@@ -21,7 +21,7 @@ test("current firmware source includes the non-redundant DroneCAN allocator", ()
 
 test("release packaging validates source identity before compilation", () => {
   const packager = source("flight-commander/package-release.py");
-  const validator = packager.indexOf("validate_manifest(manifest, revision, tree)");
+  const validator = packager.indexOf("version, source_date_epoch = validate_manifest(");
   const compiler = packager.indexOf("subprocess.run(", validator);
   assert.ok(validator >= 0, "source and manifest validation is missing");
   assert.ok(compiler > validator, "firmware must validate its source contract before compilation");
@@ -29,15 +29,13 @@ test("release packaging validates source identity before compilation", () => {
 
 test("permanent CI builds firmware directly from the repository source tree", () => {
   const workflow = source(".github/workflows/ci.yml");
-  const packager = source("flight-commander/package-h7-targets.py");
+  const packager = source("flight-commander/package-release.py");
   assert.match(workflow, /Build and package firmware from the repository source tree/);
-  assert.match(workflow, /python3 flight-commander\/package-h7-targets\.py/);
-  assert.match(workflow, /legacy-regression-build/);
-  assert.match(
-    packager,
-    /configure_and_build\(\s*build_dir,\s*list\(LEGACY_TARGETS\)/,
-  );
-  assert.match(packager, /for target in LEGACY_TARGETS/);
+  assert.match(workflow, /python3 flight-commander\/package-release\.py/);
+  assert.match(packager, /read_target_records\(\)/);
+  assert.match(packager, /EXPECTED_TARGET_COUNT = 50/);
+  assert.doesNotMatch(packager, /LEGACY_TARGETS|additive_records/);
+  assert.doesNotMatch(workflow, /legacy-regression-build/);
   assert.match(workflow, /working-directory: configurator/);
   assert.match(workflow, /run: yarn test/);
   assert.doesNotMatch(workflow, /source ZIP|rebuild-firmware-source-archive/);

@@ -1,11 +1,11 @@
 # Flight Commander
 
-Flight Commander is an integrated autopilot project for the MICOAIR743 and
-CubePilot Cube Orange+ targets. The official 4.3.1 release pairs **Flight
-Commander Firmware 4.3.1** with **Flight Commander Configurator 4.3.1**.
-This release corrects feature and GPS layouts, reports live bench-relative
-barometer altitude, and makes the supported Blackbox storage explicit for both
-official targets.
+Flight Commander is an integrated autopilot project for 50 official STM32H743
+and STM32H757 targets. The official 4.3.2 release pairs **Flight Commander
+Firmware 4.3.2** with **Flight Commander Configurator 4.3.2**. It adds guarded
+bidirectional DShot eRPM and optional extended telemetry, live per-motor RPM
+verification, and one coordinated build and publication path for every
+supported target.
 
 ## Repository layout
 
@@ -40,7 +40,7 @@ yarn test
 See the [documentation hub](docs/README.md), the
 [firmware flashing guide](docs/FIRMWARE_FLASHING.md), and the
 [Cube Orange+ target guide](docs/CUBEORANGEPLUS.md), and the
-[4.3.1 release notes](docs/releases/v4.3.1.md).
+[4.3.2 release notes](docs/releases/v4.3.2.md).
 
 ## Upstream and licensing
 

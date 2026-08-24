@@ -96,7 +96,7 @@ set(FIRMWARE_VERSION ${PROJECT_VERSION})
 # Flight Commander release identity is independent from the inherited INAV
 # protocol compatibility version declared by project().
 if(NOT DEFINED FLIGHT_COMMANDER_FIRMWARE_VERSION)
-    set(FLIGHT_COMMANDER_FIRMWARE_VERSION 4.3.1)
+    set(FLIGHT_COMMANDER_FIRMWARE_VERSION 4.3.2)
 endif()
 if(NOT "${FLIGHT_COMMANDER_FIRMWARE_VERSION}" MATCHES "^[0-9]+\\.[0-9]+\\.[0-9]+$")
     message(FATAL_ERROR "FLIGHT_COMMANDER_FIRMWARE_VERSION must use major.minor.patch format")
