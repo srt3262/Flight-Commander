@@ -11,9 +11,16 @@ import {
 } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import {
+  FLIGHT_COMMANDER_FIRMWARE_TARGETS,
+} from "../js/flightCommander/firmwareCatalog.js";
+
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const sourcePackage = JSON.parse(
   readFileSync(join(projectRoot, "package.json"), "utf8"),
+);
+const officialFirmwareTargets = FLIGHT_COMMANDER_FIRMWARE_TARGETS.map(
+  ({ id }) => id,
 );
 
 function fail(message) {
@@ -473,25 +480,25 @@ if (packageManifest.version !== sourcePackage.version) {
 if (packageManifest.main !== ".vite/build/main.js") {
   fail(`packaged main entry is ${packageManifest.main}`);
 }
-if (sourcePackage.version !== "4.3.1") {
-  fail(`source version is ${sourcePackage.version}; expected 4.3.1`);
+if (sourcePackage.version !== "4.3.2") {
+  fail(`source version is ${sourcePackage.version}; expected 4.3.2`);
 }
-if (sourcePackage.flightCommander?.firmwareReleaseVersion !== "4.3.1") {
+if (sourcePackage.flightCommander?.firmwareReleaseVersion !== "4.3.2") {
   fail(
-    `published firmware version is ${sourcePackage.flightCommander?.firmwareReleaseVersion}; expected 4.3.1`,
+    `published firmware version is ${sourcePackage.flightCommander?.firmwareReleaseVersion}; expected 4.3.2`,
   );
 }
 if (
   JSON.stringify(Object.keys(sourcePackage.flightCommander?.firmwareReleaseArtifacts ?? {})) !==
-  JSON.stringify(["MICOAIR743", "CUBEORANGEPLUS"])
+  JSON.stringify(officialFirmwareTargets)
 ) {
-  fail("Flight Commander 4.3.1 must declare both official firmware targets");
+  fail("Flight Commander 4.3.2 must declare all 50 official firmware targets");
 }
 if (sourcePackage.flightCommander?.firmwareChangedInRelease !== true) {
-  fail("Flight Commander 4.3.1 must declare both rebuilt Firmware 4.3.1 targets");
+  fail("Flight Commander 4.3.2 must declare all rebuilt Firmware 4.3.2 targets");
 }
-if (sourcePackage.flightCommander?.firmwareSourceVersion !== "4.3.1") {
-  fail("Flight Commander 4.3.1 must include the Firmware 4.3.1 source archive");
+if (sourcePackage.flightCommander?.firmwareSourceVersion !== "4.3.2") {
+  fail("Flight Commander 4.3.2 must include the Firmware 4.3.2 source archive");
 }
 if (!sourcePackage.description.includes("flight controller")) {
   fail(`package description is ${sourcePackage.description}`);

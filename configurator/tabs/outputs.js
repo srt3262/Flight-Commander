@@ -14,6 +14,14 @@ import { mixer, PLATFORM } from './../js/model';
 import timeout from './../js/timeouts';
 import interval from './../js/intervals';
 import { motorPreviewAssetStem, renderMotorNumberLabels } from './../js/motorPreview';
+import {
+    DSHOT_CONFIGURATION_STATUS,
+    decodeEscRpmPayload,
+    decodeEscTelemetryPayload,
+    getDshotConfigurationState,
+    isDshotProtocol,
+    normalizeDshotDependencies,
+} from './../js/flightCommander/dshotConfiguration';
 
 const outputsTab = {
     allowTestMode: false,
@@ -28,6 +36,7 @@ outputsTab.initialize = function (callback) {
     self.allowTestMode = true;
 
     var $motorsEnableTestMode;
+    let prepareDshotConfigurationForSave = function () { return true; };
 
     if (GUI.active_tab !== this) {
         GUI.active_tab = this;
@@ -80,13 +89,13 @@ outputsTab.initialize = function (callback) {
         Settings.saveInputs(onComplete);
     }
 
-    function onLoad() {
+    function onLoad(settingsPromise) {
 
         self.feature3DEnabled = BitHelper.bit_check(FC.FEATURES, 12);
 
         process_motors();
         process_servos();
-        processConfiguration();
+        processConfiguration(settingsPromise);
 
         finalize();
     }
@@ -103,7 +112,7 @@ outputsTab.initialize = function (callback) {
         }
     }
 
-    function processConfiguration() {
+    function processConfiguration(settingsPromise) {
         let escProtocols = FC.getEscProtocols(),
             servoRates = FC.getServoRates(),
             $idlePercent = $('#throttle_idle'),
@@ -113,7 +122,7 @@ outputsTab.initialize = function (callback) {
 
         function handleIdleMessageBox() {
             $idleInfoBox.hide();
-            if (FC.ADVANCED_CONFIG.motorPwmProtocol >= 5) {
+            if (isDshotProtocol(FC.ADVANCED_CONFIG.motorPwmProtocol)) {
                 $('.hide-for-shot').hide();
                 if ($idlePercent.val() > 7.0) {
                     $idleInfoBox.html(i18n.getMessage('throttleIdleDigitalInfo'));
@@ -131,6 +140,7 @@ outputsTab.initialize = function (callback) {
         }
 
         let $escProtocol = $('#esc-protocol');
+        let updateDshotConfigurationUi = function () {};
         
         for (let i in escProtocols) {
             if (escProtocols.hasOwnProperty(i)) {
@@ -142,7 +152,9 @@ outputsTab.initialize = function (callback) {
         $escProtocol.val(FC.ADVANCED_CONFIG.motorPwmProtocol);
 
         $escProtocol.on('change', function () {
-            FC.ADVANCED_CONFIG.motorPwmProtocol = $(this).val();
+            FC.ADVANCED_CONFIG.motorPwmProtocol = Number($(this).val());
+            handleIdleMessageBox();
+            updateDshotConfigurationUi(true);
         });
 
         $idlePercent.on('change', handleIdleMessageBox);
@@ -205,6 +217,296 @@ outputsTab.initialize = function (callback) {
         $('#3ddeadbandlow').val(FC.REVERSIBLE_MOTORS.deadband_low);
         $('#3ddeadbandhigh').val(FC.REVERSIBLE_MOTORS.deadband_high);
         $('#3dneutral').val(FC.REVERSIBLE_MOTORS.neutral);
+
+        const $dshotStatus = $('#dshot-configuration-status');
+        $dshotStatus.text(i18n.getMessage('dshotStatusReading'));
+
+        Promise.resolve(settingsPromise).then(function () {
+            const $bidirectional = $('#dshot-bidirectional');
+            const $extendedTelemetry = $('#dshot-extended-telemetry');
+            const $motorPoles = $('#motor_poles');
+            const $telemetryPanel = $('#dshot-telemetry-panel');
+            const $telemetrySummary = $('#dshot-telemetry-summary');
+            const $telemetryMotors = $('#dshot-telemetry-motors');
+            const $extendedTelemetryValues = $('.dshot-edt-value');
+            const bidirectionalSupported = $bidirectional.length > 0;
+            const extendedTelemetrySupported = $extendedTelemetry.length > 0;
+            let telemetryPolling = false;
+            let telemetryPollInFlight = false;
+
+            function readConfiguration() {
+                return {
+                    protocol: Number($escProtocol.val()),
+                    bidirectionalSupported,
+                    bidirectionalEnabled: bidirectionalSupported && $bidirectional.is(':checked'),
+                    extendedTelemetrySupported,
+                    extendedTelemetryEnabled: extendedTelemetrySupported && $extendedTelemetry.is(':checked'),
+                    motorPoles: $motorPoles.length ? $motorPoles.val() : null,
+                };
+            }
+
+            const initialConfiguration = readConfiguration();
+            const runtimeState = getDshotConfigurationState(initialConfiguration);
+
+            function configurationsDiffer(left, right) {
+                return Number(left.protocol) !== Number(right.protocol)
+                    || Boolean(left.bidirectionalEnabled) !== Boolean(right.bidirectionalEnabled)
+                    || Boolean(left.extendedTelemetryEnabled) !== Boolean(right.extendedTelemetryEnabled)
+                    || Number(left.motorPoles) !== Number(right.motorPoles);
+            }
+
+            function setStatus(messageKey, className) {
+                $dshotStatus
+                    .removeClass('info-box warning-box ok-box')
+                    .addClass(className)
+                    .text(i18n.getMessage(messageKey));
+            }
+
+            function stopTelemetryPolling() {
+                interval.remove('dshot_telemetry_pull');
+                telemetryPolling = false;
+                telemetryPollInFlight = false;
+            }
+
+            function configuredMotorCount() {
+                const count = Number(FC.MOTOR_RULES.getNumberOfConfiguredMotors());
+                return Number.isInteger(count) && count > 0 ? count : null;
+            }
+
+            function renderMotorTelemetry(rpmMotors, telemetryMotors, unavailable) {
+                if (!telemetryPolling) {
+                    return;
+                }
+
+                const rpmByIndex = new Map((rpmMotors || []).map((motor) => [motor.index, motor]));
+                const telemetryByIndex = new Map((telemetryMotors || []).map((motor) => [motor.index, motor]));
+                const count = Math.max(
+                    configuredMotorCount() || 0,
+                    rpmMotors?.length || 0,
+                    telemetryMotors?.length || 0,
+                );
+                let liveCount = 0;
+
+                $telemetryMotors.empty();
+                for (let index = 0; index < count; index++) {
+                    const rpmMotor = rpmByIndex.get(index);
+                    const telemetryMotor = telemetryByIndex.get(index);
+                    const rpm = rpmMotor?.rpm ?? telemetryMotor?.rpm ?? 0;
+                    const live = rpm > 0 || Boolean(telemetryMotor?.valid);
+                    if (live) {
+                        liveCount++;
+                    }
+
+                    const $row = $('<tr>');
+                    $('<td>').text(index + 1).appendTo($row);
+                    $('<td>').text(i18n.getMessage(live
+                        ? 'dshotTelemetryLive'
+                        : 'dshotTelemetryNoSignal')).appendTo($row);
+                    $('<td>').text(Number(rpm).toLocaleString()).appendTo($row);
+
+                    const extendedValuesAvailable = telemetryMotor?.valid
+                        && (telemetryMotor.temperature !== 0
+                            || telemetryMotor.voltage !== 0
+                            || telemetryMotor.current !== 0);
+                    $('<td>').addClass('dshot-edt-value').text(
+                        extendedValuesAvailable ? `${telemetryMotor.temperature} °C` : '—',
+                    ).appendTo($row);
+                    $('<td>').addClass('dshot-edt-value').text(
+                        extendedValuesAvailable && telemetryMotor.voltage > 0
+                            ? `${(telemetryMotor.voltage / 100).toFixed(2)} V`
+                            : '—',
+                    ).appendTo($row);
+                    $('<td>').addClass('dshot-edt-value').text(
+                        extendedValuesAvailable && telemetryMotor.current >= 0
+                            ? `${(telemetryMotor.current / 100).toFixed(2)} A`
+                            : '—',
+                    ).appendTo($row);
+                    $row.appendTo($telemetryMotors);
+                }
+
+                const showExtendedValues = readConfiguration().extendedTelemetryEnabled;
+                $('.dshot-edt-value').toggleClass('is-hidden', !showExtendedValues);
+
+                if (unavailable) {
+                    $telemetrySummary.text(i18n.getMessage('dshotTelemetryUnavailable'));
+                } else if (liveCount > 0) {
+                    $telemetrySummary.text(i18n.getMessage('dshotTelemetryReceiving', {
+                        count: liveCount,
+                        total: count,
+                    }));
+                } else {
+                    $telemetrySummary.text(i18n.getMessage('dshotTelemetryNoData'));
+                }
+            }
+
+            function pollTelemetry() {
+                if (!telemetryPolling || telemetryPollInFlight) {
+                    return;
+                }
+
+                telemetryPollInFlight = true;
+                const maximumMotorCount = configuredMotorCount();
+                MSP.send_message(
+                    MSPCodes.MSP2_INAV_ESC_RPM,
+                    false,
+                    false,
+                    function (rpmResponse) {
+                        if (!telemetryPolling) {
+                            telemetryPollInFlight = false;
+                            return;
+                        }
+
+                        let rpmMotors = null;
+                        try {
+                            if (rpmResponse?.data?.byteLength > 0) {
+                                rpmMotors = decodeEscRpmPayload(rpmResponse.data, maximumMotorCount);
+                            }
+                        } catch (error) {
+                            console.warn('Unable to decode ESC RPM telemetry:', error);
+                        }
+
+                        MSP.send_message(
+                            MSPCodes.MSP2_INAV_ESC_TELEM,
+                            false,
+                            false,
+                            function (telemetryResponse) {
+                                telemetryPollInFlight = false;
+                                if (!telemetryPolling) {
+                                    return;
+                                }
+
+                                let telemetryMotors = null;
+                                try {
+                                    if (telemetryResponse?.data?.byteLength > 0) {
+                                        telemetryMotors = decodeEscTelemetryPayload(
+                                            telemetryResponse.data,
+                                            maximumMotorCount,
+                                        );
+                                    }
+                                } catch (error) {
+                                    console.warn('Unable to decode extended ESC telemetry:', error);
+                                }
+
+                                renderMotorTelemetry(
+                                    rpmMotors,
+                                    telemetryMotors,
+                                    rpmMotors === null && telemetryMotors === null,
+                                );
+                            },
+                            undefined,
+                            { retryCounter: 0, timeoutMs: 500, replaceKey: 'outputs-dshot-telemetry' },
+                        );
+                    },
+                    undefined,
+                    { retryCounter: 0, timeoutMs: 500, replaceKey: 'outputs-dshot-rpm' },
+                );
+            }
+
+            function startTelemetryPolling() {
+                if (telemetryPolling) {
+                    return;
+                }
+                telemetryPolling = true;
+                $telemetrySummary.text(i18n.getMessage('dshotTelemetryWaiting'));
+                interval.add('dshot_telemetry_pull', pollTelemetry, 500, true);
+            }
+
+            function normalizeForm(configuration) {
+                const normalized = normalizeDshotDependencies(configuration);
+                if (bidirectionalSupported
+                    && $bidirectional.is(':checked') !== normalized.bidirectionalEnabled) {
+                    $bidirectional.prop('checked', normalized.bidirectionalEnabled);
+                }
+                if (extendedTelemetrySupported
+                    && $extendedTelemetry.is(':checked') !== normalized.extendedTelemetryEnabled) {
+                    $extendedTelemetry.prop('checked', normalized.extendedTelemetryEnabled);
+                }
+                return readConfiguration();
+            }
+
+            function renderConfigurationState(configuration) {
+                const state = getDshotConfigurationState(configuration);
+                const rebootRequired = configurationsDiffer(configuration, initialConfiguration);
+
+                $bidirectional.prop('disabled', !state.bidirectionalAllowed);
+                $extendedTelemetry.prop('disabled', !state.extendedTelemetryAllowed);
+                $motorPoles.attr('aria-invalid', state.bidirectionalActive && !state.motorPoleValidation.valid);
+                $telemetryPanel.toggleClass('is-hidden', !state.bidirectionalActive);
+                $extendedTelemetryValues.toggleClass('is-hidden', !state.extendedTelemetryActive);
+
+                switch (state.status) {
+                    case DSHOT_CONFIGURATION_STATUS.UNSUPPORTED:
+                        setStatus('dshotStatusUnsupported', 'info-box');
+                        break;
+                    case DSHOT_CONFIGURATION_STATUS.DSHOT_REQUIRED:
+                        setStatus('dshotStatusProtocolRequired', 'warning-box');
+                        break;
+                    case DSHOT_CONFIGURATION_STATUS.DISABLED:
+                        setStatus('dshotStatusDisabled', 'info-box');
+                        break;
+                    case DSHOT_CONFIGURATION_STATUS.INVALID_MOTOR_POLES:
+                        setStatus('dshotStatusInvalidMotorPoles', 'warning-box');
+                        break;
+                    default:
+                        setStatus(rebootRequired ? 'dshotStatusRebootRequired' : 'dshotStatusReady',
+                            rebootRequired ? 'warning-box' : 'ok-box');
+                        break;
+                }
+
+                const runtimeTelemetryAvailable = runtimeState.telemetryReady
+                    && state.telemetryReady
+                    && !rebootRequired;
+                if (runtimeTelemetryAvailable) {
+                    startTelemetryPolling();
+                } else {
+                    stopTelemetryPolling();
+                    $telemetryMotors.empty();
+                    if (state.bidirectionalActive) {
+                        $telemetrySummary.text(i18n.getMessage(rebootRequired
+                            ? 'dshotTelemetryRebootRequired'
+                            : 'dshotTelemetryWaiting'));
+                    }
+                }
+
+                return state;
+            }
+
+            updateDshotConfigurationUi = function (normalizeDependencies) {
+                let configuration = readConfiguration();
+                if (normalizeDependencies) {
+                    configuration = normalizeForm(configuration);
+                }
+                renderConfigurationState(configuration);
+            };
+
+            prepareDshotConfigurationForSave = function () {
+                const configuration = normalizeForm(readConfiguration());
+                const state = renderConfigurationState(configuration);
+                if (state.status === DSHOT_CONFIGURATION_STATUS.INVALID_MOTOR_POLES) {
+                    $motorPoles.trigger('focus');
+                    return false;
+                }
+                return true;
+            };
+
+            $bidirectional.on('change', function () {
+                updateDshotConfigurationUi(true);
+            });
+            $extendedTelemetry.on('change', function () {
+                updateDshotConfigurationUi(true);
+            });
+            $motorPoles.on('input change', function () {
+                updateDshotConfigurationUi(false);
+            });
+
+            updateDshotConfigurationUi(true);
+        }).catch(function (error) {
+            console.error('Unable to initialize bidirectional DShot controls:', error);
+            $dshotStatus
+                .removeClass('ok-box warning-box')
+                .addClass('info-box')
+                .text(i18n.getMessage('dshotStatusUnsupported'));
+        });
     }
 
     function update_arm_status() {
@@ -379,11 +681,17 @@ outputsTab.initialize = function (callback) {
         });
 
         $('a.update').on('click', function () {
+            if (!prepareDshotConfigurationForSave()) {
+                return;
+            }
             features.reset();
             features.fromUI($('.tab-motors'));
             features.execute(servos_update);
         });
         $('a.save').on('click', function () {
+            if (!prepareDshotConfigurationForSave()) {
+                return;
+            }
             saveChainer.setExitPoint(function () {
                 //noinspection JSUnresolvedVariable
                 GUI.log(i18n.getMessage('configurationEepromSaved'));
@@ -740,6 +1048,7 @@ outputsTab.initialize = function (callback) {
 };
 
 outputsTab.cleanup = function (callback) {
+    interval.remove('dshot_telemetry_pull');
     if (callback) callback();
 };
 

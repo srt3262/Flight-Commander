@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
-"""Structural verification for Flight Commander 4.3.1 release images."""
+"""Structural verification for Flight Commander 4.3.2 release images."""
 
 from __future__ import annotations
 
 import hashlib
+import json
 from pathlib import Path
 import re
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "4.3.1"
-VERSION_PARTS = (4, 3, 1)
+VERSION = "4.3.2"
+VERSION_PARTS = (4, 3, 2)
 INAV_VERSION_PARTS = (9, 1, 0)
-BASE_CAPABILITIES = 0x0000DECF
-FULL_DRONECAN_CAPABILITIES = 0x0001FFFF
 TARGET_MANIFEST = ROOT / "flight-commander" / "official-targets.txt"
+RELEASE_MANIFEST = ROOT / "RELEASE-MANIFEST.json"
 
 
 def fail(message: str) -> None:
@@ -22,6 +22,29 @@ def fail(message: str) -> None:
 
 
 def load_target_contracts() -> dict[str, dict[str, int]]:
+    release_manifest = json.loads(RELEASE_MANIFEST.read_text(encoding="utf-8"))
+    if release_manifest.get("version") != VERSION:
+        fail(f"release manifest is not Flight Commander {VERSION}")
+    masks = release_manifest.get("capability_masks")
+    if not isinstance(masks, dict):
+        fail("release manifest capability masks are missing")
+    if any(
+        not re.fullmatch(r"0x[0-9a-f]{8}", str(masks.get(key, "")))
+        for key in ("base", "dronecan")
+    ):
+        fail("release manifest capability masks are invalid")
+    try:
+        base_capabilities = int(str(masks["base"]), 16)
+        dronecan_capabilities = int(str(masks["dronecan"]), 16)
+    except (KeyError, TypeError, ValueError):
+        fail("release manifest capability masks are invalid")
+    if not 0 <= base_capabilities <= 0xFFFFFFFF:
+        fail("base capability mask is outside the 32-bit identity field")
+    if not 0 <= dronecan_capabilities <= 0xFFFFFFFF:
+        fail("DroneCAN capability mask is outside the 32-bit identity field")
+    if base_capabilities & ~dronecan_capabilities:
+        fail("DroneCAN capability mask does not include every base capability")
+
     contracts: dict[str, dict[str, int]] = {}
     for line_number, raw_line in enumerate(
         TARGET_MANIFEST.read_text(encoding="utf-8").splitlines(), 1
@@ -33,6 +56,8 @@ def load_target_contracts() -> dict[str, dict[str, int]]:
         if len(fields) != 3:
             fail(f"target manifest line {line_number} is malformed")
         target, mcu, dronecan_mode = fields
+        if not re.fullmatch(r"[A-Za-z0-9_]+", target):
+            fail(f"target manifest has invalid target name {target}")
         if target in contracts:
             fail(f"target manifest contains duplicate target {target}")
         if mcu not in {"STM32H743XI", "STM32H757XI"}:
@@ -46,9 +71,9 @@ def load_target_contracts() -> dict[str, dict[str, int]]:
             "base": base,
             "bootloader_end": base,
             "capabilities": (
-                BASE_CAPABILITIES
+                base_capabilities
                 if dronecan_mode == "NONE"
-                else FULL_DRONECAN_CAPABILITIES
+                else dronecan_capabilities
             ),
         }
     if len(contracts) != 50:
@@ -171,7 +196,6 @@ def main() -> int:
         )
     if not contains(memory, target.encode("ascii") + b"\0"):
         fail(f"HEX does not contain the exact {target} target identity")
-
     base = contract["base"]
     if min(memory) != base:
         fail(f"{target} image begins at 0x{min(memory):08x}; expected 0x{base:08x}")

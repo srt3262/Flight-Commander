@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify the Flight Commander 4.3.1 source and official target images."""
+"""Verify the Flight Commander 4.3.2 source and all official target images."""
 
 from __future__ import annotations
 
@@ -11,11 +11,10 @@ import re
 import subprocess
 import sys
 
-VERSION = "4.3.1"
-TARGETS = ("MICOAIR743", "CUBEORANGEPLUS")
+VERSION = "4.3.2"
+EXPECTED_TARGET_COUNT = 50
 UPSTREAM_RELEASE = "9.1.0"
 UPSTREAM_COMMIT = "e519b69b02e27c8bdc03b4a0889f1baaae211a54"
-CAPABILITIES = "0x0001ffff"
 
 
 def fail(message: str) -> None:
@@ -24,6 +23,40 @@ def fail(message: str) -> None:
 
 def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def read_target_records(root: Path) -> list[dict[str, str]]:
+    records: list[dict[str, str]] = []
+    seen: set[str] = set()
+    manifest_path = root / "flight-commander/official-targets.txt"
+    for line_number, raw_line in enumerate(
+        manifest_path.read_text(encoding="utf-8").splitlines(), 1
+    ):
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        fields = line.split("|")
+        if len(fields) != 3:
+            fail(f"target manifest line {line_number} is malformed")
+        target, mcu, dronecan = fields
+        if not re.fullmatch(r"[A-Za-z0-9_]+", target):
+            fail(f"target manifest has invalid target name {target}")
+        if target in seen:
+            fail(f"target manifest contains duplicate target {target}")
+        if mcu not in {"STM32H743XI", "STM32H757XI"}:
+            fail(f"target manifest uses unsupported MCU {mcu} for {target}")
+        if dronecan not in {"NONE", "TARGET"} and not re.fullmatch(
+            r"P[A-K][0-9]{1,2},P[A-K][0-9]{1,2}", dronecan
+        ):
+            fail(f"target manifest has invalid DroneCAN mapping for {target}")
+        seen.add(target)
+        records.append({"target": target, "mcu": mcu, "dronecan": dronecan})
+    if len(records) != EXPECTED_TARGET_COUNT:
+        fail(
+            f"target manifest contains {len(records)} targets; "
+            f"expected {EXPECTED_TARGET_COUNT}"
+        )
+    return records
 
 
 def source_identities(root: Path) -> tuple[str, str]:
@@ -111,16 +144,74 @@ def verify_upstream_baseline(root: Path) -> None:
 def verify_source(root: Path) -> None:
     verify_upstream_baseline(root)
     require_text(root / "CMakeLists.txt", [
-        r"set\(FLIGHT_COMMANDER_FIRMWARE_VERSION 4\.3\.1\)",
+        r"set\(FLIGHT_COMMANDER_FIRMWARE_VERSION 4\.3\.2\)",
         r"FLIGHT_COMMANDER_SOURCE_REVISION",
     ])
     require_text(root / "src/main/build/flight_commander.h", [
         r"FLIGHT_COMMANDER_VERSION_MAJOR 4",
         r"FLIGHT_COMMANDER_VERSION_MINOR 3",
-        r"FLIGHT_COMMANDER_VERSION_PATCH 1",
+        r"FLIGHT_COMMANDER_VERSION_PATCH 2",
         r"FLIGHT_COMMANDER_CAPABILITY_INDIVIDUAL_COMPASS_CALIBRATION = \(1U << 15\)",
         r"FLIGHT_COMMANDER_CAPABILITY_SLCAN_DRONECAN_BRIDGE = \(1U << 16\)",
-        r"FLIGHT_COMMANDER_CAPABILITIES \(\(uint32_t\)0x1FFFFU\)",
+        r"FLIGHT_COMMANDER_BASE_CAPABILITIES",
+        r"FLIGHT_COMMANDER_DRONECAN_CAPABILITIES",
+        r"FLIGHT_COMMANDER_CAPABILITIES",
+    ])
+    require_text(root / "src/main/CMakeLists.txt", [
+        r"drivers/dshot\.c",
+        r"drivers/dshot\.h",
+    ])
+    require_text(root / "src/main/config/parameter_group_ids.h", [
+        r"PG_FLIGHT_COMMANDER_DSHOT_CONFIG\s+1048",
+        r"PG_INAV_END\s+PG_FLIGHT_COMMANDER_DSHOT_CONFIG",
+    ])
+    require_text(root / "src/main/drivers/dshot.h", [
+        r"DSHOT_TELEMETRY_TIMEOUT_US",
+        r"typedef struct dshotConfig_s.*useDshotTelemetry.*useDshotEdt",
+        r"PG_DECLARE\(dshotConfig_t, dshotConfig\)",
+        r"isDshotTelemetryMotorActive",
+    ])
+    require_text(root / "src/main/drivers/dshot.c", [
+        r"PG_REGISTER_WITH_RESET_TEMPLATE\(dshotConfig_t, dshotConfig, "
+        r"PG_FLIGHT_COMMANDER_DSHOT_CONFIG, 0\)",
+        r"PG_RESET_TEMPLATE\(dshotConfig_t, dshotConfig,.*"
+        r"\.useDshotTelemetry = 0,.*\.useDshotEdt = 0",
+        r"useDshotTelemetry = feature\(FEATURE_PWM_OUTPUT_ENABLE\).*"
+        r"dshotConfig\(\)->useDshotTelemetry.*PWM_TYPE_DSHOT150",
+        r"isDshotTelemetryMotorActive.*lastValidTelemetryUs",
+    ])
+    require_text(root / "src/main/drivers/pwm_output.c", [
+        r"DSHOT_DMA_BUFFER_ALIGNED_BYTES",
+        r"SCB_CleanDCache_by_Addr",
+        r"SCB_InvalidateDCache_by_Addr",
+        r"if \(useDshotTelemetry\).*csum = ~csum",
+        r"pwmSetMotorDMACircular\(bool circular\).*"
+        r"if \(!isMotorProtocolDshot\(\)\).*return;.*"
+        r"if \(useDshotTelemetry\).*return;.*"
+        r"int motorCount = getMotorCount\(\)",
+        r"pwmMotorPreconfigure\(void\).*"
+        r"useDshotTelemetry = feature\(FEATURE_PWM_OUTPUT_ENABLE\).*"
+        r"dshotConfig\(\)->useDshotTelemetry.*isDSHOT",
+        r"defined\(STM32H7\) && defined\(USE_DSHOT_DMAR\).*"
+        r"useDshotTelemetry && timerHardware->tim == TIM4 && "
+        r"timerHardware->channelIndex == 3.*"
+        r"Motor output has no dedicated DMA channel for DShot",
+        r"Bidirectional DShot requires a non-complementary timer channel",
+        r"Motor output has no dedicated DMA channel for DShot",
+    ])
+    require_text(root / "src/main/fc/settings.yaml", [
+        r"name: PG_FLIGHT_COMMANDER_DSHOT_CONFIG.*condition: USE_DSHOT",
+        r"name: dshot_bidir_enabled.*field: useDshotTelemetry",
+        r"name: dshot_edt_enabled.*field: useDshotEdt",
+    ])
+    require_text(root / "flight-commander/build-targets.sh", [
+        r"SETTING_DSHOT_BIDIR_ENABLED",
+        r"SETTING_DSHOT_EDT_ENABLED",
+        r"settings_generated\.h",
+    ])
+    require_text(root / "src/main/target/common_post.h", [
+        r"defined\(USE_ESC_SENSOR\) \|\| defined\(USE_DSHOT\).*"
+        r"#define USE_RPM_FILTER",
     ])
     require_text(root / "src/main/flight_commander/slcan_bridge.h", [
         r"FLIGHT_COMMANDER_SLCAN_BRIDGE_SCHEMA 1U",
@@ -327,16 +418,16 @@ def verify_source(root: Path) -> None:
 
 
 def verify_manifest(root: Path, hex_paths: list[Path], manifest_path: Path) -> None:
+    target_records = read_target_records(root)
+    targets = [record["target"] for record in target_records]
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     expected = {
-        "schema": 2,
+        "schema": 3,
         "product": "Flight Commander Firmware",
         "version": VERSION,
-        "targets": list(TARGETS),
+        "targets": targets,
         "inav_release": UPSTREAM_RELEASE,
         "inav_commit": UPSTREAM_COMMIT,
-        "capabilities": CAPABILITIES,
-        "capability_mask": CAPABILITIES,
     }
     for key, value in expected.items():
         if manifest.get(key) != value:
@@ -344,13 +435,36 @@ def verify_manifest(root: Path, hex_paths: list[Path], manifest_path: Path) -> N
     revision, tree = source_identities(root)
     if manifest.get("source_revision") != revision or manifest.get("source_tree") != tree:
         fail("manifest source identities do not identify the supplied source")
-    if len(hex_paths) != len(TARGETS):
-        fail(f"expected {len(TARGETS)} official HEX images, received {len(hex_paths)}")
+    masks = manifest.get("capability_masks")
+    if not isinstance(masks, dict) or any(
+        not re.fullmatch(r"0x[0-9a-f]{8}", str(masks.get(key, "")))
+        for key in ("base", "dronecan")
+    ):
+        fail("manifest capability masks are invalid")
+    if int(masks["base"], 16) & ~int(masks["dronecan"], 16):
+        fail("manifest DroneCAN mask does not include every base capability")
+    expected_matrix = {
+        record["target"]: {
+            "mcu": record["mcu"],
+            "dronecan": record["dronecan"] != "NONE",
+            "capability_mask": masks[
+                "dronecan" if record["dronecan"] != "NONE" else "base"
+            ],
+        }
+        for record in target_records
+    }
+    if manifest.get("target_matrix") != expected_matrix:
+        fail("manifest target matrix does not match the canonical target inventory")
+    if len(hex_paths) != len(targets):
+        fail(f"expected {len(targets)} official HEX images, received {len(hex_paths)}")
     by_name = {path.name: path for path in hex_paths}
+    if len(by_name) != len(hex_paths):
+        fail("duplicate official HEX filenames were supplied")
     artifacts = manifest.get("artifacts")
-    if not isinstance(artifacts, dict) or tuple(artifacts) != TARGETS:
+    if not isinstance(artifacts, dict) or list(artifacts) != targets:
         fail("manifest artifact targets are missing or out of canonical order")
-    for target in TARGETS:
+    for record in target_records:
+        target = record["target"]
         artifact = artifacts.get(target)
         if not isinstance(artifact, dict):
             fail(f"manifest artifact is missing for {target}")
@@ -366,8 +480,25 @@ def verify_manifest(root: Path, hex_paths: list[Path], manifest_path: Path) -> N
     if "propellers removed" not in requirement:
         fail("manifest does not preserve the propeller-off acceptance requirement")
     bridge = manifest.get("slcan_bridge", {})
-    if bridge.get("targets") != list(TARGETS) or "reboot" not in str(bridge.get("exit", "")).lower():
-        fail("manifest does not preserve the two-target reboot-only SLCAN bridge contract")
+    dronecan_targets = [
+        record["target"] for record in target_records if record["dronecan"] != "NONE"
+    ]
+    if bridge.get("targets") != dronecan_targets or "reboot" not in str(bridge.get("exit", "")).lower():
+        fail("manifest does not preserve the mapped-target reboot-only SLCAN bridge contract")
+    dronecan_compass = manifest.get("dronecan_compass", {})
+    if dronecan_compass.get("targets") != dronecan_targets:
+        fail("manifest DroneCAN compass targets do not match the mapped target inventory")
+    dshot = manifest.get("bidirectional_dshot", {})
+    if dshot != {
+        "targets": "all official targets",
+        "protocols": ["DSHOT150", "DSHOT300", "DSHOT600"],
+        "enable_setting": "dshot_bidir_enabled",
+        "extended_telemetry_setting": "dshot_edt_enabled",
+        "motor_poles_setting": "motor_poles",
+        "default_enabled": False,
+        "telemetry_timeout_us": 100000,
+    }:
+        fail("manifest bidirectional DShot contract is invalid")
 
 
 def main() -> int:

@@ -26,6 +26,22 @@
                     <div class="clear-both"></div>
                 </div>
 
+                <div id="dshot-bidirectional-container" class="setting-container checkbox">
+                    <input id="dshot-bidirectional" type="checkbox" class="toggle" data-setting="dshot_bidir_enabled" aria-describedby="dshot-configuration-status" />
+                    <label for="dshot-bidirectional">
+                        <span data-i18n="dshotBidirectional"></span>
+                    </label>
+                    <div for="dshot-bidirectional" class="helpicon cf_tip" data-i18n_title="dshotBidirectionalHelp"></div>
+                </div>
+
+                <div id="dshot-extended-telemetry-container" class="setting-container checkbox">
+                    <input id="dshot-extended-telemetry" type="checkbox" class="toggle" data-setting="dshot_edt_enabled" aria-describedby="dshot-configuration-status" />
+                    <label for="dshot-extended-telemetry">
+                        <span data-i18n="dshotExtendedTelemetry"></span>
+                    </label>
+                    <div for="dshot-extended-telemetry" class="helpicon cf_tip" data-i18n_title="dshotExtendedTelemetryHelp"></div>
+                </div>
+
                 <div id="servo-rate-container">
                     <div class="select">
                         <select name="servo-rate" id="servo-rate" data-setting-placeholder="servo_pwm_rate"></select>
@@ -62,10 +78,29 @@
                 </div>
 
                 <div class="number">
-                    <input id="motor_poles" data-setting="motor_poles" type="number" />
+                    <input id="motor_poles" data-setting="motor_poles" type="number" aria-describedby="dshot-configuration-status" />
                     <label for="motor_poles">
                         <span data-i18n="motor_poles"></span>
                     </label>
+                    <div for="motor_poles" class="helpicon cf_tip" data-i18n_title="motor_poles_help"></div>
+                </div>
+                <div id="dshot-configuration-status" class="info-box" role="status"></div>
+                <div id="dshot-telemetry-panel" class="dshot-telemetry-panel is-hidden">
+                    <div class="tab_subtitle" data-i18n="dshotTelemetryTitle"></div>
+                    <div id="dshot-telemetry-summary" class="info-box" role="status" data-i18n="dshotTelemetryWaiting"></div>
+                    <table class="settings-table dshot-telemetry-table">
+                        <thead>
+                            <tr>
+                                <th data-i18n="dshotTelemetryMotor"></th>
+                                <th data-i18n="dshotTelemetryStatus"></th>
+                                <th data-i18n="dshotTelemetryRpm"></th>
+                                <th class="dshot-edt-value" data-i18n="dshotTelemetryTemperature"></th>
+                                <th class="dshot-edt-value" data-i18n="dshotTelemetryVoltage"></th>
+                                <th class="dshot-edt-value" data-i18n="dshotTelemetryCurrent"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="dshot-telemetry-motors"></tbody>
+                    </table>
                 </div>
                 <div data-i18n="reversibleEscWarning" class="info-box for-reversible-motors"></div>
                 <div class="checkbox">

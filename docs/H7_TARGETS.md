@@ -1,14 +1,13 @@
 # H7 and newer firmware targets
 
-Flight Commander 4.3.1 supports the 49 STM32H743 target variants shipped by
-official INAV 9.1.0 plus the existing STM32H757 Cube Orange+ target. The 48 new
-release assets are additive: the published `MICOAIR743` and `CUBEORANGEPLUS`
-assets are not replaced.
+Flight Commander 4.3.2 supports the 49 STM32H743 target variants shipped by
+official INAV 9.1.0 plus the STM32H757 Cube Orange+ target. All 50 images are
+built from the same source revision, verified independently, and published by
+one coordinated release workflow.
 
 The original `src/main/target/MICOAIR743` files and its dedicated CMake feature
-wiring remain unchanged. A reproducible regression build must match the
-published MICOAIR743 and Cube Orange+ image SHA-256 values before the additive
-assets can be uploaded.
+wiring remain unchanged. Target-specific capability masks and bootloader-safe
+flash boundaries are verified for every image before publication.
 
 | Target | MCU | DroneCAN feature set |
 |---|---|---:|

@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+## 4.3.2
+
+- Add guarded bidirectional DShot controls for DShot150, DShot300, and
+  DShot600, with optional Extended DShot Telemetry decoding and explicit
+  save-and-reboot guidance.
+- Show live per-motor telemetry freshness and RPM on Outputs so operators can
+  verify compatible ESC firmware before enabling RPM filtering.
+- Preserve the existing motor configuration parameter group during upgrades;
+  bidirectional DShot settings are stored separately and remain off by default.
+- Build, verify, bundle, and publish matching Firmware 4.3.2 images for all 50
+  supported STM32H743/STM32H757 targets.
+
 ## 4.3.1
 
 - Render learned compass orientation with the same dynamic Supported/Disabled

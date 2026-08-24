@@ -4,6 +4,25 @@ import test from 'node:test';
 import {
   validateFlightCommanderVersions,
 } from '../../../scripts/check-flight-commander-version.mjs';
+import {
+  FLIGHT_COMMANDER_FIRMWARE_TARGETS,
+} from '../../../js/flightCommander/firmwareCatalog.js';
+
+const officialTargets = FLIGHT_COMMANDER_FIRMWARE_TARGETS.map(({ id }) => id);
+
+function firmwareArtifacts(version = '3.0.7') {
+  return Object.fromEntries(officialTargets.map((target) => [
+    target,
+    {
+      filename: `Flight-Commander-Firmware-${version}-${target}.hex`,
+      sha256: target === 'MICOAIR743'
+        ? 'a'.repeat(64)
+        : target === 'CUBEORANGEPLUS'
+          ? 'e'.repeat(64)
+          : 'f'.repeat(64),
+    },
+  ]));
+}
 
 function manifest(overrides = {}) {
   const { flightCommander = {}, ...rootOverrides } = overrides;
@@ -13,16 +32,7 @@ function manifest(overrides = {}) {
       firmwareMajor: 3,
       firmwareReleaseVersion: '3.0.7',
       firmwareReleaseSha256: 'a'.repeat(64),
-      firmwareReleaseArtifacts: {
-        MICOAIR743: {
-          filename: 'Flight-Commander-Firmware-3.0.7-MICOAIR743.hex',
-          sha256: 'a'.repeat(64),
-        },
-        CUBEORANGEPLUS: {
-          filename: 'Flight-Commander-Firmware-3.0.7-CUBEORANGEPLUS.hex',
-          sha256: 'e'.repeat(64),
-        },
-      },
+      firmwareReleaseArtifacts: firmwareArtifacts(),
       firmwareChangedInRelease: true,
       firmwareSourceAvailable: true,
       firmwareSourceVersion: '3.0.7',
@@ -117,19 +127,16 @@ test('every official target has a canonical independently hashed artifact', () =
     () => validateFlightCommanderVersions(manifest({
       flightCommander: { firmwareReleaseArtifacts: undefined },
     })),
-    /exactly MICOAIR743 and CUBEORANGEPLUS/,
+    /all 50 canonical official targets/,
   );
   assert.throws(
     () => validateFlightCommanderVersions(manifest({
       flightCommander: {
         firmwareReleaseArtifacts: {
+          ...firmwareArtifacts(),
           MICOAIR743: {
             filename: 'renamed.hex',
             sha256: 'a'.repeat(64),
-          },
-          CUBEORANGEPLUS: {
-            filename: 'Flight-Commander-Firmware-3.0.7-CUBEORANGEPLUS.hex',
-            sha256: 'e'.repeat(64),
           },
         },
       },

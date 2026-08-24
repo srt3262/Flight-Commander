@@ -15,19 +15,19 @@ permissions:
   contents: read
 
 concurrency:
-  group: publish-flight-commander-4.3.1
+  group: publish-flight-commander-4.3.2
   cancel-in-progress: false
 
 env:
-  RELEASE_VERSION: 4.3.1
-  RELEASE_TAG: v4.3.1
+  RELEASE_VERSION: 4.3.2
+  RELEASE_TAG: v4.3.2
 
 jobs:
   authorize:
     name: Authorize official release
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      github.event.head_commit.message == 'Publish Flight Commander 4.3.1 release'
+      github.event.head_commit.message == 'Publish Flight Commander 4.3.2 release'
     runs-on: ubuntu-latest
     outputs:
       release_sha: ${{ steps.release.outputs.sha }}
@@ -51,13 +51,18 @@ jobs:
             echo "Release commit $sha is not the current master commit $master_sha." >&2
             exit 1
           fi
+          tag_sha="$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" "refs/tags/$RELEASE_TAG" | cut -f1)"
+          if [[ -n "$tag_sha" ]]; then
+            echo "Tag $RELEASE_TAG already exists at $tag_sha; refusing to reuse it." >&2
+            exit 1
+          fi
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
 
   firmware:
-    name: Build verified Firmware 4.3.1
+    name: Build verified Firmware 4.3.2 for all 50 targets
     needs: authorize
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 70
     steps:
       - name: Check out the authorized source
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -68,7 +73,7 @@ jobs:
       - name: Install pinned Arm GNU toolchain
         run: bash flight-commander/install-toolchain.sh
 
-      - name: Build and package the firmware
+      - name: Build and package all firmware targets
         run: >-
           python3 flight-commander/package-release.py
           --output "$RUNNER_TEMP/firmware"
@@ -83,7 +88,7 @@ jobs:
           retention-days: 14
 
   windows:
-    name: Build verified Windows Configurator 4.3.1
+    name: Build verified Windows Configurator 4.3.2
     needs: authorize
     runs-on: windows-latest
     timeout-minutes: 50
@@ -122,13 +127,13 @@ jobs:
           if (@($package).Count -ne 1) {
             throw 'Expected exactly one verified win32-x64 package directory.'
           }
-          Compress-Archive -Path "$($package.FullName)\*" -DestinationPath "$env:RUNNER_TEMP\FC-Windows-v4.3.1.zip" -CompressionLevel Optimal
+          Compress-Archive -Path "$($package.FullName)\*" -DestinationPath "$env:RUNNER_TEMP\FC-Windows-v4.3.2.zip" -CompressionLevel Optimal
 
       - name: Upload verified Windows archive
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: release-windows-${{ needs.authorize.outputs.release_sha }}
-          path: ${{ runner.temp }}/FC-Windows-v4.3.1.zip
+          path: ${{ runner.temp }}/FC-Windows-v4.3.2.zip
           if-no-files-found: error
           retention-days: 14
 
@@ -139,7 +144,7 @@ jobs:
       - firmware
       - windows
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     permissions:
       contents: write
     steps:
@@ -165,129 +170,245 @@ jobs:
           set -euo pipefail
           candidate="$RUNNER_TEMP/candidates"
           bundle_dir="$RUNNER_TEMP/bundle"
+          windows="$candidate/FC-Windows-v4.3.2.zip"
+          firmware_source="$candidate/FC-Firmware-Source-v4.3.2.zip"
+          metadata="$candidate/firmware-release-metadata.json"
+          configurator_source="$bundle_dir/FC-Configurator-Source-v4.3.2.zip"
+          complete_bundle="$RUNNER_TEMP/Flight-Commander-v4.3.2.zip"
           mkdir -p "$bundle_dir"
 
-          windows="$candidate/FC-Windows-v4.3.1.zip"
-          firmware_mico="$candidate/Flight-Commander-Firmware-4.3.1-MICOAIR743.hex"
-          firmware_cube="$candidate/Flight-Commander-Firmware-4.3.1-CUBEORANGEPLUS.hex"
-          firmware_source="$candidate/FC-Firmware-Source-v4.3.1.zip"
-          metadata="$candidate/firmware-release-metadata.json"
-          configurator_source="$bundle_dir/FC-Configurator-Source-v4.3.1.zip"
-          online_mico="$RUNNER_TEMP/Flight-Commander-Firmware-4.3.1-MICOAIR743.hex"
-          online_cube="$RUNNER_TEMP/Flight-Commander-Firmware-4.3.1-CUBEORANGEPLUS.hex"
-          short_mico="$bundle_dir/FC-Firmware-v4.3.1-MICOAIR743.hex"
-          short_cube="$bundle_dir/FC-Firmware-v4.3.1-CUBEORANGEPLUS.hex"
-          complete_bundle="$RUNNER_TEMP/Flight-Commander-v4.3.1.zip"
-
-          for path in "$windows" "$firmware_mico" "$firmware_cube" "$firmware_source" "$metadata"; do
+          for path in "$windows" "$firmware_source" "$metadata"; do
             test -s "$path" || { echo "Missing release candidate: $path" >&2; exit 1; }
           done
-          python3 - "$metadata" configurator/package.json "$firmware_mico" "$firmware_cube" "$firmware_source" <<'PY'
-          import hashlib, json, pathlib, sys
-          metadata = json.loads(pathlib.Path(sys.argv[1]).read_text())
-          package = json.loads(pathlib.Path(sys.argv[2]).read_text())
-          firmware = {
-              'MICOAIR743': pathlib.Path(sys.argv[3]),
-              'CUBEORANGEPLUS': pathlib.Path(sys.argv[4]),
-          }
-          source = pathlib.Path(sys.argv[5])
+          python3 - "$candidate" "$metadata" configurator/package.json "$firmware_source" <<'PY'
+          import hashlib
+          import json
+          import pathlib
+          import sys
+
+          candidate = pathlib.Path(sys.argv[1])
+          metadata = json.loads(pathlib.Path(sys.argv[2]).read_text())
+          package = json.loads(pathlib.Path(sys.argv[3]).read_text())
+          source = pathlib.Path(sys.argv[4])
+          target_lines = (
+              pathlib.Path("flight-commander/official-targets.txt")
+              .read_text(encoding="utf-8")
+              .splitlines()
+          )
+          targets = [
+              line.split("|", 1)[0]
+              for line in target_lines
+              if line and not line.startswith("#")
+          ]
+          assert len(targets) == 50
+          assert metadata["version"] == package["version"] == "4.3.2"
+          assert metadata["targets"] == targets
+          declaration = package["flightCommander"]
+          assert declaration["firmwareChangedInRelease"] is True
+          assert declaration["firmwareReleaseVersion"] == "4.3.2"
+          assert list(declaration["firmwareReleaseArtifacts"]) == targets
           digest = lambda path: hashlib.sha256(path.read_bytes()).hexdigest()
-          declaration = package['flightCommander']
-          assert package['version'] == metadata['version'] == '4.3.1'
-          assert declaration['firmwareChangedInRelease'] is True
-          assert declaration['firmwareReleaseVersion'] == '4.3.1'
-          assert metadata['targets'] == ['MICOAIR743', 'CUBEORANGEPLUS']
-          for target, path in firmware.items():
-              artifact = declaration['firmwareReleaseArtifacts'][target]
-              assert artifact['filename'] == path.name == metadata['firmware'][target]['name']
-              assert artifact['sha256'] == metadata['firmware'][target]['sha256'] == digest(path)
-          assert declaration['firmwareReleaseSha256'] == declaration['firmwareReleaseArtifacts']['MICOAIR743']['sha256']
-          assert declaration['firmwareSourceVersion'] == '4.3.1'
-          assert declaration['firmwareSourceArchive'] == 'FC-Firmware-Source-v4.3.1.zip'
-          assert declaration['firmwareSourceSha256'] == metadata['source']['sha256'] == digest(source)
-          assert declaration['firmwareSourceRevision'] == metadata['source']['revision']
-          assert declaration['firmwareSourceTree'] == metadata['source']['tree']
+          expected_hex = set()
+          for target in targets:
+              path = candidate / f"Flight-Commander-Firmware-4.3.2-{target}.hex"
+              assert path.is_file() and path.stat().st_size > 1024 * 1024
+              expected_hex.add(path.name)
+              artifact = declaration["firmwareReleaseArtifacts"][target]
+              built = metadata["firmware"][target]
+              assert artifact["filename"] == built["name"] == path.name
+              assert artifact["sha256"] == built["sha256"] == digest(path)
+              assert built["bytes"] == path.stat().st_size
+          actual_hex = {path.name for path in candidate.glob("*.hex")}
+          assert actual_hex == expected_hex
+          assert declaration["firmwareReleaseSha256"] == (
+              declaration["firmwareReleaseArtifacts"]["MICOAIR743"]["sha256"]
+          )
+          assert declaration["firmwareSourceVersion"] == "4.3.2"
+          assert declaration["firmwareSourceArchive"] == source.name
+          assert declaration["firmwareSourceSha256"] == metadata["source"]["sha256"] == digest(source)
+          assert declaration["firmwareSourceRevision"] == metadata["source"]["revision"]
+          assert declaration["firmwareSourceTree"] == metadata["source"]["tree"]
           PY
 
           git archive --format=zip \
-            --prefix="Flight-Commander-Configurator-Source-v4.3.1/" \
+            --prefix="Flight-Commander-Configurator-Source-v4.3.2/" \
             --output="$configurator_source" \
             "$RELEASE_SHA:configurator"
-          cp "$windows" "$bundle_dir/FC-Windows-v4.3.1.zip"
-          cp "$firmware_mico" "$short_mico"
-          cp "$firmware_cube" "$short_cube"
-          cp "$firmware_mico" "$online_mico"
-          cp "$firmware_cube" "$online_cube"
-          cp "$firmware_source" "$bundle_dir/FC-Firmware-Source-v4.3.1.zip"
+          cp "$windows" "$bundle_dir/FC-Windows-v4.3.2.zip"
+          cp "$firmware_source" "$bundle_dir/FC-Firmware-Source-v4.3.2.zip"
+          while IFS= read -r target; do
+            cp \
+              "$candidate/Flight-Commander-Firmware-4.3.2-$target.hex" \
+              "$bundle_dir/FC-Firmware-v4.3.2-$target.hex"
+          done < <(awk -F'|' '/^[A-Za-z0-9_]+\|/ { print $1 }' flight-commander/official-targets.txt)
 
-          mapfile -t canonical < <(find "$bundle_dir" -maxdepth 1 -type f -printf '%f\n' | sort)
-          expected=(
-            FC-Configurator-Source-v4.3.1.zip
-            FC-Firmware-Source-v4.3.1.zip
-            FC-Firmware-v4.3.1-CUBEORANGEPLUS.hex
-            FC-Firmware-v4.3.1-MICOAIR743.hex
-            FC-Windows-v4.3.1.zip
-          )
-          if [[ "${canonical[*]}" != "${expected[*]}" ]]; then
-            echo "Complete release bundle does not contain exactly the five canonical files." >&2
-            printf 'Received: %s\n' "${canonical[*]}" >&2
-            exit 1
-          fi
-          (cd "$bundle_dir" && zip -X -9 "$complete_bundle" "${expected[@]}")
-          test "$(unzip -Z1 "$complete_bundle" | wc -l)" -eq 5
+          python3 - "$bundle_dir" <<'PY'
+          import pathlib
+          import sys
+
+          bundle = pathlib.Path(sys.argv[1])
+          targets = [
+              line.split("|", 1)[0]
+              for line in pathlib.Path("flight-commander/official-targets.txt")
+              .read_text(encoding="utf-8")
+              .splitlines()
+              if line and not line.startswith("#")
+          ]
+          expected = {
+              "FC-Windows-v4.3.2.zip",
+              "FC-Configurator-Source-v4.3.2.zip",
+              "FC-Firmware-Source-v4.3.2.zip",
+              *(f"FC-Firmware-v4.3.2-{target}.hex" for target in targets),
+          }
+          actual = {path.name for path in bundle.iterdir() if path.is_file()}
+          assert len(expected) == 53
+          assert actual == expected, f"Bundle mismatch: missing={expected-actual}, unexpected={actual-expected}"
+          PY
+          mapfile -t bundle_files < <(find "$bundle_dir" -maxdepth 1 -type f -printf '%f\n' | sort)
+          (cd "$bundle_dir" && zip -X -9 "$complete_bundle" "${bundle_files[@]}")
+          test "$(unzip -Z1 "$complete_bundle" | wc -l)" -eq 53
 
           (
             cd "$RUNNER_TEMP"
-            sha256sum \
-              "$(basename "$complete_bundle")" \
-              "$(basename "$online_cube")" \
-              "$(basename "$online_mico")"
+            sha256sum "$(basename "$complete_bundle")"
+            while IFS= read -r target; do
+              path="candidates/Flight-Commander-Firmware-4.3.2-$target.hex"
+              digest="$(sha256sum "$path" | cut -d' ' -f1)"
+              printf '%s  %s\n' "$digest" "$(basename "$path")"
+            done < <(awk -F'|' '/^[A-Za-z0-9_]+\|/ { print $1 }' \
+              "$GITHUB_WORKSPACE/flight-commander/official-targets.txt")
           ) > "$RUNNER_TEMP/SHA256SUMS.txt"
           {
-            cat docs/releases/v4.3.1.md
+            cat docs/releases/v4.3.2.md
             printf '\n## Verified release assets\n\n```text\n'
             cat "$RUNNER_TEMP/SHA256SUMS.txt"
             printf '```\n'
           } > "$RUNNER_TEMP/release-notes.md"
           echo "complete_bundle=$complete_bundle" >> "$GITHUB_OUTPUT"
-          echo "online_cube=$online_cube" >> "$GITHUB_OUTPUT"
-          echo "online_mico=$online_mico" >> "$GITHUB_OUTPUT"
+          echo "candidate=$candidate" >> "$GITHUB_OUTPUT"
+          echo "metadata=$metadata" >> "$GITHUB_OUTPUT"
           echo "notes=$RUNNER_TEMP/release-notes.md" >> "$GITHUB_OUTPUT"
 
-      - name: Publish the official GitHub release
+      - name: Stage, verify, and publish the official GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_SHA: ${{ needs.authorize.outputs.release_sha }}
           COMPLETE_BUNDLE: ${{ steps.bundle.outputs.complete_bundle }}
-          ONLINE_CUBE: ${{ steps.bundle.outputs.online_cube }}
-          ONLINE_MICO: ${{ steps.bundle.outputs.online_mico }}
+          CANDIDATE: ${{ steps.bundle.outputs.candidate }}
+          METADATA: ${{ steps.bundle.outputs.metadata }}
           NOTES: ${{ steps.bundle.outputs.notes }}
         run: |
           set -euo pipefail
-          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "Release $RELEASE_TAG already exists; refusing to overwrite it." >&2
+          master_sha="$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" refs/heads/master | cut -f1)"
+          if [[ "$master_sha" != "$RELEASE_SHA" ]]; then
+            echo "Current master moved to $master_sha; refusing to publish stale commit $RELEASE_SHA." >&2
             exit 1
           fi
-          gh release create "$RELEASE_TAG" \
-            "$COMPLETE_BUNDLE#Flight Commander 4.3.1 complete release bundle" \
-            "$ONLINE_CUBE#Flight Commander Firmware 4.3.1 for CubePilot Cube Orange+" \
-            "$ONLINE_MICO#Flight Commander Firmware 4.3.1 for MICOAIR743" \
+          tag_sha="$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" "refs/tags/$RELEASE_TAG" | cut -f1)"
+          if [[ -n "$tag_sha" ]]; then
+            echo "Tag $RELEASE_TAG already exists at $tag_sha; refusing to reuse it." >&2
+            exit 1
+          fi
+          gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" > "$RUNNER_TEMP/releases-before.json"
+          python3 - "$RUNNER_TEMP/releases-before.json" "$RELEASE_TAG" <<'PY'
+          import json
+          import pathlib
+          import sys
+
+          releases = json.loads(pathlib.Path(sys.argv[1]).read_text())
+          matches = [release for release in releases if release["tag_name"] == sys.argv[2]]
+          assert not matches, f"Release {sys.argv[2]} already exists; refusing to overwrite it"
+          PY
+
+          assets=("$COMPLETE_BUNDLE#Flight Commander 4.3.2 complete release bundle")
+          while IFS= read -r target; do
+            file="Flight-Commander-Firmware-4.3.2-$target.hex"
+            assets+=("$CANDIDATE/$file#Flight Commander Firmware 4.3.2 for $target")
+          done < <(awk -F'|' '/^[A-Za-z0-9_]+\|/ { print $1 }' flight-commander/official-targets.txt)
+          test "${#assets[@]}" -eq 51
+
+          gh release create "$RELEASE_TAG" "${assets[@]}" \
             --repo "$GITHUB_REPOSITORY" \
             --target "$RELEASE_SHA" \
-            --title "Flight Commander 4.3.1" \
+            --title "Flight Commander 4.3.2" \
             --notes-file "$NOTES" \
-            --latest
+            --draft
 
-          mapfile -t assets < <(gh api \
-            "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG" \
-            --jq '.assets[].name' | sort)
-          expected=(
-            Flight-Commander-Firmware-4.3.1-CUBEORANGEPLUS.hex
-            Flight-Commander-Firmware-4.3.1-MICOAIR743.hex
-            Flight-Commander-v4.3.1.zip
-          )
-          if [[ "${assets[*]}" != "${expected[*]}" ]]; then
-            echo "Published release does not contain exactly the three public assets." >&2
-            printf 'Received: %s\n' "${assets[*]}" >&2
+          gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" > "$RUNNER_TEMP/releases-after.json"
+          python3 - "$RUNNER_TEMP/releases-after.json" "$RELEASE_TAG" > "$RUNNER_TEMP/release-id.txt" <<'PY'
+          import json
+          import pathlib
+          import sys
+
+          releases = json.loads(pathlib.Path(sys.argv[1]).read_text())
+          matches = [release for release in releases if release["tag_name"] == sys.argv[2]]
+          assert len(matches) == 1, f"Expected one release for {sys.argv[2]}, found {len(matches)}"
+          release = matches[0]
+          assert release["draft"] is True
+          print(release["id"])
+          PY
+          release_id="$(cat "$RUNNER_TEMP/release-id.txt")"
+          [[ "$release_id" =~ ^[0-9]+$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/releases/$release_id" > "$RUNNER_TEMP/release-draft.json"
+          python3 - "$RUNNER_TEMP/release-draft.json" "$METADATA" "$COMPLETE_BUNDLE" "$RELEASE_SHA" <<'PY'
+          import hashlib
+          import json
+          import pathlib
+          import sys
+
+          release = json.loads(pathlib.Path(sys.argv[1]).read_text())
+          metadata = json.loads(pathlib.Path(sys.argv[2]).read_text())
+          bundle = pathlib.Path(sys.argv[3])
+          release_sha = sys.argv[4]
+          assert release["draft"] is True
+          assert release["prerelease"] is False
+          assert release["tag_name"] == "v4.3.2"
+          assert release["target_commitish"] == release_sha
+          expected = {
+              "Flight-Commander-v4.3.2.zip": {
+                  "sha256": hashlib.sha256(bundle.read_bytes()).hexdigest(),
+                  "bytes": bundle.stat().st_size,
+              },
+              **{
+                  record["name"]: {
+                      "sha256": record["sha256"],
+                      "bytes": record["bytes"],
+                  }
+                  for record in metadata["firmware"].values()
+              },
+          }
+          live = {asset["name"]: asset for asset in release["assets"]}
+          assert len(expected) == len(live) == 51
+          assert set(live) == set(expected)
+          for name, record in expected.items():
+              assert live[name]["digest"] == f"sha256:{record['sha256']}"
+              assert live[name]["size"] == record["bytes"]
+          PY
+
+          master_sha="$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" refs/heads/master | cut -f1)"
+          if [[ "$master_sha" != "$RELEASE_SHA" ]]; then
+            echo "Current master moved to $master_sha; leaving draft for inspected recovery." >&2
             exit 1
           fi
+          tag_sha="$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" "refs/tags/$RELEASE_TAG" | cut -f1)"
+          if [[ -n "$tag_sha" && "$tag_sha" != "$RELEASE_SHA" ]]; then
+            echo "Tag $RELEASE_TAG moved to $tag_sha; leaving draft for inspected recovery." >&2
+            exit 1
+          fi
+          gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$release_id" \
+            -F draft=false \
+            -f make_latest=true > "$RUNNER_TEMP/release-final.json"
+          python3 - "$RUNNER_TEMP/release-final.json" "$RELEASE_SHA" <<'PY'
+          import json
+          import pathlib
+          import sys
+
+          release = json.loads(pathlib.Path(sys.argv[1]).read_text())
+          assert release["draft"] is False
+          assert release["prerelease"] is False
+          assert release["tag_name"] == "v4.3.2"
+          assert release["target_commitish"] == sys.argv[2]
+          assert len(release["assets"]) == 51
+          PY
+          published_tag_sha="$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" "refs/tags/$RELEASE_TAG" | cut -f1)"
+          test "$published_tag_sha" = "$RELEASE_SHA"

@@ -2,7 +2,7 @@
   "name": "flight-commander",
   "productName": "Flight Commander",
   "description": "Flight Commander flight controller configurator, mission planner, firmware flasher, and ground control station.",
-  "version": "4.3.1",
+  "version": "4.3.2",
   "packageManager": "yarn@1.22.22",
   "main": ".vite/build/main.js",
   "type": "module",
@@ -35,25 +35,217 @@
     "inavConfiguratorBase": "9.1.1",
     "inavConfiguratorCommit": "4c343e38aba4ef655afd88e8339ef21d0c3c53ac",
     "firmwareMajor": 4,
-    "firmwareReleaseVersion": "4.3.1",
-    "firmwareReleaseSha256": "1fcb891cd7bcee51e86c6dcf0afcc58bc9228584cc3105406e33d00d9ebb7921",
+    "firmwareReleaseVersion": "4.3.2",
+    "firmwareReleaseSha256": "2eae507051462212e4eb0b2b3843f3e8eb4459db57b3a936ba6f5ee75a26e4d8",
     "firmwareReleaseArtifacts": {
+      "AEDROXH7": {
+        "filename": "Flight-Commander-Firmware-4.3.2-AEDROXH7.hex",
+        "sha256": "b93311123fa1d5e42b7c1e6ca3486b7e7cf4823b4f902e8e9c54295d83646031"
+      },
+      "AETH743Basic": {
+        "filename": "Flight-Commander-Firmware-4.3.2-AETH743Basic.hex",
+        "sha256": "fa7260531ca6c5ddb5474eae226e98ef73b954c0390d3dbc2bc908f9293c7597"
+      },
+      "AOCODARCH7DUAL": {
+        "filename": "Flight-Commander-Firmware-4.3.2-AOCODARCH7DUAL.hex",
+        "sha256": "7d3579d05747cb931279674f797087280e9469c82f1083d64c2b01f6cca8aef2"
+      },
+      "AXISFLYINGH743PRO": {
+        "filename": "Flight-Commander-Firmware-4.3.2-AXISFLYINGH743PRO.hex",
+        "sha256": "cf3cc95b22cfb91839de43937f0e11d5e00509e0984187c3ac7278808dde7c2f"
+      },
+      "BLADE_PRO_H7": {
+        "filename": "Flight-Commander-Firmware-4.3.2-BLADE_PRO_H7.hex",
+        "sha256": "825cc5c28926fba828f3170dc0081b5178ac4e689adba7028fd03b5766cc12f5"
+      },
+      "BLUEBERRYH743": {
+        "filename": "Flight-Commander-Firmware-4.3.2-BLUEBERRYH743.hex",
+        "sha256": "1022c4a2e2a37b0e7b913a8e20fe505e4804d309c28c7ba84d22bb8008a17d33"
+      },
+      "BLUEBERRYH743HD": {
+        "filename": "Flight-Commander-Firmware-4.3.2-BLUEBERRYH743HD.hex",
+        "sha256": "4354b3786a340ec615a0905629ddd65f6ec334bdb0b9b98962e6ddcd9a1f1110"
+      },
+      "BRAHMA_H7": {
+        "filename": "Flight-Commander-Firmware-4.3.2-BRAHMA_H7.hex",
+        "sha256": "bdd37431c558926680e5b27895d88065d1889c162c7b9b16547738b20e5a63f3"
+      },
+      "BROTHERHOBBYH743": {
+        "filename": "Flight-Commander-Firmware-4.3.2-BROTHERHOBBYH743.hex",
+        "sha256": "be928502c6566e174b844fb1256fa95445a44f00ffceadcfe1f77700d69252b3"
+      },
+      "CORVON743V1": {
+        "filename": "Flight-Commander-Firmware-4.3.2-CORVON743V1.hex",
+        "sha256": "54d55773623407e5ec9bc0fb884ff703e2e795c065324fe142893fb768f5d231"
+      },
+      "DAKEFPVH743": {
+        "filename": "Flight-Commander-Firmware-4.3.2-DAKEFPVH743.hex",
+        "sha256": "767032f48d2323ff90afdfa1b5275df1d69e3c0e45175cd9445b7f543b7a5862"
+      },
+      "DAKEFPVH743PRO": {
+        "filename": "Flight-Commander-Firmware-4.3.2-DAKEFPVH743PRO.hex",
+        "sha256": "957b17a0ee646a33ac493683aa21226a8a2b0abc7912e9e84eddd371df3ae76c"
+      },
+      "DAKEFPVH743_SLIM": {
+        "filename": "Flight-Commander-Firmware-4.3.2-DAKEFPVH743_SLIM.hex",
+        "sha256": "294a254ce869d4c75c2f30e25acfc9cdc1eee254c5f3b9d22dea8c5d6f54ad5f"
+      },
+      "FLYWOOH743PRO": {
+        "filename": "Flight-Commander-Firmware-4.3.2-FLYWOOH743PRO.hex",
+        "sha256": "6b33451d0a53f18b505b385a4790f2d23d5192a7f8b93594c1f90505d0fd6ed6"
+      },
+      "FOXEERH743": {
+        "filename": "Flight-Commander-Firmware-4.3.2-FOXEERH743.hex",
+        "sha256": "31d5cf604068c051fccd882554747490435b7d31092a7ffb41e73ffb4a8a8c92"
+      },
+      "GEPRC_TAKER_H743": {
+        "filename": "Flight-Commander-Firmware-4.3.2-GEPRC_TAKER_H743.hex",
+        "sha256": "3cd5f454ea55e376639dc1d321d76a46aaa35cd26e82d4a0d73c544306d00039"
+      },
+      "HAKRCH743": {
+        "filename": "Flight-Commander-Firmware-4.3.2-HAKRCH743.hex",
+        "sha256": "d17099fae2a0ca29f21469935ff35fede2b2a7944dcfea3312c185c74c3ff29a"
+      },
+      "IFLIGHT_2RAW_H743": {
+        "filename": "Flight-Commander-Firmware-4.3.2-IFLIGHT_2RAW_H743.hex",
+        "sha256": "e77db7090fd70484ed02e76df4459b60470bcd040cce6f9ff58f92584e419f85"
+      },
+      "IFLIGHT_BLITZ_H7_PRO": {
+        "filename": "Flight-Commander-Firmware-4.3.2-IFLIGHT_BLITZ_H7_PRO.hex",
+        "sha256": "e7b3eff24edd386e5383d4f75854afa8be717723c878848e60267f88b3b7d5b7"
+      },
+      "IFLIGHT_BLITZ_H7_WING": {
+        "filename": "Flight-Commander-Firmware-4.3.2-IFLIGHT_BLITZ_H7_WING.hex",
+        "sha256": "ed1f81fcb15cbf0d8dc9fcd23bd97b0f78ba3c0e3181a34315d33760688eddc1"
+      },
+      "JHEMCUH743HD": {
+        "filename": "Flight-Commander-Firmware-4.3.2-JHEMCUH743HD.hex",
+        "sha256": "3d505fdd14a370c29d05204a76fc43cda862cd129d5a8f3fb3be61cef28b88d1"
+      },
+      "KAKUTEH7": {
+        "filename": "Flight-Commander-Firmware-4.3.2-KAKUTEH7.hex",
+        "sha256": "71756dfbc42a7ffd923b7e04b44602f6ec7e7eabe409ad3ab3cef30fa87ca0da"
+      },
+      "KAKUTEH7MINI": {
+        "filename": "Flight-Commander-Firmware-4.3.2-KAKUTEH7MINI.hex",
+        "sha256": "06dd375f447effe19548a1493bce192776b57389cee9822be9ef18726872ef6a"
+      },
+      "KAKUTEH7V2": {
+        "filename": "Flight-Commander-Firmware-4.3.2-KAKUTEH7V2.hex",
+        "sha256": "391e1653e30193b1bc9950b466bf3a439a2ed53e439b79fda5258ad4dbbca723"
+      },
+      "KAKUTEH7WING": {
+        "filename": "Flight-Commander-Firmware-4.3.2-KAKUTEH7WING.hex",
+        "sha256": "9032cd63b44acc3ce03da28bd2aaf9a0a671cc3bd704694c53709e63efcf254f"
+      },
+      "MAMBAH743": {
+        "filename": "Flight-Commander-Firmware-4.3.2-MAMBAH743.hex",
+        "sha256": "e840cf0d820c43e2a386e4542202638725ee6313c51d77365e523eec5649c4e4"
+      },
+      "MAMBAH743_2022B": {
+        "filename": "Flight-Commander-Firmware-4.3.2-MAMBAH743_2022B.hex",
+        "sha256": "819d971b7798d92ed186379f59e243052ea80fd291670cea03d1f82e64b4e1f1"
+      },
+      "MAMBAH743_2022B_GYRO2": {
+        "filename": "Flight-Commander-Firmware-4.3.2-MAMBAH743_2022B_GYRO2.hex",
+        "sha256": "bfe548bf0f185d839d61fe11ba5e12ce5beb035539dd24b0ae4aa575220413ad"
+      },
+      "MATEKH743": {
+        "filename": "Flight-Commander-Firmware-4.3.2-MATEKH743.hex",
+        "sha256": "1a4a575f1478b6891dc25983255bcf2d080dbb858245e404cb0f22a82a4287c4"
+      },
+      "MATEKH743HD": {
+        "filename": "Flight-Commander-Firmware-4.3.2-MATEKH743HD.hex",
+        "sha256": "689f2518a619a83ef0743d71e205c2a7a60285f701d2d389677b2091950ecfd5"
+      },
       "MICOAIR743": {
-        "filename": "Flight-Commander-Firmware-4.3.1-MICOAIR743.hex",
-        "sha256": "1fcb891cd7bcee51e86c6dcf0afcc58bc9228584cc3105406e33d00d9ebb7921"
+        "filename": "Flight-Commander-Firmware-4.3.2-MICOAIR743.hex",
+        "sha256": "2eae507051462212e4eb0b2b3843f3e8eb4459db57b3a936ba6f5ee75a26e4d8"
+      },
+      "MICOAIR743AIO": {
+        "filename": "Flight-Commander-Firmware-4.3.2-MICOAIR743AIO.hex",
+        "sha256": "76c44da50c3e77179bd7bdf3b750dba674eed69ce45cfa6e6a69eb7bcdd05091"
+      },
+      "MICOAIR743V2": {
+        "filename": "Flight-Commander-Firmware-4.3.2-MICOAIR743V2.hex",
+        "sha256": "11f7a78b1704c36cecdf4647d84bc0425cd358d957e73723fc4ecb5e698a6958"
+      },
+      "MICOAIR743V2_EXTMAG": {
+        "filename": "Flight-Commander-Firmware-4.3.2-MICOAIR743V2_EXTMAG.hex",
+        "sha256": "31bb6e3756ab6a1a879459ca92d0abc6738be436850cfb7690110ef1ecff4add"
+      },
+      "MICOAIR743_EXTMAG": {
+        "filename": "Flight-Commander-Firmware-4.3.2-MICOAIR743_EXTMAG.hex",
+        "sha256": "c6716f88b7c667a2789687599f329e338a27e860731da04af0b01639e2ac849c"
+      },
+      "NEUTRONRCH7BT": {
+        "filename": "Flight-Commander-Firmware-4.3.2-NEUTRONRCH7BT.hex",
+        "sha256": "d074d86d86452daeff4c9f466c86e2d8d4fd232bfa1d3473da748946dd279329"
+      },
+      "ORBITH743": {
+        "filename": "Flight-Commander-Firmware-4.3.2-ORBITH743.hex",
+        "sha256": "f374a048ac2dfbfe49e1ee1b7920e572c95a5a3806c0163d994357dbb714b9da"
+      },
+      "SDMODELH7V1": {
+        "filename": "Flight-Commander-Firmware-4.3.2-SDMODELH7V1.hex",
+        "sha256": "7a6f3544a88f4c8b926c31c06c8a4dea047882b1523f33d475297b2e4b49760d"
+      },
+      "SDMODELH7V2": {
+        "filename": "Flight-Commander-Firmware-4.3.2-SDMODELH7V2.hex",
+        "sha256": "c0ed4d64f4ede8fb5fe55a9148bf9d827e7b2d1fba72d75dcc8acfcb16b529f4"
+      },
+      "SEQUREH7": {
+        "filename": "Flight-Commander-Firmware-4.3.2-SEQUREH7.hex",
+        "sha256": "2fdba853b3cc14f68868a87637fb83feab91a6fbce049ccc8cfe098e64c3f80a"
+      },
+      "SEQUREH7V2": {
+        "filename": "Flight-Commander-Firmware-4.3.2-SEQUREH7V2.hex",
+        "sha256": "2fadf8b192d45a5ba61339d4be6523fe6c8916540d6b5b764daa51ef1ec21803"
+      },
+      "SIMPLIFLYH7": {
+        "filename": "Flight-Commander-Firmware-4.3.2-SIMPLIFLYH7.hex",
+        "sha256": "e71fe254f0a70e87d3e4d2d569492240944240e504e9001248ec7b536c3e1c70"
+      },
+      "SKYSTARSH743HD": {
+        "filename": "Flight-Commander-Firmware-4.3.2-SKYSTARSH743HD.hex",
+        "sha256": "8b772f1a5249bb701615bef13e1c9a79db00d41dbc21438387fd84b8cae1020f"
+      },
+      "SPEDIXH743": {
+        "filename": "Flight-Commander-Firmware-4.3.2-SPEDIXH743.hex",
+        "sha256": "e512a746e1e3ffbc1f077d35d92e6b9a240f14feffb1454e63081f6f0a29967c"
+      },
+      "TBS_LUCID_H7": {
+        "filename": "Flight-Commander-Firmware-4.3.2-TBS_LUCID_H7.hex",
+        "sha256": "873ef8df23c0f851ee90a9a0b2afbf703307deb3d6d0f93f1ad459d75321fdd8"
+      },
+      "TBS_LUCID_H7_OEM": {
+        "filename": "Flight-Commander-Firmware-4.3.2-TBS_LUCID_H7_OEM.hex",
+        "sha256": "08c054c83857b5522a18ff8d711218c28b1c9d1f6c6dc4edf95fa1c874f3a7b0"
+      },
+      "TBS_LUCID_H7_V3": {
+        "filename": "Flight-Commander-Firmware-4.3.2-TBS_LUCID_H7_V3.hex",
+        "sha256": "c04f5fce078fe696295492f53a03ce8b42484830980451f27c0518496b286afa"
+      },
+      "TBS_LUCID_H7_WING": {
+        "filename": "Flight-Commander-Firmware-4.3.2-TBS_LUCID_H7_WING.hex",
+        "sha256": "4f15b35831845de53a9937d7d892941517661a7d8a958707801c49582b89978a"
+      },
+      "TBS_LUCID_H7_WING_MINI": {
+        "filename": "Flight-Commander-Firmware-4.3.2-TBS_LUCID_H7_WING_MINI.hex",
+        "sha256": "736c73b535b75eb6995a53a0dbd614e616854a5bc92b0a6250a6ef953508c679"
       },
       "CUBEORANGEPLUS": {
-        "filename": "Flight-Commander-Firmware-4.3.1-CUBEORANGEPLUS.hex",
-        "sha256": "8370b421637226e61d5f50345a21c6e0888943903962377b4a629c5c51ef029f"
+        "filename": "Flight-Commander-Firmware-4.3.2-CUBEORANGEPLUS.hex",
+        "sha256": "1bb44a82ffc656f15cd820b18bf5b54d4c295b02db86cfd6ae25e7e6a283294a"
       }
     },
     "firmwareChangedInRelease": true,
     "firmwareSourceAvailable": true,
-    "firmwareSourceVersion": "4.3.1",
-    "firmwareSourceArchive": "FC-Firmware-Source-v4.3.1.zip",
-    "firmwareSourceSha256": "4fb4221af702dd6f3c851d3b6662fb11b11d773877542fd987f34aefc6f42ba2",
-    "firmwareSourceRevision": "ebd330ec7d70c39dfedba2dede676f450709a15e",
-    "firmwareSourceTree": "936510fb0d37af9828db142a5083652708685cab",
+    "firmwareSourceVersion": "4.3.2",
+    "firmwareSourceArchive": "FC-Firmware-Source-v4.3.2.zip",
+    "firmwareSourceSha256": "61b5b0d208a854ef4054b1901b8fdf6430d221f638edca6ec791f2681e83e2c9",
+    "firmwareSourceRevision": "8f463ef7ee8e812dca263c9abe1ebfed651ada1f",
+    "firmwareSourceTree": "065985d8c287b11e6e9671a937e11c3cd0cc91b1",
     "reconstructionRelease": false,
     "binaryOracleVersion": "1.3.5"
   },

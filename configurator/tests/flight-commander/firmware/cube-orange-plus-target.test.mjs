@@ -21,6 +21,10 @@ const linker = source('src/main/target/link/stm32_flash_h757xi.ld');
 const flasher = source('configurator/tabs/firmware_flasher.js');
 const serialBootloader = source('configurator/js/protocols/stm32.js');
 const releaseManifest = JSON.parse(source('RELEASE-MANIFEST.json'));
+const officialTargets = source('flight-commander/official-targets.txt')
+  .split(/\r?\n/)
+  .filter((line) => line && !line.startsWith('#'))
+  .map((line) => line.split('|', 1)[0]);
 
 test('Cube Orange+ uses the H757 direct-SMPS application contract', () => {
   assert.match(targetBuild, /target_stm32h757xi/);
@@ -168,13 +172,15 @@ test('Cube Orange+ advertises a distinct Flight Commander USB identity', () => {
 
 test('bench builds can override the embedded Flight Commander patch version', () => {
   assert.match(rootBuild, /if\(NOT DEFINED FLIGHT_COMMANDER_FIRMWARE_VERSION\)/);
-  assert.match(rootBuild, /set\(FLIGHT_COMMANDER_FIRMWARE_VERSION 4\.3\.1\)/);
+  assert.match(rootBuild, /set\(FLIGHT_COMMANDER_FIRMWARE_VERSION 4\.3\.2\)/);
   assert.match(rootBuild, /FLIGHT_COMMANDER_VERSION_PATCH=\$\{FLIGHT_COMMANDER_VERSION_PATCH\}/);
 });
 
-test('4.3.1 release manifest independently identifies both official targets', () => {
-  assert.equal(releaseManifest.schema, 2);
-  assert.equal(releaseManifest.version, '4.3.1');
-  assert.deepEqual(releaseManifest.targets, ['MICOAIR743', 'CUBEORANGEPLUS']);
+test('4.3.2 release manifest independently identifies all official targets', () => {
+  assert.equal(releaseManifest.schema, 3);
+  assert.equal(releaseManifest.version, '4.3.2');
+  assert.equal(officialTargets.length, 50);
+  assert.deepEqual(releaseManifest.targets, officialTargets);
+  assert.deepEqual(Object.keys(releaseManifest.target_matrix), officialTargets);
   assert.deepEqual(Object.keys(releaseManifest.artifacts), releaseManifest.targets);
 });

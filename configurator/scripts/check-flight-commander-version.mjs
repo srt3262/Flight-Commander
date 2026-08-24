@@ -1,8 +1,14 @@
 import { createHash } from 'node:crypto';
 import { access, readFile, readdir, stat } from 'node:fs/promises';
 
+import {
+  FLIGHT_COMMANDER_FIRMWARE_TARGETS,
+} from '../js/flightCommander/firmwareCatalog.js';
+
 const SEMVER_PATTERN = /^(\d+)\.(\d+)\.(\d+)(?:[-+].*)?$/;
-const OFFICIAL_FIRMWARE_TARGETS = Object.freeze(['MICOAIR743', 'CUBEORANGEPLUS']);
+const OFFICIAL_FIRMWARE_TARGETS = Object.freeze(
+  FLIGHT_COMMANDER_FIRMWARE_TARGETS.map(({ id }) => id),
+);
 
 export function validateFlightCommanderVersions(packageJson) {
   const versionMatch = SEMVER_PATTERN.exec(packageJson.version ?? '');
@@ -48,7 +54,7 @@ export function validateFlightCommanderVersions(packageJson) {
     JSON.stringify(Object.keys(firmwareReleaseArtifacts)) !== JSON.stringify(OFFICIAL_FIRMWARE_TARGETS)
   ) {
     throw new Error(
-      `package.json must declare firmwareReleaseArtifacts for exactly ${OFFICIAL_FIRMWARE_TARGETS.join(' and ')}.`,
+      `package.json must declare firmwareReleaseArtifacts for all ${OFFICIAL_FIRMWARE_TARGETS.length} canonical official targets.`,
     );
   }
   for (const target of OFFICIAL_FIRMWARE_TARGETS) {

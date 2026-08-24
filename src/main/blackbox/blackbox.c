@@ -1430,8 +1430,10 @@ static void loadSlowState(blackboxSlowState_t *slow)
 
 #ifdef USE_ESC_SENSOR
     escSensorData_t * escSensor = escSensorGetData();
-    slow->escRPM = escSensor->rpm;
-    slow->escTemperature = escSensor->temperature;
+    if (escSensor) {
+        slow->escRPM = escSensor->rpm;
+        slow->escTemperature = escSensor->temperature;
+    }
 #endif
 }
 
@@ -1449,7 +1451,7 @@ static bool writeSlowFrameIfNeeded(bool allowPeriodicWrite)
     if (shouldWrite) {
         loadSlowState(&slowHistory);
     } else {
-        blackboxSlowState_t newSlowState;
+        blackboxSlowState_t newSlowState = {0};
 
         loadSlowState(&newSlowState);
 

@@ -858,6 +858,22 @@ groups:
         max: 255
         default_value: 14
 
+  - name: PG_FLIGHT_COMMANDER_DSHOT_CONFIG
+    type: dshotConfig_t
+    headers: ["drivers/dshot.h"]
+    condition: USE_DSHOT
+    members:
+      - name: dshot_bidir_enabled
+        description: "Enable bidirectional DShot telemetry on motor outputs. Requires compatible ESC firmware and a reboot. This source takes precedence over a configured serial ESC telemetry UART"
+        field: useDshotTelemetry
+        type: bool
+        default_value: OFF
+      - name: dshot_edt_enabled
+        description: "Enable extended DShot telemetry decoding for temperature, voltage, and current in addition to eRPM. Requires compatible ESC firmware"
+        field: useDshotEdt
+        type: bool
+        default_value: OFF
+
   - name: PG_FAILSAFE_CONFIG
     type: failsafeConfig_t
     headers: ["flight/failsafe.h"]

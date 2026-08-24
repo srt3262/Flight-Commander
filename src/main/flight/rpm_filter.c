@@ -36,13 +36,13 @@
 #include "common/maths.h"
 #include "common/filter.h"
 #include "flight/mixer.h"
+#include "drivers/dshot.h"
 #include "sensors/esc_sensor.h"
 #include "fc/config.h"
 #include "fc/settings.h"
 
 #ifdef USE_RPM_FILTER
 
-#define HZ_TO_RPM 1/60.0f
 #define RPM_FILTER_RPM_LPF_HZ 150
 #define RPM_FILTER_HARMONICS 3
 
@@ -66,10 +66,13 @@ typedef struct
 typedef float (*rpmFilterApplyFnPtr)(rpmFilterBank_t *filter, uint8_t axis, float input);
 typedef void (*rpmFilterUpdateFnPtr)(rpmFilterBank_t *filterBank, uint8_t motor, float baseFrequency);
 
+#ifdef USE_ESC_SENSOR
 static EXTENDED_FASTRAM pt1Filter_t motorFrequencyFilter[MAX_SUPPORTED_MOTORS];
+#endif
 static EXTENDED_FASTRAM rpmFilterBank_t gyroRpmFilters;
 static EXTENDED_FASTRAM rpmFilterApplyFnPtr rpmGyroApplyFn;
 static EXTENDED_FASTRAM rpmFilterUpdateFnPtr rpmGyroUpdateFn;
+static uint32_t rpmFilterActiveMotorMask;
 
 float nullRpmFilterApply(rpmFilterBank_t *filter, uint8_t axis, float input)
 {
@@ -90,6 +93,10 @@ float rpmFilterApply(rpmFilterBank_t *filterBank, uint8_t axis, float input)
 
     for (uint8_t motor = 0; motor < getMotorCount(); motor++)
     {
+        if ((rpmFilterActiveMotorMask & (1U << motor)) == 0) {
+            continue;
+        }
+
         for (int harmonicIndex = 0; harmonicIndex < filterBank->harmonics; harmonicIndex++)
         {
             output = biquadFilterApplyDF1(
@@ -135,6 +142,7 @@ static void rpmFilterInit(rpmFilterBank_t *filter, uint16_t q, uint8_t minHz, ui
 }
 
 void disableRpmFilters(void) {
+    rpmFilterActiveMotorMask = 0;
     rpmGyroApplyFn = (rpmFilterApplyFnPtr)nullRpmFilterApply;
 }
 
@@ -159,10 +167,12 @@ void rpmFilterUpdate(rpmFilterBank_t *filterBank, uint8_t motor, float baseFrequ
 
 void rpmFiltersInit(void)
 {
-    for (uint8_t i = 0; i < MAX_SUPPORTED_MOTORS; i++)
-    {
+    rpmFilterActiveMotorMask = 0;
+#ifdef USE_ESC_SENSOR
+    for (uint8_t i = 0; i < MAX_SUPPORTED_MOTORS; i++) {
         pt1FilterInit(&motorFrequencyFilter[i], RPM_FILTER_RPM_LPF_HZ, US2S(RPM_FILTER_UPDATE_RATE_US));
     }
+#endif
 
     rpmGyroUpdateFn = (rpmFilterUpdateFnPtr)nullRpmFilterUpdate;
 
@@ -188,10 +198,29 @@ void rpmFilterUpdateTask(timeUs_t currentTimeUs)
      */
     for (uint8_t i = 0; i < motorCount; i++)
     {
-        const escSensorData_t *escState = getEscTelemetry(i); //Get ESC telemetry
-        const float baseFrequency = pt1FilterApply(&motorFrequencyFilter[i], escState->rpm * HZ_TO_RPM); //Filter motor frequency
+        float baseFrequency = 0.0f;
+        bool telemetryIsFresh = false;
+        if (isDshotTelemetryConfigured()) {
+            if (isDshotTelemetryMotorActive(i)) {
+                baseFrequency = getMotorFrequencyHz(i);
+                telemetryIsFresh = true;
+            }
+        } else {
+#ifdef USE_ESC_SENSOR
+            const escSensorData_t *escState = getEscTelemetry(i);
+            if (escState && escState->dataAge < ESC_DATA_INVALID) {
+                baseFrequency = pt1FilterApply(&motorFrequencyFilter[i], (float)escState->rpm / 60.0f);
+                telemetryIsFresh = true;
+            }
+#endif
+        }
 
-        rpmGyroUpdateFn(&gyroRpmFilters, i, baseFrequency);
+        if (telemetryIsFresh) {
+            rpmGyroUpdateFn(&gyroRpmFilters, i, baseFrequency);
+            rpmFilterActiveMotorMask |= 1U << i;
+        } else {
+            rpmFilterActiveMotorMask &= ~(1U << i);
+        }
     }
 }
 
